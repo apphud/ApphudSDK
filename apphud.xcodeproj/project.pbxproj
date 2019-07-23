@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		94A174FB22A6C8460084EFEC /* apphud.podspec in Resources */ = {isa = PBXBuildFile; fileRef = 94A174FA22A6C8460084EFEC /* apphud.podspec */; };
 		94AE4E9122A0FAC800564F85 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94AE4E9022A0FAC800564F85 /* AppDelegate.swift */; };
 		94AE4E9322A0FAC800564F85 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94AE4E9222A0FAC800564F85 /* ViewController.swift */; };
 		94AE4E9622A0FAC800564F85 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 94AE4E9422A0FAC800564F85 /* Main.storyboard */; };
@@ -18,6 +19,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		94A174FA22A6C8460084EFEC /* apphud.podspec */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = apphud.podspec; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.ruby; };
 		94AE4E8D22A0FAC800564F85 /* apphud.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = apphud.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		94AE4E9022A0FAC800564F85 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		94AE4E9222A0FAC800564F85 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
@@ -44,6 +46,7 @@
 		94AE4E8422A0FAC800564F85 = {
 			isa = PBXGroup;
 			children = (
+				94A174FA22A6C8460084EFEC /* apphud.podspec */,
 				94AE4EAC22A14D0E00564F85 /* Source */,
 				94AE4E8F22A0FAC800564F85 /* apphud */,
 				94AE4E8E22A0FAC800564F85 /* Products */,
@@ -139,6 +142,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				94A174FB22A6C8460084EFEC /* apphud.podspec in Resources */,
 				94AE4E9B22A0FACA00564F85 /* LaunchScreen.storyboard in Resources */,
 				94AE4E9822A0FACA00564F85 /* Assets.xcassets in Resources */,
 				94AE4E9622A0FAC800564F85 /* Main.storyboard in Resources */,

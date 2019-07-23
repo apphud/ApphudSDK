@@ -1,5 +1,5 @@
 Pod::Spec.new do |s|
-  s.name             = 'apphud'
+  s.name             = 'Apphud'
   s.version          = '0.0.1'
   s.summary          = 'iOS subscriptions conversion analytics tool.'
  

@@ -10,9 +10,9 @@ import UIKit
 import StoreKit
 import AdSupport
 
-private typealias ApphudBoolDictionaryCallback = (Bool, [String : Any]?, Error?) -> Void
+// MARK:- PUBLIC
 
-public class Apphud: NSObject {
+final public class Apphud: NSObject {
     
     public var configuration : ApphudConfiguration!
     
@@ -25,16 +25,21 @@ public class Apphud: NSObject {
      - parameter userID: Optional. You can provide your own unique user identifier. If nil then NSUUID will be generated instead.
      */
     public static func start(apiKey: String, configuration : ApphudConfiguration? = nil) {
+        
         if shared == nil {
             shared = Apphud()
+        } else {
+            return
         }
+        
         if configuration == nil {
             let config = ApphudConfiguration(anUserID: Apphud.getUserID())
             shared.configuration = config
         } else {
             shared.configuration = configuration!
         }
-        shared.apiKey = apiKey        
+
+        shared.httpClient = ApphudHttpClient(apiKey: apiKey)       
         shared.initialize()
     }
     
@@ -46,60 +51,50 @@ public class Apphud: NSObject {
      - parameter product: Required. This is an SKProduct class object that has been purchased.
      - parameter callback: Optional. Returns true if revenue has been successfully submitted. Returns false and `error` otherwise. Note that `error` may be nil.
      */
-    public static func reportRevenue(product : SKProduct, callback : ((Bool, Error?) -> Void)?) {
-        guard let manager = shared else {
-            callback?(false, nil)
+    public static func submitPurchase(product : SKProduct, callback : ((ApphudSubscription?, Error?) -> Void)?) {
+        guard shared != nil else {
+            #warning("Uninitialized error")
+            callback?(nil, nil)
             return
         }
-        guard let currencyCode = product.priceLocale.currencyCode else {
-            callback?(false, nil)
-            return
-        }
-        guard let appStoreReceiptURL = Bundle.main.appStoreReceiptURL else {
-            callback?(false, nil)
-            return
-        }
-        var receiptData: Data? = nil
-        do {
-            receiptData = try Data(contentsOf: appStoreReceiptURL)
-        }
-        catch {}
-        if receiptData == nil {
-            callback?(false, nil)
-            return
-        }
-        
-        var environment = "production"
-        #if DEBUG
-        environment = "sandbox"
-        #endif
-        let params : [String : Any] = ["user_id" : manager.configuration.user_id,
-                                       "currency" : currencyCode,
-                                       "price" : product.price.doubleValue,
-                                       "receipt_data" : receiptData!.base64EncodedString(),
-                                       "environment" : environment]
-        
-        if let request = manager.getRequest(path: "subscriptions", params: params, method: "POST") {
-            manager.start(request: request) { (result, info, error) in
-                callback?(result, error)
-            }
-        }
+        shared.submitPurchase(product: product, callback: callback)
+    }
+    
+    /**
+     Returns true if subscription state is trial or active. You should unlock premium functionality for this subscription. Returns false when subscription is expired. If you want to get more details (state, expiration date, purchase date) you should use activeSubscription method.
+     - parameter productID: Required. Product identifier of subscription.
+     */
+    public static func isSubscriptionActiveFor(productID: String) -> Bool {
+        guard let subscription = subscriptionFor(productID: productID) else { return false }
+        return subscription.status == .active || subscription.status == .trial
+    }
+    
+    /**
+     Returns a subscription with given product identifier. Returns nil if subscription has never been purchased with given product identifier.
+     - parameter productID: Required. Product identifier of subscription.
+     */
+    public static func subscriptionFor(productID: String) -> ApphudSubscription? {
+        return subscriptions()?.first(where: {$0.productId == productID})
+    }
+    
+    /**
+     Returns an array of all auto-renewable subscriptions that this user has ever purchased.
+     */
+    public static func subscriptions() -> [ApphudSubscription]? {
+        return shared.currentUser?.subscriptions
     }
     
     // MARK:- PRIVATE
     
-    private static var shared: Apphud!
-    private var apiKey : String = ""
-    private let domain_url_string = "http://analytics.atlantapps.com"
-    
-    private lazy var session : URLSession = {
-        let config = URLSessionConfiguration.default
-        return URLSession.init(configuration: config)
-    }()
+    fileprivate static var shared: Apphud!
+    fileprivate var httpClient : ApphudHttpClient!
+    fileprivate var requires_currency_update = false
+    fileprivate var currentUser : ApphudUser?
     
     private func initialize(){
         registerUser { (result, dictionary, error) in
             if result {
+                self.parseUser(dictionary)
                 print("Apphud: User submitted")
                 self.getProducts(callback: { (result2, dictionary2, error2) in
                     if result2, let dataDict = dictionary2?["data"] as? [String : Any] {
@@ -124,6 +119,43 @@ public class Apphud: NSObject {
         }
     }
     
+    private func submitPurchase(product : SKProduct, callback : ((ApphudSubscription?, Error?) -> Void)?) {
+        guard let appStoreReceiptURL = Bundle.main.appStoreReceiptURL else {
+            callback?(nil, nil)
+            return
+        }
+        var receiptData: Data? = nil
+        do {
+            receiptData = try Data(contentsOf: appStoreReceiptURL)
+        }
+        catch {}
+        if receiptData == nil {
+            callback?(nil, nil)
+            return
+        }
+        
+        var environment = "production"
+        #if DEBUG
+        environment = "sandbox"
+        #endif
+        var params : [String : Any] = ["user_id" : configuration.user_id,
+                                       "receipt_data" : receiptData!.base64EncodedString(),
+                                       "environment" : environment]
+        
+        params.merge(product.submittableParameters(), uniquingKeysWith: {$1})
+        
+        httpClient.startRequest(path: "subscriptions", params: params, method: .post) { (result, response, error) in
+            
+            #warning("finish here, parse subscriptions or fetch current user or change response to current user")
+            self.registerUser { (result, response, error) in
+                if result {
+                    self.parseUser(response)
+                    callback?(Apphud.subscriptionFor(productID: product.productIdentifier), error)
+                }
+            }
+        }
+    }
+    
     private class func getUserID() -> String {
         if let anUserID = ApphudKeychain.loadUserID() {
             return anUserID
@@ -132,7 +164,7 @@ public class Apphud: NSObject {
             return anUserID
         }
     }
-   
+    
     private static func identifierForAdvertising() -> String? {
         // Check whether advertising tracking is enabled
         guard ASIdentifierManager.shared().isAdvertisingTrackingEnabled else {
@@ -143,103 +175,71 @@ public class Apphud: NSObject {
         return ASIdentifierManager.shared().advertisingIdentifier.uuidString
     }
     
+    private func parseUser(_ dict : [String : Any]?){
+        guard let dataDict = dict?["data"] as? [String : Any] else {
+            return
+        }
+        guard let userDict = dataDict["results"] as? [String : Any] else {
+            return
+        }
+        let currency = userDict["currency"] 
+        if currency is NSNull {
+            requires_currency_update = true            
+        } 
+        
+        self.currentUser = ApphudUser(dictionary: userDict)
+        ApphudUser.toCache(userDict)
+    }
+    
     // MARK: API Requests
     
     private func registerUser(callback: @escaping ApphudBoolDictionaryCallback) {
-        guard let currencyCode = Locale.current.currencyCode else {
-            callback(false, nil, nil)
-            return
-        }
-        let params: [String : Any] = ["user_id" : configuration.user_id, "locale" : Locale.current.identifier, "currency" : currencyCode]
-        if let request = getRequest(path: "users", params: params, method: "POST") {
-            start(request: request, callback: callback)
+        
+        self.currentUser = ApphudUser.fromCache()
+        let locale = Locale.current.identifier        
+        let params : [String : Any] = ["user_id" : configuration.user_id, 
+                                       "locale" : locale]
+               
+        httpClient.startRequest(path: "customers", params: params, method: .post, callback: callback)        
+    }
+    
+    private func updateUserCurrencyIfNeeded(priceLocale : Locale){
+        guard requires_currency_update else { return }
+        guard let countryCode = priceLocale.regionCode else { return }
+        guard let currencyCode = priceLocale.currencyCode else { return }
+        
+        let params : [String : Any] = ["country_code" : countryCode,
+                                       "currency_code" : currencyCode,
+                                       "user_id" : configuration.user_id]
+    
+        updateUser(fields: params) { (result, response, error) in
+                self.requires_currency_update = false
+                self.parseUser(response)
+                print("response: \(response) error: \(error)")
         }
     }
     
+    private func updateUser(fields: [String : Any], callback: @escaping ApphudBoolDictionaryCallback){
+        httpClient.startRequest(path: "customers", params: fields, method: .post, callback: callback)
+    }
+    
     private func getProducts(callback: @escaping ApphudBoolDictionaryCallback) {
-        if let request = getRequest(path: "products", params: nil, method: "GET") {
-            start(request: request, callback: callback)
-        }
+        httpClient.startRequest(path: "products", params: nil, method: .get, callback: callback)
     }
     
     private func submitProducts(products: [SKProduct], callback : @escaping ApphudBoolDictionaryCallback) {
         var array = [[String : Any]]()
         for product in products {
-            if let currencyCode = product.priceLocale.currencyCode {
-                let product_json : [String : Any] = ["product_id" : product.productIdentifier,
-                                                     "currency" : currencyCode,
-                                                     "price" : product.price.doubleValue]
-                array.append(product_json)
-            }
+            let productParams : [String : Any] = product.submittableParameters()            
+            array.append(productParams)
         }
+        
         let params = ["products" : array] as [String : Any]
-        if let request = getRequest(path: "products", params: params, method: "PUT") {
-            start(request: request, callback: callback)
-        }
-    }
-    
-    // MARK: Request Helpers
-    
-    private func getRequest(path : String, params : [String : Any]?, method : String) -> URLRequest? {
-        var request: URLRequest? = nil
-        do {
-            var url: URL? = nil
-            if method == "GET" {
-                var components = URLComponents(string: "\(domain_url_string)/v1/app/\(path)")
-                var items: [URLQueryItem] = [URLQueryItem(name: "api_key", value: apiKey)]
-                if let requestParams = params {
-                    for key in requestParams.keys {
-                        items.append(URLQueryItem(name: key, value: requestParams[key] as? String))
-                    }
-                }
-                components?.queryItems = items
-                url = components?.url
-            }
-            else {
-                url = URL(string: "\(domain_url_string)/v1/app/\(path)")
-            }
-            guard let finalURL = url else {
-                return nil
-            }
-            
-            request = URLRequest(url: finalURL, cachePolicy: URLRequest.CachePolicy.useProtocolCachePolicy, timeoutInterval: 20)
-            request?.httpMethod = method
-            request?.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
-            request?.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Accept")
-            
-            if method != "GET" {
-                var finalParams : [String : Any] = ["api_key" : apiKey]
-                if params != nil {
-                    finalParams.merge(params!, uniquingKeysWith: {$1})
-                }
-                let data = try JSONSerialization.data(withJSONObject: finalParams, options: .prettyPrinted)
-                request?.httpBody = data
-            }
-        } catch {
-            
-        }
-        return request
-    }
-    
-    private func start(request: URLRequest, callback: ApphudBoolDictionaryCallback?){
-        let task = session.dataTask(with: request) { (data, response, error) in
-            if let httpResponse = response as? HTTPURLResponse {
-                let code = httpResponse.statusCode
-                if code < 300 {
-                    var dictionary: [String : Any]?
-                    if data != nil {
-                        do {
-                            dictionary = try JSONSerialization.jsonObject(with: data!, options: []) as? [String:Any]
-                        } catch {}
-                    }
-                    callback?(true, dictionary, nil)
-                    return
-                }
-            }
-            callback?(false, nil, error)
-        }
-        task.resume()
-    }
+        
+        print("submitting product: \n\(params)")
+        
+        httpClient.startRequest(path: "products", params: params, method: .put, callback: callback)        
+    }    
 }
 
 extension Apphud : SKProductsRequestDelegate {
@@ -247,6 +247,9 @@ extension Apphud : SKProductsRequestDelegate {
     public func productsRequest(_ request: SKProductsRequest, didReceive response: SKProductsResponse) {
         if response.products.count > 0 {
             print("Apphud: Products info received from Apple \(response.products)")
+            
+            updateUserCurrencyIfNeeded(priceLocale: response.products.first!.priceLocale)
+            
             self.submitProducts(products: response.products, callback: { (result3, dictionary3, error3) in
                 if result3 {
                     print("Apphud: Products submitted")
@@ -257,24 +260,6 @@ extension Apphud : SKProductsRequestDelegate {
         }
     }
 }
-
-
-
 /*
- 
- POST /v1/users?user_id={user_id}&locale={locale}&currency={currency}&api_key={api_key} — Create User
- GET /v1/products?api_key={api_key} – Получить список product_id, чтобы запросить для них актуальную цену с устройства.
- PUT /v1/products?api_key={api_key}&product_id={product_id}&currency={currency}&price={price} – Обновить цену продукта для конкретной валюты, после её создания конвертируем эту валюту в бакс и записываем цену в баксах в отдельную колонку.
- POST /v1/subscriptions?user_id={user_id}&receipt_data={receipt_data}&receipt={receipt}&api_key={api_key}&price={price}&currency={currency} – Create Subscription. Тут во время создания подписки мы имеем receipt, из которого получаем оплаченый product_id, с помощью него мы узнаем актуальную цену в баксах на этот продукт в нашей бд и эта цена записывается жестко в саму подписку, далее каждый ребил будет считаться по этой цене и отправляться в аналитику. Если продукт не найден в нашей бд по каким-то причинам, то создаем этот продукт и цену для него.
- 
- Александр Селиванов, [28 Apr 2019 at 09:23:23]:
- PUT /v1/products?api_key={api_key}&products={products} – Обновить цену продукта для конкретной валюты, после её создания конвертируем эту валюту в бакс и записываем цену в баксах в отдельную колонку.
- 
- {products} = {
- product_id: product_id,
- currency: currency,
- price: price
- }
- 
- вот этот ендпоинт лучше массово все цены по нужным продуктам слать.
+ p print(String(data: try! JSONSerialization.data(withJSONObject: dictionary, options: .prettyPrinted), encoding: .utf8 )!)
  */
