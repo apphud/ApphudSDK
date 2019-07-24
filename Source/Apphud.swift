@@ -53,6 +53,12 @@ final public class Apphud: NSObject {
         ApphudInternal.shared.initialize(apiKey: apiKey, userID: userID)
     }
     
+    #if DEBUG
+    @objc public static func start(apiKey: String, userID : String? = nil, deviceID : String? = nil) {
+        ApphudInternal.shared.initialize(apiKey: apiKey, userID: userID, deviceIdentifier: deviceID)
+    }
+    #endif
+    
     /**
         Updates user ID value 
         - parameter userID: Required. New user ID value.

@@ -8,8 +8,8 @@
 
 import UIKit
 
-let APPHUD_API_KEY = "YOUR_API_KEY"
-let SHARED_SECRET = "YOUR_SHARED_KEY"
+let APPHUD_API_KEY = "MDn9JRkSZzLMHtsFzWJXrscF7tZnis"
+let SHARED_SECRET = "41f22138637c46458ee387e276ad53e2"
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -19,7 +19,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         
-        Apphud.start(apiKey: APPHUD_API_KEY)
+        Apphud.start(apiKey: APPHUD_API_KEY, userID: nil, deviceID: "device_21.2")
         
         // load your in-app purchase helper as usual
         IAPManager.shared.startWith(arrayOfIds: [
