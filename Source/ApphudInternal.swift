@@ -48,7 +48,6 @@ final class ApphudInternal {
         
         self.currentUser = ApphudUser.fromCache()
         
-        #warning("check this")
         if userID != nil {
             self.currentUserID = userID!
         } else if let existingUserID = self.currentUser?.user_id {
@@ -56,7 +55,7 @@ final class ApphudInternal {
         } else {
             self.currentUserID = ApphudKeychain.generateUUID()
         }
-        
+                
         registerUser { (result, dictionary, error) in
             if result {
                 
@@ -117,7 +116,7 @@ final class ApphudInternal {
     /*
      Returns a value, indicating whether subscriptions data has changes
      */
-    private func parseUser(_ dict : [String : Any]?) -> Bool{
+    @discardableResult private func parseUser(_ dict : [String : Any]?) -> Bool{
        
         guard let dataDict = dict?["data"] as? [String : Any] else {
             return false
@@ -273,14 +272,6 @@ final class ApphudInternal {
         httpClient.startRequest(path: "subscriptions", params: params, method: .post) { (result, response, error) in        
             
             self.isSubmittingReceipt = false
-            
-            if isRestoring {
-                let invalidReceiptError = false // should get this error from server
-                if invalidReceiptError {
-                    ApphudStoreKitWrapper.shared.refreshReceipt()
-                    return
-                }
-            }
             
             if result {
                 UserDefaults.standard.set(false, forKey: self.requiresReceiptSubmissionKey)

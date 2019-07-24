@@ -103,7 +103,7 @@ struct ApphudHttpClient {
                         callback?(true, dictionary, nil)
                         return
                     }
-                    apphudLog("Request \(request.url?.absoluteString ?? "") failed with code \(code), error: \(error?.localizedDescription ?? "") response: \(dictionary)")
+                    apphudLog("Request \(request.url?.absoluteString ?? "") failed with code \(code), error: \(error?.localizedDescription ?? "") response: \(dictionary ?? [:])")
                 }
                 
                 callback?(false, nil, error)
