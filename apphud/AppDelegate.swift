@@ -8,8 +8,8 @@
 
 import UIKit
 
-let APPHUD_API_KEY = "MDn9JRkSZzLMHtsFzWJXrscF7tZnis"
-let SHARED_SECRET = "f252a2ca863a4e67bb46cdc5d6553ae8"
+let APPHUD_API_KEY = "YOUR_API_KEY"
+let SHARED_SECRET = "YOUR_SHARED_KEY"
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
