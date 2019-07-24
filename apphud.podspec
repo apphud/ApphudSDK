@@ -1,9 +1,9 @@
 Pod::Spec.new do |s|
-  s.name             = 'Apphud'
-  s.version          = '0.0.1'
-  s.summary          = 'iOS subscriptions conversion analytics tool.'
+  s.name             = 'apphud'
+  s.version          = '0.1'
+  s.summary          = 'Track and control iOS auto-renewable subscriptions.'
  
-  s.description      = 'This is a tool to track iOS subscriptions conversion from trial to paid.'
+  s.description      = 'Track, control and analyze iOS auto-renewable subscriptions with Apphud.'
   s.homepage         = 'https://github.com/apphud/apphud'
   s.license          = { :type => 'MIT', :file => 'LICENSE' }
   s.author           = { 'apphud' => 'hi@apphud.com' }

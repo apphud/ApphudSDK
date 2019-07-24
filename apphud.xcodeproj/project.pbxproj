@@ -7,18 +7,35 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		947977AF22E8453200EE1934 /* Apphud.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947977A622E8453200EE1934 /* Apphud.swift */; };
+		947977B022E8453200EE1934 /* ApphudExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947977A722E8453200EE1934 /* ApphudExtensions.swift */; };
+		947977B122E8453200EE1934 /* ApphudHttpClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947977A822E8453200EE1934 /* ApphudHttpClient.swift */; };
+		947977B222E8453200EE1934 /* ApphudUser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947977A922E8453200EE1934 /* ApphudUser.swift */; };
+		947977B322E8453200EE1934 /* ApphudInternal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947977AA22E8453200EE1934 /* ApphudInternal.swift */; };
+		947977B422E8453200EE1934 /* ApphudStoreKitWrapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947977AB22E8453200EE1934 /* ApphudStoreKitWrapper.swift */; };
+		947977B522E8453200EE1934 /* ApphudSubscription.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947977AC22E8453200EE1934 /* ApphudSubscription.swift */; };
+		947977B622E8453200EE1934 /* ApphudKeychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947977AD22E8453200EE1934 /* ApphudKeychain.swift */; };
+		947977B722E8453200EE1934 /* ApphudUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947977AE22E8453200EE1934 /* ApphudUtils.swift */; };
+		947977B922E8460500EE1934 /* IAPManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947977B822E8460500EE1934 /* IAPManager.swift */; };
 		94A174FB22A6C8460084EFEC /* apphud.podspec in Resources */ = {isa = PBXBuildFile; fileRef = 94A174FA22A6C8460084EFEC /* apphud.podspec */; };
 		94AE4E9122A0FAC800564F85 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94AE4E9022A0FAC800564F85 /* AppDelegate.swift */; };
 		94AE4E9322A0FAC800564F85 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94AE4E9222A0FAC800564F85 /* ViewController.swift */; };
 		94AE4E9622A0FAC800564F85 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 94AE4E9422A0FAC800564F85 /* Main.storyboard */; };
 		94AE4E9822A0FACA00564F85 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 94AE4E9722A0FACA00564F85 /* Assets.xcassets */; };
 		94AE4E9B22A0FACA00564F85 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 94AE4E9922A0FACA00564F85 /* LaunchScreen.storyboard */; };
-		94AE4EAF22A14D0E00564F85 /* ApphudKeychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94AE4EAD22A14D0E00564F85 /* ApphudKeychain.swift */; };
-		94AE4EB022A14D0E00564F85 /* Apphud.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94AE4EAE22A14D0E00564F85 /* Apphud.swift */; };
-		94AE4ED022A440D900564F85 /* ApphudConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94AE4ECF22A440D900564F85 /* ApphudConfiguration.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		947977A622E8453200EE1934 /* Apphud.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Apphud.swift; sourceTree = "<group>"; };
+		947977A722E8453200EE1934 /* ApphudExtensions.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudExtensions.swift; sourceTree = "<group>"; };
+		947977A822E8453200EE1934 /* ApphudHttpClient.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudHttpClient.swift; sourceTree = "<group>"; };
+		947977A922E8453200EE1934 /* ApphudUser.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudUser.swift; sourceTree = "<group>"; };
+		947977AA22E8453200EE1934 /* ApphudInternal.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudInternal.swift; sourceTree = "<group>"; };
+		947977AB22E8453200EE1934 /* ApphudStoreKitWrapper.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudStoreKitWrapper.swift; sourceTree = "<group>"; };
+		947977AC22E8453200EE1934 /* ApphudSubscription.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudSubscription.swift; sourceTree = "<group>"; };
+		947977AD22E8453200EE1934 /* ApphudKeychain.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudKeychain.swift; sourceTree = "<group>"; };
+		947977AE22E8453200EE1934 /* ApphudUtils.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudUtils.swift; sourceTree = "<group>"; };
+		947977B822E8460500EE1934 /* IAPManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = IAPManager.swift; sourceTree = "<group>"; };
 		94A174FA22A6C8460084EFEC /* apphud.podspec */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = apphud.podspec; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.ruby; };
 		94AE4E8D22A0FAC800564F85 /* apphud.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = apphud.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		94AE4E9022A0FAC800564F85 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -27,9 +44,6 @@
 		94AE4E9722A0FACA00564F85 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		94AE4E9A22A0FACA00564F85 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		94AE4E9C22A0FACA00564F85 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		94AE4EAD22A14D0E00564F85 /* ApphudKeychain.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudKeychain.swift; sourceTree = "<group>"; };
-		94AE4EAE22A14D0E00564F85 /* Apphud.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Apphud.swift; sourceTree = "<group>"; };
-		94AE4ECF22A440D900564F85 /* ApphudConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApphudConfiguration.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -66,6 +80,7 @@
 			children = (
 				94AE4E9022A0FAC800564F85 /* AppDelegate.swift */,
 				94AE4E9222A0FAC800564F85 /* ViewController.swift */,
+				947977B822E8460500EE1934 /* IAPManager.swift */,
 				94AE4E9422A0FAC800564F85 /* Main.storyboard */,
 				94AE4E9722A0FACA00564F85 /* Assets.xcassets */,
 				94AE4E9922A0FACA00564F85 /* LaunchScreen.storyboard */,
@@ -77,9 +92,15 @@
 		94AE4EAC22A14D0E00564F85 /* Source */ = {
 			isa = PBXGroup;
 			children = (
-				94AE4EAD22A14D0E00564F85 /* ApphudKeychain.swift */,
-				94AE4EAE22A14D0E00564F85 /* Apphud.swift */,
-				94AE4ECF22A440D900564F85 /* ApphudConfiguration.swift */,
+				947977A622E8453200EE1934 /* Apphud.swift */,
+				947977A722E8453200EE1934 /* ApphudExtensions.swift */,
+				947977A822E8453200EE1934 /* ApphudHttpClient.swift */,
+				947977AA22E8453200EE1934 /* ApphudInternal.swift */,
+				947977AD22E8453200EE1934 /* ApphudKeychain.swift */,
+				947977AB22E8453200EE1934 /* ApphudStoreKitWrapper.swift */,
+				947977AC22E8453200EE1934 /* ApphudSubscription.swift */,
+				947977A922E8453200EE1934 /* ApphudUser.swift */,
+				947977AE22E8453200EE1934 /* ApphudUtils.swift */,
 			);
 			path = Source;
 			sourceTree = "<group>";
@@ -156,11 +177,18 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				947977B922E8460500EE1934 /* IAPManager.swift in Sources */,
+				947977B122E8453200EE1934 /* ApphudHttpClient.swift in Sources */,
 				94AE4E9322A0FAC800564F85 /* ViewController.swift in Sources */,
-				94AE4EB022A14D0E00564F85 /* Apphud.swift in Sources */,
-				94AE4EAF22A14D0E00564F85 /* ApphudKeychain.swift in Sources */,
+				947977B222E8453200EE1934 /* ApphudUser.swift in Sources */,
+				947977AF22E8453200EE1934 /* Apphud.swift in Sources */,
 				94AE4E9122A0FAC800564F85 /* AppDelegate.swift in Sources */,
-				94AE4ED022A440D900564F85 /* ApphudConfiguration.swift in Sources */,
+				947977B622E8453200EE1934 /* ApphudKeychain.swift in Sources */,
+				947977B522E8453200EE1934 /* ApphudSubscription.swift in Sources */,
+				947977B022E8453200EE1934 /* ApphudExtensions.swift in Sources */,
+				947977B422E8453200EE1934 /* ApphudStoreKitWrapper.swift in Sources */,
+				947977B722E8453200EE1934 /* ApphudUtils.swift in Sources */,
+				947977B322E8453200EE1934 /* ApphudInternal.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -306,15 +334,15 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_STYLE = Manual;
-				DEVELOPMENT_TEAM = "";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 4F9FP2XDZ3;
 				INFOPLIST_FILE = apphud/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 11.2;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.softeam.apphud;
+				PRODUCT_BUNDLE_IDENTIFIER = com.apphud.subscriptionstest;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_VERSION = 5.0;
@@ -326,15 +354,15 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_STYLE = Manual;
-				DEVELOPMENT_TEAM = "";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 4F9FP2XDZ3;
 				INFOPLIST_FILE = apphud/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 11.2;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.softeam.apphud;
+				PRODUCT_BUNDLE_IDENTIFIER = com.apphud.subscriptionstest;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_VERSION = 5.0;

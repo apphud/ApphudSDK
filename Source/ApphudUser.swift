@@ -1,18 +1,26 @@
 //
 //  ApphudUser.swift
-//  subscriptionstest
+// Apphud
 //
-//  Created by Renat on 25/06/2019.
-//  Copyright © 2019 apphud. All rights reserved.
+//  Created by ren6 on 25/06/2019.
+//  Copyright © 2019 Softeam Inc. All rights reserved.
 //
 
 import Foundation
 
 fileprivate let ApphudUserCacheKey = "ApphudUserCacheKey"
 
-public struct ApphudUser {
+internal struct ApphudUser {
+    /**
+     Unique user identifier. This can be updated later.
+     */
     let user_id : String
+    /**
+     An array of subscriptions that user has ever purchased.
+     */
     let subscriptions : [ApphudSubscription]?
+    
+    // MARK:- Private methods
     
     init?(dictionary : [String : Any]) {
         guard let userID = dictionary["user_id"] as? String else { return nil }
@@ -26,7 +34,19 @@ public struct ApphudUser {
                 }
             }
         }
-        self.subscriptions = subs
+        if subs.count > 0 {
+            self.subscriptions = subs
+        } else {
+            self.subscriptions = nil
+        }
+    }
+    
+    func subscriptionsStates() -> [String : String] {
+        var dict = [String : String]()
+        for subscription in self.subscriptions ?? [] {
+            dict[subscription.productId] = subscription.status.toString()
+        }
+        return dict
     }
     
     static func toCache(_ dictionary : [String : Any]) {
@@ -36,7 +56,7 @@ public struct ApphudUser {
             let fileURL = documentsURL.appendingPathComponent("ApphudUser.data")            
             try data.write(to: fileURL)
         } catch {
-            print("error: \(error.localizedDescription)")
+            apphudLog("failed to write to cache apphud user json, error: \(error.localizedDescription)")
         }
     }
     
@@ -44,6 +64,11 @@ public struct ApphudUser {
         do {
             if let documentsURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first {
                 let fileURL = documentsURL.appendingPathComponent("ApphudUser.data")
+                
+                if !FileManager.default.fileExists(atPath: fileURL.path) {
+                    return nil
+                }
+                
                 let data = try Data(contentsOf: fileURL)
                 
                 if let dictionary = try NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(data) as? [String : Any] {
@@ -51,7 +76,7 @@ public struct ApphudUser {
                 }
             }
         } catch {
-            print("error: \(error.localizedDescription)")
+            apphudLog("failed to read from cache apphud user json, error: \(error.localizedDescription)")
         }
         return nil
     }

@@ -3,7 +3,7 @@
 //  Apphud
 //
 //  Created by ren6 on 30/05/2019.
-//  Copyright © 2019 Softeam. All rights reserved.
+//  Copyright © 2019 Softeam Inc. All rights reserved.
 //
 
 import UIKit
@@ -12,7 +12,7 @@ import Security
 // Constant Identifiers
 let userAccount = "ApphudUser"
 let accessGroup = "SecuritySerivice"
-let passwordKey : NSString = "ApphudUserID"
+let deviceIdKey : NSString = "ApphudDeviceID"
 
 // Arguments for the keychain queries
 let kSecClassValue = NSString(format: kSecClass)
@@ -26,14 +26,17 @@ let kSecMatchLimitOneValue = NSString(format: kSecMatchLimitOne)
 
 class ApphudKeychain: NSObject {
     
-    public class func generateUserID() -> String{
-        let anUserID = NSUUID.init().uuidString
-        self.save(passwordKey, data: anUserID)
-        return anUserID
+    public class func generateUUID() -> String{
+        let uuid = NSUUID.init().uuidString
+        return uuid
     }
     
-    public class func loadUserID() -> String? {
-        return self.load(passwordKey)
+    public class func loadDeviceID() -> String? {
+        return self.load(deviceIdKey)
+    }
+    
+    public class func saveDeviceID(deviceID : String) {
+        self.save(deviceIdKey, data: deviceID)
     }
     
     private class func save(_ service: NSString, data: String) {

@@ -1,9 +1,9 @@
 //
 //  ApphudRequestManager.swift
-//  subscriptionstest
+// Apphud
 //
-//  Created by Renat on 26/06/2019.
-//  Copyright © 2019 apphud. All rights reserved.
+//  Created by ren6 on 26/06/2019.
+//  Copyright © 2019 Softeam Inc. All rights reserved.
 //
 
 import Foundation
@@ -70,6 +70,11 @@ struct ApphudHttpClient {
         } catch {
             
         }
+        
+        #if DEBUG
+        apphudLog("Start request \(request?.url?.absoluteString ?? "") params: \(params ?? [:])")
+        #endif
+        
         return request
     }
     
@@ -77,20 +82,33 @@ struct ApphudHttpClient {
         let task = session.dataTask(with: request) { (data, response, error) in
             
             var dictionary: [String : Any]?
-            if data != nil {
-                dictionary = try? JSONSerialization.jsonObject(with: data!, options: []) as? [String:Any]
-            }
             
-            print("RESPONSE: \(response?.url)\n DICT:\n\(dictionary)")
-            
-            if let httpResponse = response as? HTTPURLResponse {
-                let code = httpResponse.statusCode
-                if code >= 200 && code < 300 {
-                    callback?(true, dictionary, nil)
-                    return
+            do {
+                if data != nil {
+                    dictionary = try JSONSerialization.jsonObject(with: data!, options: []) as? [String : Any]
                 }
+            } catch {
+                
             }
-            callback?(false, nil, error)
+                        
+            DispatchQueue.main.async {
+                if let httpResponse = response as? HTTPURLResponse {
+                    let code = httpResponse.statusCode
+                    if code >= 200 && code < 300 {
+                        
+                        if data != nil {
+                            let stringResponse = String(data: data!, encoding: .utf8)
+                            apphudLog("Request \(request.url?.absoluteString ?? "") success with response: \n\(stringResponse ?? "")")
+                        }
+                        callback?(true, dictionary, nil)
+                        return
+                    }
+                    apphudLog("Request \(request.url?.absoluteString ?? "") failed with code \(code), error: \(error?.localizedDescription ?? "") response: \(dictionary)")
+                }
+                
+                callback?(false, nil, error)
+            }
+            
         }
         task.resume()
     }

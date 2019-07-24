@@ -1,13 +1,70 @@
 //
 //  ApphudExtensions.swift
-//  subscriptionstest
+// Apphud
 //
-//  Created by Renat on 26/06/2019.
-//  Copyright © 2019 apphud. All rights reserved.
+//  Created by ren6 on 26/06/2019.
+//  Copyright © 2019 Softeam Inc. All rights reserved.
 //
 
 import Foundation
 import StoreKit
+
+internal func apphudLog(_ text : String) {
+    if ApphudUtils.shared.isLoggingEnabled {
+        print("[Apphud] \(text)")
+    }
+}
+
+internal func currentDeviceParameters() -> [String : String]{
+    
+    let family : String
+    if UIDevice.current.userInterfaceIdiom == .phone {
+        family = "iPhone"
+    } else {
+        family = "iPad"
+    }    
+    let app_version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? ""
+    
+    let params : [String : String] = ["locale" : Locale.current.identifier, 
+                                      "time_zone" : TimeZone.current.identifier,
+                                      "device_type" : UIDevice.current.apphudModelName, 
+                                      "device_family" : family, 
+                                      "platform" : "iOS", 
+                                      "app_version" : app_version, 
+                                      "start_app_version" : app_version, 
+                                      "sdk_version" : sdk_version, 
+                                      "os_version" : UIDevice.current.systemVersion,
+    ]
+    return params
+}
+
+extension UIDevice {
+    var apphudModelName: String {
+        var systemInfo = utsname()
+        uname(&systemInfo)
+        let machineMirror = Mirror(reflecting: systemInfo.machine)
+        let identifier = machineMirror.children.reduce("") { identifier, element in
+            guard let value = element.value as? Int8, value != 0 else { return identifier }
+            return identifier + String(UnicodeScalar(UInt8(value)))
+        }
+        return identifier
+    }
+}
+
+
+internal func receiptDataString() -> String? {
+    guard let appStoreReceiptURL = Bundle.main.appStoreReceiptURL else {
+        return nil
+    }
+    var receiptData: Data? = nil
+    do {
+        receiptData = try Data(contentsOf: appStoreReceiptURL)
+    }
+    catch {}
+    
+    let string = receiptData?.base64EncodedString()
+    return string
+}
 
 extension SKProduct {
     
@@ -70,8 +127,7 @@ extension SKProduct {
             case .payAsYouGo:
                 mode = "pay_as_you_go"
             case .freeTrial:
-                break
-            //                mode = "free_trial"
+                mode = "trial"
             default:
                 break
             }

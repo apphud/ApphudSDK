@@ -3,263 +3,143 @@
 //  Apphud
 //
 //  Created by ren6 on 28/04/2019.
-//  Copyright © 2019 Softeam. All rights reserved.
+//  Copyright © 2019 Softeam Inc. All rights reserved.
 //
 
 import UIKit
 import StoreKit
-import AdSupport
 
-// MARK:- PUBLIC
+@objc public protocol ApphudDelegate {
+    
+    /**
+     Called when subscriptions information has been updated. 
+     
+     This delegate method is called in 2 cases:
+     
+     * When subscriptions are restored.
+     * When subscription state has been changed. For example, if state has changed from trial to regular.
+     
+     __Note__: This delegate method is not called when user has made a purchase. A callback block is called instead.
+     
+     This doesn't mean that user has active subscriptions, this only means that application has just fetched the latest information about his subscriptions and something has changed.
+     */
+    @objc optional func apphudSubscriptionsUpdated(_ subscriptions : [ApphudSubscription])
+    
+ /**
+     Called when user ID has been changed.
+     
+     This delegate method is called in 2 cases:
+     
+     * When Apphud has merged two users into a single user (for example, after user has restored purchases from his another device).
+     After App Store receipt has been sent to Apphud, server tries to find the same receipt in the database.
+     If the same App Store receipt has been found, Apphud merges two users into a single user with two devices and then returns an original userID. 
+
+        __Note__: Only users who have ever purchased a subscription and sent their App Store receipt to Apphud can be merged.  
+     
+     * After manual `updateUserID(userID : String)` method call. 
+ */
+    @objc optional func apphudDidChangeUserID(_ userID : String)
+}
 
 final public class Apphud: NSObject {
     
-    public var configuration : ApphudConfiguration!
-    
     /**
-     Initializes Apphud SDK.
-     
-     This is mandatory initialize method. Better to call it within `application:didFinishLaunchingWithOptions:`.
+     Initializes Apphud SDK. You should call it during app launch.
      
      - parameter apiKey: Required. Your api key.
-     - parameter userID: Optional. You can provide your own unique user identifier. If nil then NSUUID will be generated instead.
+     - parameter userID: Optional. You can provide your own unique user identifier. If nil passed then UUID will be generated instead.
      */
-    public static func start(apiKey: String, configuration : ApphudConfiguration? = nil) {
-        
-        if shared == nil {
-            shared = Apphud()
-        } else {
-            return
-        }
-        
-        if configuration == nil {
-            let config = ApphudConfiguration(anUserID: Apphud.getUserID())
-            shared.configuration = config
-        } else {
-            shared.configuration = configuration!
-        }
-
-        shared.httpClient = ApphudHttpClient(apiKey: apiKey)       
-        shared.initialize()
+    @objc public static func start(apiKey: String, userID : String? = nil) {
+        ApphudInternal.shared.initialize(apiKey: apiKey, userID: userID)
     }
     
     /**
-     Reports successfully purchased product to Apphud server. 
+        Updates user ID value 
+        - parameter userID: Required. New user ID value.
+        */
+    @objc public static func updateUserID(_ userID : String) {
+        ApphudInternal.shared.updateUserID(userID: userID)
+    }
+        
+    /**
+        Returns current userID that identifies user across his multiple devices. 
      
-     Call it after purchase has been made. Apphud servers will validate receipt automatically and send purchase events to your Analytics when trial is converted to paid subscription. If this is a non trial subscription then events to Analytics will be sent immediately.     
+        This value may change in runtime, see `apphudDidChangeUserID(_ userID : String)` for details.
+        */
+    @objc public static func userID() -> String {
+        return ApphudInternal.shared.currentUserID
+    }
+    
+    /**
+        Set a delegate.
+        - parameter delegate: Required. Any ApphudDelegate conformable object.
+        */
+    @objc public static func setDelegate(_ delegate : ApphudDelegate) {
+        ApphudInternal.shared.delegate = delegate
+    }
+    
+    /**
+     This method submits user's App Store receipt to Apphud.
      
-     - parameter product: Required. This is an SKProduct class object that has been purchased.
-     - parameter callback: Optional. Returns true if revenue has been successfully submitted. Returns false and `error` otherwise. Note that `error` may be nil.
+     - parameter productIdentifier: Required. This is an identifier string of the product that user has purchased.
+     - parameter callback: Optional. Returns `ApphudSubscription` object if succeeded and an optional error otherwise.
      */
-    public static func submitPurchase(product : SKProduct, callback : ((ApphudSubscription?, Error?) -> Void)?) {
-        guard shared != nil else {
-            #warning("Uninitialized error")
-            callback?(nil, nil)
-            return
-        }
-        shared.submitPurchase(product: product, callback: callback)
+    @objc public static func submitPurchase(_ productIdentifier : String, callback : ((ApphudSubscription?, Error?) -> Void)?) {
+        ApphudInternal.shared.submitPurchase(productId: productIdentifier, callback: callback)        
     }
     
     /**
-     Returns true if subscription state is trial or active. You should unlock premium functionality for this subscription. Returns false when subscription is expired. If you want to get more details (state, expiration date, purchase date) you should use activeSubscription method.
-     - parameter productID: Required. Product identifier of subscription.
+     Returns subscription object that current user has ever purchased. Subscriptions are cached on device.
+     
+     __Note__: If returned object is not nil, it doesn't mean that subsription is active.
+     You should check subscription's `isActive` property to determine whether or not to unlock premium functionality to the user.
+     
+     Example:   
+     
+     ````
+     Apphud.purchasedSubscription().isActive
+     ````
+     
+     If you have more than one subscription group in your app, use `subscriptions()` method and get `isActive` value for your desired subscription.
+     
      */
-    public static func isSubscriptionActiveFor(productID: String) -> Bool {
-        guard let subscription = subscriptionFor(productID: productID) else { return false }
-        return subscription.status == .active || subscription.status == .trial
+    @objc public static func purchasedSubscription() -> ApphudSubscription? {
+        return ApphudInternal.shared.currentUser?.subscriptions?.first
     }
     
     /**
-     Returns a subscription with given product identifier. Returns nil if subscription has never been purchased with given product identifier.
-     - parameter productID: Required. Product identifier of subscription.
+     Returns an array of all auto-renewable subscriptions that this user has ever purchased.  Subscriptions are cached on device.
+     
+     This is only needed if you have more than one subsription group in your app.
      */
-    public static func subscriptionFor(productID: String) -> ApphudSubscription? {
-        return subscriptions()?.first(where: {$0.productId == productID})
+    @objc public static func purchasedSubscriptions() -> [ApphudSubscription]? {
+        return ApphudInternal.shared.currentUser?.subscriptions
     }
     
     /**
-     Returns an array of all auto-renewable subscriptions that this user has ever purchased.
+     Returns a subscription for a given product identifier. Returns nil if subscription has never been purchased for a given product identifier.
+     - parameter productID: Required. Product identifier of a subscription.
      */
-    public static func subscriptions() -> [ApphudSubscription]? {
-        return shared.currentUser?.subscriptions
+    @objc public static func purchasedSubscriptionFor(productID: String) -> ApphudSubscription? {
+        return Apphud.purchasedSubscriptions()?.first(where: {$0.productId == productID})
     }
     
-    // MARK:- PRIVATE
-    
-    fileprivate static var shared: Apphud!
-    fileprivate var httpClient : ApphudHttpClient!
-    fileprivate var requires_currency_update = false
-    fileprivate var currentUser : ApphudUser?
-    
-    private func initialize(){
-        registerUser { (result, dictionary, error) in
-            if result {
-                self.parseUser(dictionary)
-                print("Apphud: User submitted")
-                self.getProducts(callback: { (result2, dictionary2, error2) in
-                    if result2, let dataDict = dictionary2?["data"] as? [String : Any] {
-                        if let productsArray = dataDict["results"] as? [[String : Any]] {
-                            var productIDs = Set<String>()
-                            for product in productsArray {
-                                let productID = product["product_id"] as! String
-                                print("Apphud: Product received: ", productID)
-                                productIDs.insert(productID)
-                            }
-                            if productIDs.count > 0 {
-                                let productsRequest = SKProductsRequest(productIdentifiers: productIDs)
-                                productsRequest.delegate = self
-                                productsRequest.start()
-                            }
-                        }
-                    }
-                })
-            } else {
-                print("Apphud: User submit error : \(error?.localizedDescription ?? "")")
-            }
-        }
-    }
-    
-    private func submitPurchase(product : SKProduct, callback : ((ApphudSubscription?, Error?) -> Void)?) {
-        guard let appStoreReceiptURL = Bundle.main.appStoreReceiptURL else {
-            callback?(nil, nil)
-            return
-        }
-        var receiptData: Data? = nil
-        do {
-            receiptData = try Data(contentsOf: appStoreReceiptURL)
-        }
-        catch {}
-        if receiptData == nil {
-            callback?(nil, nil)
-            return
-        }
-        
-        var environment = "production"
-        #if DEBUG
-        environment = "sandbox"
-        #endif
-        var params : [String : Any] = ["user_id" : configuration.user_id,
-                                       "receipt_data" : receiptData!.base64EncodedString(),
-                                       "environment" : environment]
-        
-        params.merge(product.submittableParameters(), uniquingKeysWith: {$1})
-        
-        httpClient.startRequest(path: "subscriptions", params: params, method: .post) { (result, response, error) in
-            
-            #warning("finish here, parse subscriptions or fetch current user or change response to current user")
-            self.registerUser { (result, response, error) in
-                if result {
-                    self.parseUser(response)
-                    callback?(Apphud.subscriptionFor(productID: product.productIdentifier), error)
-                }
-            }
-        }
-    }
-    
-    private class func getUserID() -> String {
-        if let anUserID = ApphudKeychain.loadUserID() {
-            return anUserID
-        } else {
-            let anUserID = ApphudKeychain.generateUserID()
-            return anUserID
-        }
-    }
-    
-    private static func identifierForAdvertising() -> String? {
-        // Check whether advertising tracking is enabled
-        guard ASIdentifierManager.shared().isAdvertisingTrackingEnabled else {
-            return nil
-        }
-        
-        // Get and return IDFA
-        return ASIdentifierManager.shared().advertisingIdentifier.uuidString
-    }
-    
-    private func parseUser(_ dict : [String : Any]?){
-        guard let dataDict = dict?["data"] as? [String : Any] else {
-            return
-        }
-        guard let userDict = dataDict["results"] as? [String : Any] else {
-            return
-        }
-        let currency = userDict["currency"] 
-        if currency is NSNull {
-            requires_currency_update = true            
-        } 
-        
-        self.currentUser = ApphudUser(dictionary: userDict)
-        ApphudUser.toCache(userDict)
-    }
-    
-    // MARK: API Requests
-    
-    private func registerUser(callback: @escaping ApphudBoolDictionaryCallback) {
-        
-        self.currentUser = ApphudUser.fromCache()
-        let locale = Locale.current.identifier        
-        let params : [String : Any] = ["user_id" : configuration.user_id, 
-                                       "locale" : locale]
-               
-        httpClient.startRequest(path: "customers", params: params, method: .post, callback: callback)        
-    }
-    
-    private func updateUserCurrencyIfNeeded(priceLocale : Locale){
-        guard requires_currency_update else { return }
-        guard let countryCode = priceLocale.regionCode else { return }
-        guard let currencyCode = priceLocale.currencyCode else { return }
-        
-        let params : [String : Any] = ["country_code" : countryCode,
-                                       "currency_code" : currencyCode,
-                                       "user_id" : configuration.user_id]
-    
-        updateUser(fields: params) { (result, response, error) in
-                self.requires_currency_update = false
-                self.parseUser(response)
-                print("response: \(response) error: \(error)")
-        }
-    }
-    
-    private func updateUser(fields: [String : Any], callback: @escaping ApphudBoolDictionaryCallback){
-        httpClient.startRequest(path: "customers", params: fields, method: .post, callback: callback)
-    }
-    
-    private func getProducts(callback: @escaping ApphudBoolDictionaryCallback) {
-        httpClient.startRequest(path: "products", params: nil, method: .get, callback: callback)
-    }
-    
-    private func submitProducts(products: [SKProduct], callback : @escaping ApphudBoolDictionaryCallback) {
-        var array = [[String : Any]]()
-        for product in products {
-            let productParams : [String : Any] = product.submittableParameters()            
-            array.append(productParams)
-        }
-        
-        let params = ["products" : array] as [String : Any]
-        
-        print("submitting product: \n\(params)")
-        
-        httpClient.startRequest(path: "products", params: params, method: .put, callback: callback)        
-    }    
-}
-
-extension Apphud : SKProductsRequestDelegate {
-    
-    public func productsRequest(_ request: SKProductsRequest, didReceive response: SKProductsResponse) {
-        if response.products.count > 0 {
-            print("Apphud: Products info received from Apple \(response.products)")
-            
-            updateUserCurrencyIfNeeded(priceLocale: response.products.first!.priceLocale)
-            
-            self.submitProducts(products: response.products, callback: { (result3, dictionary3, error3) in
-                if result3 {
-                    print("Apphud: Products submitted")
-                } else {
-                    print("Apphud: Products submit error: \(error3?.localizedDescription ?? "")")
-                }
-            })
-        }
+    /**
+     Restores subscriptions associated with current App Store account.
+     
+     If App Store receipt exists on device, SDK submits it to Apphud server and returns the latest subscriptions info in a delegate method. 
+     If App Store receipt is missing on device then refresh receipt request is sent and operation retries. 
+     
+     If the app was downloaded from the App Store there is always a receipt so refresh receipt won't be called.
+     It also means that password prompt dialog won't be displayed to the user with this restore mechanism.
+     
+     However, you shouldn't call this method at every launch. There are 2 main reasons why you should use this method:
+     * If you already have users and you want to submit their App Store receipts to Apphud to sync subscriptions data.
+     * As an action for "restore purchases" button at your subscription purchase screen or somewhere else. Restore purchases button is needed if you don't have a system that identifies each user.
+     
+     This function doesn't mean that it will return active subscriptions; it just means that the latest information will be fetched from our server.
+     */     
+    @objc public static func restoreSubscriptions() {
+        ApphudInternal.shared.restore(allowsReceiptRefresh: true)
     }
 }
-/*
- p print(String(data: try! JSONSerialization.data(withJSONObject: dictionary, options: .prettyPrinted), encoding: .utf8 )!)
- */

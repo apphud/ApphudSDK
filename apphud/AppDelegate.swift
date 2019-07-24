@@ -8,6 +8,9 @@
 
 import UIKit
 
+let APPHUD_API_KEY = "MDn9JRkSZzLMHtsFzWJXrscF7tZnis"
+let SHARED_SECRET = "f252a2ca863a4e67bb46cdc5d6553ae8"
+
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
@@ -15,7 +18,25 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        
+        Apphud.start(apiKey: APPHUD_API_KEY)
+        
+        // load your in-app purchase helper as usual
+        IAPManager.shared.startWith(arrayOfIds: [
+            "com.apphud.subscriptionstest.alternative.yearly", 
+            "com.apphud.subscriptionstest.main.yearly", 
+            "com.apphud.subscriptionstest.thirdgroup.yearly", 
+            "FourthMonthly",                         
+            "Fourth2Months", 
+            "Fourth3Months", 
+            "Fourth6Months",
+            "Fifth3Months",
+            "Weekly",
+            "MainMonthly",
+            "SixthMonthly",
+            "SixthWeekly",
+            ], sharedSecret: SHARED_SECRET)
+        
         return true
     }
 
