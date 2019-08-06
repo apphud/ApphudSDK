@@ -8,18 +8,18 @@
 
 import UIKit
 
-let APPHUD_API_KEY = "MDn9JRkSZzLMHtsFzWJXrscF7tZnis"
-let SHARED_SECRET = "41f22138637c46458ee387e276ad53e2"
+let APPHUD_API_KEY = "YOUR_API_KEY"
+let SHARED_SECRET = "YOUR_SHARED_SECRET"
 
 @UIApplicationMain
-class AppDelegate: UIResponder, UIApplicationDelegate {
+class AppDelegate: UIResponder, UIApplicationDelegate, ApphudDelegate {
 
     var window: UIWindow?
 
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         
-        Apphud.start(apiKey: APPHUD_API_KEY, userID: nil, deviceID: "device_21.2")
+        Apphud.start(apiKey: APPHUD_API_KEY)
         
         // load your in-app purchase helper as usual
         IAPManager.shared.startWith(arrayOfIds: [
@@ -39,7 +39,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         
         return true
     }
-
+    
     func applicationWillResignActive(_ application: UIApplication) {
         // Sent when the application is about to move from active to inactive state. This can occur for certain types of temporary interruptions (such as an incoming phone call or SMS message) or when the user quits the application and it begins the transition to the background state.
         // Use this method to pause ongoing tasks, disable timers, and invalidate graphics rendering callbacks. Games should use this method to pause the game.

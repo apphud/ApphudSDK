@@ -10,7 +10,7 @@ import Foundation
 import AdSupport
 import StoreKit
 
-let sdk_version = "0.1"
+let sdk_version = "0.1.1"
 
 final class ApphudInternal {
     
@@ -27,6 +27,9 @@ final class ApphudInternal {
     fileprivate var httpClient : ApphudHttpClient!
     fileprivate var requires_currency_update = false
         
+    typealias UserRegisteredCallback = (() -> Void)
+    fileprivate var userRegisteredCallbacks = [UserRegisteredCallback]()
+    
     internal func initialize(apiKey: String, userID : String?, deviceIdentifier : String? = nil){
                 
         ApphudStoreKitWrapper.shared.setupObserver()
@@ -65,6 +68,8 @@ final class ApphudInternal {
                 
                 apphudLog("User successfully registered")
                 
+                self.performAllUserRegisteredBlocks()
+                
                 if UserDefaults.standard.bool(forKey: self.requiresReceiptSubmissionKey) {
                     self.restore(allowsReceiptRefresh: false)
                 }
@@ -97,6 +102,7 @@ final class ApphudInternal {
                 })
             } else {
                 apphudLog("Failed to register user, error:\(error?.localizedDescription ?? "")")
+                self.userRegisteredCallbacks.removeAll()
             }
         }
     }
@@ -159,6 +165,29 @@ final class ApphudInternal {
         }
     }
     
+    // MARK: Helper
+    /// Returns false if current user is not yet registered, block is added to array and will be performed later.
+    @discardableResult internal func performWhenUserRegistered(callback : @escaping UserRegisteredCallback) -> Bool{
+        if currentUser != nil {
+            callback()
+            return true
+        } else {
+            userRegisteredCallbacks.append(callback)
+            return false
+        }
+    }
+    
+    private func performAllUserRegisteredBlocks(){
+        for block in userRegisteredCallbacks {
+            apphudLog("Performing scheduled block..")
+            block()
+        }
+        if userRegisteredCallbacks.count > 0 {
+            apphudLog("All scheduled blocks performed, removing..")
+            userRegisteredCallbacks.removeAll()
+        }
+    }
+    
     // MARK: API Requests
     
     private func registerUser(callback: @escaping ApphudBoolDictionaryCallback) {
@@ -181,8 +210,7 @@ final class ApphudInternal {
         guard let currencyCode = priceLocale.currencyCode else { return }
         
         var params : [String : String] = ["country_code" : countryCode,
-                                       "currency_code" : currencyCode,
-                                       "device_id" : self.currentDeviceID]
+                                       "currency_code" : currencyCode]
         if self.currentUserID != nil {
             params["user_id"] = self.currentUserID!
         }
@@ -196,18 +224,24 @@ final class ApphudInternal {
         }
     }
     
-    internal func updateUserID(userID : String) {
-        updateUser(fields: ["user_id" : userID]) { (result, response, error) in
-            if result {
-                self.requires_currency_update = false
-                self.parseUser(response)
-            }
+    internal func updateUserID(userID : String) {    
+        let exist = performWhenUserRegistered { 
+            self.updateUser(fields: ["user_id" : userID]) { (result, response, error) in
+                if result {
+                    self.requires_currency_update = false
+                    self.parseUser(response)
+                }
+            }            
+        }
+        if !exist {
+            apphudLog("Tried to make update user id: \(userID) request when user is not yet registered, addind to schedule..")
         }
     }
     
     private func updateUser(fields: [String : Any], callback: @escaping ApphudBoolDictionaryCallback){
         var params = currentDeviceParameters() as [String : Any]
         params.merge(fields) { (current, new) in current}
+        params["device_id"] = self.currentDeviceID
         
         httpClient.startRequest(path: "customers", params: params, method: .post, callback: callback)
     }
@@ -235,21 +269,33 @@ final class ApphudInternal {
             return 
         }
         
-        submitReceipt(receiptString: receiptString, isRestoring: false) { error in
-            callback?(Apphud.purchasedSubscriptionFor(productID: productId), error)
+        let exist = performWhenUserRegistered { 
+            self.submitReceipt(receiptString: receiptString, isRestoring: false) { error in
+                callback?(Apphud.purchasedSubscriptionFor(productID: productId), error)
+            }            
+        }
+        if !exist {
+            apphudLog("Tried to make submitPurchase: \(productId) request when user is not yet registered, addind to schedule..")
         }
     }
     
     internal func restore(allowsReceiptRefresh : Bool) {
         guard let receiptString = receiptDataString() else {
             if allowsReceiptRefresh {
+                apphudLog("App Store receipt is missing on device, will refresh first then retry")
                 ApphudStoreKitWrapper.shared.refreshReceipt()
             } else {
                 // receipt is missing and can't refresh anymore because already tried to refresh
             }
             return 
         }
-        submitReceipt(receiptString: receiptString, isRestoring: true, callback: nil)
+        
+        let exist = performWhenUserRegistered { 
+            self.submitReceipt(receiptString: receiptString, isRestoring: true, callback: nil)
+        }
+        if !exist {
+            apphudLog("Tried to make restore allows: \(allowsReceiptRefresh) request when user is not yet registered, addind to schedule..")
+        }
     }
     
     fileprivate func submitReceipt(receiptString : String, isRestoring : Bool, callback : ((Error?) -> Void)?) {

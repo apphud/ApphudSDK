@@ -36,7 +36,7 @@ import StoreKit
 
         __Note__: Only users who have ever purchased a subscription and sent their App Store receipt to Apphud can be merged.  
      
-     * After manual `updateUserID(userID : String)` method call. 
+     * After manual call of `updateUserID(userID : String)` method. 
  */
     @objc optional func apphudDidChangeUserID(_ userID : String)
 }
