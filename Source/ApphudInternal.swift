@@ -10,7 +10,7 @@ import Foundation
 import AdSupport
 import StoreKit
 
-let sdk_version = "0.1.3"
+let sdk_version = "0.1.4"
 
 final class ApphudInternal {
     
