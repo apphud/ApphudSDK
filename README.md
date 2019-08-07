@@ -1,10 +1,7 @@
----
-id: sdk-integration
-title: SDK Integration
----
-Here we describe how to add Apphud SDK to your iOS app.
+Track, control and analyze iOS auto-renewable subscriptions with Apphud.
+Visit our website for details: https://apphud.com
 
-## Requirements
+## SDK Requirements
 
 Apphud SDK requires minimum iOS 11.2 and Xcode 10 and uses Swift version 5.0. 
 
@@ -34,4 +31,3 @@ Copy all files in `Source` folder to your project.
 ## Set up guide
 
 See Apphud SDK set up guide here: https://docs.apphud.com/docs/en/sdk-integration
-
