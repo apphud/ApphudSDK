@@ -2,6 +2,6 @@
 
 To install from CocoaPods:
 ```
-  pod 'Apphud'
+  pod 'ApphudSDK'
 ```
 This will install latest library version.
