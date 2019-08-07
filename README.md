@@ -1,3 +1,4 @@
+# Apphud
 Track, control and analyze iOS auto-renewable subscriptions with Apphud.
 Visit our website for details: https://apphud.com
 
