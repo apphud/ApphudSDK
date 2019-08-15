@@ -24,8 +24,13 @@ class ViewController: UITableViewController{
         navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Restore transactions", style: .done, target: self, action: #selector(restore))        
     }
     
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+    }
+    
     @objc func restore(){
-        Apphud.restoreSubscriptions()
+        SKPaymentQueue.default().restoreCompletedTransactions()
+        // OR Apphud.restoreSubscriptions()
     }
     
     @objc func reload(){
@@ -53,7 +58,8 @@ class ViewController: UITableViewController{
         cell.textLabel?.text = product.fullSubscriptionInfoString()
         
         if let subscription = Apphud.purchasedSubscriptionFor(productID: product.productIdentifier) {
-            cell.detailTextLabel?.text = subscription.expiresDate.description(with: Locale.current) + "\nState: \(subscription.status.toString())".uppercased()
+            
+            cell.detailTextLabel?.text = subscription.expiresDate.description(with: Locale.current) + "\nState: \(subscription.status.toStringDuplicate())".uppercased()
         } else {
             cell.detailTextLabel?.text = "Not active"
         }
@@ -66,22 +72,60 @@ class ViewController: UITableViewController{
         tableView.deselectRow(at: indexPath, animated: true)
         
         let product = products[indexPath.item]
+
+        if #available(iOS 12.2, *) {
+            if product.discounts.count > 0 && (Apphud.purchasedSubscriptionFor(productID: product.productIdentifier) != nil){
+                // purchase promo offer                
+                showPromoOffersAlert(product: product)
+            } else {
+                purchaseProduct(product: product)
+            }
+        } else {
+            purchaseProduct(product: product)
+        }
         
-        IAPManager.shared.purchaseProduct(product: product, success: { 
-            
-            Apphud.submitPurchase(product.productIdentifier, callback: { (subscription, error) in
-                if let subscription = subscription {
-                    // unlock premium functionality
-                    print("subscription is active! \(subscription.expiresDate)")
-                }
-                self.reload()
-            })
-            
-        }) { (error) in
-            print("Error purchasing: \(error?.localizedDescription ?? "")")
+    }
+    
+    @available(iOS 12.2, *)
+    func showPromoOffersAlert(product : SKProduct) {
+        
+        let controller = UIAlertController(title: "You already have subscription for this product", message: "would you like to activate promo offer?", preferredStyle: .alert)
+        
+        for discount in product.discounts {
+            controller.addAction(UIAlertAction(title: "Purchase Promo: \(discount.identifier!)", style: .default, handler: { act in
+                self.purchaseProduct(product: product, promoID: discount.identifier!)
+            }))
+        }
+        
+        controller.addAction(UIAlertAction(title: "Purchase Product As Usual", style: .destructive, handler: { act in
+            self.purchaseProduct(product: product)
+        }))
+        
+        controller.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: nil))
+        present(controller, animated: true, completion: nil)
+    }
+    
+    @available(iOS 12.2, *)
+    func purchaseProduct(product: SKProduct, promoID: String){
+        Apphud.signPromoOffer(productID: product.productIdentifier, discountID: promoID) { (paymentDiscount, error) in
+            if let discount = paymentDiscount {
+                Apphud.makePurchase(product: product, discount: discount, callback: { (subs, error) in
+                    self.reload()
+                })                
+            } else {
+                print("error signing \(String(describing: error))")
+            }
         }
     }
+    
+    func purchaseProduct(product : SKProduct) {
+        Apphud.makePurchase(product: product) { (subs, error) in
+            self.reload()
+        }
+    }
+    
 }
+
 
 extension ViewController : ApphudDelegate {
     func apphudSubscriptionsUpdated(_ subscriptions: [ApphudSubscription]) {
@@ -95,12 +139,9 @@ extension ViewController : ApphudDelegate {
 
 extension SKProduct {
     
-    func fullSubscriptionInfoString() -> String?{
-        
-        guard subscriptionPeriod != nil else {return nil}
-        
+    func unitStringFrom(un : SKProduct.PeriodUnit) -> String{
         var unit = ""
-        switch subscriptionPeriod!.unit {
+        switch un {
         case .day:
             unit = "day"
         case .week:
@@ -112,44 +153,90 @@ extension SKProduct {
         default:
             break
         }
-        
+        return unit
+    }
+    
+    func localizedPriceFrom(price : NSDecimalNumber) -> String {
         let numberFormatter = NumberFormatter()
         numberFormatter.numberStyle = .currency
         numberFormatter.locale = priceLocale
+        let priceString = numberFormatter.string(from: price)
+        return priceString ?? ""
+    }
+    
+    func discountDescription(discount : SKProductDiscount) -> String {
         
-        let localizedPrice = numberFormatter.string(from: price)
         
-        var string = localizedTitle + ": \(localizedPrice ?? "")" + ", \(subscriptionPeriod!.numberOfUnits) " + "\(unit)"
+        let periods_count = discount.numberOfPeriods
         
-        if let intro = introductoryPrice {
-            let intro_periods_count = intro.numberOfPeriods
-            
-            var intro_unit = ""
-            switch intro.subscriptionPeriod.unit {
-            case .day:
-                intro_unit = "day"
-            case .week:
-                intro_unit = "week"
-            case .month:
-                intro_unit = "month"
-            case .year:
-                intro_unit = "year"
-            default:
-                break
-            }
-            
-            let intro_unit_count = intro.subscriptionPeriod.numberOfUnits
-            
-            let introPrice = numberFormatter.string(from: intro.price)
-            
-            if intro.paymentMode == .payAsYouGo {
-                string = "\(string) INTRO PAY AS YOU GO: \(introPrice ?? "") every \(intro_unit_count) \(intro_unit) and pay it \(intro_periods_count) times"
-            } else if intro.paymentMode == .payUpFront {
-                string = "\(string) INTRO PAY UP FRONT: \(introPrice ?? "") per \(intro_unit_count) \(intro_unit) for  \(intro_periods_count) times"   
-            } else if intro.paymentMode == .freeTrial {
-                string = "\(string) FREE TRIAL: \(introPrice ?? "") per \(intro_unit_count) \(intro_unit) for  \(intro_periods_count) times"  
-            }
+        let unit = unitStringFrom(un: discount.subscriptionPeriod.unit)
+        
+        let unit_count = discount.subscriptionPeriod.numberOfUnits
+        
+        let priceString = localizedPriceFrom(price: discount.price)
+        
+        var string = ""
+        if discount.paymentMode == .payAsYouGo {
+            string = "PAY AS YOU GO: \(priceString) every \(unit_count) \(unit) and pay it \(periods_count) times"
+        } else if discount.paymentMode == .payUpFront {
+            string = "INTRO PAY UP FRONT: \(priceString) per \(unit_count) \(unit) for  \(periods_count) times"   
+        } else if discount.paymentMode == .freeTrial {
+            string = "FREE TRIAL: \(priceString) per \(unit_count) \(unit) for  \(periods_count) times"  
         }
         return string
     }
+    
+    func fullSubscriptionInfoString() -> String?{
+        
+        guard subscriptionPeriod != nil else {return nil}
+        
+        let unit = unitStringFrom(un: subscriptionPeriod!.unit)
+        
+        let priceString = localizedPriceFrom(price: price)
+        
+        var string = localizedTitle + ": \(priceString)" + ", \(subscriptionPeriod!.numberOfUnits) " + "\(unit)"
+        
+        if let intro = introductoryPrice {
+            string = "\(string)\n\nHas following introductory offer:\n\(discountDescription(discount: intro))"
+        }
+        
+        if #available(iOS 12.2, *) {
+            if discounts.count > 0 {
+                string = "\(string)\n\nHas following promotional offers:\n"
+                for (i, discount) in discounts.enumerated() {
+                    string = "\(string)PROMO OFFER #\(i+1): \(discountDescription(discount: discount))\n"                    
+                }
+            }
+        }
+        
+        return string
+    }
 }
+
+extension ApphudSubscriptionStatus {
+    /**
+     This function can only be used in Swift
+     */
+    func toStringDuplicate() -> String {
+        
+        switch self {
+        case .trial:
+            return "trial"
+        case .intro:
+            return "intro"
+        case .promo:
+            return "promo"
+        case .grace:
+            return "grace"
+        case .regular:
+            return "regular"
+        case .refunded:
+            return "refunded"
+        case .expired:
+            return "expired"
+        default:
+            return ""
+        }
+    }
+}
+

@@ -18,6 +18,9 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     
     fileprivate let fetcher = ApphudProductsFetcher()
     
+    private var paymentCallback : ((SKPaymentTransaction) -> Void)?
+    private var purchasingProductID : String?
+    
     func setupObserver(){
         SKPaymentQueue.default().add(self)
     }
@@ -28,37 +31,85 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         request.start()
     }
     
-    fileprivate func loadedProduct(identifier : String) -> SKProduct? {
+    fileprivate func loadedProduct(identifier: String) -> SKProduct? {
         return products.first(where: { $0.productIdentifier == identifier})
     }
     
-    func fetchProducts(identifiers : Set<String>, callback : @escaping ApphudStoreKitProductsCallback) {
+    func fetchProducts(identifiers: Set<String>, callback: @escaping ApphudStoreKitProductsCallback) {
         fetcher.fetchStoreKitProducts(identifiers: identifiers) { (products) in
             self.products.append(contentsOf: products)
             callback(products)
         }
     }
     
+    func purchase(product: SKProduct, callback: @escaping (SKPaymentTransaction) -> Void){
+        let payment = SKMutablePayment(product: product)
+        purchase(payment: payment, callback: callback)
+    }
+    
+    @available(iOS 12.2, *)
+    func purchase(product: SKProduct, discount: SKPaymentDiscount, callback: @escaping (SKPaymentTransaction) -> Void){
+        let payment = SKMutablePayment(product: product)
+        payment.paymentDiscount = discount
+        purchase(payment: payment, callback: callback)
+    }
+    
+    func purchase(payment : SKMutablePayment, callback: @escaping (SKPaymentTransaction) -> Void){
+        
+        guard SKPaymentQueue.canMakePayments() else {
+            return
+        }
+        
+        guard SKPaymentQueue.default().transactions.last?.transactionState != .purchasing else {
+            return
+        } 
+        
+        if self.purchasingProductID != nil {return}
+        
+        payment.applicationUsername = ""
+        self.paymentCallback = callback
+        self.purchasingProductID = payment.productIdentifier
+        SKPaymentQueue.default().add(payment)
+    }
+    
     // MARK:- SKPaymentTransactionObserver
     
     func paymentQueue(_ queue: SKPaymentQueue, updatedTransactions transactions: [SKPaymentTransaction]) {
-        /*
-         if at least one transaction state is restored, then we should restore Apphud subscriptions for current device.
-         Only restored transactions are handled at the moment. Developer should handle purchase process manually.
-         */
+        
         for trx in transactions {
-            if trx.transactionState == .restored {
-                ApphudInternal.shared.restore(allowsReceiptRefresh: true)
+            
+            switch (trx.transactionState) {
+            case .purchased, .failed:
+                handleTransactionIfStarted(trx)
+                break
+            case .restored:
+                /*
+                 Always handle restored transactions by sending App Store Receipt to Apphud.
+                 Will not finish transaction, because we didn't start it. Developer should finish transaction manually.
+                 */
+                ApphudInternal.shared.submitAppStoreReceipt(allowsReceiptRefresh: true)
+                break
+            default:
                 break
             }
         }
     }    
     
+    private func handleTransactionIfStarted(_ transaction : SKPaymentTransaction) {
+        if transaction.payment.productIdentifier == self.purchasingProductID{
+            self.paymentCallback?(transaction)
+            self.purchasingProductID = nil
+            self.paymentCallback = nil
+            // Finish transaction because we started it.
+            SKPaymentQueue.default().finishTransaction(transaction)
+        } 
+    }
+    
     // MARK:- SKRequestDelegate
     
     func requestDidFinish(_ request: SKRequest) {
         if request is SKReceiptRefreshRequest {
-            ApphudInternal.shared.restore(allowsReceiptRefresh: false)
+            ApphudInternal.shared.submitAppStoreReceipt(allowsReceiptRefresh: false)
         }
     }
     
@@ -67,7 +118,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
      */
     func request(_ request: SKRequest, didFailWithError error: Error) {
         if request is SKReceiptRefreshRequest {
-            ApphudInternal.shared.restore(allowsReceiptRefresh: false)
+            ApphudInternal.shared.submitAppStoreReceipt(allowsReceiptRefresh: false)
         }
     }
 }

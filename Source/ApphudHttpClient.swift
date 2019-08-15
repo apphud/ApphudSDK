@@ -18,8 +18,10 @@ struct ApphudHttpClient {
         case put = "PUT"
     }
     
-    let apiKey : String
-    private let domain_url_string = "https://api.apphud.com"
+    static let shared = ApphudHttpClient()
+    
+    internal var apiKey : String = ""
+    var domain_url_string = "https://api.apphud.com"
     
     private let session : URLSession = {
         let config = URLSessionConfiguration.default
@@ -72,7 +74,7 @@ struct ApphudHttpClient {
         }
         
         #if DEBUG
-        apphudLog("Start request \(request?.url?.absoluteString ?? "") params: \(params ?? [:])")
+        apphudLog("Start \(method) request \(request?.url?.absoluteString ?? "") params: \(params ?? [:])")
         #endif
         
         return request
@@ -90,20 +92,23 @@ struct ApphudHttpClient {
             } catch {
                 
             }
-                        
+            
             DispatchQueue.main.async {
                 if let httpResponse = response as? HTTPURLResponse {
+                    
+                    let method = request.httpMethod ?? ""
+                    
                     let code = httpResponse.statusCode
                     if code >= 200 && code < 300 {
                         
                         if data != nil {
                             let stringResponse = String(data: data!, encoding: .utf8)
-                            apphudLog("Request \(request.url?.absoluteString ?? "") success with response: \n\(stringResponse ?? "")")
+                            apphudLog("Request \(method) \(request.url?.absoluteString ?? "") success with response: \n\(stringResponse ?? "")")
                         }
                         callback?(true, dictionary, nil)
                         return
                     }
-                    apphudLog("Request \(request.url?.absoluteString ?? "") failed with code \(code), error: \(error?.localizedDescription ?? "") response: \(dictionary ?? [:])")
+                    apphudLog("Request \(method) \(request.url?.absoluteString ?? "") failed with code \(code), error: \(error?.localizedDescription ?? "") response: \(dictionary ?? [:])")
                 }
                 
                 callback?(false, nil, error)

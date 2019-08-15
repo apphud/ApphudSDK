@@ -71,10 +71,10 @@ extension SKProduct {
     func submittableParameters() -> [String : Any] {
         
         var params : [String : Any] = [
-                        "product_id" : productIdentifier,
-                        "price" : price.floatValue
+            "product_id" : productIdentifier,
+            "price" : price.floatValue
         ]
-
+        
         if let countryCode = priceLocale.regionCode {
             params["country_code"] = countryCode
         }
@@ -90,6 +90,17 @@ extension SKProduct {
                 let units_count = subscriptionPeriod!.numberOfUnits
                 params["unit"] = unitStringFrom(periodUnit: subscriptionPeriod!.unit)
                 params["units_count"] = units_count                
+            }
+        }
+        
+        if #available(iOS 12.2, *) {
+            var discount_params = [[String : Any]]()
+            for discount in discounts {
+                let promo_params = promoParameters(discount: discount)
+                discount_params.append(promo_params)
+            }
+            if discount_params.count > 0 {
+                params["promo_offers"] = discount_params
             }
         }
         
@@ -111,6 +122,30 @@ extension SKProduct {
             break
         }
         return unit
+    }
+    
+    @available(iOS 12.2, *)
+    private func promoParameters(discount : SKProductDiscount) -> [String : Any] {
+        
+        let periods_count = discount.numberOfPeriods
+        
+        let unit_count = discount.subscriptionPeriod.numberOfUnits
+        
+        var mode :String = ""
+        switch discount.paymentMode {
+        case .payUpFront:
+            mode = "pay_up_front"
+        case .payAsYouGo:
+            mode = "pay_as_you_go"
+        case .freeTrial:
+            mode = "trial"
+        default:
+            break
+        }
+        
+        let unit = unitStringFrom(periodUnit: discount.subscriptionPeriod.unit)
+        
+        return ["unit" : unit, "units_count" : unit_count, "periods_count" : periods_count, "mode" : mode, "price" : discount.price.floatValue, "offer_id" : discount.identifier ?? ""]                
     }
     
     private func introParameters() -> [String : Any]? {

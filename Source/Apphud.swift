@@ -25,7 +25,7 @@ import StoreKit
      */
     @objc optional func apphudSubscriptionsUpdated(_ subscriptions : [ApphudSubscription])
     
- /**
+    /**
      Called when user ID has been changed.
      
      This delegate method is called in 2 cases:
@@ -33,11 +33,11 @@ import StoreKit
      * When Apphud has merged two users into a single user (for example, after user has restored purchases from his another device).
      After App Store receipt has been sent to Apphud, server tries to find the same receipt in the database.
      If the same App Store receipt has been found, Apphud merges two users into a single user with two devices and then returns an original userID. 
-
-        __Note__: Only users who have ever purchased a subscription and sent their App Store receipt to Apphud can be merged.  
+     
+     __Note__: Only users who have ever purchased a subscription and sent their App Store receipt to Apphud can be merged.  
      
      * After manual call of `updateUserID(userID : String)` method. 
- */
+     */
     @objc optional func apphudDidChangeUserID(_ userID : String)
 }
 
@@ -60,26 +60,26 @@ final public class Apphud: NSObject {
     #endif
     
     /**
-        Updates user ID value 
-        - parameter userID: Required. New user ID value.
-        */
+     Updates user ID value 
+     - parameter userID: Required. New user ID value.
+     */
     @objc public static func updateUserID(_ userID : String) {
         ApphudInternal.shared.updateUserID(userID: userID)
     }
-        
+    
     /**
-        Returns current userID that identifies user across his multiple devices. 
+     Returns current userID that identifies user across his multiple devices. 
      
-        This value may change in runtime, see `apphudDidChangeUserID(_ userID : String)` for details.
-        */
+     This value may change in runtime, see `apphudDidChangeUserID(_ userID : String)` for details.
+     */
     @objc public static func userID() -> String {
         return ApphudInternal.shared.currentUserID
     }
     
     /**
-        Set a delegate.
-        - parameter delegate: Required. Any ApphudDelegate conformable object.
-        */
+     Set a delegate.
+     - parameter delegate: Required. Any ApphudDelegate conformable object.
+     */
     @objc public static func setDelegate(_ delegate : ApphudDelegate) {
         ApphudInternal.shared.delegate = delegate
     }
@@ -94,6 +94,45 @@ final public class Apphud: NSObject {
         ApphudInternal.shared.submitPurchase(productId: productIdentifier, callback: callback)        
     }
     
+    /**
+     Signs promotional subscription offer using Apphud.
+     More information about promotional subscription offers is here: [About Promotional Subscription offers](https://developer.apple.com/app-store/subscriptions/#subscription-offers)
+     - parameter productID: Required. This is an identifier string of the product that user has purchased.
+     - parameter discountID: Required. This is identifier of your SKProductDiscount object, i.e. Promotional Offer ID.
+     - parameter callback: Optional. Returns `SKPaymentDiscount` you use to make a purchase.
+     */
+    @available(iOS 12.2, *)
+    @objc public static func signPromoOffer(productID : String, discountID : String, callback : ((SKPaymentDiscount?, Error?) -> Void)?){
+        ApphudInternal.shared.signPromoOffer(productID: productID, discountID: discountID, callback: callback)
+    }
+    
+    /**
+     Makes a purchase of a given product with signed payment discount object and automatically submits App Store Receipt to Apphud. You can generate `SKPaymentDiscount` object using Apphud's `signPromoOffer` method above.
+     
+     If you use this method, you don't need to call Apphud's `submitPurchase` method.
+     
+     - parameter product: Required. This is an `SKProduct` object that user wants to purchase.
+     - parameter discount: Required. This is a `SKPaymentDiscount` object with signed promotional offer.
+     - parameter callback: Optional. Returns `ApphudSubscription` object if succeeded and an optional error otherwise.
+     */
+    @available(iOS 12.2, *)
+    @objc public static func makePurchase(product: SKProduct, discount: SKPaymentDiscount, callback: ((ApphudSubscription?, Error?) -> Void)?){
+        ApphudInternal.shared.makePurchase(product: product, discount: discount, callback: callback)
+    }
+    
+    /**
+     Makes a purchase of a given product and automatically submits App Store Receipt to Apphud.
+     
+     If you use this method, you don't need to call Apphud's `submitPurchase` method.
+     
+     - parameter product: Required. This is an `SKProduct` object that user wants to purchase.
+     - parameter callback: Optional. Returns `ApphudSubscription` object if succeeded and an optional error otherwise.
+     */
+    #if DEBUG
+    @objc public static func makePurchase(product: SKProduct, callback: ((ApphudSubscription?, Error?) -> Void)?){
+        ApphudInternal.shared.makePurchase(product: product, callback: callback)
+    }
+    #endif
     /**
      Returns subscription object that current user has ever purchased. Subscriptions are cached on device.
      
@@ -146,6 +185,6 @@ final public class Apphud: NSObject {
      This function doesn't mean that it will return active subscriptions; it just means that the latest information will be fetched from our server.
      */     
     @objc public static func restoreSubscriptions() {
-        ApphudInternal.shared.restore(allowsReceiptRefresh: true)
+        ApphudInternal.shared.submitAppStoreReceipt(allowsReceiptRefresh: true)
     }
 }

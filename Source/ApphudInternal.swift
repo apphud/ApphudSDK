@@ -10,7 +10,7 @@ import Foundation
 import AdSupport
 import StoreKit
 
-let sdk_version = "0.1.4"
+let sdk_version = "0.2"
 
 final class ApphudInternal {
     
@@ -19,19 +19,19 @@ final class ApphudInternal {
     static let shared = ApphudInternal()
     var delegate : ApphudDelegate?
     var currentUser : ApphudUser?
-        
+    
     var currentDeviceID : String!
     var currentUserID : String!
     fileprivate var isSubmittingReceipt : Bool = false
     
-    fileprivate var httpClient : ApphudHttpClient!
+    var httpClient : ApphudHttpClient!
     fileprivate var requires_currency_update = false
-        
+    
     typealias UserRegisteredCallback = (() -> Void)
     fileprivate var userRegisteredCallbacks = [UserRegisteredCallback]()
     
     internal func initialize(apiKey: String, userID : String?, deviceIdentifier : String? = nil){
-                
+        
         ApphudStoreKitWrapper.shared.setupObserver()
         
         var deviceID = ApphudKeychain.loadDeviceID() 
@@ -44,10 +44,11 @@ final class ApphudInternal {
             deviceID = ApphudKeychain.generateUUID()
             ApphudKeychain.saveDeviceID(deviceID: deviceID!)
         }
-                
+        
         self.currentDeviceID = deviceID!
         
-        self.httpClient = ApphudHttpClient(apiKey: apiKey) 
+        self.httpClient = ApphudHttpClient.shared 
+        self.httpClient.apiKey = apiKey
         
         self.currentUser = ApphudUser.fromCache()
         
@@ -58,7 +59,7 @@ final class ApphudInternal {
         } else {
             self.currentUserID = ApphudKeychain.generateUUID()
         }
-                
+        
         registerUser { (result, dictionary, error) in
             if result {
                 
@@ -71,7 +72,7 @@ final class ApphudInternal {
                 self.performAllUserRegisteredBlocks()
                 
                 if UserDefaults.standard.bool(forKey: self.requiresReceiptSubmissionKey) {
-                    self.restore(allowsReceiptRefresh: false)
+                    self.submitAppStoreReceipt(allowsReceiptRefresh: false)
                 }
                 
                 self.getProducts(callback: { (result2, dictionary2, error2) in
@@ -108,22 +109,22 @@ final class ApphudInternal {
     }
     /*
      /// not used yet
-    private static func identifierForAdvertising() -> String? {
-        // Check whether advertising tracking is enabled
-        guard ASIdentifierManager.shared().isAdvertisingTrackingEnabled else {
-            return nil
-        }
-        
-        // Get and return IDFA
-        return ASIdentifierManager.shared().advertisingIdentifier.uuidString
-    }
-    */
+     private static func identifierForAdvertising() -> String? {
+     // Check whether advertising tracking is enabled
+     guard ASIdentifierManager.shared().isAdvertisingTrackingEnabled else {
+     return nil
+     }
+     
+     // Get and return IDFA
+     return ASIdentifierManager.shared().advertisingIdentifier.uuidString
+     }
+     */
     
     /*
      Returns a value, indicating whether subscriptions data has changes
      */
     @discardableResult private func parseUser(_ dict : [String : Any]?) -> Bool{
-       
+        
         guard let dataDict = dict?["data"] as? [String : Any] else {
             return false
         }
@@ -140,9 +141,9 @@ final class ApphudInternal {
         self.currentUser = ApphudUser(dictionary: userDict)
         
         let newStates = self.currentUser?.subscriptionsStates()
-
+        
         ApphudUser.toCache(userDict)
-            
+        
         checkUserID(tellDelegate: true)
         
         /**
@@ -191,7 +192,7 @@ final class ApphudInternal {
     // MARK: API Requests
     
     private func registerUser(callback: @escaping ApphudBoolDictionaryCallback) {
-                
+        
         var params : [String : String] = ["device_id" : self.currentDeviceID]
         if self.currentUserID != nil {
             params["user_id"] = self.currentUserID!
@@ -210,7 +211,7 @@ final class ApphudInternal {
         guard let currencyCode = priceLocale.currencyCode else { return }
         
         var params : [String : String] = ["country_code" : countryCode,
-                                       "currency_code" : currencyCode]
+                                          "currency_code" : currencyCode]
         if self.currentUserID != nil {
             params["user_id"] = self.currentUserID!
         }
@@ -279,7 +280,7 @@ final class ApphudInternal {
         }
     }
     
-    internal func restore(allowsReceiptRefresh : Bool) {
+    internal func submitAppStoreReceipt(allowsReceiptRefresh : Bool) {
         guard let receiptString = receiptDataString() else {
             if allowsReceiptRefresh {
                 apphudLog("App Store receipt is missing on device, will refresh first then retry")
@@ -304,14 +305,14 @@ final class ApphudInternal {
         isSubmittingReceipt = true
         
         #if DEBUG
-         let environment = "sandbox"
+        let environment = "sandbox"
         #else 
-         let environment = "production"
+        let environment = "production"
         #endif
         
         let params : [String : String] = ["device_id" : self.currentDeviceID,
-                                       "receipt_data" : receiptString,
-                                       "environment" : environment]
+                                          "receipt_data" : receiptString,
+                                          "environment" : environment]
         
         UserDefaults.standard.set(true, forKey: requiresReceiptSubmissionKey)
         
@@ -329,8 +330,55 @@ final class ApphudInternal {
                     }
                 }
             }
-
+            
             callback?(error)
         }
     }
+    
+    internal func makePurchase(product: SKProduct, callback: ((ApphudSubscription?, Error?) -> Void)?){
+        ApphudStoreKitWrapper.shared.purchase(product: product) { transaction in
+            if transaction.transactionState == .purchased {
+                self.submitPurchase(productId: product.productIdentifier, callback: callback)
+            } else {
+                callback?(nil, transaction.error)
+            }
+        }
+    }    
+    
+    @available(iOS 12.2, *)
+    internal func makePurchase(product: SKProduct, discount: SKPaymentDiscount, callback: ((ApphudSubscription?, Error?) -> Void)?){
+        ApphudStoreKitWrapper.shared.purchase(product: product, discount: discount) { transaction in
+            if transaction.transactionState == .purchased {
+                self.submitPurchase(productId: product.productIdentifier, callback: callback)
+            } else {
+                callback?(nil, transaction.error)
+            }
+        }
+    }
+    
+    @available(iOS 12.2, *)
+    internal func signPromoOffer(productID: String, discountID: String, callback: ((SKPaymentDiscount?, Error?) -> Void)?){
+        let params : [String : Any] = ["product_id" : productID, "offer_id" : discountID, ]
+        httpClient.startRequest(path: "sign_offer", params: params, method: .post) { (result, dict, error) in
+            if result, let responseDict = dict, let dataDict = responseDict["data"] as? [String : Any], let resultsDict = dataDict["results"] as? [String : Any]{
+                
+                let signatureData = resultsDict["data"] as? [String : Any]
+                let uuid = UUID(uuidString: signatureData?["nonce"] as? String ?? "")                
+                let signature = signatureData?["signature"] as? String
+                let timestamp = signatureData?["timestamp"] as? NSNumber
+                let keyID = resultsDict["key_id"] as? String
+                
+                if signature != nil && uuid != nil && timestamp != nil && keyID != nil {
+                    let paymentDiscount = SKPaymentDiscount(identifier: discountID, keyIdentifier: keyID!, nonce: uuid!, signature: signature!, timestamp: timestamp!)
+                    callback?(paymentDiscount, nil)
+                    return
+                }
+            }
+            
+            //            let error = ApphudError("Could not sign promo offer: \(discountID)")
+            
+            callback?(nil, nil)
+        }
+    }
 }
+

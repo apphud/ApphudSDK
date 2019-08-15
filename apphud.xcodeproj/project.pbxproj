@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		944C6E712305701E00AD1DFF /* ApphudSDK.podspec in Resources */ = {isa = PBXBuildFile; fileRef = 944C6E702305701E00AD1DFF /* ApphudSDK.podspec */; };
 		947977AF22E8453200EE1934 /* Apphud.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947977A622E8453200EE1934 /* Apphud.swift */; };
 		947977B022E8453200EE1934 /* ApphudExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947977A722E8453200EE1934 /* ApphudExtensions.swift */; };
 		947977B122E8453200EE1934 /* ApphudHttpClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947977A822E8453200EE1934 /* ApphudHttpClient.swift */; };
@@ -17,7 +18,6 @@
 		947977B622E8453200EE1934 /* ApphudKeychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947977AD22E8453200EE1934 /* ApphudKeychain.swift */; };
 		947977B722E8453200EE1934 /* ApphudUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947977AE22E8453200EE1934 /* ApphudUtils.swift */; };
 		947977B922E8460500EE1934 /* IAPManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947977B822E8460500EE1934 /* IAPManager.swift */; };
-		94A174FB22A6C8460084EFEC /* apphud.podspec in Resources */ = {isa = PBXBuildFile; fileRef = 94A174FA22A6C8460084EFEC /* apphud.podspec */; };
 		94AE4E9122A0FAC800564F85 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94AE4E9022A0FAC800564F85 /* AppDelegate.swift */; };
 		94AE4E9322A0FAC800564F85 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94AE4E9222A0FAC800564F85 /* ViewController.swift */; };
 		94AE4E9622A0FAC800564F85 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 94AE4E9422A0FAC800564F85 /* Main.storyboard */; };
@@ -26,6 +26,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		944C6E702305701E00AD1DFF /* ApphudSDK.podspec */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = ApphudSDK.podspec; sourceTree = "<group>"; };
 		947977A622E8453200EE1934 /* Apphud.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Apphud.swift; sourceTree = "<group>"; };
 		947977A722E8453200EE1934 /* ApphudExtensions.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudExtensions.swift; sourceTree = "<group>"; };
 		947977A822E8453200EE1934 /* ApphudHttpClient.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudHttpClient.swift; sourceTree = "<group>"; };
@@ -36,7 +37,6 @@
 		947977AD22E8453200EE1934 /* ApphudKeychain.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudKeychain.swift; sourceTree = "<group>"; };
 		947977AE22E8453200EE1934 /* ApphudUtils.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudUtils.swift; sourceTree = "<group>"; };
 		947977B822E8460500EE1934 /* IAPManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = IAPManager.swift; sourceTree = "<group>"; };
-		94A174FA22A6C8460084EFEC /* apphud.podspec */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = apphud.podspec; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.ruby; };
 		94AE4E8D22A0FAC800564F85 /* apphud.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = apphud.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		94AE4E9022A0FAC800564F85 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		94AE4E9222A0FAC800564F85 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
@@ -60,7 +60,7 @@
 		94AE4E8422A0FAC800564F85 = {
 			isa = PBXGroup;
 			children = (
-				94A174FA22A6C8460084EFEC /* apphud.podspec */,
+				944C6E702305701E00AD1DFF /* ApphudSDK.podspec */,
 				94AE4EAC22A14D0E00564F85 /* Source */,
 				94AE4E8F22A0FAC800564F85 /* apphud */,
 				94AE4E8E22A0FAC800564F85 /* Products */,
@@ -163,7 +163,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				94A174FB22A6C8460084EFEC /* apphud.podspec in Resources */,
+				944C6E712305701E00AD1DFF /* ApphudSDK.podspec in Resources */,
 				94AE4E9B22A0FACA00564F85 /* LaunchScreen.storyboard in Resources */,
 				94AE4E9822A0FACA00564F85 /* Assets.xcassets in Resources */,
 				94AE4E9622A0FAC800564F85 /* Main.storyboard in Resources */,

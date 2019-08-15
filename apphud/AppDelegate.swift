@@ -9,7 +9,6 @@
 import UIKit
 
 let APPHUD_API_KEY = "YOUR_API_KEY"
-let SHARED_SECRET = "YOUR_SHARED_SECRET"
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate, ApphudDelegate {
@@ -35,7 +34,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, ApphudDelegate {
             "MainMonthly",
             "SixthMonthly",
             "SixthWeekly",
-            ], sharedSecret: SHARED_SECRET)
+            ])
         
         return true
     }
