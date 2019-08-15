@@ -10,7 +10,10 @@ import Foundation
 
 typealias ApphudBoolDictionaryCallback = (Bool, [String : Any]?, Error?) -> Void
 
-struct ApphudHttpClient {
+/**
+ This is Apphud's internal class.
+ */
+public class ApphudHttpClient {
     
     enum ApphudHttpMethod : String {
         case post = "POST"
@@ -18,17 +21,22 @@ struct ApphudHttpClient {
         case put = "PUT"
     }
     
-    static let shared = ApphudHttpClient()
+    #if DEBUG
+    public static let shared = ApphudHttpClient()
+    public var domain_url_string = "https://api.apphud.com"
+    #else 
+    internal static let shared = ApphudHttpClient()
+    internal var domain_url_string = "https://api.apphud.com"
+    #endif
     
     internal var apiKey : String = ""
-    var domain_url_string = "https://api.apphud.com"
     
     private let session : URLSession = {
         let config = URLSessionConfiguration.default
         return URLSession.init(configuration: config)
     }()
     
-    func startRequest(path: String, params : [String : Any]?, method : ApphudHttpMethod, callback: @escaping ApphudBoolDictionaryCallback) {
+    internal func startRequest(path: String, params : [String : Any]?, method : ApphudHttpMethod, callback: @escaping ApphudBoolDictionaryCallback) {
         if let request = makeRequest(path: path, params: params, method: method) {
             start(request: request, callback: callback)
         }
