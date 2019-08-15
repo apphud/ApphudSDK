@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		944C6E712305701E00AD1DFF /* ApphudSDK.podspec in Resources */ = {isa = PBXBuildFile; fileRef = 944C6E702305701E00AD1DFF /* ApphudSDK.podspec */; };
+		944C6E732305AC5400AD1DFF /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 944C6E722305AC5300AD1DFF /* README.md */; };
 		947977AF22E8453200EE1934 /* Apphud.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947977A622E8453200EE1934 /* Apphud.swift */; };
 		947977B022E8453200EE1934 /* ApphudExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947977A722E8453200EE1934 /* ApphudExtensions.swift */; };
 		947977B122E8453200EE1934 /* ApphudHttpClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947977A822E8453200EE1934 /* ApphudHttpClient.swift */; };
@@ -27,6 +28,7 @@
 
 /* Begin PBXFileReference section */
 		944C6E702305701E00AD1DFF /* ApphudSDK.podspec */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = ApphudSDK.podspec; sourceTree = "<group>"; };
+		944C6E722305AC5300AD1DFF /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		947977A622E8453200EE1934 /* Apphud.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Apphud.swift; sourceTree = "<group>"; };
 		947977A722E8453200EE1934 /* ApphudExtensions.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudExtensions.swift; sourceTree = "<group>"; };
 		947977A822E8453200EE1934 /* ApphudHttpClient.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudHttpClient.swift; sourceTree = "<group>"; };
@@ -60,6 +62,7 @@
 		94AE4E8422A0FAC800564F85 = {
 			isa = PBXGroup;
 			children = (
+				944C6E722305AC5300AD1DFF /* README.md */,
 				944C6E702305701E00AD1DFF /* ApphudSDK.podspec */,
 				94AE4EAC22A14D0E00564F85 /* Source */,
 				94AE4E8F22A0FAC800564F85 /* apphud */,
@@ -165,6 +168,7 @@
 			files = (
 				944C6E712305701E00AD1DFF /* ApphudSDK.podspec in Resources */,
 				94AE4E9B22A0FACA00564F85 /* LaunchScreen.storyboard in Resources */,
+				944C6E732305AC5400AD1DFF /* README.md in Resources */,
 				94AE4E9822A0FACA00564F85 /* Assets.xcassets in Resources */,
 				94AE4E9622A0FAC800564F85 /* Main.storyboard in Resources */,
 			);
