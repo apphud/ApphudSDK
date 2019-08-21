@@ -8,8 +8,7 @@
 
 import UIKit
 
-#warning("REmove this")
-let APPHUD_API_KEY = "app_kAJSnePQqvAAXuHHJMpH1D7u3jeD34"
+let APPHUD_API_KEY = "YOUR_API_KEY"
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate, ApphudDelegate {
@@ -19,10 +18,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, ApphudDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         
-        #warning("REmove this")
-        ApphudHttpClient.shared.domain_url_string = "https://api.bitcolio.com"
-        Apphud.start(apiKey: APPHUD_API_KEY, userID: "renat_20.08", deviceID: "iPad_20.08")
-//        Apphud.start(apiKey: APPHUD_API_KEY)
+        Apphud.start(apiKey: APPHUD_API_KEY)
         
         // load your in-app purchase helper as usual
         IAPManager.shared.startWith(arrayOfIds: [
@@ -40,15 +36,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate, ApphudDelegate {
             "SixthWeekly",
             "sixth_weekly_regular"
             ])
-        
-        Apphud.checkEligibilitiesForIntroductoryOffers(products: []) { (response) in
-            
-        }
-        if #available(iOS 12.2, *) {
-            Apphud.checkEligibilitiesForPromotionalOffers(products: []) { (response) in
-                
-            }
-        }
         
         return true
     }
