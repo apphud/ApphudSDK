@@ -10,7 +10,7 @@ import Foundation
 import AdSupport
 import StoreKit
 
-let sdk_version = "0.3"
+let sdk_version = "0.4"
 
 final class ApphudInternal {
     
@@ -26,13 +26,15 @@ final class ApphudInternal {
     
     var httpClient : ApphudHttpClient!
     fileprivate var requires_currency_update = false
-        
+    
     fileprivate var userRegisteredCallbacks = [ApphudVoidCallback]()
     fileprivate var productGroupsFetchedCallbacks = [ApphudVoidCallback]()
     
     private var productsGroupsMap : [String : String]?
     
-    internal func initialize(apiKey: String, userID : String?, deviceIdentifier : String? = nil){
+    fileprivate var launchOptions : [UIApplication.LaunchOptionsKey: Any]?
+    
+    internal func initialize(apiKey: String, userID : String?, deviceIdentifier : String? = nil, launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil){
         
         ApphudStoreKitWrapper.shared.setupObserver()
         
@@ -54,6 +56,8 @@ final class ApphudInternal {
         
         self.currentUser = ApphudUser.fromCache()
         
+        self.launchOptions = launchOptions
+        
         if userID != nil {
             self.currentUserID = userID!
         } else if let existingUserID = self.currentUser?.user_id {
@@ -66,7 +70,7 @@ final class ApphudInternal {
         
         continueToRegisteringUser()
     }
-   
+    
     private func continueToRegisteringUser(){
         registerUser { (result, dictionary, error) in
             
@@ -80,6 +84,8 @@ final class ApphudInternal {
                 if hasSubscriptionChanges {
                     self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions!)
                 }
+                
+                self.handleLaunchOptions()
                 
                 apphudLog("User successfully registered")
                 
@@ -100,7 +106,7 @@ final class ApphudInternal {
     
     private func continueToUpdateProducts(){
         self.getProducts(callback: { (productsGroupsMap) in
-                
+            
             // perform even if productsGroupsMap is nil or empty
             self.performAllProductGroupsFetchedCallbacks()
             
@@ -160,6 +166,13 @@ final class ApphudInternal {
             return true
         } else {
             return false
+        }
+    }
+    
+    private func handleLaunchOptions(){
+        if let apsInfo = self.launchOptions?[UIApplication.LaunchOptionsKey.remoteNotification] as? [AnyHashable : Any]{
+            ApphudNotificationsHandler.shared.handleNotification(apsInfo)
+            self.launchOptions = nil
         }
     }
     
@@ -284,10 +297,10 @@ final class ApphudInternal {
                 
                 var map = [String : String]()
                 
-                    for product in productsArray {
-                        let productID = product["product_id"] as! String
-                        let groupID = product["group_id"] as! String
-                        map[productID] = groupID
+                for product in productsArray {
+                    let productID = product["product_id"] as! String
+                    let groupID = product["group_id"] as! String
+                    map[productID] = groupID
                 }
                 callback(map)
             } else {
@@ -577,6 +590,17 @@ final class ApphudInternal {
         if !result {
             apphudLog("Tried to check intro eligibility, but products not fetched, adding to schedule")
         }
+    }
+    
+    internal func submitPushNotificationsToken(token: Data, callback: @escaping (Bool) -> Void){
+        
+        let tokenString = token.map { String(format: "%02.2hhx", $0) }.joined()
+        
+        let params : [String : String] = ["device_id" : self.currentDeviceID, "push_token" : tokenString]
+        
+        httpClient.startRequest(path: "customers/push_token", params: params, method: .put) { (result, response, error) in
+            callback(result)
+        } 
     }
 }
 

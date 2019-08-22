@@ -7,6 +7,9 @@
 //
 
 import UIKit
+import UserNotifications
+
+public typealias BoolCallback = (Bool) -> Void
 
 let APPHUD_API_KEY = "YOUR_API_KEY"
 

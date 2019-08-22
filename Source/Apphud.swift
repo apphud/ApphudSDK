@@ -8,6 +8,7 @@
 
 import UIKit
 import StoreKit
+import UserNotifications
 
 public typealias ApphudEligibilityCallback = (([String : Bool]) -> Void)
 
@@ -41,6 +42,11 @@ public typealias ApphudEligibilityCallback = (([String : Bool]) -> Void)
      * After manual call of `updateUserID(userID : String)` method. 
      */
     @objc optional func apphudDidChangeUserID(_ userID : String)
+    
+    /**
+     Default is true
+     */
+    @objc optional func apphudShouldExecuteRule(ruleID: String, screenID: String?) -> Bool
 }
 
 final public class Apphud: NSObject {
@@ -51,13 +57,13 @@ final public class Apphud: NSObject {
      - parameter apiKey: Required. Your api key.
      - parameter userID: Optional. You can provide your own unique user identifier. If nil passed then UUID will be generated instead.
      */
-    @objc public static func start(apiKey: String, userID : String? = nil) {
-        ApphudInternal.shared.initialize(apiKey: apiKey, userID: userID)
+    @objc public static func start(apiKey: String, userID: String? = nil, launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) {
+        ApphudInternal.shared.initialize(apiKey: apiKey, userID: userID, launchOptions: launchOptions)
     }
     
     #if DEBUG
-    @objc public static func start(apiKey: String, userID : String? = nil, deviceID : String? = nil) {
-        ApphudInternal.shared.initialize(apiKey: apiKey, userID: userID, deviceIdentifier: deviceID)
+    @objc public static func start(apiKey: String, userID : String? = nil, deviceID : String? = nil, launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) {
+        ApphudInternal.shared.initialize(apiKey: apiKey, userID: userID, deviceIdentifier: deviceID, launchOptions: launchOptions)
     }
     #endif
     
@@ -123,13 +129,13 @@ final public class Apphud: NSObject {
     }
     
     /**
-        Checks whether the given product is eligible for purchasing any of it's promotional offers.
+     Checks whether the given product is eligible for purchasing any of it's promotional offers.
      
-        Only customers who already purchased subscription are eligible for promotional offer for the given product (or any product within the same subscription group).
-        
-        - parameter product: Required. This is an `SKProduct` object for which you want to check promo offers eligibility.
-        - parameter callback: Returns true if product is eligible for purchasing promotional any of it's promotional offers.
-        */    
+     Only customers who already purchased subscription are eligible for promotional offer for the given product (or any product within the same subscription group).
+     
+     - parameter product: Required. This is an `SKProduct` object for which you want to check promo offers eligibility.
+     - parameter callback: Returns true if product is eligible for purchasing promotional any of it's promotional offers.
+     */    
     
     @available(iOS 12.2, *)
     @objc public static func checkEligibilityForPromotionalOffer(product: SKProduct, callback: @escaping (Bool) -> Void){
@@ -139,16 +145,16 @@ final public class Apphud: NSObject {
     }
     
     /**
-        Checks whether the given product is eligible for purchasing introductory offer (`free trial`, `pay as you go` or `pay up front` modes).
+     Checks whether the given product is eligible for purchasing introductory offer (`free trial`, `pay as you go` or `pay up front` modes).
      
-        New and returning customers are eligible for introductory offers including free trials as follows:
+     New and returning customers are eligible for introductory offers including free trials as follows:
      
-        * New subscribers are always eligible.
+     * New subscribers are always eligible.
      
-        * Lapsed subscribers who renew are eligible if they haven't previously used an introductory offer for the given product (or any product within the same subscription group).
+     * Lapsed subscribers who renew are eligible if they haven't previously used an introductory offer for the given product (or any product within the same subscription group).
      
-        - parameter product: Required. This is an `SKProduct` object for which you want to check promo offers eligibility.
-        - parameter callback: Returns true if product is eligible for purchasing promotional offer.
+     - parameter product: Required. This is an `SKProduct` object for which you want to check promo offers eligibility.
+     - parameter callback: Returns true if product is eligible for purchasing promotional offer.
      */  
     @objc public static func checkEligibilityForIntroductoryOffer(product: SKProduct, callback: @escaping (Bool) -> Void){
         ApphudInternal.shared.checkEligibilitiesForIntroductoryOffers(products: [product]) { result in
@@ -168,10 +174,10 @@ final public class Apphud: NSObject {
     }
     
     /**
-        Checks introductory offers eligibility for multiple products at once.
+     Checks introductory offers eligibility for multiple products at once.
      
-        - parameter products: Required. This is an array of `SKProduct` objects for which you want to check introductory offers eligibilities.
-        - parameter callback: Returns dictionary with product identifiers and boolean values.
+     - parameter products: Required. This is an array of `SKProduct` objects for which you want to check introductory offers eligibilities.
+     - parameter callback: Returns dictionary with product identifiers and boolean values.
      */ 
     @objc public static func checkEligibilitiesForIntroductoryOffers(products: [SKProduct], callback: @escaping ApphudEligibilityCallback){
         ApphudInternal.shared.checkEligibilitiesForIntroductoryOffers(products: products, callback: callback)
@@ -243,5 +249,13 @@ final public class Apphud: NSObject {
      */     
     @objc public static func restoreSubscriptions() {
         ApphudInternal.shared.submitAppStoreReceipt(allowsReceiptRefresh: true)
+    }
+    
+    @objc public static func submitPushNotificationsToken(token: Data, callback: @escaping (Bool) -> Void){
+        ApphudInternal.shared.submitPushNotificationsToken(token: token, callback: callback)
+    }
+    
+    @objc public static func handlePushNotification(apsInfo: [AnyHashable : Any]){
+        ApphudNotificationsHandler.shared.handleNotification(apsInfo)
     }
 }
