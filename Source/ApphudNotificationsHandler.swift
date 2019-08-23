@@ -22,13 +22,13 @@ internal class ApphudNotificationsHandler {
         let screen_id = apsInfo["screen_id"] as? String
         
         if action == "present_purchase_screen" && rule_id != nil{
-            presentPurchaseScreen(rule_id!, screen_id)
+            presentPurchaseScreen(rule_id!, apsInfo)
         }
     }
     
-    private func presentPurchaseScreen(_ ruleId: String, _ screenId: String?){
+    private func presentPurchaseScreen(_ ruleId: String, _ userInfo: [AnyHashable : Any]){
         
-        let result = ApphudInternal.shared.delegate?.apphudShouldExecuteRule?(ruleID: ruleId, screenID: screenId)
+        let result = ApphudInternal.shared.delegate?.apphudShouldExecuteRule?(ruleID: ruleId, userInfo: userInfo)
         if result == nil || result! {
             // execute rule
         }

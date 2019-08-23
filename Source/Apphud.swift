@@ -46,7 +46,7 @@ public typealias ApphudEligibilityCallback = (([String : Bool]) -> Void)
     /**
      Default is true
      */
-    @objc optional func apphudShouldExecuteRule(ruleID: String, screenID: String?) -> Bool
+    @objc optional func apphudShouldExecuteRule(ruleID: String, userInfo: [AnyHashable : Any]) -> Bool
 }
 
 final public class Apphud: NSObject {
