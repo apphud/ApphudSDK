@@ -10,7 +10,7 @@ import Foundation
 import AdSupport
 import StoreKit
 
-let sdk_version = "0.4.1"
+let sdk_version = "0.4.2"
 
 final class ApphudInternal {
     
@@ -299,7 +299,7 @@ final class ApphudInternal {
                 
                 for product in productsArray {
                     let productID = product["product_id"] as! String
-                    let groupID = product["group_id"] as! String
+                    let groupID = (product["group_id"] as? String) ?? ""
                     map[productID] = groupID
                 }
                 callback(map)
