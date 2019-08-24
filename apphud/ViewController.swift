@@ -13,6 +13,9 @@ class ViewController: UITableViewController{
     
     var products = [SKProduct]()
     
+    var introductoryEligibility = [String : Bool]()
+    var promoOffersEligibility = [String : Bool]()
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -36,6 +39,18 @@ class ViewController: UITableViewController{
     @objc func reload(){
         if let prs = IAPManager.shared.products {
             products = prs
+            print("new eligibility checks")
+            Apphud.checkEligibilitiesForIntroductoryOffers(products: products) { (response) in
+                self.introductoryEligibility = response
+                if #available(iOS 12.2, *) {
+                    Apphud.checkEligibilitiesForPromotionalOffers(products: self.products) { (response) in
+                        self.promoOffersEligibility = response
+                        self.tableView.reloadData()
+                    }
+                } else {                    
+                    self.tableView.reloadData()
+                }
+            }            
         }
         tableView.reloadData()
     }
@@ -55,11 +70,20 @@ class ViewController: UITableViewController{
         let cell = tableView.dequeueReusableCell(withIdentifier: "productCell", for: indexPath)
         let product = products[indexPath.item]                        
         
-        cell.textLabel?.text = product.fullSubscriptionInfoString()
+        var text = product.fullSubscriptionInfoString() ?? ""
+        
+        if self.promoOffersEligibility[product.productIdentifier] != nil {
+            text = "\(text)\nEligible for promo: \(self.promoOffersEligibility[product.productIdentifier]!)"
+        }
+        if self.introductoryEligibility[product.productIdentifier] != nil {
+            text = "\(text)\nEligible for introductory: \(self.introductoryEligibility[product.productIdentifier]!)"
+        } 
+        
+        cell.textLabel?.text = text
         
         if let subscription = Apphud.purchasedSubscriptionFor(productID: product.productIdentifier) {
             
-            cell.detailTextLabel?.text = subscription.expiresDate.description(with: Locale.current) + "\nState: \(subscription.status.toStringDuplicate())".uppercased()
+            cell.detailTextLabel?.text = subscription.expiresDate.description(with: Locale.current) + "\nState: \(subscription.status.toStringDuplicate())\nIntroductory used:\(subscription.isIntroductoryActivated)".uppercased()
         } else {
             cell.detailTextLabel?.text = "Not active"
         }

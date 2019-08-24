@@ -10,7 +10,7 @@ import Foundation
 import AdSupport
 import StoreKit
 
-let sdk_version = "0.2.1"
+let sdk_version = "0.3"
 
 final class ApphudInternal {
     
@@ -26,9 +26,11 @@ final class ApphudInternal {
     
     var httpClient : ApphudHttpClient!
     fileprivate var requires_currency_update = false
+        
+    fileprivate var userRegisteredCallbacks = [ApphudVoidCallback]()
+    fileprivate var productGroupsFetchedCallbacks = [ApphudVoidCallback]()
     
-    typealias UserRegisteredCallback = (() -> Void)
-    fileprivate var userRegisteredCallbacks = [UserRegisteredCallback]()
+    private var productsGroupsMap : [String : String]?
     
     internal func initialize(apiKey: String, userID : String?, deviceIdentifier : String? = nil){
         
@@ -60,11 +62,23 @@ final class ApphudInternal {
             self.currentUserID = ApphudKeychain.generateUUID()
         }
         
+        self.productsGroupsMap = fromUserDefaultsCache(key: "productsGroupsMap")
+        
+        continueToRegisteringUser()
+    }
+   
+    private func continueToRegisteringUser(){
         registerUser { (result, dictionary, error) in
+            
+            var hasSubscriptionChanges = false
             if result {
+                hasSubscriptionChanges = self.parseUser(dictionary)
+            }
+            
+            if result && self.currentUser != nil {
                 
-                if self.parseUser(dictionary) {
-                    self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions!)                    
+                if hasSubscriptionChanges {
+                    self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions!)
                 }
                 
                 apphudLog("User successfully registered")
@@ -75,54 +89,47 @@ final class ApphudInternal {
                     self.submitAppStoreReceipt(allowsReceiptRefresh: false)
                 }
                 
-                self.getProducts(callback: { (result2, dictionary2, error2) in
-                    if result2, let dataDict = dictionary2?["data"] as? [String : Any] {
-                        if let productsArray = dataDict["results"] as? [[String : Any]] {
-                            var productIDs = Set<String>()
-                            for product in productsArray {
-                                let productID = product["product_id"] as! String
-                                productIDs.insert(productID)
-                            }
-                            if productIDs.count > 0 {
-                                ApphudStoreKitWrapper.shared.fetchProducts(identifiers: productIDs) { (skproducts) in
-                                    
-                                    self.updateUserCurrencyIfNeeded(priceLocale: skproducts.first?.priceLocale)
-                                    
-                                    self.submitProducts(products: skproducts) { (result3, response3, error3) in
-                                        if result3 {
-                                            apphudLog("Products prices successfully submitted")
-                                        } else {
-                                            apphudLog("Failed to submit products prices, error:\(error3?.localizedDescription ?? "")")
-                                        }
-                                    }
-                                    
-                                }
-                            }
-                        }
-                    }
-                })
+                self.continueToUpdateProducts()
+                
             } else {
                 apphudLog("Failed to register user, error:\(error?.localizedDescription ?? "")")
                 self.userRegisteredCallbacks.removeAll()
             }
         }
     }
-    /*
-     /// not used yet
-     private static func identifierForAdvertising() -> String? {
-     // Check whether advertising tracking is enabled
-     guard ASIdentifierManager.shared().isAdvertisingTrackingEnabled else {
-     return nil
-     }
-     
-     // Get and return IDFA
-     return ASIdentifierManager.shared().advertisingIdentifier.uuidString
-     }
-     */
     
-    /*
-     Returns a value, indicating whether subscriptions data has changes
-     */
+    private func continueToUpdateProducts(){
+        self.getProducts(callback: { (productsGroupsMap) in
+                
+            // perform even if productsGroupsMap is nil or empty
+            self.performAllProductGroupsFetchedCallbacks()
+            
+            guard productsGroupsMap?.keys.count ?? 0 > 0 else {
+                return
+            }
+            
+            self.productsGroupsMap = productsGroupsMap
+            
+            apphudLog("Products groups fetched: \(self.productsGroupsMap as AnyObject)")
+            
+            toUserDefaultsCache(dictionary: self.productsGroupsMap!, key: "productsGroupsMap")
+            
+            ApphudStoreKitWrapper.shared.fetchProducts(identifiers: Set(self.productsGroupsMap!.keys)) { (skproducts) in
+                
+                self.updateUserCurrencyIfNeeded(priceLocale: skproducts.first?.priceLocale)
+                
+                self.submitProducts(products: skproducts) { (result3, response3, error3) in
+                    if result3 {
+                        apphudLog("Products prices successfully submitted")
+                    } else {
+                        apphudLog("Failed to submit products prices, error:\(error3?.localizedDescription ?? "")")
+                    }
+                }
+                
+            }
+        })
+    }
+    
     @discardableResult private func parseUser(_ dict : [String : Any]?) -> Bool{
         
         guard let dataDict = dict?["data"] as? [String : Any] else {
@@ -168,7 +175,7 @@ final class ApphudInternal {
     
     // MARK: Helper
     /// Returns false if current user is not yet registered, block is added to array and will be performed later.
-    @discardableResult internal func performWhenUserRegistered(callback : @escaping UserRegisteredCallback) -> Bool{
+    @discardableResult internal func performWhenUserRegistered(callback : @escaping ApphudVoidCallback) -> Bool{
         if currentUser != nil {
             callback()
             return true
@@ -186,6 +193,28 @@ final class ApphudInternal {
         if userRegisteredCallbacks.count > 0 {
             apphudLog("All scheduled blocks performed, removing..")
             userRegisteredCallbacks.removeAll()
+        }
+    }
+    
+    /// Returns false if products groups map dictionary not yet received, block is added to array and will be performed later.
+    @discardableResult internal func performWhenProductGroupsFetched(callback : @escaping ApphudVoidCallback) -> Bool{
+        if self.productsGroupsMap != nil {
+            callback()
+            return true
+        } else {
+            productGroupsFetchedCallbacks.append(callback)
+            return false
+        }
+    }
+    
+    private func performAllProductGroupsFetchedCallbacks(){
+        for block in productGroupsFetchedCallbacks {
+            apphudLog("Performing scheduled block..")
+            block()
+        }
+        if productGroupsFetchedCallbacks.count > 0 {
+            apphudLog("All scheduled blocks performed, removing..")
+            productGroupsFetchedCallbacks.removeAll()
         }
     }
     
@@ -247,8 +276,24 @@ final class ApphudInternal {
         httpClient.startRequest(path: "customers", params: params, method: .post, callback: callback)
     }
     
-    private func getProducts(callback: @escaping ApphudBoolDictionaryCallback) {
-        httpClient.startRequest(path: "products", params: nil, method: .get, callback: callback)
+    private func getProducts(callback: @escaping (([String : String]?) -> Void)) {
+        
+        httpClient.startRequest(path: "products", params: nil, method: .get) { (result, response, error) in
+            if result, let dataDict = response?["data"] as? [String : Any],
+                let productsArray = dataDict["results"] as? [[String : Any]] {  
+                
+                var map = [String : String]()
+                
+                    for product in productsArray {
+                        let productID = product["product_id"] as! String
+                        let groupID = product["group_id"] as! String
+                        map[productID] = groupID
+                }
+                callback(map)
+            } else {
+                callback(nil)
+            }
+        }
     }
     
     private func submitProducts(products: [SKProduct], callback : @escaping ApphudBoolDictionaryCallback) {
@@ -271,7 +316,7 @@ final class ApphudInternal {
         }
         
         let exist = performWhenUserRegistered { 
-            self.submitReceipt(receiptString: receiptString, isRestoring: false) { error in
+            self.submitReceipt(receiptString: receiptString, notifyDelegate: false) { error in
                 callback?(Apphud.purchasedSubscriptionFor(productID: productId), error)
             }            
         }
@@ -292,14 +337,14 @@ final class ApphudInternal {
         }
         
         let exist = performWhenUserRegistered { 
-            self.submitReceipt(receiptString: receiptString, isRestoring: true, callback: nil)
+            self.submitReceipt(receiptString: receiptString, notifyDelegate: true, callback: nil)
         }
         if !exist {
             apphudLog("Tried to make restore allows: \(allowsReceiptRefresh) request when user is not yet registered, addind to schedule..")
         }
     }
     
-    fileprivate func submitReceipt(receiptString : String, isRestoring : Bool, callback : ((Error?) -> Void)?) {
+    fileprivate func submitReceipt(receiptString : String, notifyDelegate : Bool, callback : ((Error?) -> Void)?) {
         
         if isSubmittingReceipt {return}
         isSubmittingReceipt = true
@@ -325,7 +370,7 @@ final class ApphudInternal {
                 UserDefaults.standard.synchronize()
                 if self.parseUser(response) {
                     // do not call delegate method only purchase, use callback instead
-                    if isRestoring {
+                    if notifyDelegate {
                         self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions!)
                     }
                 }
@@ -378,6 +423,159 @@ final class ApphudInternal {
             //            let error = ApphudError("Could not sign promo offer: \(discountID)")
             
             callback?(nil, nil)
+        }
+    }
+    
+    /// Promo offers eligibility
+    
+    @available(iOS 12.2, *)
+    internal func checkEligibilitiesForPromotionalOffers(products: [SKProduct], callback: @escaping ApphudEligibilityCallback){
+        
+        #warning("test all entries")
+        
+        let result = performWhenUserRegistered {
+            
+            apphudLog("User registered, check promo eligibility")
+            
+            let didSendReceiptForPromoEligibility = "ReceiptForPromoSent"
+            
+            // not found subscriptions, try to restore and try again
+            if self.currentUser?.subscriptions?.count ?? 0 == 0 && !UserDefaults.standard.bool(forKey: didSendReceiptForPromoEligibility){
+                if let receiptString = receiptDataString() {
+                    apphudLog("Restoring subscriptions for promo eligibility check")
+                    self.submitReceipt(receiptString: receiptString, notifyDelegate: false, callback: { error in
+                        UserDefaults.standard.set(true, forKey: didSendReceiptForPromoEligibility)
+                        self._checkPromoEligibilitiesForRegisteredUser(products: products, callback: callback)
+                    })
+                } else {
+                    apphudLog("Receipt not found for promo eligibility check, exiting")
+                    // receipt not found and subscriptions not purchased, impossible to determine eligibility
+                    // this should never not happen on production, because receipt always exists
+                    var response = [String : Bool]() 
+                    for product in products {
+                        response[product.productIdentifier] = false // cannot purchase offer by default
+                    }
+                    callback(response)
+                }
+            } else {
+                apphudLog("Has purchased subscriptions or has checked receipt for promo eligibility")
+                self._checkPromoEligibilitiesForRegisteredUser(products: products, callback: callback)
+            }
+        }
+        if !result {
+            apphudLog("Tried to check promo eligibility, but user not registered, adding to schedule")
+        }
+    }
+    
+    @available(iOS 12.2, *)
+    private func _checkPromoEligibilitiesForRegisteredUser(products: [SKProduct], callback: @escaping ApphudEligibilityCallback) {
+        
+        #warning("test all entries")
+        
+        var response = [String : Bool]()
+        for product in products {
+            response[product.productIdentifier] = false
+        }
+        
+        let result = self.performWhenProductGroupsFetched {
+            
+            apphudLog("Products fetched, check promo eligibility")
+            
+            for subscription in self.currentUser?.subscriptions ?? [] {
+                for product in products {
+                    let purchasedGroupId = self.productsGroupsMap?[subscription.productId]
+                    let givenGroupId = self.productsGroupsMap?[product.productIdentifier]
+                    if (subscription.productId == product.productIdentifier) || 
+                        (purchasedGroupId != nil && purchasedGroupId == givenGroupId) {
+                        // if the same product or in the same group
+                        response[product.productIdentifier] = true
+                        // do not break, check all products
+                    }
+                }
+            }
+            apphudLog("Finished promo checking, response: \(response as AnyObject)")
+            callback(response)
+        }
+        if !result {
+            apphudLog("Tried to check promo eligibility, but products not fetched, adding to schedule")
+        }
+    }
+    
+    /// Checks introductory offers eligibility (includes free trial, pay as you go or pay up front)
+    @available(iOS 11.2, *)
+    internal func checkEligibilitiesForIntroductoryOffers(products: [SKProduct], callback: @escaping ApphudEligibilityCallback){
+        
+        #warning("test all entries")
+        
+        let result = performWhenUserRegistered {
+            
+            apphudLog("User registered, check intro eligibility")
+            
+            // not found subscriptions, try to restore and try again
+            
+            let didSendReceiptForIntroEligibility = "ReceiptForIntroSent"
+            
+            if self.currentUser?.subscriptions?.count ?? 0 == 0 && !UserDefaults.standard.bool(forKey: didSendReceiptForIntroEligibility){
+                if let receiptString = receiptDataString() {
+                    apphudLog("Restoring subscriptions for intro eligibility check")
+                    self.submitReceipt(receiptString: receiptString, notifyDelegate: false, callback: { error in
+                        UserDefaults.standard.set(true, forKey: didSendReceiptForIntroEligibility)
+                        self._checkIntroEligibilitiesForRegisteredUser(products: products, callback: callback)
+                    })
+                } else {
+                    apphudLog("Receipt not found for intro eligibility check, exiting")
+                    // receipt not found and subscriptions not purchased, impossible to determine eligibility
+                    // this should never not happen on production, because receipt always exists
+                    var response = [String : Bool]() 
+                    for product in products {
+                        response[product.productIdentifier] = true // can purchase intro by default
+                    }
+                    callback(response)
+                }
+            } else {
+                apphudLog("Has purchased subscriptions or has checked receipt for intro eligibility")
+                self._checkIntroEligibilitiesForRegisteredUser(products: products, callback: callback)
+            }
+        } 
+        if !result {
+            apphudLog("Tried to check intro eligibility, but user not registered, adding to schedule")
+        }
+    }
+    
+    @available(iOS 11.2, *)
+    private func _checkIntroEligibilitiesForRegisteredUser(products: [SKProduct], callback: @escaping ApphudEligibilityCallback) {
+        
+        #warning("test all entries")
+        
+        var response = [String : Bool]()
+        for product in products {
+            response[product.productIdentifier] = true
+        }
+        
+        let result = self.performWhenProductGroupsFetched {
+            
+            apphudLog("Products fetched, check intro eligibility")
+            
+            for subscription in self.currentUser?.subscriptions ?? [] {
+                for product in products {
+                    let purchasedGroupId = self.productsGroupsMap?[subscription.productId]
+                    let givenGroupId = self.productsGroupsMap?[product.productIdentifier]
+                    
+                    if subscription.productId == product.productIdentifier ||
+                        (purchasedGroupId == givenGroupId && givenGroupId != nil) {
+                        // if purchased, then this subscription is eligible for intro only if not used intro and status expired
+                        let eligible = !subscription.isIntroductoryActivated && subscription.status == .expired
+                        response[product.productIdentifier] = eligible
+                        // do not break, check all products
+                    }
+                }
+            }
+            apphudLog("Finished intro checking, response: \(response as AnyObject)")
+            callback(response)
+        }
+        
+        if !result {
+            apphudLog("Tried to check intro eligibility, but products not fetched, adding to schedule")
         }
     }
 }

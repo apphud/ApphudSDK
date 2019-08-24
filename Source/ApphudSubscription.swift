@@ -84,6 +84,16 @@ public class ApphudSubscription : NSObject{
      */
     @objc public let isAutorenewEnabled : Bool
     
+    /**
+     True value means that user has already used introductory offer for this subscription (free trial, pay as you go or pay up front).
+     
+     __Note:__ If this value is false, this doesn't mean that user is eligible for introductory offer for this subscription (for all products within the same group). Subscription should also have expired status.
+     
+     __You shouldn't use this value__. Use `checkEligibilityForIntroductoryOffer(products: callback:)` method instead.
+     */
+    @objc public let isIntroductoryActivated : Bool
+    
+    
     // MARK:- Private methods
     
     /// Subscription private initializer
@@ -95,6 +105,7 @@ public class ApphudSubscription : NSObject{
         startedAt = ApphudSubscription.dateFrom(dictionary["started_at"])
         isInRetryBilling = dictionary["in_retry_billing"] as? Bool ?? false
         isAutorenewEnabled = dictionary["autorenew_enabled"] as? Bool ?? false
+        isIntroductoryActivated = dictionary["introductory_activated"] as? Bool ?? false
         if let statusString = dictionary["status"] as? String {
             status = ApphudSubscription.statusFrom(string: statusString)
         } else {

@@ -34,6 +34,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, ApphudDelegate {
             "MainMonthly",
             "SixthMonthly",
             "SixthWeekly",
+            "sixth_weekly_regular"
             ])
         
         return true

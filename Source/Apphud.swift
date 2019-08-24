@@ -9,6 +9,8 @@
 import UIKit
 import StoreKit
 
+public typealias ApphudEligibilityCallback = (([String : Bool]) -> Void)
+
 @objc public protocol ApphudDelegate {
     
     /**
@@ -118,6 +120,61 @@ final public class Apphud: NSObject {
     @available(iOS 12.2, *)
     @objc public static func makePurchase(product: SKProduct, discount: SKPaymentDiscount, callback: ((ApphudSubscription?, Error?) -> Void)?){
         ApphudInternal.shared.makePurchase(product: product, discount: discount, callback: callback)
+    }
+    
+    /**
+        Checks whether the given product is eligible for purchasing any of it's promotional offers.
+     
+        Only customers who already purchased subscription are eligible for promotional offer for the given product (or any product within the same subscription group).
+        
+        - parameter product: Required. This is an `SKProduct` object for which you want to check promo offers eligibility.
+        - parameter callback: Returns true if product is eligible for purchasing promotional any of it's promotional offers.
+        */    
+    
+    @available(iOS 12.2, *)
+    @objc public static func checkEligibilityForPromotionalOffer(product: SKProduct, callback: @escaping (Bool) -> Void){
+        ApphudInternal.shared.checkEligibilitiesForPromotionalOffers(products: [product]) { result in
+            callback(result[product.productIdentifier] ?? false)
+        }
+    }
+    
+    /**
+        Checks whether the given product is eligible for purchasing introductory offer (`free trial`, `pay as you go` or `pay up front` modes).
+     
+        New and returning customers are eligible for introductory offers including free trials as follows:
+     
+        * New subscribers are always eligible.
+     
+        * Lapsed subscribers who renew are eligible if they haven't previously used an introductory offer for the given product (or any product within the same subscription group).
+     
+        - parameter product: Required. This is an `SKProduct` object for which you want to check promo offers eligibility.
+        - parameter callback: Returns true if product is eligible for purchasing promotional offer.
+     */  
+    @objc public static func checkEligibilityForIntroductoryOffer(product: SKProduct, callback: @escaping (Bool) -> Void){
+        ApphudInternal.shared.checkEligibilitiesForIntroductoryOffers(products: [product]) { result in
+            callback(result[product.productIdentifier] ?? true)
+        }
+    }
+    
+    /**
+     Checks promotional offers eligibility for multiple products at once.
+     
+     - parameter products: Required. This is an array of `SKProduct` objects for which you want to check promo offers eligibilities.
+     - parameter callback: Returns dictionary with product identifiers and boolean values.
+     */ 
+    @available(iOS 12.2, *)
+    @objc public static func checkEligibilitiesForPromotionalOffers(products: [SKProduct], callback: @escaping ApphudEligibilityCallback){
+        ApphudInternal.shared.checkEligibilitiesForPromotionalOffers(products: products, callback: callback)
+    }
+    
+    /**
+        Checks introductory offers eligibility for multiple products at once.
+     
+        - parameter products: Required. This is an array of `SKProduct` objects for which you want to check introductory offers eligibilities.
+        - parameter callback: Returns dictionary with product identifiers and boolean values.
+     */ 
+    @objc public static func checkEligibilitiesForIntroductoryOffers(products: [SKProduct], callback: @escaping ApphudEligibilityCallback){
+        ApphudInternal.shared.checkEligibilitiesForIntroductoryOffers(products: products, callback: callback)
     }
     
     /**

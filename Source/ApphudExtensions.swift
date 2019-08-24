@@ -9,10 +9,25 @@
 import Foundation
 import StoreKit
 
+typealias ApphudVoidCallback = (() -> Void)
+
 internal func apphudLog(_ text : String) {
     if ApphudUtils.shared.isLoggingEnabled {
-        print("[Apphud] \(text)")
+        let formatter = DateFormatter()
+        formatter.dateStyle = .none
+        formatter.timeStyle = .medium
+        let time = formatter.string(from: Date())
+        print("[Apphud] [\(time)] \(text)")
     }
+}
+
+internal func toUserDefaultsCache(dictionary: [String : String], key: String){
+    UserDefaults.standard.set(dictionary, forKey: key)
+    UserDefaults.standard.synchronize()
+}
+
+internal func fromUserDefaultsCache(key: String) -> [String : String]? {
+    return UserDefaults.standard.object(forKey: key) as? [String : String]
 }
 
 internal func currentDeviceParameters() -> [String : String]{
