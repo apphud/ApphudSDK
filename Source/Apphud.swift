@@ -129,13 +129,13 @@ final public class Apphud: NSObject {
     }
     
     /**
-     Checks whether the given product is eligible for purchasing any of it's promotional offers.
+        Checks whether the given product is eligible for purchasing any of it's promotional offers.
      
-     Only customers who already purchased subscription are eligible for promotional offer for the given product (or any product within the same subscription group).
-     
-     - parameter product: Required. This is an `SKProduct` object for which you want to check promo offers eligibility.
-     - parameter callback: Returns true if product is eligible for purchasing promotional any of it's promotional offers.
-     */    
+        Only customers who already purchased subscription are eligible for promotional offer for the given product (or any product within the same subscription group).
+        
+        - parameter product: Required. This is an `SKProduct` object for which you want to check promo offers eligibility.
+        - parameter callback: Returns true if product is eligible for purchasing promotional any of it's promotional offers.
+        */    
     
     @available(iOS 12.2, *)
     @objc public static func checkEligibilityForPromotionalOffer(product: SKProduct, callback: @escaping (Bool) -> Void){
@@ -145,16 +145,16 @@ final public class Apphud: NSObject {
     }
     
     /**
-     Checks whether the given product is eligible for purchasing introductory offer (`free trial`, `pay as you go` or `pay up front` modes).
+        Checks whether the given product is eligible for purchasing introductory offer (`free trial`, `pay as you go` or `pay up front` modes).
      
-     New and returning customers are eligible for introductory offers including free trials as follows:
+        New and returning customers are eligible for introductory offers including free trials as follows:
      
-     * New subscribers are always eligible.
+        * New subscribers are always eligible.
      
-     * Lapsed subscribers who renew are eligible if they haven't previously used an introductory offer for the given product (or any product within the same subscription group).
+        * Lapsed subscribers who renew are eligible if they haven't previously used an introductory offer for the given product (or any product within the same subscription group).
      
-     - parameter product: Required. This is an `SKProduct` object for which you want to check promo offers eligibility.
-     - parameter callback: Returns true if product is eligible for purchasing promotional offer.
+        - parameter product: Required. This is an `SKProduct` object for which you want to check promo offers eligibility.
+        - parameter callback: Returns true if product is eligible for purchasing promotional offer.
      */  
     @objc public static func checkEligibilityForIntroductoryOffer(product: SKProduct, callback: @escaping (Bool) -> Void){
         ApphudInternal.shared.checkEligibilitiesForIntroductoryOffers(products: [product]) { result in
@@ -174,10 +174,10 @@ final public class Apphud: NSObject {
     }
     
     /**
-     Checks introductory offers eligibility for multiple products at once.
+        Checks introductory offers eligibility for multiple products at once.
      
-     - parameter products: Required. This is an array of `SKProduct` objects for which you want to check introductory offers eligibilities.
-     - parameter callback: Returns dictionary with product identifiers and boolean values.
+        - parameter products: Required. This is an array of `SKProduct` objects for which you want to check introductory offers eligibilities.
+        - parameter callback: Returns dictionary with product identifiers and boolean values.
      */ 
     @objc public static func checkEligibilitiesForIntroductoryOffers(products: [SKProduct], callback: @escaping ApphudEligibilityCallback){
         ApphudInternal.shared.checkEligibilitiesForIntroductoryOffers(products: products, callback: callback)

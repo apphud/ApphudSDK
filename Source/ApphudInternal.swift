@@ -26,7 +26,7 @@ final class ApphudInternal {
     
     var httpClient : ApphudHttpClient!
     fileprivate var requires_currency_update = false
-    
+        
     fileprivate var userRegisteredCallbacks = [ApphudVoidCallback]()
     fileprivate var productGroupsFetchedCallbacks = [ApphudVoidCallback]()
     
@@ -70,7 +70,7 @@ final class ApphudInternal {
         
         continueToRegisteringUser()
     }
-    
+
     private func continueToRegisteringUser(){
         registerUser { (result, dictionary, error) in
             
@@ -106,7 +106,6 @@ final class ApphudInternal {
     
     private func continueToUpdateProducts(){
         self.getProducts(callback: { (productsGroupsMap) in
-            
             // perform even if productsGroupsMap is nil or empty
             self.performAllProductGroupsFetchedCallbacks()
             
