@@ -35,11 +35,21 @@ public class ApphudHttpClient {
         let config = URLSessionConfiguration.default
         return URLSession.init(configuration: config)
     }()
-    
+        
     internal func startRequest(path: String, params : [String : Any]?, method : ApphudHttpMethod, callback: @escaping ApphudBoolDictionaryCallback) {
         if let request = makeRequest(path: path, params: params, method: method) {
             start(request: request, callback: callback)
         }
+    }
+    
+    internal func makeScreenRequest(screenID: String) -> URLRequest? {
+        let urlString = "\(domain_url_string)/preview_screen/\(screenID)?api_key=\(apiKey)"
+        let url = URL(string: urlString)
+        if url != nil {
+            let request = URLRequest(url: url!, cachePolicy: URLRequest.CachePolicy.useProtocolCachePolicy, timeoutInterval: 20)
+            return request
+        }
+        return nil
     }
     
     private func makeRequest(path : String, params : [String : Any]?, method : ApphudHttpMethod) -> URLRequest? {

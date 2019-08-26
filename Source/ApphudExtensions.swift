@@ -21,6 +21,14 @@ internal func apphudLog(_ text : String) {
     }
 }
 
+internal func apphudVisibleViewController() -> UIViewController? {
+    var currentVC = UIApplication.shared.keyWindow?.rootViewController
+    while let presentedVC = currentVC?.presentedViewController {
+        currentVC = presentedVC
+    }
+    return currentVC
+}
+
 internal func toUserDefaultsCache(dictionary: [String : String], key: String){
     UserDefaults.standard.set(dictionary, forKey: key)
     UserDefaults.standard.synchronize()

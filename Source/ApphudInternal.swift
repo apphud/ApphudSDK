@@ -592,14 +592,24 @@ final class ApphudInternal {
     }
     
     internal func submitPushNotificationsToken(token: Data, callback: @escaping (Bool) -> Void){
-        
         let tokenString = token.map { String(format: "%02.2hhx", $0) }.joined()
-        
         let params : [String : String] = ["device_id" : self.currentDeviceID, "push_token" : tokenString]
-        
         httpClient.startRequest(path: "customers/push_token", params: params, method: .put) { (result, response, error) in
             callback(result)
         } 
+    }
+    
+    internal func getScreenDetails(screenID: String, callback:@escaping (ApphudScreen?) -> Void){        
+        let params : [String : String] = ["device_id" : self.currentDeviceID]
+        httpClient.startRequest(path: "screens/\(screenID)", params: params, method: .get) { (result, response, error) in
+            if result, let dataDict = response?["data"] as? [String : Any],
+                let screenDict = dataDict["results"] as? [String : Any] {
+                callback(ApphudScreen(dictionary: screenDict))
+            } else {
+                callback(nil)
+            }
+        }
+        
     }
 }
 
