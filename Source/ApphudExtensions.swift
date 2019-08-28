@@ -208,7 +208,7 @@ extension SKProduct {
         guard let subscriptionPeriod = subscriptionPeriod else {
             return ""
         }
-        let unit = unitStringFrom(un: subscriptionPeriod.unit) 
+        let unit = unitStringFrom(periodUnit: subscriptionPeriod.unit) 
         let unit_count = subscriptionPeriod.numberOfUnits
         let durationUnitsString = "\(unit)\(unit_count > 1 ? "s" : "")"
         let string = "\(unit_count) \(durationUnitsString)"        
@@ -217,7 +217,7 @@ extension SKProduct {
     
     func discountDurationString(discount: SKProductDiscount) -> String{
         let periods_count = discount.numberOfPeriods
-        let unit = unitStringFrom(un: discount.subscriptionPeriod.unit) 
+        let unit = unitStringFrom(periodUnit: discount.subscriptionPeriod.unit) 
         let unit_count = discount.subscriptionPeriod.numberOfUnits
         var string = ""
         
@@ -229,7 +229,7 @@ extension SKProduct {
     }
     
     func discountUnitString(discount: SKProductDiscount) -> String{
-        let unit = unitStringFrom(un: discount.subscriptionPeriod.unit) 
+        let unit = unitStringFrom(periodUnit: discount.subscriptionPeriod.unit) 
         let unit_count = discount.subscriptionPeriod.numberOfUnits
         if unit_count > 1 {
             return "\(unit_count) \(unit)s"
