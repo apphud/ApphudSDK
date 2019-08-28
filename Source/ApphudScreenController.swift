@@ -9,7 +9,7 @@
 import UIKit
 import WebKit
 import StoreKit
-
+import SafariServices
 @available(iOS 12.2, *)
 class ApphudScreenController: UIViewController{
 
@@ -43,25 +43,31 @@ class ApphudScreenController: UIViewController{
     var addedObserver = false
     var isPurchasing = false
     var start = Date()
+    var completionBlock: ((Bool)->Void)?
     
     deinit {
         NotificationCenter.default.removeObserver(self)
     }
     
-    class func show(ruleID: String, screenID: String){
-        let controller = ApphudScreenController()
-        controller.ruleID = ruleID
-        controller.screenID = screenID
-        controller.loadScreenPage()
-        apphudVisibleViewController()?.present(controller, animated: true, completion: nil)
-        
+    internal func show(ruleID: String, screenID: String, completionBlock:@escaping (Bool)->Void){
+        self.ruleID = ruleID
+        self.screenID = screenID
+        self.completionBlock = completionBlock
+        self.loadScreenPage()        
     }
    
+    private func failed(){
+        self.completionBlock?(false)
+        self.completionBlock = nil
+    }
+    
     private func loadScreenPage(){
-        if let request = ApphudHttpClient.shared.makeScreenRequest(screenID: self.screenID) {
-            print("start html page: \(request.url)")
+        if let request = ApphudHttpClient.shared.makeScreenRequest(screenID: self.screenID) {   
+            apphudLog("started loading page:\(request)")
             self.webView.alpha = 0
             self.webView.load(request)
+        } else {
+            failed()
         }
     }
     
@@ -75,15 +81,13 @@ class ApphudScreenController: UIViewController{
                     self.screen = screen
                     self.reloadUI()
                 } else {
-                    // handle error
+                    self.failed()
                 }
             }
         }
     }
 
     @objc private func reloadUI(){
-        
-        print("ApphudScreenController reload UI")
         
         guard let product = ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == self.screen!.product_id}) else {
             if !addedObserver {
@@ -92,51 +96,53 @@ class ApphudScreenController: UIViewController{
             }
             return
         }
-        
         self.product = product
         discount = self.product!.discounts.first(where: {$0.identifier == self.screen!.promo_offer_id})
-                
-        webView.evaluateJavaScript("document.body.innerHTML") { (result, error) in
-            
+        webView.evaluateJavaScript("document.documentElement.outerHTML") { (result, error) in
             if var html = result as? NSString {
-                
-                let firstDiv = html.range(of: "<div")
-                var searchStart = 0
-                if firstDiv.location != NSNotFound {                        
-                    searchStart = firstDiv.location
-                }
-                
-                if self.discount != nil {            
-                    let offerDuration = self.product!.discountDurationString(discount: self.discount!)
-                    let offerUnit = self.product!.discountUnitString(discount: self.discount!)
-                    let offerPrice = self.product!.localizedDiscountPrice(discount: self.discount!)
-                    let discountPercents = 100 * (self.product!.price.floatValue - self.discount!.price.floatValue) / self.product!.price.floatValue
-                                        
-                    html = html.replacingOccurrences(of: "{offer_duration}", with: offerDuration, options: [], range: NSMakeRange(searchStart, html.length - searchStart)) as NSString
-                    html = html.replacingOccurrences(of: "{offer_unit}", with: offerUnit, options: [], range: NSMakeRange(searchStart, html.length - searchStart)) as NSString
-                    html = html.replacingOccurrences(of: "{offer_price}", with: offerPrice, options: [], range: NSMakeRange(searchStart, html.length - searchStart)) as NSString
-                }
-                
-                let regularUnit = self.product!.regularUnitString()
-                let regularPrice = self.product!.localizedPrice()
-                
-                html = html.replacingOccurrences(of: "{regular_unit}", with: regularUnit, options: [], range: NSMakeRange(searchStart, html.length - searchStart)) as NSString
-                html = html.replacingOccurrences(of: "{regular_price}", with: regularPrice, options: [], range: NSMakeRange(searchStart, html.length - searchStart)) as NSString
-                
-                self.webView.tag = 1
+                html = self.replaceMacroses(html: html)
+                self.webView.tag = 1                
                 self.webView.loadHTMLString(html as String, baseURL: nil)
+            } else {
+                self.failed()
             }
+        }
+    }
+     
+    func replaceMacroses(html: NSString) -> NSString{
+        let firstDiv = html.range(of: "<div")
+        var searchStart = 0
+        if firstDiv.location != NSNotFound {                        
+            searchStart = firstDiv.location
+        }
+        var newHtml = html
+        if self.discount != nil {            
+            let offerDuration = self.product!.discountDurationString(discount: self.discount!)
+            let offerUnit = self.product!.discountUnitString(discount: self.discount!)
+            let offerPrice = self.product!.localizedDiscountPrice(discount: self.discount!)
+            let discountPercents = 100 * (self.product!.price.floatValue - self.discount!.price.floatValue) / self.product!.price.floatValue
             
-            
-            
-            
+            newHtml = newHtml.replacingOccurrences(of: "{offer_duration}", with: offerDuration, options: [], range: NSMakeRange(searchStart, newHtml.length - searchStart)) as NSString
+            newHtml = newHtml.replacingOccurrences(of: "{offer_unit}", with: offerUnit, options: [], range: NSMakeRange(searchStart, newHtml.length - searchStart)) as NSString
+            newHtml = newHtml.replacingOccurrences(of: "{offer_price}", with: offerPrice, options: [], range: NSMakeRange(searchStart, newHtml.length - searchStart)) as NSString
         }
         
+        let regularUnit = self.product!.regularUnitString()
+        let regularPrice = self.product!.localizedPrice()
         
+        newHtml = newHtml.replacingOccurrences(of: "{regular_unit}", with: regularUnit, options: [], range: NSMakeRange(searchStart, newHtml.length - searchStart)) as NSString
+        newHtml = newHtml.replacingOccurrences(of: "{regular_price}", with: regularPrice, options: [], range: NSMakeRange(searchStart, newHtml.length - searchStart)) as NSString
+        
+        return newHtml
     }
     
-    override func viewDidLoad() {
-        super.viewDidLoad()
+    func present(){
+        let date = Date().timeIntervalSince(start)
+        apphudVisibleViewController()?.present(self, animated: true, completion: nil)        
+        apphudLog("exec time: \(date)")
+        completionBlock?(true)
+        completionBlock = nil
+        webView.alpha = 1
         ApphudInternal.shared.trackMobileEvent(name: "purchase_screen_presented", ruleID: self.ruleID, callback: {})
     }
     
@@ -176,40 +182,61 @@ class ApphudScreenController: UIViewController{
     private func dismiss(){
         dismiss(animated: true, completion: nil)
     }
-}
-
-@available(iOS 12.2, *)
-extension ApphudScreenController : WKScriptMessageHandler {
-    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        print("message: \(message)")
+    
+    private func openURL(privacyOrTerms: Bool){
+        var urlString: String?
+        if privacyOrTerms {
+            urlString = self.screen?.privacy_url
+        } else {
+            urlString = self.screen?.terms_url
+        }
+        if urlString != nil, let url = URL(string: urlString!), UIApplication.shared.canOpenURL(url){
+            let controller = SFSafariViewController(url: url)
+            present(controller, animated: true, completion: nil)
+        }
     }
 }
 
 @available(iOS 12.2, *)
 extension ApphudScreenController : WKNavigationDelegate {
     
+    func handleNavigationAction(navigationAction: WKNavigationAction) -> Bool {
+        
+        if webView.tag == 1, let lastComponent = navigationAction.request.url?.lastPathComponent {    
+            switch lastComponent {
+            case "confirm":
+                self.purchaseTapped()
+                return false
+            case "dismiss":
+                self.closeTapped()
+                return false
+            case "terms":
+                self.openURL(privacyOrTerms: false)
+                return false
+            case "privacy":
+                self.openURL(privacyOrTerms: true)
+                return false
+            default:
+                break
+            }
+        }
+        
+        return true
+    }
+    
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         if webView.tag == 1 {
-            webView.alpha = 1
-            
-            let date = Date().timeIntervalSince(start)
-            
-            print("exec time: \(date)")
+            present()
         } else {
             getScreenInfo()
         }
     }
     
-    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        print("didFailh navigation")
-    }
-    
-    func webView(_ webView: WKWebView, didReceiveServerRedirectForProvisionalNavigation navigation: WKNavigation!) {
-        print("didReceiveServerRedirectForProvisionalNavigation")
-    }
-    
-    func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse, decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
-        print("decidePolicyFor navigationResponse")
-        decisionHandler(.allow)
+    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        if handleNavigationAction(navigationAction: navigationAction){
+            decisionHandler(.allow)
+        } else {
+            decisionHandler(.cancel)
+        }
     }
 }

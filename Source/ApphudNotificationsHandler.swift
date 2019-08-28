@@ -13,6 +13,8 @@ import UserNotifications
 internal class ApphudNotificationsHandler {
     
     static let shared = ApphudNotificationsHandler()
+        
+    var presentingScreenController : Any?
     
     @discardableResult internal func handleNotification(_ apsInfo: [AnyHashable : Any]) -> Bool{
         
@@ -68,7 +70,10 @@ internal class ApphudNotificationsHandler {
     
     private func presentPurchaseScreen(_ ruleId: String, _ screenID: String){                       
         if #available(iOS 12.2, *) {
-            ApphudScreenController.show(ruleID: ruleId, screenID: screenID)
+            presentingScreenController = ApphudScreenController()
+            (presentingScreenController as? ApphudScreenController)?.show(ruleID: ruleId, screenID: screenID, completionBlock: { result in
+                self.presentingScreenController = nil
+            })
         }        
     }
     

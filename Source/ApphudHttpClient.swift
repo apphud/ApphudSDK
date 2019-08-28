@@ -9,7 +9,7 @@
 import Foundation
 
 typealias ApphudBoolDictionaryCallback = (Bool, [String : Any]?, Error?) -> Void
-
+typealias ApphudStringCallback = (String?, Error?) -> Void
 /**
  This is Apphud's internal class.
  */
@@ -96,6 +96,19 @@ public class ApphudHttpClient {
         #endif
         
         return request
+    }
+    
+    internal func start(request: URLRequest, callback: @escaping ApphudStringCallback){
+        let task = session.dataTask(with: request) { (data, response, error) in
+            var string : String?
+            if data != nil {
+                string = String(data: data!, encoding: .utf8)
+            }
+            DispatchQueue.main.async {
+                callback(string, error)
+            }
+        }
+        task.resume()
     }
     
     private func start(request: URLRequest, callback: ApphudBoolDictionaryCallback?){
