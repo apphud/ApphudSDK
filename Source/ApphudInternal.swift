@@ -119,20 +119,22 @@ final class ApphudInternal {
             
             toUserDefaultsCache(dictionary: self.productsGroupsMap!, key: "productsGroupsMap")
             
-            ApphudStoreKitWrapper.shared.fetchProducts(identifiers: Set(self.productsGroupsMap!.keys)) { (skproducts) in
-                
-                self.updateUserCurrencyIfNeeded(priceLocale: skproducts.first?.priceLocale)
-                
-                self.submitProducts(products: skproducts) { (result3, response3, error3) in
-                    if result3 {
-                        apphudLog("Products prices successfully submitted")
-                    } else {
-                        apphudLog("Failed to submit products prices, error:\(error3?.localizedDescription ?? "")")
-                    }
-                }
-                
-            }
+            self.continueToFetchStoreKitProducts()
         })
+    }
+    
+    private func continueToFetchStoreKitProducts(){
+        ApphudStoreKitWrapper.shared.fetchProducts(identifiers: Set(self.productsGroupsMap!.keys)) { (skproducts) in
+            self.updateUserCurrencyIfNeeded(priceLocale: skproducts.first?.priceLocale)
+            self.submitProducts(products: skproducts) { (result3, response3, error3) in
+                if result3 {
+                    apphudLog("Products prices successfully submitted")
+                } else {
+                    apphudLog("Failed to submit products prices, error:\(error3?.localizedDescription ?? "")")
+                }
+            }
+            
+        }
     }
     
     @discardableResult private func parseUser(_ dict : [String : Any]?) -> Bool{
@@ -608,8 +610,19 @@ final class ApphudInternal {
             } else {
                 callback(nil)
             }
+        }   
+    }
+    
+    internal func trackMobileEvent(name: String, ruleID: String, callback: @escaping ()->Void){
+        let result = performWhenUserRegistered {
+            let params : [String : String] = ["device_id" : self.currentDeviceID, "event_name" : name, "rule_id" : ruleID]
+            self.httpClient.startRequest(path: "track", params: params, method: .post) { (result, response, error) in
+                callback()
+            }            
         }
-        
+        if !result {
+            apphudLog("Tried to trackMobileEvent, but user not yet registered, adding to schedule")
+        }
     }
 }
 

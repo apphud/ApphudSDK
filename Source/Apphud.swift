@@ -44,9 +44,9 @@ public typealias ApphudEligibilityCallback = (([String : Bool]) -> Void)
     @objc optional func apphudDidChangeUserID(_ userID : String)
     
     /**
-     Default is true
+        Gets called when you receive push notification sent by Apphud's rule with manual handling selected.
      */
-    @objc optional func apphudShouldExecuteRule(ruleID: String, userInfo: [AnyHashable : Any]) -> Bool
+    @objc optional func apphudDidReceiveNotification(ruleID: String, customData: [String : Any]?)
 }
 
 final public class Apphud: NSObject {
@@ -255,7 +255,10 @@ final public class Apphud: NSObject {
         ApphudInternal.shared.submitPushNotificationsToken(token: token, callback: callback)
     }
     
-    @objc public static func handlePushNotification(apsInfo: [AnyHashable : Any]){
-        ApphudNotificationsHandler.shared.handleNotification(apsInfo)
+    /*
+     
+     */
+    @discardableResult @objc public static func handlePushNotification(apsInfo: [AnyHashable : Any]) -> Bool{
+        return ApphudNotificationsHandler.shared.handleNotification(apsInfo)
     }
 }

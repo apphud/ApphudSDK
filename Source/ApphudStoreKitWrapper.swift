@@ -9,6 +9,8 @@
 import Foundation
 import StoreKit
 
+internal let ApphudStoreKitProductsFetched = Notification.Name("ApphudStoreKitProductsFetched")
+
 internal typealias ApphudStoreKitProductsCallback = ([SKProduct]) -> Void
 
 internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SKRequestDelegate{
@@ -31,14 +33,11 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         request.start()
     }
     
-    fileprivate func loadedProduct(identifier: String) -> SKProduct? {
-        return products.first(where: { $0.productIdentifier == identifier})
-    }
-    
     func fetchProducts(identifiers: Set<String>, callback: @escaping ApphudStoreKitProductsCallback) {
         fetcher.fetchStoreKitProducts(identifiers: identifiers) { (products) in
             self.products.append(contentsOf: products)
             callback(products)
+            NotificationCenter.default.post(name: ApphudStoreKitProductsFetched, object: nil)
         }
     }
     

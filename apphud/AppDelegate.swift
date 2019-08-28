@@ -22,7 +22,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         
         #if DEBUG
         ApphudHttpClient.shared.domain_url_string = "https://api.bitcolio.com"
-        Apphud.start(apiKey: APPHUD_API_KEY, userID: "renat_26.08.3BR", deviceID: "iphone_26.08.3BR", launchOptions: launchOptions)
+        Apphud.start(apiKey: APPHUD_API_KEY, userID: "renat_26.08.3BR", deviceID: "iphonex_26.08.3BR", launchOptions: launchOptions)
         
         #endif
         
