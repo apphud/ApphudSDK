@@ -41,12 +41,7 @@ public typealias ApphudEligibilityCallback = (([String : Bool]) -> Void)
      
      * After manual call of `updateUserID(userID : String)` method. 
      */
-    @objc optional func apphudDidChangeUserID(_ userID : String)
-    
-    /**
-        Gets called when you receive push notification sent by Apphud's rule with manual handling selected.
-     */
-    @objc optional func apphudDidReceiveNotification(ruleID: String, customData: [String : Any]?)
+    @objc optional func apphudDidChangeUserID(_ userID : String)    
 }
 
 final public class Apphud: NSObject {

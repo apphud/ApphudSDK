@@ -18,7 +18,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         
-        let APPHUD_API_KEY = "YOUR_API_KEY"
+        let APPHUD_API_KEY = "app_kAJSnePQqvAAXuHHJMpH1D7u3jeD34"
+        
+        ApphudHttpClient.shared.domain_url_string = "https://api.bitcolio.com"
         
         Apphud.start(apiKey: APPHUD_API_KEY)
         
@@ -41,6 +43,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         registerForNotificationsWith { result in
             print("push notifications are \(result)")
         }
+        
+        #warning("remove this")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { // Change `2.0` to the desired number of seconds.
+            ApphudInquiryController.show(ruleID: "123456")
+        }
+        
         
         return true
     }

@@ -613,7 +613,7 @@ final class ApphudInternal {
         }   
     }
     
-    internal func trackMobileEvent(name: String, ruleID: String, callback: @escaping ()->Void){
+    internal func trackRuleEvent(ruleID: String, name: String, callback: @escaping ()->Void){
         let result = performWhenUserRegistered {
             let params : [String : String] = ["device_id" : self.currentDeviceID, "event_name" : name, "rule_id" : ruleID]
             self.httpClient.startRequest(path: "track", params: params, method: .post) { (result, response, error) in
@@ -621,8 +621,20 @@ final class ApphudInternal {
             }            
         }
         if !result {
-            apphudLog("Tried to trackMobileEvent, but user not yet registered, adding to schedule")
+            apphudLog("Tried to trackRuleEvent, but user not yet registered, adding to schedule")
         }
+    }
+    
+    internal func getRule(ruleID: String, callback: @escaping (ApphudRule?) -> Void){
+        
+        self.httpClient.startRequest(path: "rule/\(ruleID)", params: nil, method: .get) { (result, response, error) in
+            if result, let dataDict = response?["data"] as? [String : Any],
+                let screenDict = dataDict["results"] as? [String : Any] {
+                callback(ApphudRule(dictionary: screenDict))
+            } else {
+                callback(nil)
+            }
+        } 
     }
 }
 

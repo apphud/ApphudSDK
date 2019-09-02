@@ -143,7 +143,7 @@ class ApphudScreenController: UIViewController{
         completionBlock?(true)
         completionBlock = nil
         webView.alpha = 1
-        ApphudInternal.shared.trackMobileEvent(name: "purchase_screen_presented", ruleID: self.ruleID, callback: {})
+//        ApphudInternal.shared.trackMobileEvent(name: "purchase_screen_presented", ruleID: self.ruleID, callback: {})
     }
     
     //MARK:- Actions
@@ -157,7 +157,7 @@ class ApphudScreenController: UIViewController{
         if isPurchasing {return}
         isPurchasing = true
         
-        ApphudInternal.shared.trackMobileEvent(name: "purchase_screen_purchase_tapped", ruleID: self.ruleID, callback: {})
+//        ApphudInternal.shared.trackMobileEvent(name: "purchase_screen_purchase_tapped", ruleID: self.ruleID, callback: {})
         
         Apphud.signPromoOffer(productID: self.product!.productIdentifier, discountID: discountID) { (paymentDiscount, error) in
             if let signed = paymentDiscount {
@@ -175,7 +175,7 @@ class ApphudScreenController: UIViewController{
     }
     
     private func closeTapped(){
-        ApphudInternal.shared.trackMobileEvent(name: "purchase_screen_user_dismissed", ruleID: self.ruleID, callback: {})
+//        ApphudInternal.shared.trackMobileEvent(name: "purchase_screen_user_dismissed", ruleID: self.ruleID, callback: {})
         dismiss()
     }
     
