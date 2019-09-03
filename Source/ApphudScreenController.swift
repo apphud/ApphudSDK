@@ -108,7 +108,7 @@ class ApphudScreenController: UIViewController{
             return
         }
         self.product = product
-        discount = self.product!.discounts.first(where: {$0.identifier == self.screen!.promo_offer_id})
+        discount = self.product!.discounts.first(where: {$0.identifier == self.screen!.offer_id})
         webView.evaluateJavaScript("document.documentElement.outerHTML") { (result, error) in
             if var html = result as? NSString {
                 html = self.replaceMacroses(html: html)
