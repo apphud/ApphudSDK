@@ -358,7 +358,7 @@ final class ApphudInternal {
         }
     }
     
-    fileprivate func submitReceipt(receiptString : String, notifyDelegate : Bool, callback : ((Error?) -> Void)?) {
+    private func submitReceipt(receiptString : String, notifyDelegate : Bool, callback : ((Error?) -> Void)?) {
         
         if isSubmittingReceipt {return}
         isSubmittingReceipt = true
@@ -594,7 +594,6 @@ final class ApphudInternal {
     }
     
     internal func submitPushNotificationsToken(token: Data, callback: @escaping (Bool) -> Void){
-        
         performWhenUserRegistered {
             let tokenString = token.map { String(format: "%02.2hhx", $0) }.joined()
             let params : [String : String] = ["device_id" : self.currentDeviceID, "push_token" : tokenString]
@@ -602,19 +601,6 @@ final class ApphudInternal {
                 callback(result)
             }             
         }
-        
-    }
-    
-    internal func getScreenDetails(screenID: String, callback:@escaping (ApphudScreen?) -> Void){        
-        let params : [String : String] = ["device_id" : self.currentDeviceID]
-        httpClient.startRequest(path: "screens/\(screenID)", params: params, method: .get) { (result, response, error) in
-            if result, let dataDict = response?["data"] as? [String : Any],
-                let screenDict = dataDict["results"] as? [String : Any] {
-                callback(ApphudScreen(dictionary: screenDict))
-            } else {
-                callback(nil)
-            }
-        }   
     }
     
     internal func trackRuleEvent(ruleID: String, params: [String : String], callback: @escaping ()->Void){
@@ -632,16 +618,21 @@ final class ApphudInternal {
     
     internal func getRule(ruleID: String, callback: @escaping (ApphudRule?) -> Void){
         
-        let params = ["device_id": self.currentDeviceID] as [String : String]
-        
-        self.httpClient.startRequest(path: "rules/\(ruleID)", params: params, method: .get) { (result, response, error) in
-            if result, let dataDict = response?["data"] as? [String : Any],
-                let ruleDict = dataDict["results"] as? [String : Any] {
-                callback(ApphudRule(dictionary: ruleDict, ruleID: ruleID))
-            } else {
-                callback(nil)
-            }
-        } 
+        let result = performWhenUserRegistered {
+            let params = ["device_id": self.currentDeviceID] as [String : String]
+            
+            self.httpClient.startRequest(path: "rules/\(ruleID)", params: params, method: .get) { (result, response, error) in
+                if result, let dataDict = response?["data"] as? [String : Any],
+                    let ruleDict = dataDict["results"] as? [String : Any] {
+                    callback(ApphudRule(dictionary: ruleDict, ruleID: ruleID))
+                } else {
+                    callback(nil)
+                }
+            } 
+        }
+        if !result {
+            apphudLog("Tried to getRule \(ruleID), but user not yet registered, adding to schedule")
+        }
     }
 }
 
