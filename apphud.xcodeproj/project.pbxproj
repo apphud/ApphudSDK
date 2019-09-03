@@ -10,7 +10,6 @@
 		941C1F7F2314095D006F91D5 /* ApphudScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 941C1F7E2314095D006F91D5 /* ApphudScreen.swift */; };
 		9433E00623192B7E00D22785 /* ApphudInquiryController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9433E00523192B7E00D22785 /* ApphudInquiryController.swift */; };
 		9433E0082319579A00D22785 /* ApphudRule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9433E0072319579A00D22785 /* ApphudRule.swift */; };
-		9433E00A231CFAE600D22785 /* ApphudInquiryButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9433E009231CFAE600D22785 /* ApphudInquiryButton.swift */; };
 		9433E00C231D08FA00D22785 /* ApphudFeedbackController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9433E00B231D08FA00D22785 /* ApphudFeedbackController.swift */; };
 		944C6E712305701E00AD1DFF /* ApphudSDK.podspec in Resources */ = {isa = PBXBuildFile; fileRef = 944C6E702305701E00AD1DFF /* ApphudSDK.podspec */; };
 		944C6E732305AC5400AD1DFF /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 944C6E722305AC5300AD1DFF /* README.md */; };
@@ -38,7 +37,6 @@
 		941C1F8023141F22006F91D5 /* apphud.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = apphud.entitlements; sourceTree = "<group>"; };
 		9433E00523192B7E00D22785 /* ApphudInquiryController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApphudInquiryController.swift; sourceTree = "<group>"; };
 		9433E0072319579A00D22785 /* ApphudRule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApphudRule.swift; sourceTree = "<group>"; };
-		9433E009231CFAE600D22785 /* ApphudInquiryButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApphudInquiryButton.swift; sourceTree = "<group>"; };
 		9433E00B231D08FA00D22785 /* ApphudFeedbackController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApphudFeedbackController.swift; sourceTree = "<group>"; };
 		944C6E702305701E00AD1DFF /* ApphudSDK.podspec */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = ApphudSDK.podspec; sourceTree = "<group>"; };
 		944C6E722305AC5300AD1DFF /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
@@ -119,7 +117,6 @@
 				9498F43A230EC2F80016BB1A /* ApphudNotificationsHandler.swift */,
 				9433E00523192B7E00D22785 /* ApphudInquiryController.swift */,
 				9433E00B231D08FA00D22785 /* ApphudFeedbackController.swift */,
-				9433E009231CFAE600D22785 /* ApphudInquiryButton.swift */,
 				94A142B82313EEDF00DB5DAE /* ApphudScreenController.swift */,
 				947977AB22E8453200EE1934 /* ApphudStoreKitWrapper.swift */,
 				947977AC22E8453200EE1934 /* ApphudSubscription.swift */,
@@ -216,7 +213,6 @@
 				94AE4E9322A0FAC800564F85 /* ViewController.swift in Sources */,
 				947977B222E8453200EE1934 /* ApphudUser.swift in Sources */,
 				947977AF22E8453200EE1934 /* Apphud.swift in Sources */,
-				9433E00A231CFAE600D22785 /* ApphudInquiryButton.swift in Sources */,
 				94AE4E9122A0FAC800564F85 /* AppDelegate.swift in Sources */,
 				947977B622E8453200EE1934 /* ApphudKeychain.swift in Sources */,
 				947977B522E8453200EE1934 /* ApphudSubscription.swift in Sources */,

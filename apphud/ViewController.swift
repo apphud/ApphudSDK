@@ -32,7 +32,10 @@ class ViewController: UITableViewController{
     }
     
     @objc func restore(){
-        SKPaymentQueue.default().restoreCompletedTransactions()
+        
+        ApphudInquiryController.show(ruleID: "23f5a929-343a-47a3-b1b7-2ebcad158c3b")
+        
+//        SKPaymentQueue.default().restoreCompletedTransactions()
         // OR Apphud.restoreSubscriptions()
     }
     

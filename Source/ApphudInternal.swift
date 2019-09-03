@@ -613,10 +613,11 @@ final class ApphudInternal {
         }   
     }
     
-    internal func trackRuleEvent(ruleID: String, name: String, callback: @escaping ()->Void){
+    internal func trackRuleEvent(ruleID: String, params: [String : String], callback: @escaping ()->Void){
+        
         let result = performWhenUserRegistered {
-            let params : [String : String] = ["device_id" : self.currentDeviceID, "event_name" : name, "rule_id" : ruleID]
-            self.httpClient.startRequest(path: "track", params: params, method: .post) { (result, response, error) in
+            let final_params : [String : String] = ["device_id" : self.currentDeviceID].merging(params, uniquingKeysWith: {(current,_) in current})
+            self.httpClient.startRequest(path: "rules/\(ruleID)/events", params: final_params, method: .post) { (result, response, error) in
                 callback()
             }            
         }
@@ -627,10 +628,12 @@ final class ApphudInternal {
     
     internal func getRule(ruleID: String, callback: @escaping (ApphudRule?) -> Void){
         
-        self.httpClient.startRequest(path: "rule/\(ruleID)", params: nil, method: .get) { (result, response, error) in
+        let params = ["device_id": self.currentDeviceID] as [String : String]
+        
+        self.httpClient.startRequest(path: "rules/\(ruleID)", params: params, method: .get) { (result, response, error) in
             if result, let dataDict = response?["data"] as? [String : Any],
-                let screenDict = dataDict["results"] as? [String : Any] {
-                callback(ApphudRule(dictionary: screenDict))
+                let ruleDict = dataDict["results"] as? [String : Any] {
+                callback(ApphudRule(dictionary: ruleDict, ruleID: ruleID))
             } else {
                 callback(nil)
             }

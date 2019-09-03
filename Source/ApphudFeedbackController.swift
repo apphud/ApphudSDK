@@ -50,6 +50,19 @@ internal class ApphudPlaceholderTextView: UITextView {
 
 class ApphudFeedbackController: UIViewController {
 
+    let option: ApphudRuleOption
+    let rule: ApphudRule
+    
+    init(rule:ApphudRule, option: ApphudRuleOption) {
+        self.option = option
+        self.rule = rule
+        super.init(nibName: nil, bundle: nil)
+    }
+    
+    required init?(coder aDecoder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
     private lazy var titleLabel : UILabel = {
         let label = UILabel()
         label.font = UIFont.boldSystemFont(ofSize: 28)
@@ -76,7 +89,7 @@ class ApphudFeedbackController: UIViewController {
             textView.trailingAnchor.constraint(equalTo: self.view.trailingAnchor, constant: 0),
             textView.topAnchor.constraint(equalTo: self.titleLabel.bottomAnchor, constant: 20),
             ])
-        textView.backgroundColor = UIColor.red
+        textView.backgroundColor = UIColor(displayP3Red: 1.0, green: 0, blue: 0, alpha: 0.1)
         textView.inputAccessoryView = self.accessoryView
         return textView
     }()
@@ -114,7 +127,7 @@ class ApphudFeedbackController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         self.view.backgroundColor = UIColor.white
-        self.titleLabel.text = "How can we improve the app?"
+        self.titleLabel.text = self.option.feedbackQuestion
         
         self.textViewBottomConstraint = self.textView.bottomAnchor.constraint(equalTo: self.view.bottomAnchor)
         self.textViewBottomConstraint.isActive = true
@@ -151,6 +164,14 @@ class ApphudFeedbackController: UIViewController {
     }
     
     @objc private func buttonTapped(sender: ApphudInquiryButton){
-        apphudLog("send text: \(self.textView.text)")
+        apphudLog("send text: \(String(describing: self.textView.text))")
+        ApphudInternal.shared.trackRuleEvent(ruleID: self.rule.id, params: ["kind" : "feedback_sent", "feedback_text" : self.textView.text, "option_id" : self.option.id]) {}
+        
+        let alertController = UIAlertController(title: "Thank you for feedback!", message: "Feedback sent", preferredStyle: .alert)
+        alertController.addAction(UIAlertAction(title: "OK", style: .default, handler: { (action) in
+            self.textView.resignFirstResponder()
+            self.dismiss(animated: true, completion: nil)
+        }))
+        present(alertController, animated: true, completion: nil)
     }
 }

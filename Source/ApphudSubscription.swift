@@ -113,6 +113,7 @@ public class ApphudSubscription : NSObject{
         }
     }
     
+    /// have to write this code because obj-c doesn't support enum to be string
     private static func statusFrom(string : String) -> ApphudSubscriptionStatus {
         switch string {
         case "trial":

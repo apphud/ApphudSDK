@@ -37,32 +37,43 @@ class ApphudScreenController: UIViewController{
         return wv
     }()
     
-    var ruleID: String!
+    var rule: ApphudRule
+    var option: ApphudRuleOption
+    
     var screen: ApphudScreen?
-    var screenID: String!
     var addedObserver = false
     var isPurchasing = false
     var start = Date()
-    var completionBlock: ((Bool)->Void)?
     
     deinit {
         NotificationCenter.default.removeObserver(self)
     }
     
-    internal func show(ruleID: String, screenID: String, completionBlock:@escaping (Bool)->Void){
-        self.ruleID = ruleID
-        self.screenID = screenID
-        self.completionBlock = completionBlock
-        self.loadScreenPage()        
+    init(rule: ApphudRule, option: ApphudRuleOption) {
+        self.rule = rule
+        self.option = option
+        super.init(nibName: nil, bundle: nil)
     }
-   
-    private func failed(){
-        self.completionBlock?(false)
-        self.completionBlock = nil
+       
+    required init?(coder aDecoder: NSCoder) {
+        fatalError("Init with coder has not been implemented")
+    }
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        self.view.backgroundColor = UIColor.white
+        // if after 10 seconds webview not appeared, then fail
+        self.perform(#selector(failed), with: nil, afterDelay: 10.0)
+        self.loadScreenPage()
+    }
+    
+    @objc private func failed(){
+        // for now just dismiss
+        self.dismiss()
     }
     
     private func loadScreenPage(){
-        if let request = ApphudHttpClient.shared.makeScreenRequest(screenID: self.screenID) {   
+        if let screenID = self.option.screenID, let request = ApphudHttpClient.shared.makeScreenRequest(screenID: screenID) {   
             apphudLog("started loading page:\(request)")
             self.webView.alpha = 0
             self.webView.load(request)
@@ -120,7 +131,7 @@ class ApphudScreenController: UIViewController{
             let offerDuration = self.product!.discountDurationString(discount: self.discount!)
             let offerUnit = self.product!.discountUnitString(discount: self.discount!)
             let offerPrice = self.product!.localizedDiscountPrice(discount: self.discount!)
-            let discountPercents = 100 * (self.product!.price.floatValue - self.discount!.price.floatValue) / self.product!.price.floatValue
+//            let discountPercents = 100 * (self.product!.price.floatValue - self.discount!.price.floatValue) / self.product!.price.floatValue
             
             newHtml = newHtml.replacingOccurrences(of: "{offer_duration}", with: offerDuration, options: [], range: NSMakeRange(searchStart, newHtml.length - searchStart)) as NSString
             newHtml = newHtml.replacingOccurrences(of: "{offer_unit}", with: offerUnit, options: [], range: NSMakeRange(searchStart, newHtml.length - searchStart)) as NSString
@@ -138,12 +149,9 @@ class ApphudScreenController: UIViewController{
     
     func present(){
         let date = Date().timeIntervalSince(start)
-        apphudVisibleViewController()?.present(self, animated: true, completion: nil)        
         apphudLog("exec time: \(date)")
-        completionBlock?(true)
-        completionBlock = nil
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(failed), object: nil)
         webView.alpha = 1
-//        ApphudInternal.shared.trackMobileEvent(name: "purchase_screen_presented", ruleID: self.ruleID, callback: {})
     }
     
     //MARK:- Actions
@@ -157,13 +165,15 @@ class ApphudScreenController: UIViewController{
         if isPurchasing {return}
         isPurchasing = true
         
-//        ApphudInternal.shared.trackMobileEvent(name: "purchase_screen_purchase_tapped", ruleID: self.ruleID, callback: {})
-        
         Apphud.signPromoOffer(productID: self.product!.productIdentifier, discountID: discountID) { (paymentDiscount, error) in
             if let signed = paymentDiscount {
                 Apphud.makePurchase(product: self.product!, discount: signed, callback: { (subscription, error) in
+                    
                     self.isPurchasing = false                    
                     if subscription != nil{
+                        // successful purchase                        
+                        ApphudInternal.shared.trackRuleEvent(ruleID: self.rule.id, params: ["kind" : "offer_activated", "option_id" : self.option.id, "offer_id" : discountID, "screen_id" : self.option.screenID!]) {}
+
                         self.dismiss()
                     }
                 })
@@ -175,7 +185,6 @@ class ApphudScreenController: UIViewController{
     }
     
     private func closeTapped(){
-//        ApphudInternal.shared.trackMobileEvent(name: "purchase_screen_user_dismissed", ruleID: self.ruleID, callback: {})
         dismiss()
     }
     

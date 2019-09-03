@@ -50,11 +50,13 @@ internal class ApphudInquiryController: UIViewController {
     internal class func show(ruleID: String){
         
         let controller = ApphudInquiryController()
-        let nc = UINavigationController(rootViewController: controller)
+        let nc = ApphudNavigationController(rootViewController: controller)
         nc.setNavigationBarHidden(true, animated: false)
         controller.ruleID = ruleID
         apphudVisibleViewController()?.present(nc, animated: true, completion: nil)
         controller.loadRule()
+        
+        ApphudInternal.shared.trackRuleEvent(ruleID: ruleID, params: ["kind" : "enquiry_presented"], callback: {})
     }
     
     override func viewDidLoad() {
@@ -62,9 +64,9 @@ internal class ApphudInquiryController: UIViewController {
         self.view.addSubview(self.container)
         container.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            container.leadingAnchor.constraint(equalTo: self.view.leadingAnchor, constant: 0),
-            container.trailingAnchor.constraint(equalTo: self.view.trailingAnchor, constant: 0),            
-            container.centerYAnchor.constraint(equalTo: self.view.centerYAnchor, constant: 0)
+            container.leadingAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.leadingAnchor, constant: 0),
+            container.trailingAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.trailingAnchor, constant: 0),            
+            container.centerYAnchor.constraint(equalTo: self.view.safeAreaLayoutGuide.centerYAnchor, constant: 0)
             ])
         self.view.backgroundColor = UIColor.white
         
@@ -83,39 +85,37 @@ internal class ApphudInquiryController: UIViewController {
     
     private func loadRule(){
         ApphudInternal.shared.getRule(ruleID: ruleID) { rule in
-            self.rule = rule
-            self.constructBillingIssue()
-//            self.constructInquiry()
+            if rule != nil {
+                self.rule = rule
+                if self.rule!.condition == .billingIssue {
+                    self.constructBillingIssue()              
+                } else {
+                    self.constructInquiry()
+                }
+            } else {
+                self.dismiss(animated: true, completion: nil)
+            }
         }
     }
     
     private func constructBillingIssue(){
         let question = "Subscription couldn't be renewed" //
-        
         self.titleLabel.text = question
-        
         self.subtitleLabel.text = "Please update payment information in your App Store account"
-        
         let action = "Update payment info"
-        
         let button = actionButton(title: action)
-        button.optionID = action
+        button.addTarget(self, action: #selector(handleOpenBilling), for: .touchUpInside)
         button.topAnchor.constraint(equalTo: self.subtitleLabel.bottomAnchor, constant: 20).isActive = true
         button.bottomAnchor.constraint(equalTo: self.container.bottomAnchor, constant: 0).isActive = true
     }
     
     private func constructInquiry(){
-        let question = "Could you please tell as why you canceled a subscription?😊" //
-        
-        self.titleLabel.text = question
-        
-        let actions = ["Too expensive", "Free plan is OK for me", "I don't like the app"]
-        
+        self.titleLabel.text = self.rule!.question
         var prevButton : UIButton? = nil
-        
-        for action in actions {
-            let button = actionButton(title: action)
-            button.optionID = action
+        for option in self.rule!.options {
+            let button = actionButton(title: option.title)
+            button.option = option
+            button.addTarget(self, action: #selector(buttonTapped), for: .touchUpInside)
             if prevButton != nil {
                 button.topAnchor.constraint(equalTo: prevButton!.bottomAnchor, constant: 10).isActive = true
             } else {
@@ -129,12 +129,11 @@ internal class ApphudInquiryController: UIViewController {
         }
     }     
     
-    private func actionButton(title: String)-> ApphudInquiryButton {
+    private func actionButton(title: String) -> ApphudInquiryButton {
         let button = ApphudInquiryButton(type: .system)
         button.titleLabel?.font = UIFont.boldSystemFont(ofSize: 17)
         button.setTitleColor(UIColor(red: 0.04, green: 0.52, blue: 1, alpha: 1), for: .normal)
         button.setTitle(title, for: .normal)
-        button.addTarget(self, action: #selector(buttonTapped), for: .touchUpInside)
         container.addSubview(button)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.layer.backgroundColor = UIColor(red: 0.95, green: 0.94, blue: 0.97, alpha: 1).cgColor
@@ -148,9 +147,20 @@ internal class ApphudInquiryController: UIViewController {
     }
         
     @objc private func buttonTapped(sender: ApphudInquiryButton){
-        apphudLog("option selected: \(sender.optionID)")
-        let controller = ApphudFeedbackController()
-        self.navigationController?.pushViewController(controller, animated: true)
+        apphudLog("option selected: \(String(describing: sender.option))")
+        if let option = sender.option {
+            ApphudInternal.shared.trackRuleEvent(ruleID: self.ruleID, params: ["kind" : "option_selected", "option_id" : option.id]){}
+            switch option.optionAction {
+            case .presentFeedback:                
+                let controller = ApphudFeedbackController(rule: self.rule!, option: option)
+                self.navigationController?.pushViewController(controller, animated: true)                            
+            case .presentPurchase:
+                if #available(iOS 12.2, *) {
+                    let controller = ApphudScreenController(rule: self.rule!, option: option)
+                    self.navigationController?.pushViewController(controller, animated: true)            
+                }
+            }
+        }
     }
     
     @objc private func dismissTapped(){
@@ -158,9 +168,26 @@ internal class ApphudInquiryController: UIViewController {
         dismiss(animated: true, completion: nil)
     }
     
-    private func handleOpenBilling(){
+    @objc private func handleOpenBilling(sender: ApphudInquiryButton){
         if let url = URL(string: "itms-apps://apps.apple.com/account/subscriptions"), UIApplication.shared.canOpenURL(url){
-            UIApplication.shared.open(url)
+            sender.isEnabled = false
+            ApphudInternal.shared.trackRuleEvent(ruleID: self.ruleID, params: ["kind" : "update_payment_tapped"]) { 
+                self.dismiss(animated: true, completion: nil)
+                UIApplication.shared.open(url)
+            }
+        }
+    }
+}
+
+
+class ApphudInquiryButton: UIButton {
+    var option: ApphudRuleOption?
+}
+
+class ApphudNavigationController: UINavigationController {
+    override var supportedInterfaceOrientations: UIInterfaceOrientationMask{
+        get{
+            return .portrait
         }
     }
 }
