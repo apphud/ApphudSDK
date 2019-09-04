@@ -25,9 +25,9 @@ struct ApphudRule {
     var question: String
     var condition: ApphudRuleCondition
     var options = [ApphudRuleOption]()
-    init(dictionary: [String : Any], ruleID: String) {
+    init(dictionary: [String : Any]) {
         question = dictionary["question"] as? String ?? ""
-        id = ruleID
+        id = dictionary["id"] as? String ?? ""
         condition = ApphudRuleCondition(rawValue: dictionary["rule_condition"] as? String ?? "") ?? .subscriptionCanceled
         for subdict in (dictionary["options"] as? [[String : Any]]) ?? [] {
             let ruleOption = ApphudRuleOption(dictionary: subdict)

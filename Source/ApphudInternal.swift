@@ -10,7 +10,7 @@ import Foundation
 import AdSupport
 import StoreKit
 
-let sdk_version = "0.5.1"
+let sdk_version = "0.5.2"
 
 final class ApphudInternal {
     
@@ -23,6 +23,8 @@ final class ApphudInternal {
     var currentDeviceID : String!
     var currentUserID : String!
     fileprivate var isSubmittingReceipt : Bool = false
+    
+    private var lastCheckDate = Date()
     
     var httpClient : ApphudHttpClient!
     fileprivate var requires_currency_update = false
@@ -97,6 +99,9 @@ final class ApphudInternal {
                 
                 self.continueToUpdateProducts()
                 
+                self.listenForAwakeNotification()
+                self.checkForUnreadNotifications()
+                
             } else {
                 apphudLog("Failed to register user, error:\(error?.localizedDescription ?? "")")
                 self.userRegisteredCallbacks.removeAll()
@@ -134,6 +139,23 @@ final class ApphudInternal {
                 }
             }
             
+        }
+    }
+    
+    private func listenForAwakeNotification(){
+        NotificationCenter.default.addObserver(self, selector: #selector(handleDidBecomeActive), name: UIApplication.didBecomeActiveNotification, object: nil)
+    }
+    
+    @objc private func handleDidBecomeActive(){
+        
+        #if DEBUG
+        let minCheckInterval :Double = 10
+        #else
+        let minCheckInterval :Double = 5*60
+        #endif
+        
+        if Date().timeIntervalSince(lastCheckDate) >  minCheckInterval{
+            self.checkForUnreadNotifications()
         }
     }
     
@@ -288,6 +310,10 @@ final class ApphudInternal {
         params["device_id"] = self.currentDeviceID
         
         httpClient.startRequest(path: "customers", params: params, method: .post, callback: callback)
+    }
+    
+    private func getCurrentUser(){
+        
     }
     
     private func getProducts(callback: @escaping (([String : String]?) -> Void)) {
@@ -624,7 +650,7 @@ final class ApphudInternal {
             self.httpClient.startRequest(path: "rules/\(ruleID)", params: params, method: .get) { (result, response, error) in
                 if result, let dataDict = response?["data"] as? [String : Any],
                     let ruleDict = dataDict["results"] as? [String : Any] {
-                    callback(ApphudRule(dictionary: ruleDict, ruleID: ruleID))
+                    callback(ApphudRule(dictionary: ruleDict))
                 } else {
                     callback(nil)
                 }
@@ -632,6 +658,22 @@ final class ApphudInternal {
         }
         if !result {
             apphudLog("Tried to getRule \(ruleID), but user not yet registered, adding to schedule")
+        }
+    }
+    
+    internal func checkForUnreadNotifications(){
+        performWhenUserRegistered {
+            self.lastCheckDate = Date()
+            let params = ["device_id": self.currentDeviceID] as [String : String]
+            self.httpClient.startRequest(path: "notifications/unread", params: params, method: .get, callback: { (result, response, error) in
+                if  result, 
+                    let dataDict = response?["data"] as? [String : Any],
+                    let notifArray = dataDict["results"] as? [[String : Any]], 
+                    let ruleDict = notifArray.first?["rule"] as? [String : Any] {
+                    let rule = ApphudRule(dictionary: ruleDict)
+                    ApphudInquiryController.show(rule: rule)
+                }
+            })
         }
     }
 }

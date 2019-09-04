@@ -23,7 +23,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         ApphudHttpClient.shared.domain_url_string = "https://api.bitcolio.com"
         
         #warning("remove this")
-        Apphud.start(apiKey: APPHUD_API_KEY, userID: "renat_03.09.2", deviceID: "iphonex_03.09.2", launchOptions: nil)
+        Apphud.start(apiKey: APPHUD_API_KEY, userID: "renat_04.09", deviceID: "ipad_04.09", launchOptions: nil)
         
         // load your in-app purchase helper as usual
         IAPManager.shared.startWith(arrayOfIds: [
@@ -58,21 +58,22 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         UIApplication.shared.registerForRemoteNotifications()
     }
     
-    func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable : Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
-        
-        print("app state background = \(application.applicationState == .background) active = \(application.applicationState == .active) inactive = \(application.applicationState == .inactive) userinfo: \(userInfo as AnyObject)")
-        
-        Apphud.handlePushNotification(apsInfo: userInfo)
-        
-        completionHandler(.newData)
-    }
-    
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
         print("error: \(error)")
     }
     
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         Apphud.submitPushNotificationsToken(token: deviceToken, callback: {_ in})
+    }
+    
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+        Apphud.handlePushNotification(apsInfo: response.notification.request.content.userInfo)
+        completionHandler()
+    }
+    
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        Apphud.handlePushNotification(apsInfo: notification.request.content.userInfo)
+        completionHandler([])
     }
     
     func applicationWillResignActive(_ application: UIApplication) {

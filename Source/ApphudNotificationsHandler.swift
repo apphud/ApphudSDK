@@ -21,7 +21,13 @@ internal class ApphudNotificationsHandler {
         apphudLog("handle APS: \(apsInfo as AnyObject)")
         
         if let rule_id = apsInfo["rule_id"] as? String {
-            ApphudInquiryController.show(ruleID: rule_id)
+            
+            ApphudInternal.shared.getRule(ruleID: rule_id) { rule in
+                if rule != nil {
+                    ApphudInquiryController.show(rule: rule!)
+                }
+            }
+            
             return true
         }
         

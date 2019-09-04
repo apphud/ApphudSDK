@@ -113,7 +113,10 @@ class ApphudScreenController: UIViewController{
             if var html = result as? NSString {
                 html = self.replaceMacroses(html: html)
                 self.webView.tag = 1                
-                self.webView.loadHTMLString(html as String, baseURL: nil)
+                
+                let url = URL(string: ApphudHttpClient.shared.domain_url_string)
+                
+                self.webView.loadHTMLString(html as String, baseURL: url)
             } else {
                 self.failed()
             }
