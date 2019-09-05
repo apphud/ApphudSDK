@@ -49,13 +49,22 @@ class ApphudScreenController: UIViewController{
         }
     }
     
-    var rule: ApphudRule
-    var option: ApphudRuleOption
+    private var rule: ApphudRule
+    private var option: ApphudRuleOption
     
-    var screen: ApphudScreen?
-    var addedObserver = false
-    var isPurchasing = false
-    var start = Date()
+    private var screen: ApphudScreen?
+    private var addedObserver = false
+    private var isPurchasing = false
+    private var start = Date()
+    private lazy var loadingIndicator: UIActivityIndicatorView = {
+        let loading = UIActivityIndicatorView(style: .gray)
+        loading.hidesWhenStopped = true
+        self.view.addSubview(loading)
+        loading.translatesAutoresizingMaskIntoConstraints = false
+        loading.centerXAnchor.constraint(equalTo: self.view.centerXAnchor).isActive = true
+        loading.centerYAnchor.constraint(equalTo: self.view.centerYAnchor).isActive = true
+        return loading
+    }()
     
     deinit {
         NotificationCenter.default.removeObserver(self)
@@ -77,6 +86,7 @@ class ApphudScreenController: UIViewController{
         // if after 10 seconds webview not appeared, then fail
         self.perform(#selector(failed), with: nil, afterDelay: 10.0)
         self.loadScreenPage()
+        self.loadingIndicator.startAnimating()
     }
     
     @objc private func failed(){
@@ -180,6 +190,7 @@ class ApphudScreenController: UIViewController{
         apphudLog("exec time: \(date)")
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(failed), object: nil)
         webView.alpha = 1
+        self.loadingIndicator.stopAnimating()
     }
     
     //MARK:- Actions

@@ -68,7 +68,7 @@ class ApphudFeedbackController: UIViewController {
         label.font = UIFont.boldSystemFont(ofSize: 28)
         label.textColor = UIColor.black
         label.textAlignment = .center
-        label.numberOfLines = 3
+        label.numberOfLines = 4
         label.translatesAutoresizingMaskIntoConstraints = false
         self.view.addSubview(label)
         NSLayoutConstraint.activate([

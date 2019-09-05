@@ -33,7 +33,9 @@ class ViewController: UITableViewController{
     
     @objc func restore(){
         
-        ApphudInternal.shared.getRule(ruleID: "db204e5f-9b93-4423-8448-87407476d556") { rule in
+        // 60206948-ba54-45fd-9691-243254f39fa4
+         //7d9f90af-b618-423e-9b37-0c9a7f3893cc
+        ApphudInternal.shared.getRule(ruleID: "7d9f90af-b618-423e-9b37-0c9a7f3893cc") { rule in
             if rule != nil {
                 ApphudInquiryController.show(rule: rule!)
             }

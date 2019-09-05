@@ -189,7 +189,6 @@ internal class ApphudInquiryController: UIViewController {
     }
     
     private func loadScreensInAdvance(){
-        #warning("test this")
         for option in self.rule.options {
             if option.optionAction == .presentPurchase {
                 if #available(iOS 12.2, *) {
