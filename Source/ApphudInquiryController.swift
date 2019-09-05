@@ -179,7 +179,7 @@ internal class ApphudInquiryController: UIViewController {
     }
     
     @objc private func handleOpenBilling(sender: ApphudInquiryButton){
-        if let url = URL(string: "itms-apps://apps.apple.com/account/subscriptions"), UIApplication.shared.canOpenURL(url){
+        if let url = URL(string: "https://apps.apple.com/account/billing"), UIApplication.shared.canOpenURL(url){
             sender.isEnabled = false
             ApphudInternal.shared.trackRuleEvent(ruleID: self.rule.id, params: ["kind" : "update_payment_tapped"]) { 
                 self.dismiss(animated: true, completion: nil)
