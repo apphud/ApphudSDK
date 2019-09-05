@@ -34,8 +34,20 @@ class ApphudScreenController: UIViewController{
             wv.bottomAnchor.constraint(equalTo: self.view.bottomAnchor),
         ])
         
+        wv.scrollView.layer.masksToBounds = false
+        
+        wv.scrollView.contentInsetAdjustmentBehavior = .never;
+        
         return wv
     }()
+    
+    override var preferredStatusBarStyle: UIStatusBarStyle{
+        if self.screen?.status_bar_color == "white" {
+            return .lightContent
+        } else {
+            return .default
+        }
+    }
     
     var rule: ApphudRule
     var option: ApphudRuleOption
@@ -90,6 +102,8 @@ class ApphudScreenController: UIViewController{
                 if let dict = result as? [String : Any] {
                     let screen = ApphudScreen(dictionary: dict)
                     self.screen = screen
+                    self.setNeedsStatusBarAppearanceUpdate()
+                    self.updateBackgroundColor()
                     self.reloadUI()
                 } else {
                     self.failed()
@@ -98,6 +112,16 @@ class ApphudScreenController: UIViewController{
         }
     }
 
+    private func updateBackgroundColor(){
+        if self.screen?.status_bar_color == "white" {
+            self.view.backgroundColor = UIColor.black
+            self.webView.backgroundColor = UIColor.black
+            self.webView.scrollView.backgroundColor = UIColor.black
+        } else {
+            self.view.backgroundColor = UIColor.white
+        }
+    }
+    
     @objc private func reloadUI(){
         
         guard let product = ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == self.screen!.product_id}) else {
@@ -111,6 +135,7 @@ class ApphudScreenController: UIViewController{
         discount = self.product!.discounts.first(where: {$0.identifier == self.screen!.offer_id})
         webView.evaluateJavaScript("document.documentElement.outerHTML") { (result, error) in
             if var html = result as? NSString {
+                                
                 html = self.replaceMacroses(html: html)
                 self.webView.tag = 1                
                 

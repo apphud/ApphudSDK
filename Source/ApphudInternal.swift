@@ -10,7 +10,7 @@ import Foundation
 import AdSupport
 import StoreKit
 
-let sdk_version = "0.5.2"
+let sdk_version = "0.5.3"
 
 final class ApphudInternal {
     
@@ -33,10 +33,8 @@ final class ApphudInternal {
     fileprivate var productGroupsFetchedCallbacks = [ApphudVoidCallback]()
     
     private var productsGroupsMap : [String : String]?
-    
-    fileprivate var launchOptions : [UIApplication.LaunchOptionsKey: Any]?
-    
-    internal func initialize(apiKey: String, userID : String?, deviceIdentifier : String? = nil, launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil){
+        
+    internal func initialize(apiKey: String, userID : String?, deviceIdentifier : String? = nil){
         
         ApphudStoreKitWrapper.shared.setupObserver()
         
@@ -57,8 +55,6 @@ final class ApphudInternal {
         self.httpClient.apiKey = apiKey
         
         self.currentUser = ApphudUser.fromCache()
-        
-        self.launchOptions = launchOptions
         
         if userID != nil {
             self.currentUserID = userID!
@@ -86,8 +82,6 @@ final class ApphudInternal {
                 if hasSubscriptionChanges {
                     self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions!)
                 }
-                
-                self.handleLaunchOptions()
                 
                 apphudLog("User successfully registered")
                 
@@ -191,14 +185,7 @@ final class ApphudInternal {
             return false
         }
     }
-    
-    private func handleLaunchOptions(){
-        if let apsInfo = self.launchOptions?[UIApplication.LaunchOptionsKey.remoteNotification] as? [AnyHashable : Any]{
-            ApphudNotificationsHandler.shared.handleNotification(apsInfo)
-            self.launchOptions = nil
-        }
-    }
-    
+        
     private func checkUserID(tellDelegate : Bool){
         guard let userID = self.currentUser?.user_id else {return}        
         if self.currentUserID != userID {

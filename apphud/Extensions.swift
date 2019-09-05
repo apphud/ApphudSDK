@@ -77,7 +77,7 @@ extension SKProduct {
             if discounts.count > 0 {
                 string = "\(string)\n\nHas following promotional offers:\n"
                 for (i, discount) in discounts.enumerated() {
-                    string = "\(string)PROMO OFFER #\(i+1): \(discountDescription(discount: discount))\n"                    
+                    string = "\(string)PROMO OFFER \(discount.identifier): \(discountDescription(discount: discount))\n"                    
                 }
             }
         }

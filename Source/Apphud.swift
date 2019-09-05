@@ -52,13 +52,13 @@ final public class Apphud: NSObject {
      - parameter apiKey: Required. Your api key.
      - parameter userID: Optional. You can provide your own unique user identifier. If nil passed then UUID will be generated instead.
      */
-    @objc public static func start(apiKey: String, userID: String? = nil, launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) {
-        ApphudInternal.shared.initialize(apiKey: apiKey, userID: userID, launchOptions: launchOptions)
+    @objc public static func start(apiKey: String, userID: String? = nil) {
+        ApphudInternal.shared.initialize(apiKey: apiKey, userID: userID)
     }
     
     #if DEBUG
-    @objc public static func start(apiKey: String, userID : String? = nil, deviceID : String? = nil, launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) {
-        ApphudInternal.shared.initialize(apiKey: apiKey, userID: userID, deviceIdentifier: deviceID, launchOptions: launchOptions)
+    @objc public static func start(apiKey: String, userID : String? = nil, deviceID : String? = nil) {
+        ApphudInternal.shared.initialize(apiKey: apiKey, userID: userID, deviceIdentifier: deviceID)
     }
     #endif
     

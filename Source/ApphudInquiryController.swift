@@ -14,6 +14,8 @@ internal class ApphudInquiryController: UIViewController {
     
     private var container = UIView()
     
+    private var screenControllers = [UIViewController]()
+    
     private lazy var titleLabel : UILabel = {
         let label = UILabel()
         label.font = UIFont.boldSystemFont(ofSize: 28)
@@ -132,6 +134,8 @@ internal class ApphudInquiryController: UIViewController {
         if prevButton != nil {
             prevButton?.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: 0).isActive = true
         }
+        
+        self.loadScreensInAdvance()
     }     
     
     private func actionButton(title: String) -> ApphudInquiryButton {
@@ -161,8 +165,9 @@ internal class ApphudInquiryController: UIViewController {
                 self.navigationController?.pushViewController(controller, animated: true)                            
             case .presentPurchase:
                 if #available(iOS 12.2, *) {
-                    let controller = ApphudScreenController(rule: self.rule, option: option)
-                    self.navigationController?.pushViewController(controller, animated: true)            
+                    if let controller = screenControllers.first(where: {$0.title == option.id}) {
+                        self.navigationController?.pushViewController(controller, animated: true)
+                    }
                 }
             }
         }
@@ -179,6 +184,20 @@ internal class ApphudInquiryController: UIViewController {
             ApphudInternal.shared.trackRuleEvent(ruleID: self.rule.id, params: ["kind" : "update_payment_tapped"]) { 
                 self.dismiss(animated: true, completion: nil)
                 UIApplication.shared.open(url)
+            }
+        }
+    }
+    
+    private func loadScreensInAdvance(){
+        #warning("test this")
+        for option in self.rule.options {
+            if option.optionAction == .presentPurchase {
+                if #available(iOS 12.2, *) {
+                    let controller = ApphudScreenController(rule: self.rule, option: option)
+                    _ = controller.view
+                    controller.title = option.id
+                    screenControllers.append(controller)
+                }
             }
         }
     }
