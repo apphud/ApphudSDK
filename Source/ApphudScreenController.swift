@@ -13,8 +13,6 @@ import SafariServices
 @available(iOS 12.2, *)
 class ApphudScreenController: UIViewController{
 
-    #warning("check ipad and other iphone sizes")
-    
     private var product: SKProduct?
     private var discount: SKProductDiscount?
     private var signedDiscount: SKPaymentDiscount?

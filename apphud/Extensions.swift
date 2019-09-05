@@ -76,8 +76,8 @@ extension SKProduct {
         if #available(iOS 12.2, *) {
             if discounts.count > 0 {
                 string = "\(string)\n\nHas following promotional offers:\n"
-                for (i, discount) in discounts.enumerated() {
-                    string = "\(string)PROMO OFFER \(discount.identifier): \(discountDescription(discount: discount))\n"                    
+                for discount in discounts {
+                    string = "\(string)PROMO OFFER \(discount.identifier ?? ""): \(discountDescription(discount: discount))\n"                    
                 }
             }
         }
