@@ -9,7 +9,7 @@
 import Foundation
 
 typealias ApphudBoolDictionaryCallback = (Bool, [String : Any]?, Error?) -> Void
-
+typealias ApphudStringCallback = (String?, Error?) -> Void
 /**
  This is Apphud's internal class.
  */
@@ -35,11 +35,21 @@ public class ApphudHttpClient {
         let config = URLSessionConfiguration.default
         return URLSession.init(configuration: config)
     }()
-    
+        
     internal func startRequest(path: String, params : [String : Any]?, method : ApphudHttpMethod, callback: @escaping ApphudBoolDictionaryCallback) {
         if let request = makeRequest(path: path, params: params, method: method) {
             start(request: request, callback: callback)
         }
+    }
+    
+    internal func makeScreenRequest(screenID: String) -> URLRequest? {
+        let urlString = "\(domain_url_string)/preview_screen/\(screenID)?api_key=\(apiKey)"
+        let url = URL(string: urlString)
+        if url != nil {
+            let request = URLRequest(url: url!, cachePolicy: URLRequest.CachePolicy.useProtocolCachePolicy, timeoutInterval: 20)
+            return request
+        }
+        return nil
     }
     
     private func makeRequest(path : String, params : [String : Any]?, method : ApphudHttpMethod) -> URLRequest? {
@@ -86,6 +96,19 @@ public class ApphudHttpClient {
         #endif
         
         return request
+    }
+    
+    internal func start(request: URLRequest, callback: @escaping ApphudStringCallback){
+        let task = session.dataTask(with: request) { (data, response, error) in
+            var string : String?
+            if data != nil {
+                string = String(data: data!, encoding: .utf8)
+            }
+            DispatchQueue.main.async {
+                callback(string, error)
+            }
+        }
+        task.resume()
     }
     
     private func start(request: URLRequest, callback: ApphudBoolDictionaryCallback?){

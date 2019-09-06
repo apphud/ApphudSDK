@@ -11,14 +11,22 @@ import StoreKit
 
 typealias ApphudVoidCallback = (() -> Void)
 
-internal func apphudLog(_ text : String) {
-    if ApphudUtils.shared.isLoggingEnabled {
+internal func apphudLog(_ text : String, forceDisplay: Bool = false) {
+    if ApphudUtils.shared.isLoggingEnabled || forceDisplay {
         let formatter = DateFormatter()
         formatter.dateStyle = .none
         formatter.timeStyle = .medium
         let time = formatter.string(from: Date())
-        print("[Apphud] [\(time)] \(text)")
+        print("[\(time)] [Apphud] \(text)")
     }
+}
+
+internal func apphudVisibleViewController() -> UIViewController? {
+    var currentVC = UIApplication.shared.keyWindow?.rootViewController
+    while let presentedVC = currentVC?.presentedViewController {
+        currentVC = presentedVC
+    }
+    return currentVC
 }
 
 internal func toUserDefaultsCache(dictionary: [String : String], key: String){
@@ -190,5 +198,59 @@ extension SKProduct {
         }
         
         return nil
+    }
+    
+    
+    //MARK:- Screen extension methods
+    
+    func regularUnitString() -> String {
+        
+        guard let subscriptionPeriod = subscriptionPeriod else {
+            return ""
+        }
+        let unit = unitStringFrom(periodUnit: subscriptionPeriod.unit) 
+        let unit_count = subscriptionPeriod.numberOfUnits
+        let durationUnitsString = "\(unit)\(unit_count > 1 ? "s" : "")"
+        let string = "\(unit_count) \(durationUnitsString)"        
+        return string
+    }
+    
+    func discountDurationString(discount: SKProductDiscount) -> String{
+        let periods_count = discount.numberOfPeriods
+        let unit = unitStringFrom(periodUnit: discount.subscriptionPeriod.unit) 
+        let unit_count = discount.subscriptionPeriod.numberOfUnits
+        var string = ""
+        
+        let totalUnits = periods_count * unit_count
+        
+        string = "\(totalUnits) \(unit)\(totalUnits > 1 ? "s" : "")"
+        
+        return string
+    }
+    
+    func discountUnitString(discount: SKProductDiscount) -> String{
+        let unit = unitStringFrom(periodUnit: discount.subscriptionPeriod.unit) 
+        let unit_count = discount.subscriptionPeriod.numberOfUnits
+        if unit_count > 1 {
+            return "\(unit_count) \(unit)s"
+        } else {
+            return unit
+        }
+    }
+    
+    func localizedPrice() -> String {
+        let numberFormatter = NumberFormatter()
+        numberFormatter.numberStyle = .currency
+        numberFormatter.locale = priceLocale
+        let priceString = numberFormatter.string(from: price)
+        return priceString ?? ""
+    }
+    
+    func localizedDiscountPrice(discount: SKProductDiscount) -> String {
+        let numberFormatter = NumberFormatter()
+        numberFormatter.numberStyle = .currency
+        numberFormatter.locale = priceLocale
+        let priceString = numberFormatter.string(from: discount.price)
+        return priceString ?? ""
     }
 }
