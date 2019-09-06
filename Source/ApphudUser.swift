@@ -35,7 +35,7 @@ internal struct ApphudUser {
             }
         }
         if subs.count > 0 {
-            self.subscriptions = subs
+            self.subscriptions = subs.sorted{ return $0.expiresDate > $1.expiresDate }
         } else {
             self.subscriptions = nil
         }

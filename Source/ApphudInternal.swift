@@ -407,7 +407,7 @@ final class ApphudInternal {
         }
     }
     
-    internal func makePurchase(product: SKProduct, callback: ((ApphudSubscription?, Error?) -> Void)?){
+    internal func purchase(product: SKProduct, callback: ((ApphudSubscription?, Error?) -> Void)?){
         ApphudStoreKitWrapper.shared.purchase(product: product) { transaction in
             if transaction.transactionState == .purchased {
                 self.submitPurchase(productId: product.productIdentifier, callback: callback)
@@ -418,7 +418,18 @@ final class ApphudInternal {
     }    
     
     @available(iOS 12.2, *)
-    internal func makePurchase(product: SKProduct, discount: SKPaymentDiscount, callback: ((ApphudSubscription?, Error?) -> Void)?){
+    internal func purchasePromo(product: SKProduct, discountID: String, callback: ((ApphudSubscription?, Error?) -> Void)?){
+        self.signPromoOffer(productID: product.productIdentifier, discountID: discountID) { (paymentDiscount, error) in
+            if let paymentDiscount = paymentDiscount {                
+                ApphudInternal.shared.purchasePromo(product: product, discount: paymentDiscount, callback: callback)
+            } else {
+                // Signing error occurred, probably because you didn't add Subscription Key file to Apphud.
+            }
+        }
+    }
+    
+    @available(iOS 12.2, *)
+    internal func purchasePromo(product: SKProduct, discount: SKPaymentDiscount, callback: ((ApphudSubscription?, Error?) -> Void)?){
         ApphudStoreKitWrapper.shared.purchase(product: product, discount: discount) { transaction in
             if transaction.transactionState == .purchased {
                 self.submitPurchase(productId: product.productIdentifier, callback: callback)

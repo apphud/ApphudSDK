@@ -24,18 +24,19 @@ class ApphudScreenController: UIViewController{
         self.view.addSubview(wv)
         wv.allowsLinkPreview = false
         wv.allowsBackForwardNavigationGestures = false
-        
+        wv.scrollView.layer.masksToBounds = false
+        wv.scrollView.contentInsetAdjustmentBehavior = .never;
+        wv.isOpaque = false
+        wv.scrollView.isOpaque = false
+        wv.backgroundColor = UIColor.clear
+        wv.scrollView.backgroundColor = UIColor.clear
+        wv.scrollView.alwaysBounceVertical = false
         NSLayoutConstraint.activate([
             wv.topAnchor.constraint(equalTo: self.view.topAnchor),
             wv.leadingAnchor.constraint(equalTo: self.view.leadingAnchor),
             wv.trailingAnchor.constraint(equalTo: self.view.trailingAnchor),
             wv.bottomAnchor.constraint(equalTo: self.view.bottomAnchor),
         ])
-        
-        wv.scrollView.layer.masksToBounds = false
-        
-        wv.scrollView.contentInsetAdjustmentBehavior = .never;
-        
         return wv
     }()
     
@@ -123,8 +124,6 @@ class ApphudScreenController: UIViewController{
     private func updateBackgroundColor(){
         if self.screen?.status_bar_color == "white" {
             self.view.backgroundColor = UIColor.black
-            self.webView.backgroundColor = UIColor.black
-            self.webView.scrollView.backgroundColor = UIColor.black
         } else {
             self.view.backgroundColor = UIColor.white
         }
@@ -144,6 +143,16 @@ class ApphudScreenController: UIViewController{
         webView.evaluateJavaScript("document.documentElement.outerHTML") { (result, error) in
             if var html = result as? NSString {
                                 
+                #if DEBUG
+                if let path = Bundle.main.path(forResource: "test", ofType: "html"){
+                    if let string = try? String(contentsOfFile: path){
+                        html = string as NSString
+                    }
+                }
+                
+                #endif
+                
+                
                 html = self.replaceMacroses(html: html)
                 self.webView.tag = 1                
                 
@@ -202,23 +211,15 @@ class ApphudScreenController: UIViewController{
         if isPurchasing {return}
         isPurchasing = true
         
-        Apphud.signPromoOffer(productID: self.product!.productIdentifier, discountID: discountID) { (paymentDiscount, error) in
-            if let signed = paymentDiscount {
-                Apphud.makePurchase(product: self.product!, discount: signed, callback: { (subscription, error) in
-                    
-                    self.isPurchasing = false                    
-                    if subscription != nil{
-                        // successful purchase                        
-                        ApphudInternal.shared.trackRuleEvent(ruleID: self.rule.id, params: ["kind" : "offer_activated", "option_id" : self.option.id, "offer_id" : discountID, "screen_id" : self.option.screenID!]) {}
-
-                        self.dismiss()
-                    }
-                })
-            } else {
-                self.isPurchasing = false
+        Apphud.purchasePromo(product: self.product!, discountID: discountID) { (subscription, error) in
+            self.isPurchasing = false                    
+            if subscription != nil{
+                // successful purchase                        
+                ApphudInternal.shared.trackRuleEvent(ruleID: self.rule.id, params: ["kind" : "offer_activated", "option_id" : self.option.id, "offer_id" : discountID, "screen_id" : self.option.screenID!]) {}
+                
+                self.dismiss()
             }
-        }            
-        
+        }
     }
     
     private func closeTapped(){

@@ -32,10 +32,8 @@ class ViewController: UITableViewController{
     }
     
     @objc func restore(){
-        
-        // 60206948-ba54-45fd-9691-243254f39fa4
-         //7d9f90af-b618-423e-9b37-0c9a7f3893cc
-        ApphudInternal.shared.getRule(ruleID: "7d9f90af-b618-423e-9b37-0c9a7f3893cc") { rule in
+        #warning("remove this")
+        ApphudInternal.shared.getRule(ruleID: "fef56273-adc4-431f-b629-dbe72e82b3cf") { rule in
             if rule != nil {
                 ApphudInquiryController.show(rule: rule!)
             }
@@ -139,19 +137,13 @@ class ViewController: UITableViewController{
     
     @available(iOS 12.2, *)
     func purchaseProduct(product: SKProduct, promoID: String){
-        Apphud.signPromoOffer(productID: product.productIdentifier, discountID: promoID) { (paymentDiscount, error) in
-            if let discount = paymentDiscount {
-                Apphud.makePurchase(product: product, discount: discount, callback: { (subs, error) in
-                    self.reload()
-                })                
-            } else {
-                print("error signing \(String(describing: error))")
-            }
-        }
+        Apphud.purchasePromo(product: product, discountID: promoID, callback: { (subs, error) in
+            self.reload()
+        }) 
     }
     
     func purchaseProduct(product : SKProduct) {
-        Apphud.makePurchase(product: product) { (subs, error) in
+        Apphud.purchase(product: product) { (subs, error) in
             self.reload()
         }
     }

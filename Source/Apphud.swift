@@ -98,30 +98,32 @@ final public class Apphud: NSObject {
     }
     
     /**
-     Signs promotional subscription offer using Apphud.
-     More information about promotional subscription offers is here: [About Promotional Subscription offers](https://developer.apple.com/app-store/subscriptions/#subscription-offers)
-     - parameter productID: Required. This is an identifier string of the product that user has purchased.
-     - parameter discountID: Required. This is identifier of your SKProductDiscount object, i.e. Promotional Offer ID.
-     - parameter callback: Optional. Returns `SKPaymentDiscount` you use to make a purchase.
-     */
-    @available(iOS 12.2, *)
-    @objc public static func signPromoOffer(productID : String, discountID : String, callback : ((SKPaymentDiscount?, Error?) -> Void)?){
-        ApphudInternal.shared.signPromoOffer(productID: productID, discountID: discountID, callback: callback)
-    }
-    
-    /**
-     Makes a purchase of a given product with signed payment discount object and automatically submits App Store Receipt to Apphud. You can generate `SKPaymentDiscount` object using Apphud's `signPromoOffer` method above.
+     Makes a purchase of a given product with promo discount and automatically submits App Store Receipt to Apphud.
      
-     If you use this method, you don't need to call Apphud's `submitPurchase` method.
+     __Note__: This method automatically records in-app purchase in Apphud, so you don't need to call `submitPurchase` method.
      
      - parameter product: Required. This is an `SKProduct` object that user wants to purchase.
-     - parameter discount: Required. This is a `SKPaymentDiscount` object with signed promotional offer.
+     - parameter discountID: Required. This is a `SKProductDiscount` Identifier String object that you would like to apply.
      - parameter callback: Optional. Returns `ApphudSubscription` object if succeeded and an optional error otherwise.
      */
     @available(iOS 12.2, *)
-    @objc public static func makePurchase(product: SKProduct, discount: SKPaymentDiscount, callback: ((ApphudSubscription?, Error?) -> Void)?){
-        ApphudInternal.shared.makePurchase(product: product, discount: discount, callback: callback)
+    @objc public static func purchasePromo(product: SKProduct, discountID: String, callback: ((ApphudSubscription?, Error?) -> Void)?){
+        ApphudInternal.shared.purchasePromo(product: product, discountID: discountID, callback: callback)
     }
+    
+    /**
+        Makes a purchase of a given product and automatically submits App Store Receipt to Apphud.
+     
+        __Note__: This method automatically records in-app purchase in Apphud, so you don't need to call `submitPurchase` method.
+     
+        - parameter product: Required. This is an `SKProduct` object that user wants to purchase.
+        - parameter callback: Optional. Returns `ApphudSubscription` object if succeeded and an optional error otherwise.
+     */
+    #if DEBUG
+    @objc public static func purchase(product: SKProduct, callback: ((ApphudSubscription?, Error?) -> Void)?){
+        ApphudInternal.shared.purchase(product: product, callback: callback)
+    }
+    #endif
     
     /**
         Checks whether the given product is eligible for purchasing any of it's promotional offers.
@@ -178,19 +180,6 @@ final public class Apphud: NSObject {
         ApphudInternal.shared.checkEligibilitiesForIntroductoryOffers(products: products, callback: callback)
     }
     
-    /**
-     Makes a purchase of a given product and automatically submits App Store Receipt to Apphud.
-     
-     If you use this method, you don't need to call Apphud's `submitPurchase` method.
-     
-     - parameter product: Required. This is an `SKProduct` object that user wants to purchase.
-     - parameter callback: Optional. Returns `ApphudSubscription` object if succeeded and an optional error otherwise.
-     */
-    #if DEBUG
-    @objc public static func makePurchase(product: SKProduct, callback: ((ApphudSubscription?, Error?) -> Void)?){
-        ApphudInternal.shared.makePurchase(product: product, callback: callback)
-    }
-    #endif
     /**
      Returns subscription object that current user has ever purchased. Subscriptions are cached on device.
      
