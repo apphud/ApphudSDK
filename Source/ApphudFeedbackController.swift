@@ -89,7 +89,6 @@ class ApphudFeedbackController: UIViewController {
             textView.trailingAnchor.constraint(equalTo: self.view.trailingAnchor, constant: 0),
             textView.topAnchor.constraint(equalTo: self.titleLabel.bottomAnchor, constant: 20),
             ])
-        textView.backgroundColor = UIColor(displayP3Red: 1.0, green: 0, blue: 0, alpha: 0.1)
         textView.inputAccessoryView = self.accessoryView
         return textView
     }()
@@ -98,7 +97,6 @@ class ApphudFeedbackController: UIViewController {
         let accView = UIView()
         accView.autoresizingMask = .flexibleWidth
         accView.frame = CGRect(x: 0, y: 0, width: Int(self.view.frame.size.width), height: 60)
-        accView.backgroundColor = UIColor(displayP3Red: 0, green: 1.0, blue: 0, alpha: 0.3)
         
         let button = ApphudInquiryButton(type: .system)
         button.titleLabel?.font = UIFont.boldSystemFont(ofSize: 17)

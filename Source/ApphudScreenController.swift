@@ -143,6 +143,11 @@ class ApphudScreenController: UIViewController{
         }
         self.product = product
         discount = self.product!.discounts.first(where: {$0.identifier == self.screen!.offer_id})
+        if discount == nil {
+            failed()
+            return
+        }
+        
         webView.evaluateJavaScript("document.documentElement.outerHTML") { (result, error) in
             if var html = result as? NSString {
 
@@ -165,16 +170,15 @@ class ApphudScreenController: UIViewController{
             searchStart = firstDiv.location
         }
         var newHtml = html
-        if self.discount != nil {            
-            let offerDuration = self.product!.discountDurationString(discount: self.discount!)
-            let offerUnit = self.product!.discountUnitString(discount: self.discount!)
-            let offerPrice = self.product!.localizedDiscountPrice(discount: self.discount!)
+                  
+        let offerDuration = self.product!.discountDurationString(discount: self.discount!)
+        let offerUnit = self.product!.discountUnitString(discount: self.discount!)
+        let offerPrice = self.product!.localizedDiscountPrice(discount: self.discount!)
 //            let discountPercents = 100 * (self.product!.price.floatValue - self.discount!.price.floatValue) / self.product!.price.floatValue
-            
-            newHtml = newHtml.replacingOccurrences(of: "{offer_duration}", with: offerDuration, options: [], range: NSMakeRange(searchStart, newHtml.length - searchStart)) as NSString
-            newHtml = newHtml.replacingOccurrences(of: "{offer_unit}", with: offerUnit, options: [], range: NSMakeRange(searchStart, newHtml.length - searchStart)) as NSString
-            newHtml = newHtml.replacingOccurrences(of: "{offer_price}", with: offerPrice, options: [], range: NSMakeRange(searchStart, newHtml.length - searchStart)) as NSString
-        }
+        
+        newHtml = newHtml.replacingOccurrences(of: "{offer_duration}", with: offerDuration, options: [], range: NSMakeRange(searchStart, newHtml.length - searchStart)) as NSString
+        newHtml = newHtml.replacingOccurrences(of: "{offer_unit}", with: offerUnit, options: [], range: NSMakeRange(searchStart, newHtml.length - searchStart)) as NSString
+        newHtml = newHtml.replacingOccurrences(of: "{offer_price}", with: offerPrice, options: [], range: NSMakeRange(searchStart, newHtml.length - searchStart)) as NSString
         
         let regularUnit = self.product!.regularUnitString()
         let regularPrice = self.product!.localizedPrice()

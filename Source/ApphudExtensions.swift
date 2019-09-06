@@ -210,27 +210,31 @@ extension SKProduct {
         }
         let unit = unitStringFrom(periodUnit: subscriptionPeriod.unit) 
         let unit_count = subscriptionPeriod.numberOfUnits
-        let durationUnitsString = "\(unit)\(unit_count > 1 ? "s" : "")"
-        let string = "\(unit_count) \(durationUnitsString)"        
-        return string
+        
+        if unit_count > 1 {
+            return "\(unit_count) \(unit)s" 
+        } else {
+            return unit
+        }
     }
     
     func discountDurationString(discount: SKProductDiscount) -> String{
         let periods_count = discount.numberOfPeriods
         let unit = unitStringFrom(periodUnit: discount.subscriptionPeriod.unit) 
-        let unit_count = discount.subscriptionPeriod.numberOfUnits
-        var string = ""
-        
+        let unit_count = discount.subscriptionPeriod.numberOfUnits        
         let totalUnits = periods_count * unit_count
         
-        string = "\(totalUnits) \(unit)\(totalUnits > 1 ? "s" : "")"
-        
-        return string
+        if totalUnits > 1 {
+            return "\(totalUnits) \(unit)s" 
+        } else {
+            return unit
+        }
     }
     
     func discountUnitString(discount: SKProductDiscount) -> String{
         let unit = unitStringFrom(periodUnit: discount.subscriptionPeriod.unit) 
         let unit_count = discount.subscriptionPeriod.numberOfUnits
+        
         if unit_count > 1 {
             return "\(unit_count) \(unit)s"
         } else {
