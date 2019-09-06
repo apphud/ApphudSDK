@@ -10,7 +10,7 @@ import Foundation
 import AdSupport
 import StoreKit
 
-let sdk_version = "0.5.6"
+let sdk_version = "0.5.7"
 
 final class ApphudInternal {
     
@@ -35,6 +35,8 @@ final class ApphudInternal {
     private var productsGroupsMap : [String : String]?
         
     internal func initialize(apiKey: String, userID : String?, deviceIdentifier : String? = nil){
+        
+        apphudLog("Started Apphud SDK (\(sdk_version))", forceDisplay: true)
         
         ApphudStoreKitWrapper.shared.setupObserver()
         
@@ -469,8 +471,6 @@ final class ApphudInternal {
     @available(iOS 12.2, *)
     internal func checkEligibilitiesForPromotionalOffers(products: [SKProduct], callback: @escaping ApphudEligibilityCallback){
         
-        #warning("test all entries")
-        
         let result = performWhenUserRegistered {
             
             apphudLog("User registered, check promo eligibility")
@@ -508,8 +508,6 @@ final class ApphudInternal {
     @available(iOS 12.2, *)
     private func _checkPromoEligibilitiesForRegisteredUser(products: [SKProduct], callback: @escaping ApphudEligibilityCallback) {
         
-        #warning("test all entries")
-        
         var response = [String : Bool]()
         for product in products {
             response[product.productIdentifier] = false
@@ -542,9 +540,7 @@ final class ApphudInternal {
     /// Checks introductory offers eligibility (includes free trial, pay as you go or pay up front)
     @available(iOS 11.2, *)
     internal func checkEligibilitiesForIntroductoryOffers(products: [SKProduct], callback: @escaping ApphudEligibilityCallback){
-        
-        #warning("test all entries")
-        
+
         let result = performWhenUserRegistered {
             
             apphudLog("User registered, check intro eligibility")
@@ -582,8 +578,6 @@ final class ApphudInternal {
     
     @available(iOS 11.2, *)
     private func _checkIntroEligibilitiesForRegisteredUser(products: [SKProduct], callback: @escaping ApphudEligibilityCallback) {
-        
-        #warning("test all entries")
         
         var response = [String : Bool]()
         for product in products {

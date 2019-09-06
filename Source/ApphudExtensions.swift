@@ -11,8 +11,8 @@ import StoreKit
 
 typealias ApphudVoidCallback = (() -> Void)
 
-internal func apphudLog(_ text : String) {
-    if ApphudUtils.shared.isLoggingEnabled {
+internal func apphudLog(_ text : String, forceDisplay: Bool = false) {
+    if ApphudUtils.shared.isLoggingEnabled || forceDisplay {
         let formatter = DateFormatter()
         formatter.dateStyle = .none
         formatter.timeStyle = .medium

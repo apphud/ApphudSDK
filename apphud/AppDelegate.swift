@@ -20,7 +20,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         
         let APPHUD_API_KEY = "app_kAJSnePQqvAAXuHHJMpH1D7u3jeD34"
         ApphudHttpClient.shared.domain_url_string = "https://api.bitcolio.com"        
-        Apphud.start(apiKey: APPHUD_API_KEY, userID: "renat_04.09", deviceID: "ipad_04.09")
+        Apphud.start(apiKey: APPHUD_API_KEY, userID: "renat_06.09", deviceID: "iphonex_06.09")
 
         
         // load your in-app purchase helper as usual

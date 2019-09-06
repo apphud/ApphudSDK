@@ -32,14 +32,7 @@ class ViewController: UITableViewController{
     }
     
     @objc func restore(){
-        #warning("remove this")
-        ApphudInternal.shared.getRule(ruleID: "fef56273-adc4-431f-b629-dbe72e82b3cf") { rule in
-            if rule != nil {
-                ApphudInquiryController.show(rule: rule!)
-            }
-        }
-        
-//         Apphud.restoreSubscriptions()
+         Apphud.restoreSubscriptions()
     }
     
     @objc func reload(){

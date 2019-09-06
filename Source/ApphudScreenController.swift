@@ -31,6 +31,7 @@ class ApphudScreenController: UIViewController{
         wv.backgroundColor = UIColor.clear
         wv.scrollView.backgroundColor = UIColor.clear
         wv.scrollView.alwaysBounceVertical = false
+        wv.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             wv.topAnchor.constraint(equalTo: self.view.topAnchor),
             wv.leadingAnchor.constraint(equalTo: self.view.leadingAnchor),
@@ -83,7 +84,7 @@ class ApphudScreenController: UIViewController{
         super.viewDidLoad()
         self.view.backgroundColor = UIColor.white
         // if after 10 seconds webview not appeared, then fail
-        self.perform(#selector(failed), with: nil, afterDelay: 10.0)
+        self.perform(#selector(failed), with: nil, afterDelay: 15.0)
         self.loadScreenPage()
         self.loadingIndicator.startAnimating()
     }
@@ -124,8 +125,10 @@ class ApphudScreenController: UIViewController{
     private func updateBackgroundColor(){
         if self.screen?.status_bar_color == "white" {
             self.view.backgroundColor = UIColor.black
+            self.loadingIndicator.style = .white
         } else {
             self.view.backgroundColor = UIColor.white
+            self.loadingIndicator.style = .gray
         }
     }
     
@@ -142,17 +145,7 @@ class ApphudScreenController: UIViewController{
         discount = self.product!.discounts.first(where: {$0.identifier == self.screen!.offer_id})
         webView.evaluateJavaScript("document.documentElement.outerHTML") { (result, error) in
             if var html = result as? NSString {
-                                
-                #if DEBUG
-                if let path = Bundle.main.path(forResource: "test", ofType: "html"){
-                    if let string = try? String(contentsOfFile: path){
-                        html = string as NSString
-                    }
-                }
-                
-                #endif
-                
-                
+
                 html = self.replaceMacroses(html: html)
                 self.webView.tag = 1                
                 
@@ -211,7 +204,10 @@ class ApphudScreenController: UIViewController{
         if isPurchasing {return}
         isPurchasing = true
         
+        self.loadingIndicator.startAnimating()
+        
         Apphud.purchasePromo(product: self.product!, discountID: discountID) { (subscription, error) in
+            self.loadingIndicator.stopAnimating()
             self.isPurchasing = false                    
             if subscription != nil{
                 // successful purchase                        

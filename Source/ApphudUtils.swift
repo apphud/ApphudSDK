@@ -13,11 +13,11 @@ import Foundation
  */
 public class ApphudUtils : NSObject {
     static let shared = ApphudUtils()
-    private(set) var isLoggingEnabled = true
+    private(set) var isLoggingEnabled = false
     /**
         Disables console logging.
  */
-    @objc class func disableLogging() {
-        shared.isLoggingEnabled = false
+    @objc class func enableDebugLogs() {
+        shared.isLoggingEnabled = true
     }
 }

@@ -56,6 +56,9 @@ final public class Apphud: NSObject {
         ApphudInternal.shared.initialize(apiKey: apiKey, userID: userID)
     }
     
+    /**
+    Not yet available to public.
+    */
     #if DEBUG
     @objc public static func start(apiKey: String, userID : String? = nil, deviceID : String? = nil) {
         ApphudInternal.shared.initialize(apiKey: apiKey, userID: userID, deviceIdentifier: deviceID)
@@ -112,12 +115,7 @@ final public class Apphud: NSObject {
     }
     
     /**
-        Makes a purchase of a given product and automatically submits App Store Receipt to Apphud.
-     
-        __Note__: This method automatically records in-app purchase in Apphud, so you don't need to call `submitPurchase` method.
-     
-        - parameter product: Required. This is an `SKProduct` object that user wants to purchase.
-        - parameter callback: Optional. Returns `ApphudSubscription` object if succeeded and an optional error otherwise.
+     Not yet available to public.
      */
     #if DEBUG
     @objc public static func purchase(product: SKProduct, callback: ((ApphudSubscription?, Error?) -> Void)?){
