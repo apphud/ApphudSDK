@@ -74,28 +74,29 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     // MARK:- SKPaymentTransactionObserver
     
     func paymentQueue(_ queue: SKPaymentQueue, updatedTransactions transactions: [SKPaymentTransaction]) {
-        
-        for trx in transactions {
-            
-            switch (trx.transactionState) {
-            case .purchased, .failed:
-                handleTransactionIfStarted(trx)
-                break
-            case .restored:
-                /*
-                 Always handle restored transactions by sending App Store Receipt to Apphud.
-                 Will not finish transaction, because we didn't start it. Developer should finish transaction manually.
-                 */
-                ApphudInternal.shared.submitAppStoreReceipt(allowsReceiptRefresh: true)
-                break
-            default:
-                break
+        DispatchQueue.main.async {
+            for trx in transactions {
+                
+                switch (trx.transactionState) {
+                case .purchased, .failed:
+                    self.handleTransactionIfStarted(trx)
+                    break
+                case .restored:
+                    /*
+                     Always handle restored transactions by sending App Store Receipt to Apphud.
+                     Will not finish transaction, because we didn't start it. Developer should finish transaction manually.
+                     */
+                    ApphudInternal.shared.submitAppStoreReceipt(allowsReceiptRefresh: true)
+                    break
+                default:
+                    break
+                }
             }
         }
     }    
     
     private func handleTransactionIfStarted(_ transaction : SKPaymentTransaction) {
-        if transaction.payment.productIdentifier == self.purchasingProductID{
+        if transaction.payment.productIdentifier == self.purchasingProductID {
             self.paymentCallback?(transaction)
             self.purchasingProductID = nil
             self.paymentCallback = nil
@@ -108,7 +109,9 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     
     func requestDidFinish(_ request: SKRequest) {
         if request is SKReceiptRefreshRequest {
-            ApphudInternal.shared.submitAppStoreReceipt(allowsReceiptRefresh: false)
+            DispatchQueue.main.async {
+                ApphudInternal.shared.submitAppStoreReceipt(allowsReceiptRefresh: false)                
+            }
         }
     }
     
@@ -136,7 +139,9 @@ private class ApphudProductsFetcher : NSObject, SKProductsRequestDelegate{
     }
     
     public func productsRequest(_ request: SKProductsRequest, didReceive response: SKProductsResponse) {
-        self.callback?(response.products)
-        self.callback = nil
+        DispatchQueue.main.async {
+            self.callback?(response.products)
+            self.callback = nil            
+        }
     }
 }

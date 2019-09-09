@@ -214,10 +214,14 @@ class ApphudScreenController: UIViewController{
             self.loadingIndicator.stopAnimating()
             self.isPurchasing = false                    
             if subscription != nil{
+                apphudLog("Promo purchased with id: \(discountID)", forceDisplay: true)
                 // successful purchase                        
                 ApphudInternal.shared.trackRuleEvent(ruleID: self.rule.id, params: ["kind" : "offer_activated", "option_id" : self.option.id, "offer_id" : discountID, "screen_id" : self.option.screenID!]) {}
-                
                 self.dismiss()
+            } else {
+                apphudLog("Promo purchase not finished, error:\(error?.localizedDescription ?? "")", forceDisplay: true)
+                // if error occurred, restore subscriptions
+                Apphud.restoreSubscriptions()
             }
         }
     }
