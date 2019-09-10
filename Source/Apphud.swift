@@ -91,37 +91,39 @@ final public class Apphud: NSObject {
     }
     
     /**
-     This method submits user's App Store receipt to Apphud.
+     Purchases product and automatically submits App Store Receipt to Apphud.
      
-     - parameter productIdentifier: Required. This is an identifier string of the product that user has purchased.
-     - parameter callback: Optional. Returns `ApphudSubscription` object if succeeded and an optional error otherwise.
-     */
-    @objc public static func submitPurchase(_ productIdentifier : String, callback : ((ApphudSubscription?, Error?) -> Void)?) {
-        ApphudInternal.shared.submitPurchase(productId: productIdentifier, callback: callback)        
-    }
-    
-    /**
-     Makes a purchase of a given product with promo discount and automatically submits App Store Receipt to Apphud.
-     
-     __Note__: This method automatically records in-app purchase in Apphud, so you don't need to call `submitPurchase` method.
+     __Note__: This method automatically sends in-app purchase receipt to Apphud, so you don't need to call `submitPurchase` method.    
      
      - parameter product: Required. This is an `SKProduct` object that user wants to purchase.
-     - parameter discountID: Required. This is a `SKProductDiscount` Identifier String object that you would like to apply.
      - parameter callback: Optional. Returns `ApphudSubscription` object if succeeded and an optional error otherwise.
+     */
+    @objc public static func purchase(product: SKProduct, callback: ((ApphudSubscription?, Error?) -> Void)?){
+        ApphudInternal.shared.purchase(product: product, callback: callback)
+    }
+
+    /**
+        Purchases promotional offer and automatically submits App Store Receipt to Apphud.
+     
+        __Note__: This method automatically sends in-app purchase receipt to Apphud, so you don't need to call `submitPurchase` method.    
+     
+        - parameter product: Required. This is an `SKProduct` object that user wants to purchase.
+        - parameter discountID: Required. This is a `SKProductDiscount` Identifier String object that you would like to apply.
+        - parameter callback: Optional. Returns `ApphudSubscription` object if succeeded and an optional error otherwise.
      */
     @available(iOS 12.2, *)
     @objc public static func purchasePromo(product: SKProduct, discountID: String, callback: ((ApphudSubscription?, Error?) -> Void)?){
         ApphudInternal.shared.purchasePromo(product: product, discountID: discountID, callback: callback)
     }
-    
     /**
-     Not yet available to public.
+         Use this method if you have your own purchase mechanism and you want only to submit App Store Receipt to Apphud.
+     
+         - parameter productIdentifier: Required. This is an identifier string of the product that user has just purchased.
+         - parameter callback: Optional. Returns `ApphudSubscription` object if succeeded and an optional error otherwise.  
      */
-    #if DEBUG
-    @objc public static func purchase(product: SKProduct, callback: ((ApphudSubscription?, Error?) -> Void)?){
-        ApphudInternal.shared.purchase(product: product, callback: callback)
+    @objc public static func submitReceipt(_ productIdentifier : String, callback : ((ApphudSubscription?, Error?) -> Void)?) {
+        ApphudInternal.shared.submitReceipt(productId: productIdentifier, callback: callback)        
     }
-    #endif
     
     /**
         Checks whether the given product is eligible for purchasing any of it's promotional offers.
@@ -243,4 +245,11 @@ final public class Apphud: NSObject {
     @discardableResult @objc public static func handlePushNotification(apsInfo: [AnyHashable : Any]) -> Bool{
         return ApphudNotificationsHandler.shared.handleNotification(apsInfo)
     }
+    /**
+     Enables debug logs. Better to call this method before SDK initialization.
+     */
+    @objc public static func enableDebugLogs(){
+        ApphudUtils.enableDebugLogs()
+    }
+    
 }

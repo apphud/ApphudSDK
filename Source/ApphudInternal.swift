@@ -10,7 +10,7 @@ import Foundation
 import AdSupport
 import StoreKit
 
-let sdk_version = "0.5.9"
+let sdk_version = "0.6.0"
 
 final class ApphudInternal {
     
@@ -337,7 +337,7 @@ final class ApphudInternal {
         httpClient.startRequest(path: "products", params: params, method: .put, callback: callback)        
     }    
     
-    internal func submitPurchase(productId : String, callback : ((ApphudSubscription?, Error?) -> Void)?) {
+    internal func submitReceipt(productId : String, callback : ((ApphudSubscription?, Error?) -> Void)?) {
         guard let receiptString = receiptDataString() else { 
             ApphudStoreKitWrapper.shared.refreshReceipt()
             callback?(nil, nil)
@@ -412,7 +412,7 @@ final class ApphudInternal {
     internal func purchase(product: SKProduct, callback: ((ApphudSubscription?, Error?) -> Void)?){
         ApphudStoreKitWrapper.shared.purchase(product: product) { transaction in
             if transaction.transactionState == .purchased {
-                self.submitPurchase(productId: product.productIdentifier, callback: callback)
+                self.submitReceipt(productId: product.productIdentifier, callback: callback)
             } else {
                 callback?(nil, transaction.error)
             }
@@ -434,7 +434,7 @@ final class ApphudInternal {
     internal func purchasePromo(product: SKProduct, discount: SKPaymentDiscount, callback: ((ApphudSubscription?, Error?) -> Void)?){
         ApphudStoreKitWrapper.shared.purchase(product: product, discount: discount) { transaction in
             if transaction.transactionState == .purchased {
-                self.submitPurchase(productId: product.productIdentifier, callback: callback)
+                self.submitReceipt(productId: product.productIdentifier, callback: callback)
             } else {
                 callback?(nil, transaction.error)
             }
