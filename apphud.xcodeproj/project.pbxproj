@@ -33,6 +33,19 @@
 		94AE4E9B22A0FACA00564F85 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 94AE4E9922A0FACA00564F85 /* LaunchScreen.storyboard */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		94412B122333948600D3B2D7 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		941C1F7E2314095D006F91D5 /* ApphudScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApphudScreen.swift; sourceTree = "<group>"; };
 		941C1F8023141F22006F91D5 /* apphud.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = apphud.entitlements; sourceTree = "<group>"; };
@@ -141,6 +154,7 @@
 				94AE4E8922A0FAC800564F85 /* Sources */,
 				94AE4E8A22A0FAC800564F85 /* Frameworks */,
 				94AE4E8B22A0FAC800564F85 /* Resources */,
+				94412B122333948600D3B2D7 /* Embed App Extensions */,
 			);
 			buildRules = (
 			);

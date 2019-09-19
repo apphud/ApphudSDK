@@ -43,7 +43,10 @@ public class ApphudHttpClient {
     }
     
     internal func makeScreenRequest(screenID: String) -> URLRequest? {
-        let urlString = "\(domain_url_string)/preview_screen/\(screenID)?api_key=\(apiKey)"
+        
+        let deviceID : String = ApphudInternal.shared.currentDeviceID
+        let urlString = "\(domain_url_string)/preview_screen/\(screenID)?api_key=\(apiKey)&locale=\(Locale.current.identifier)&device_id=\(deviceID)"
+        
         let url = URL(string: urlString)
         if url != nil {
             let request = URLRequest(url: url!, cachePolicy: URLRequest.CachePolicy.useProtocolCachePolicy, timeoutInterval: 20)

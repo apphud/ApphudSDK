@@ -32,6 +32,8 @@ class ViewController: UITableViewController{
     }
     
     @objc func restore(){
+        let active = Apphud.purchasedSubscription()?.isActive() ?? false
+        print("\(active)")
          Apphud.restoreSubscriptions()
     }
     
@@ -105,8 +107,7 @@ class ViewController: UITableViewController{
             }
         } else {
             purchaseProduct(product: product)
-        }
-        
+        }   
     }
     
     @available(iOS 12.2, *)

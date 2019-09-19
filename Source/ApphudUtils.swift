@@ -23,3 +23,4 @@ public class ApphudUtils : NSObject {
     internal static let shared = ApphudUtils()
     private(set) var isLoggingEnabled = false
 }
+

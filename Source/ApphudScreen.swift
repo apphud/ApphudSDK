@@ -12,19 +12,17 @@ struct ApphudScreen {
     
     var identifier: String
     var name: String
-    var product_id: String
-    var offer_id: String?
     var terms_url: String?
     var privacy_url: String?
     var status_bar_color: String?
+    var products_offers_map : [[String : Any]]?
     
     init(dictionary: [String : Any]) {
-        product_id = dictionary["product_id"] as? String ?? ""
         name = dictionary["name"] as? String ?? ""
         identifier = dictionary["identifier"] as? String ?? ""
-        offer_id = dictionary["offer_id"] as? String ?? ""
         terms_url = dictionary["terms_url"] as? String ?? ""
         privacy_url = dictionary["privacy_url"] as? String ?? ""        
         status_bar_color = dictionary["status_bar_color"] as? String ?? ""
+        products_offers_map = dictionary["products"] as? [[String : Any]]
     }
 }

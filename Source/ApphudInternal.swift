@@ -10,7 +10,7 @@ import Foundation
 import AdSupport
 import StoreKit
 
-let sdk_version = "0.6.0"
+let sdk_version = "0.6.1"
 
 final class ApphudInternal {
     
@@ -72,34 +72,14 @@ final class ApphudInternal {
     }
 
     private func continueToRegisteringUser(){
-        registerUser { (result, dictionary, error) in
-            
-            var hasSubscriptionChanges = false
-            if result {
-                hasSubscriptionChanges = self.parseUser(dictionary)
-            }
-            
-            if result && self.currentUser != nil {
-                
-                if hasSubscriptionChanges {
-                    self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions!)
-                }
-                
+        createOrGetUser { success in
+            if success {
                 apphudLog("User successfully registered")
-                
-                self.performAllUserRegisteredBlocks()
-                
-                if UserDefaults.standard.bool(forKey: self.requiresReceiptSubmissionKey) {
-                    self.submitAppStoreReceipt(allowsReceiptRefresh: false)
-                }
-                
+                self.performAllUserRegisteredBlocks()                
                 self.continueToUpdateProducts()
-                
                 self.listenForAwakeNotification()
                 self.checkForUnreadNotifications()
-                
-            } else {
-                apphudLog("Failed to register user, error:\(error?.localizedDescription ?? "")")
+            } else {                
                 self.userRegisteredCallbacks.removeAll()
             }
         }
@@ -152,6 +132,7 @@ final class ApphudInternal {
         
         if Date().timeIntervalSince(lastCheckDate) >  minCheckInterval{
             self.checkForUnreadNotifications()
+            self.refreshCurrentUser()
         }
     }
     
@@ -245,7 +226,7 @@ final class ApphudInternal {
     
     // MARK: API Requests
     
-    private func registerUser(callback: @escaping ApphudBoolDictionaryCallback) {
+    private func createOrGetUser(callback: @escaping (Bool) -> Void) {
         
         var params : [String : String] = ["device_id" : self.currentDeviceID]
         if self.currentUserID != nil {
@@ -255,7 +236,30 @@ final class ApphudInternal {
         let deviceParams = currentDeviceParameters()
         params.merge(deviceParams) { (current, new) in current}
         
-        httpClient.startRequest(path: "customers", params: params, method: .post, callback: callback)        
+        httpClient.startRequest(path: "customers", params: params, method: .post) { (result, response, error) in
+            
+            var hasSubscriptionChanges = false
+            if result {
+                hasSubscriptionChanges = self.parseUser(response)
+            }
+            
+            let finalResult = result && self.currentUser != nil
+            
+            if finalResult {
+                if hasSubscriptionChanges {
+                    self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions!)
+                }
+                if UserDefaults.standard.bool(forKey: self.requiresReceiptSubmissionKey) {
+                    self.submitAppStoreReceipt(allowsReceiptRefresh: false)
+                }
+            }
+            
+            if error != nil {
+                apphudLog("Failed to register or get user, error:\(error!.localizedDescription)")
+            }
+            
+            callback(finalResult)
+        }        
     }
     
     private func updateUserCurrencyIfNeeded(priceLocale : Locale?){
@@ -301,8 +305,8 @@ final class ApphudInternal {
         httpClient.startRequest(path: "customers", params: params, method: .post, callback: callback)
     }
     
-    private func getCurrentUser(){
-        
+    private func refreshCurrentUser(){
+        createOrGetUser { _ in }         
     }
     
     private func getProducts(callback: @escaping (([String : String]?) -> Void)) {
@@ -340,7 +344,7 @@ final class ApphudInternal {
     internal func submitReceipt(productId : String, callback : ((ApphudSubscription?, Error?) -> Void)?) {
         guard let receiptString = receiptDataString() else { 
             ApphudStoreKitWrapper.shared.refreshReceipt()
-            callback?(nil, nil)
+            callback?(nil, ApphudError.error(message: "Receipt not found on device, refreshing."))
             return 
         }
         
@@ -350,7 +354,7 @@ final class ApphudInternal {
             }            
         }
         if !exist {
-            apphudLog("Tried to make submitPurchase: \(productId) request when user is not yet registered, addind to schedule..")
+            apphudLog("Tried to make submitReceipt: \(productId) request when user is not yet registered, addind to schedule..")
         }
     }
     
@@ -360,7 +364,7 @@ final class ApphudInternal {
                 apphudLog("App Store receipt is missing on device, will refresh first then retry")
                 ApphudStoreKitWrapper.shared.refreshReceipt()
             } else {
-                // receipt is missing and can't refresh anymore because already tried to refresh
+                apphudLog("App Store receipt is missing on device and couldn't be refreshed.", forceDisplay: true)
             }
             return 
         }
@@ -425,7 +429,7 @@ final class ApphudInternal {
             if let paymentDiscount = paymentDiscount {                
                 ApphudInternal.shared.purchasePromo(product: product, discount: paymentDiscount, callback: callback)
             } else {
-                // Signing error occurred, probably because you didn't add Subscription Key file to Apphud.
+                callback?(nil, ApphudError.error(message: "Could not sign offer id: \(discountID), product id: \(product.productIdentifier)"))
             }
         }
     }
@@ -460,9 +464,8 @@ final class ApphudInternal {
                 }
             }
             
-            //            let error = ApphudError("Could not sign promo offer: \(discountID)")
-            
-            callback?(nil, nil)
+            let error = ApphudError.error(message: "Could not sign promo offer id: \(discountID), product id: \(productID)")
+            callback?(nil, error)
         }
     }
     

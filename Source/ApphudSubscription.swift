@@ -60,7 +60,7 @@ public class ApphudSubscription : NSObject{
     @objc public let productId : String
     
     /**
-     Expiration date of subscription period. You shouldn't use this property to detect if subscription is active because user can change system date in iOS settings. Check status property instead.
+     Expiration date of subscription period. You shouldn't use this property to detect if subscription is active because user can change system date in iOS settings. Check isActive() method instead.
      */
     @objc public let expiresDate : Date
     

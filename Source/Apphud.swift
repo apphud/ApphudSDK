@@ -93,7 +93,7 @@ final public class Apphud: NSObject {
     /**
      Purchases product and automatically submits App Store Receipt to Apphud.
      
-     __Note__: This method automatically sends in-app purchase receipt to Apphud, so you don't need to call `submitPurchase` method.    
+     __Note__: This method automatically sends in-app purchase receipt to Apphud, so you don't need to call `submitReceipt` method.    
      
      - parameter product: Required. This is an `SKProduct` object that user wants to purchase.
      - parameter callback: Optional. Returns `ApphudSubscription` object if succeeded and an optional error otherwise.
@@ -105,7 +105,7 @@ final public class Apphud: NSObject {
     /**
         Purchases promotional offer and automatically submits App Store Receipt to Apphud.
      
-        __Note__: This method automatically sends in-app purchase receipt to Apphud, so you don't need to call `submitPurchase` method.    
+        __Note__: This method automatically sends in-app purchase receipt to Apphud, so you don't need to call `submitReceipt` method.    
      
         - parameter product: Required. This is an `SKProduct` object that user wants to purchase.
         - parameter discountID: Required. This is a `SKProductDiscount` Identifier String object that you would like to apply.
@@ -189,7 +189,7 @@ final public class Apphud: NSObject {
      Example:   
      
      ````
-     Apphud.purchasedSubscription().isActive
+     let active = Apphud.purchasedSubscription()?.isActive ?? false
      ````
      
      If you have more than one subscription group in your app, use `subscriptions()` method and get `isActive` value for your desired subscription.
@@ -235,16 +235,25 @@ final public class Apphud: NSObject {
         ApphudInternal.shared.submitAppStoreReceipt(allowsReceiptRefresh: true)
     }
     
+    /**
+     Submit device push token to Apphud.
+     - parameter token: Push token in Data class.
+     - parameter callback: Returns true if successfully sent.
+    */
     @objc public static func submitPushNotificationsToken(token: Data, callback: @escaping (Bool) -> Void){
         ApphudInternal.shared.submitPushNotificationsToken(token: token, callback: callback)
     }
     
-    /*
+    /**
+     Handles push notification payload. Apphud handles only push notifications that were created by Apphud.
+     - parameter apsInfo: Payload of push notification.
      
+     Returns true if push notification was handled by Apphud.
      */
     @discardableResult @objc public static func handlePushNotification(apsInfo: [AnyHashable : Any]) -> Bool{
         return ApphudNotificationsHandler.shared.handleNotification(apsInfo)
     }
+    
     /**
      Enables debug logs. Better to call this method before SDK initialization.
      */

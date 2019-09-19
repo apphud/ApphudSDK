@@ -86,9 +86,9 @@ internal class ApphudInquiryController: UIViewController {
         
         let dismissButton = UIButton(type: .system)
         dismissButton.setTitleColor(UIColor(red: 0.04, green: 0.52, blue: 1, alpha: 1), for: .normal)
-        dismissButton.titleLabel?.font = UIFont.systemFont(ofSize: 13)
+        dismissButton.titleLabel?.font = UIFont.boldSystemFont(ofSize: 18)
         dismissButton.addTarget(self, action: #selector(dismissTapped), for: .touchUpInside)
-        dismissButton.setTitle("Dismiss", for: .normal)
+        dismissButton.setTitle("╳", for: .normal)
         self.view.addSubview(dismissButton)
         dismissButton.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([

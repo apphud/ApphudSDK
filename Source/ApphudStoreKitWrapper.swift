@@ -97,8 +97,8 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     
     private func handleTransactionIfStarted(_ transaction : SKPaymentTransaction) {
         if transaction.payment.productIdentifier == self.purchasingProductID {
-            self.paymentCallback?(transaction)
             self.purchasingProductID = nil
+            self.paymentCallback?(transaction)
             self.paymentCallback = nil
             // Finish transaction because we started it.
             SKPaymentQueue.default().finishTransaction(transaction)
