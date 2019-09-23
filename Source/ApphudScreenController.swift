@@ -303,7 +303,9 @@ class ApphudScreenController: UIViewController{
         } else {
             apphudLog("Couldn't purchase error:\(error?.localizedDescription ?? "")", forceDisplay: true)
             // if error occurred, restore subscriptions
-            Apphud.restoreSubscriptions()
+            Apphud.restoreSubscriptions { subscriptions in
+                
+            }
         }
     }
     

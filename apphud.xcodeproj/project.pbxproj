@@ -23,7 +23,6 @@
 		947977B522E8453200EE1934 /* ApphudSubscription.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947977AC22E8453200EE1934 /* ApphudSubscription.swift */; };
 		947977B622E8453200EE1934 /* ApphudKeychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947977AD22E8453200EE1934 /* ApphudKeychain.swift */; };
 		947977B722E8453200EE1934 /* ApphudUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947977AE22E8453200EE1934 /* ApphudUtils.swift */; };
-		947977B922E8460500EE1934 /* IAPManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947977B822E8460500EE1934 /* IAPManager.swift */; };
 		9498F43B230EC2F80016BB1A /* ApphudNotificationsHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9498F43A230EC2F80016BB1A /* ApphudNotificationsHandler.swift */; };
 		94A142B92313EEDF00DB5DAE /* ApphudScreenController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94A142B82313EEDF00DB5DAE /* ApphudScreenController.swift */; };
 		94AE4E9122A0FAC800564F85 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94AE4E9022A0FAC800564F85 /* AppDelegate.swift */; };
@@ -64,7 +63,6 @@
 		947977AC22E8453200EE1934 /* ApphudSubscription.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudSubscription.swift; sourceTree = "<group>"; };
 		947977AD22E8453200EE1934 /* ApphudKeychain.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudKeychain.swift; sourceTree = "<group>"; };
 		947977AE22E8453200EE1934 /* ApphudUtils.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudUtils.swift; sourceTree = "<group>"; };
-		947977B822E8460500EE1934 /* IAPManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = IAPManager.swift; sourceTree = "<group>"; };
 		9498F43A230EC2F80016BB1A /* ApphudNotificationsHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApphudNotificationsHandler.swift; sourceTree = "<group>"; };
 		94A142B82313EEDF00DB5DAE /* ApphudScreenController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApphudScreenController.swift; sourceTree = "<group>"; };
 		94AE4E8D22A0FAC800564F85 /* apphud.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = apphud.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -113,7 +111,6 @@
 				94AE4E9022A0FAC800564F85 /* AppDelegate.swift */,
 				94AE4E9222A0FAC800564F85 /* ViewController.swift */,
 				9433E00D231FCF5E00D22785 /* Extensions.swift */,
-				947977B822E8460500EE1934 /* IAPManager.swift */,
 				94AE4E9422A0FAC800564F85 /* Main.storyboard */,
 				94AE4E9722A0FACA00564F85 /* Assets.xcassets */,
 				94AE4E9922A0FACA00564F85 /* LaunchScreen.storyboard */,
@@ -223,7 +220,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				947977B922E8460500EE1934 /* IAPManager.swift in Sources */,
 				9433E0082319579A00D22785 /* ApphudRule.swift in Sources */,
 				941C1F7F2314095D006F91D5 /* ApphudScreen.swift in Sources */,
 				947977B122E8453200EE1934 /* ApphudHttpClient.swift in Sources */,

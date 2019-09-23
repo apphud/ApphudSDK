@@ -10,7 +10,7 @@ import Foundation
 import AdSupport
 import StoreKit
 
-let sdk_version = "0.6.1"
+let sdk_version = "0.6.2"
 
 final class ApphudInternal {
     
@@ -34,6 +34,8 @@ final class ApphudInternal {
     
     private var productsGroupsMap : [String : String]?
         
+    private var restoreSubscriptionCallback : (([ApphudSubscription]?) -> Void)?
+    
     internal func initialize(apiKey: String, userID : String?, deviceIdentifier : String? = nil){
         
         apphudLog("Started Apphud SDK (\(sdk_version))", forceDisplay: true)
@@ -250,7 +252,7 @@ final class ApphudInternal {
                     self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions!)
                 }
                 if UserDefaults.standard.bool(forKey: self.requiresReceiptSubmissionKey) {
-                    self.submitAppStoreReceipt(allowsReceiptRefresh: false)
+                    self.submitReceiptRestore(allowsReceiptRefresh: false)
                 }
             }
             
@@ -341,6 +343,35 @@ final class ApphudInternal {
         httpClient.startRequest(path: "products", params: params, method: .put, callback: callback)        
     }    
     
+    internal func restoreSubscriptions(callback: @escaping ([ApphudSubscription]?) -> Void) {
+        self.restoreSubscriptionCallback = callback
+        self.submitReceiptRestore(allowsReceiptRefresh: true)
+    }
+    
+    internal func submitReceiptRestore(allowsReceiptRefresh : Bool) {
+        guard let receiptString = receiptDataString() else {
+            if allowsReceiptRefresh {
+                apphudLog("App Store receipt is missing on device, will refresh first then retry")
+                ApphudStoreKitWrapper.shared.refreshReceipt()
+            } else {
+                apphudLog("App Store receipt is missing on device and couldn't be refreshed.", forceDisplay: true)
+                self.restoreSubscriptionCallback?(nil)
+                self.restoreSubscriptionCallback = nil
+            }
+            return 
+        }
+        
+        let exist = performWhenUserRegistered { 
+            self.submitReceipt(receiptString: receiptString, notifyDelegate: true) { error in
+                self.restoreSubscriptionCallback?(self.currentUser?.subscriptions)
+                self.restoreSubscriptionCallback = nil
+            }
+        }
+        if !exist {
+            apphudLog("Tried to make restore allows: \(allowsReceiptRefresh) request when user is not yet registered, addind to schedule..")
+        }
+    }
+    
     internal func submitReceipt(productId : String, callback : ((ApphudSubscription?, Error?) -> Void)?) {
         guard let receiptString = receiptDataString() else { 
             ApphudStoreKitWrapper.shared.refreshReceipt()
@@ -350,30 +381,11 @@ final class ApphudInternal {
         
         let exist = performWhenUserRegistered { 
             self.submitReceipt(receiptString: receiptString, notifyDelegate: false) { error in
-                callback?(Apphud.purchasedSubscriptionFor(productID: productId), error)
+                callback?(Apphud.subscriptions()?.first(where: {$0.productId == productId}), error)
             }            
         }
         if !exist {
             apphudLog("Tried to make submitReceipt: \(productId) request when user is not yet registered, addind to schedule..")
-        }
-    }
-    
-    internal func submitAppStoreReceipt(allowsReceiptRefresh : Bool) {
-        guard let receiptString = receiptDataString() else {
-            if allowsReceiptRefresh {
-                apphudLog("App Store receipt is missing on device, will refresh first then retry")
-                ApphudStoreKitWrapper.shared.refreshReceipt()
-            } else {
-                apphudLog("App Store receipt is missing on device and couldn't be refreshed.", forceDisplay: true)
-            }
-            return 
-        }
-        
-        let exist = performWhenUserRegistered { 
-            self.submitReceipt(receiptString: receiptString, notifyDelegate: true, callback: nil)
-        }
-        if !exist {
-            apphudLog("Tried to make restore allows: \(allowsReceiptRefresh) request when user is not yet registered, addind to schedule..")
         }
     }
     

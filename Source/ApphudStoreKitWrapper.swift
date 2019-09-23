@@ -38,6 +38,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
             self.products.append(contentsOf: products)
             callback(products)
             NotificationCenter.default.post(name: ApphudStoreKitProductsFetched, object: nil)
+            ApphudInternal.shared.delegate?.apphudDidFetchStoreKitProducts?(products)
         }
     }
     
@@ -86,7 +87,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
                      Always handle restored transactions by sending App Store Receipt to Apphud.
                      Will not finish transaction, because we didn't start it. Developer should finish transaction manually.
                      */
-                    ApphudInternal.shared.submitAppStoreReceipt(allowsReceiptRefresh: true)
+                    ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: true)
                     break
                 default:
                     break
@@ -110,7 +111,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     func requestDidFinish(_ request: SKRequest) {
         if request is SKReceiptRefreshRequest {
             DispatchQueue.main.async {
-                ApphudInternal.shared.submitAppStoreReceipt(allowsReceiptRefresh: false)                
+                ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: false)                
             }
         }
     }
@@ -120,7 +121,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
      */
     func request(_ request: SKRequest, didFailWithError error: Error) {
         if request is SKReceiptRefreshRequest {
-            ApphudInternal.shared.submitAppStoreReceipt(allowsReceiptRefresh: false)
+            ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: false)
         }
     }
 }

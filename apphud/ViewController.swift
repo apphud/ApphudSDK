@@ -22,7 +22,6 @@ class ViewController: UITableViewController{
         // In this example we set delegate to ViewController to reload tableview when changes come
         Apphud.setDelegate(self)
         
-        NotificationCenter.default.addObserver(self, selector: #selector(reload), name: IAP_PRODUCTS_DID_LOAD_NOTIFICATION, object: nil)
         reload()
         navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Restore transactions", style: .done, target: self, action: #selector(restore))        
     }
@@ -32,27 +31,22 @@ class ViewController: UITableViewController{
     }
     
     @objc func restore(){
-        let active = Apphud.purchasedSubscription()?.isActive() ?? false
-        print("\(active)")
-         Apphud.restoreSubscriptions()
+        Apphud.restoreSubscriptions { subscriptions in self.reload()}
     }
     
     @objc func reload(){
-        if let prs = IAPManager.shared.products {
-            products = prs
-            print("new eligibility checks")
-            Apphud.checkEligibilitiesForIntroductoryOffers(products: products) { (response) in
-                self.introductoryEligibility = response
-                if #available(iOS 12.2, *) {
-                    Apphud.checkEligibilitiesForPromotionalOffers(products: self.products) { (response) in
-                        self.promoOffersEligibility = response
-                        self.tableView.reloadData()
-                    }
-                } else {                    
+        Apphud.checkEligibilitiesForIntroductoryOffers(products: products) { (response) in
+            self.introductoryEligibility = response
+            if #available(iOS 12.2, *) {
+                Apphud.checkEligibilitiesForPromotionalOffers(products: self.products) { (response) in
+                    self.promoOffersEligibility = response
                     self.tableView.reloadData()
                 }
-            }            
-        }
+            } else {                    
+                self.tableView.reloadData()
+            }
+        }            
+        
         tableView.reloadData()
     }
     
@@ -82,7 +76,7 @@ class ViewController: UITableViewController{
         
         cell.textLabel?.text = text
         
-        if let subscription = Apphud.purchasedSubscriptionFor(productID: product.productIdentifier) {
+        if let subscription = Apphud.subscriptions()?.first(where: {$0.productId == product.productIdentifier}) {
             
             cell.detailTextLabel?.text = subscription.expiresDate.description(with: Locale.current) + "\nState: \(subscription.status.toStringDuplicate())\nIntroductory used:\(subscription.isIntroductoryActivated)".uppercased()
         } else {
@@ -99,7 +93,7 @@ class ViewController: UITableViewController{
         let product = products[indexPath.item]
 
         if #available(iOS 12.2, *) {
-            if product.discounts.count > 0 && (Apphud.purchasedSubscriptionFor(productID: product.productIdentifier) != nil){
+            if product.discounts.count > 0 && (Apphud.subscriptions()?.first(where: {$0.productId == product.productIdentifier}) != nil){
                 // purchase promo offer                
                 showPromoOffersAlert(product: product)
             } else {
@@ -146,11 +140,13 @@ class ViewController: UITableViewController{
 
 
 extension ViewController : ApphudDelegate {
-    func apphudSubscriptionsUpdated(_ subscriptions: [ApphudSubscription]) {
-        self.reload()
-    }
     
     func apphudDidChangeUserID(_ userID: String) {
         print("new apphud user id: \(userID)")
+    }
+    
+    func apphudDidFetchStoreKitProducts(_ products: [SKProduct]) {
+        self.products = products
+        self.reload()
     }
 }
