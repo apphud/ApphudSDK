@@ -318,6 +318,16 @@ class ApphudScreenController: UIViewController{
         (self.navigationController ?? self).dismiss(animated: true, completion: nil)
     }
     
+    private func restoreTapped(){
+        self.loadingIndicator.startAnimating()
+        Apphud.restoreSubscriptions { subscriptions in
+            self.loadingIndicator.stopAnimating()
+            if subscriptions?.first?.isActive() ?? false {
+                self.dismiss()
+            }
+        }
+    }
+    
     private func openURL(url: URL?){
         guard let url = url else {
             return
@@ -355,6 +365,9 @@ extension ApphudScreenController : WKNavigationDelegate {
                 return false
             case "link":
                 self.openURL(url: navigationAction.request.url)
+                return false
+            case "restore":
+                self.restoreTapped()
                 return false
             default:
                 break
