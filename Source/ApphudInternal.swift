@@ -308,7 +308,9 @@ final class ApphudInternal {
     }
     
     private func refreshCurrentUser(){
-        createOrGetUser { _ in }         
+        createOrGetUser { _ in 
+            self.lastCheckDate = Date()
+        }         
     }
     
     private func getProducts(callback: @escaping (([String : String]?) -> Void)) {
@@ -670,7 +672,6 @@ final class ApphudInternal {
     
     internal func checkForUnreadNotifications(){
         performWhenUserRegistered {
-            self.lastCheckDate = Date()
             let params = ["device_id": self.currentDeviceID] as [String : String]
             self.httpClient.startRequest(path: "notifications/unread", params: params, method: .get, callback: { (result, response, error) in
                 if  result, 

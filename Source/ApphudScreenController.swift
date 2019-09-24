@@ -84,7 +84,7 @@ class ApphudScreenController: UIViewController{
         // if after 10 seconds webview not appeared, then fail
         self.perform(#selector(failedByTimeOut), with: nil, afterDelay: 15.0)
         self.loadScreenPage()
-        self.loadingIndicator.startAnimating()
+        self.startLoading()
     }
     
     override func viewDidAppear(_ animated: Bool) {
@@ -180,6 +180,23 @@ class ApphudScreenController: UIViewController{
         }
     }
     
+    //MARK:- Handle Loader
+    
+    func startLoading(){
+        self.loadingIndicator.startAnimating()
+//        self.webView.evaluateJavaScript("purchase_started();", completionHandler: nil)
+    }
+    
+    func stopLoading(error: Error? = nil){
+        self.loadingIndicator.stopAnimating()
+//        if error != nil {
+//            self.webView.evaluateJavaScript("purchase_failed();", completionHandler: nil)
+//        } else {
+//            self.webView.evaluateJavaScript("purchase_completed();", completionHandler: nil)
+//        }
+//        
+    }
+    
     //MARK:- Handle Macroses
     
     func macrosStringFor(product : SKProduct, offerID : String? = nil) -> String {
@@ -244,7 +261,7 @@ class ApphudScreenController: UIViewController{
         apphudLog("exec time: \(date)")
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(failedByTimeOut), object: nil)
         webView.alpha = 1
-        self.loadingIndicator.stopAnimating()
+        self.stopLoading()
     }
     
     private func purchaseTapped(url: URL?){
@@ -268,7 +285,7 @@ class ApphudScreenController: UIViewController{
                 
                 if isPurchasing {return}
                 isPurchasing = true
-                self.loadingIndicator.startAnimating()
+                self.startLoading()
                 Apphud.purchasePromo(product: product, discountID: offerID!) { (subscription, error) in
                     self.handlePurchaseResult(product: product, offerID: offerID!, subscription: subscription, error: error)
                 }
@@ -281,7 +298,7 @@ class ApphudScreenController: UIViewController{
             
             if isPurchasing {return}
             isPurchasing = true
-            self.loadingIndicator.startAnimating()
+            self.startLoading()
             Apphud.purchase(product: product) { (subscription, error) in
                 self.handlePurchaseResult(product: product, subscription: subscription, error: error)
             }
@@ -289,7 +306,7 @@ class ApphudScreenController: UIViewController{
     }
     
     private func handlePurchaseResult(product: SKProduct, offerID: String? = nil, subscription: ApphudSubscription?, error: Error?) {
-        self.loadingIndicator.stopAnimating()
+        self.stopLoading(error: error)
         self.isPurchasing = false                    
         if subscription != nil {
             if offerID != nil {
@@ -319,9 +336,9 @@ class ApphudScreenController: UIViewController{
     }
     
     private func restoreTapped(){
-        self.loadingIndicator.startAnimating()
+        self.startLoading()
         Apphud.restoreSubscriptions { subscriptions in
-            self.loadingIndicator.stopAnimating()
+            self.stopLoading()
             if subscriptions?.first?.isActive() ?? false {
                 self.dismiss()
             }
