@@ -318,10 +318,10 @@ class ApphudScreenController: UIViewController{
             }
             self.dismiss()
         } else {
-            apphudLog("Couldn't purchase error:\(error?.localizedDescription ?? "")", forceDisplay: true)
+            apphudLog("Couldn't purchase, but will restore and close. Error:\(error?.localizedDescription ?? "")", forceDisplay: true)
             // if error occurred, restore subscriptions
             Apphud.restoreSubscriptions { subscriptions in
-                
+                self.dismiss()
             }
         }
     }
@@ -332,7 +332,11 @@ class ApphudScreenController: UIViewController{
     
     private func dismiss(){   
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(failedByTimeOut), object: nil)
-        (self.navigationController ?? self).dismiss(animated: true, completion: nil)
+        
+        ApphudInternal.shared.delegate?.apphudWillDismissScreen?()
+        (self.navigationController ?? self).dismiss(animated: true) { 
+            ApphudInternal.shared.delegate?.apphudDidDismissScreen?()
+        }
     }
     
     private func restoreTapped(){
@@ -361,6 +365,7 @@ class ApphudScreenController: UIViewController{
 
         if UIApplication.shared.canOpenURL(navigationURL){
             let controller = SFSafariViewController(url: navigationURL)
+            controller.modalPresentationStyle = self.navigationController?.modalPresentationStyle ?? .fullScreen
             present(controller, animated: true, completion: nil)
         }
     }

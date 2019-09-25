@@ -14,11 +14,11 @@ internal struct ApphudUser {
     /**
      Unique user identifier. This can be updated later.
      */
-    let user_id : String
+    var user_id : String
     /**
      An array of subscriptions that user has ever purchased.
      */
-    let subscriptions : [ApphudSubscription]?
+    var subscriptions : [ApphudSubscription]
     
     // MARK:- Private methods
     
@@ -37,13 +37,13 @@ internal struct ApphudUser {
         if subs.count > 0 {
             self.subscriptions = subs.sorted{ return $0.expiresDate > $1.expiresDate }
         } else {
-            self.subscriptions = nil
+            self.subscriptions = []
         }
     }
     
     func subscriptionsStates() -> [String : String] {
         var dict = [String : String]()
-        for subscription in self.subscriptions ?? [] {
+        for subscription in self.subscriptions {
             dict[subscription.productId] = subscription.status.toString()
         }
         return dict

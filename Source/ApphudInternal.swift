@@ -10,7 +10,7 @@ import Foundation
 import AdSupport
 import StoreKit
 
-let sdk_version = "0.6.3"
+let sdk_version = "0.6.5"
 
 final class ApphudInternal {
     
@@ -126,11 +126,7 @@ final class ApphudInternal {
     
     @objc private func handleDidBecomeActive(){
         
-        #if DEBUG
-        let minCheckInterval :Double = 10
-        #else
-        let minCheckInterval :Double = 5*60
-        #endif
+        let minCheckInterval :Double = 5
         
         if Date().timeIntervalSince(lastCheckDate) >  minCheckInterval{
             self.checkForUnreadNotifications()
@@ -249,7 +245,7 @@ final class ApphudInternal {
             
             if finalResult {
                 if hasSubscriptionChanges {
-                    self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions!)
+                    self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions)
                 }
                 if UserDefaults.standard.bool(forKey: self.requiresReceiptSubmissionKey) {
                     self.submitReceiptRestore(allowsReceiptRefresh: false)
@@ -382,7 +378,7 @@ final class ApphudInternal {
         }
         
         let exist = performWhenUserRegistered { 
-            self.submitReceipt(receiptString: receiptString, notifyDelegate: false) { error in
+            self.submitReceipt(receiptString: receiptString, notifyDelegate: true) { error in
                 callback?(Apphud.subscriptions()?.first(where: {$0.productId == productId}), error)
             }            
         }
@@ -418,7 +414,7 @@ final class ApphudInternal {
                 if self.parseUser(response) {
                     // do not call delegate method only purchase, use callback instead
                     if notifyDelegate {
-                        self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions!)
+                        self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions)
                     }
                 }
             }
@@ -495,10 +491,10 @@ final class ApphudInternal {
             let didSendReceiptForPromoEligibility = "ReceiptForPromoSent"
             
             // not found subscriptions, try to restore and try again
-            if self.currentUser?.subscriptions?.count ?? 0 == 0 && !UserDefaults.standard.bool(forKey: didSendReceiptForPromoEligibility){
+            if self.currentUser?.subscriptions.count ?? 0 == 0 && !UserDefaults.standard.bool(forKey: didSendReceiptForPromoEligibility){
                 if let receiptString = receiptDataString() {
                     apphudLog("Restoring subscriptions for promo eligibility check")
-                    self.submitReceipt(receiptString: receiptString, notifyDelegate: false, callback: { error in
+                    self.submitReceipt(receiptString: receiptString, notifyDelegate: true, callback: { error in
                         UserDefaults.standard.set(true, forKey: didSendReceiptForPromoEligibility)
                         self._checkPromoEligibilitiesForRegisteredUser(products: products, callback: callback)
                     })
@@ -566,10 +562,10 @@ final class ApphudInternal {
             
             let didSendReceiptForIntroEligibility = "ReceiptForIntroSent"
             
-            if self.currentUser?.subscriptions?.count ?? 0 == 0 && !UserDefaults.standard.bool(forKey: didSendReceiptForIntroEligibility){
+            if self.currentUser?.subscriptions.count ?? 0 == 0 && !UserDefaults.standard.bool(forKey: didSendReceiptForIntroEligibility){
                 if let receiptString = receiptDataString() {
                     apphudLog("Restoring subscriptions for intro eligibility check")
-                    self.submitReceipt(receiptString: receiptString, notifyDelegate: false, callback: { error in
+                    self.submitReceipt(receiptString: receiptString, notifyDelegate: true, callback: { error in
                         UserDefaults.standard.set(true, forKey: didSendReceiptForIntroEligibility)
                         self._checkIntroEligibilitiesForRegisteredUser(products: products, callback: callback)
                     })

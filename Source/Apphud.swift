@@ -12,14 +12,18 @@ import UserNotifications
 
 public typealias ApphudEligibilityCallback = (([String : Bool]) -> Void)
 
+
+
+// MARK:- Delegate
+
 @objc public protocol ApphudDelegate {
     
     /**
-        Reports when subscription status has been changed (for example, from `trial` to `expired`).
+        Returns array of subscriptions that user ever purchased. Empty array means user never purchased a subscription. If you have just one subscription group in your app, you will always receive just one subscription in an array.
      
-        In most cases you shouldn't use this method, it's just informational. 
+        This method is called when any subscription in an array has been changed (for example, status changed from `trial` to `expired`).
      
-        `Apphud.hasActiveSubscription()` – is what you need.
+        In most cases you don't need this method because you already have completion blocks in `purchase`, `purchasePromo` and `submitReceipt` methods. However this method may be useful to detect whether subscription was purchased in Apphud's puchase screen.
      */
     @objc optional func apphudSubscriptionsUpdated(_ subscriptions: [ApphudSubscription])
     
@@ -44,7 +48,26 @@ public typealias ApphudEligibilityCallback = (([String : Bool]) -> Void)
         Returns array of StoreKit products. Note that you have to add all product identifiers in Apphud settings.
      */
     @objc optional func apphudDidFetchStoreKitProducts(_ products: [SKProduct])
+    
+    /**
+     Pass your own modal presentation style to Apphud Screens. This is useful since iOS 13 presents in page sheet style by default. 
+     
+     To get full screen style you should pass `.fullScreen` or `.overFullScreen`.
+     */
+    @objc optional func apphudScreenPresentationStyle() -> UIModalPresentationStyle
+    
+    /**
+     Notifies that Apphud Screen is about to dismiss
+    */
+    @objc optional func apphudWillDismissScreen()
+    
+    /**
+     Notifies that Apphud Screen did dismiss
+    */
+    @objc optional func apphudDidDismissScreen()
 }
+
+//MARK:- Initialization
 
 final public class Apphud: NSObject {
     
@@ -92,6 +115,8 @@ final public class Apphud: NSObject {
         ApphudInternal.shared.delegate = delegate
     }
         
+    //MARK:- Make Purchase
+    
     /**
      Purchases product and automatically submits App Store Receipt to Apphud.
      
@@ -128,6 +153,8 @@ final public class Apphud: NSObject {
         ApphudInternal.shared.submitReceipt(productId: productIdentifier, callback: callback)        
     }
     
+    //MARK:- Handle Subscriptions
+    
     /**
         Returns true if user has active subscription.
      
@@ -147,7 +174,7 @@ final public class Apphud: NSObject {
      
      */
     @objc public static func subscription() -> ApphudSubscription? {
-        return ApphudInternal.shared.currentUser?.subscriptions?.first
+        return ApphudInternal.shared.currentUser?.subscriptions.first
     }
     
     /**
@@ -173,6 +200,8 @@ final public class Apphud: NSObject {
         ApphudInternal.shared.restoreSubscriptions(callback: callback)
     }
     
+    //MARK:- Push Notifications
+    
     /**
      Submit device push token to Apphud.
      - parameter token: Push token in Data class.
@@ -191,6 +220,8 @@ final public class Apphud: NSObject {
     @discardableResult @objc public static func handlePushNotification(apsInfo: [AnyHashable : Any]) -> Bool{
         return ApphudNotificationsHandler.shared.handleNotification(apsInfo)
     }
+    
+    //MARK:- Eligibility Checks
     
     /**
         Checks whether the given product is eligible for purchasing any of it's promotional offers.
@@ -246,6 +277,8 @@ final public class Apphud: NSObject {
     @objc public static func checkEligibilitiesForIntroductoryOffers(products: [SKProduct], callback: @escaping ApphudEligibilityCallback){
         ApphudInternal.shared.checkEligibilitiesForIntroductoryOffers(products: products, callback: callback)
     }
+    
+    //MARK:- Other
     
     /**
      Enables debug logs. Better to call this method before SDK initialization.

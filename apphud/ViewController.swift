@@ -26,7 +26,13 @@ class ViewController: UITableViewController{
         navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Restore transactions", style: .done, target: self, action: #selector(restore))        
     }
     
+    override func viewWillAppear(_ animated: Bool) {
+        print("will appear")
+        super.viewWillAppear(animated)
+    }
+    
     override func viewDidAppear(_ animated: Bool) {
+        print("did appear")
         super.viewDidAppear(animated)
     }
     
@@ -138,7 +144,6 @@ class ViewController: UITableViewController{
     
 }
 
-
 extension ViewController : ApphudDelegate {
     
     func apphudDidChangeUserID(_ userID: String) {
@@ -146,7 +151,28 @@ extension ViewController : ApphudDelegate {
     }
     
     func apphudDidFetchStoreKitProducts(_ products: [SKProduct]) {
+        print("apphudDidFetchStoreKitProducts")
         self.products = products
         self.reload()
+    }
+    
+    func apphudWillDismissScreen() {
+        print("apphudWillDismissScreen")
+    }
+    
+    func apphudDidDismissScreen() {
+        print("apphudDidDismissScreen")
+    }
+    
+    func apphudSubscriptionsUpdated(_ subscriptions: [ApphudSubscription]) {
+        print("apphudSubscriptionsUpdated")
+    }
+    
+    func apphudScreenPresentationStyle() -> UIModalPresentationStyle {
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            return .formSheet
+        } else {
+            return .fullScreen
+        }
     }
 }

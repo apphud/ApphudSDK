@@ -94,9 +94,7 @@ public class ApphudHttpClient {
             
         }
         
-        #if DEBUG
         apphudLog("Start \(method) request \(request?.url?.absoluteString ?? "") params: \(params ?? [:])")
-        #endif
         
         return request
     }

@@ -20,7 +20,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         
         let APPHUD_API_KEY = "YOUR_API_KEY"
         Apphud.start(apiKey: APPHUD_API_KEY)
-        
+                
         registerForNotifications()
 
         return true

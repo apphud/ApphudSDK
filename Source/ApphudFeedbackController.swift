@@ -158,7 +158,7 @@ class ApphudFeedbackController: UIViewController {
     
     @objc private func cancelTapped(){
         self.textView.resignFirstResponder()
-        dismiss(animated: true, completion: nil)
+        self.dismiss()
     }
     
     @objc private func buttonTapped(sender: ApphudInquiryButton){
@@ -168,8 +168,15 @@ class ApphudFeedbackController: UIViewController {
         let alertController = UIAlertController(title: "Thank you for feedback!", message: "Feedback sent", preferredStyle: .alert)
         alertController.addAction(UIAlertAction(title: "OK", style: .default, handler: { (action) in
             self.textView.resignFirstResponder()
-            self.dismiss(animated: true, completion: nil)
+            self.dismiss()
         }))
         present(alertController, animated: true, completion: nil)
+    }
+    
+    private func dismiss(){
+        ApphudInternal.shared.delegate?.apphudWillDismissScreen?()
+        (self.navigationController ?? self).dismiss(animated: true) { 
+            ApphudInternal.shared.delegate?.apphudDidDismissScreen?()
+        }
     }
 }

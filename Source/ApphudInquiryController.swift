@@ -66,6 +66,11 @@ internal class ApphudInquiryController: UIViewController {
         
         let controller = ApphudInquiryController(rule: rule)
         let nc = ApphudNavigationController(rootViewController: controller)
+        
+        if let style = ApphudInternal.shared.delegate?.apphudScreenPresentationStyle?(){
+            nc.modalPresentationStyle = style
+        }
+                
         nc.setNavigationBarHidden(true, animated: false)
         visibleViewController?.present(nc, animated: true, completion: nil)
         controller.constructView()
@@ -175,16 +180,23 @@ internal class ApphudInquiryController: UIViewController {
     
     @objc private func dismissTapped(){
         apphudLog("dismiss tapped")
-        dismiss(animated: true, completion: nil)
+        self.dismiss()
     }
     
     @objc private func handleOpenBilling(sender: ApphudInquiryButton){
         if let url = URL(string: "https://apps.apple.com/account/billing"), UIApplication.shared.canOpenURL(url){
             sender.isEnabled = false
             ApphudInternal.shared.trackRuleEvent(ruleID: self.rule.id, params: ["kind" : "update_payment_tapped"]) { 
-                self.dismiss(animated: true, completion: nil)
+                self.dismiss()
                 UIApplication.shared.open(url)
             }
+        }
+    }
+    
+    private func dismiss(){
+        ApphudInternal.shared.delegate?.apphudWillDismissScreen?()
+        (self.navigationController ?? self).dismiss(animated: true) { 
+            ApphudInternal.shared.delegate?.apphudDidDismissScreen?()
         }
     }
     
