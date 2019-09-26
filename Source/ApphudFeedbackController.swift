@@ -84,6 +84,8 @@ class ApphudFeedbackController: UIViewController {
         self.view.addSubview(textView)
         textView.translatesAutoresizingMaskIntoConstraints = false
         textView.font = UIFont.systemFont(ofSize: 17)
+        textView.backgroundColor = UIColor.white
+        textView.textColor = UIColor.black
         NSLayoutConstraint.activate([
             textView.leadingAnchor.constraint(equalTo: self.view.leadingAnchor, constant: 0),
             textView.trailingAnchor.constraint(equalTo: self.view.trailingAnchor, constant: 0),
