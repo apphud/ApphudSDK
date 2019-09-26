@@ -183,18 +183,17 @@ class ApphudScreenController: UIViewController{
     //MARK:- Handle Loader
     
     func startLoading(){
-        self.loadingIndicator.startAnimating()
-//        self.webView.evaluateJavaScript("purchase_started();", completionHandler: nil)
+        self.webView.evaluateJavaScript("startLoader()") { (result, error) in
+            if error != nil {
+                self.loadingIndicator.startAnimating()
+            }
+        }
     }
     
     func stopLoading(error: Error? = nil){
         self.loadingIndicator.stopAnimating()
-//        if error != nil {
-//            self.webView.evaluateJavaScript("purchase_failed();", completionHandler: nil)
-//        } else {
-//            self.webView.evaluateJavaScript("purchase_completed();", completionHandler: nil)
-//        }
-//        
+        self.webView.evaluateJavaScript("stopLoader()") { (result, error) in
+        }
     }
     
     //MARK:- Handle Macroses
@@ -318,11 +317,9 @@ class ApphudScreenController: UIViewController{
             }
             self.dismiss()
         } else {
-            apphudLog("Couldn't purchase, but will restore and close. Error:\(error?.localizedDescription ?? "")", forceDisplay: true)
+            apphudLog("Couldn't purchase with error:\(error?.localizedDescription ?? "")", forceDisplay: true)
             // if error occurred, restore subscriptions
-            Apphud.restoreSubscriptions { subscriptions in
-                self.dismiss()
-            }
+            Apphud.restoreSubscriptions { subscriptions in }
         }
     }
     
