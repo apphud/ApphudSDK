@@ -12,8 +12,6 @@ import UserNotifications
 
 public typealias ApphudEligibilityCallback = (([String : Bool]) -> Void)
 
-
-
 // MARK:- Delegate
 
 @objc public protocol ApphudDelegate {
@@ -65,6 +63,11 @@ public typealias ApphudEligibilityCallback = (([String : Bool]) -> Void)
      Notifies that Apphud Screen did dismiss
     */
     @objc optional func apphudDidDismissScreen()
+}
+
+/// List of available attribution providers
+@objc public enum ApphudAttributionProvider : Int {
+    case appsFlyer
 }
 
 //MARK:- Initialization
@@ -219,6 +222,12 @@ final public class Apphud: NSObject {
      */
     @discardableResult @objc public static func handlePushNotification(apsInfo: [AnyHashable : Any]) -> Bool{
         return ApphudNotificationsHandler.shared.handleNotification(apsInfo)
+    }
+    
+    //MARK:- Attribution
+    
+    @objc public static func addAttribution(data: [AnyHashable : Any], from provider: ApphudAttributionProvider, identifer: String? = nil, callback: @escaping (Bool) -> Void){
+        ApphudInternal.shared.addAttribution(data: data, from: provider, identifer: identifer, callback: callback)
     }
     
     //MARK:- Eligibility Checks

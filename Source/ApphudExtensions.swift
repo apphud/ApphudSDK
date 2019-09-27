@@ -8,6 +8,7 @@
 
 import Foundation
 import StoreKit
+import AdSupport
 
 typealias ApphudVoidCallback = (() -> Void)
 
@@ -58,7 +59,7 @@ internal func currentDeviceParameters() -> [String : String]{
     }    
     let app_version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? ""
     
-    let params : [String : String] = ["locale" : Locale.current.identifier, 
+    var params : [String : String] = ["locale" : Locale.current.identifier, 
                                       "time_zone" : TimeZone.current.identifier,
                                       "device_type" : UIDevice.current.apphudModelName, 
                                       "device_family" : family, 
@@ -68,7 +69,26 @@ internal func currentDeviceParameters() -> [String : String]{
                                       "sdk_version" : sdk_version, 
                                       "os_version" : UIDevice.current.systemVersion,
     ]
+    
+    if let idfv = UIDevice.current.identifierForVendor?.uuidString {
+        params["idfv"] = idfv
+    }
+    
+    if let idfa = identifierForAdvertising() {
+        params["idfa"] = idfa
+    }
+    
     return params
+}
+
+internal func identifierForAdvertising() -> String? {
+    // Check whether advertising tracking is enabled
+    guard ASIdentifierManager.shared().isAdvertisingTrackingEnabled else {
+        return nil
+    }
+
+    // Get and return IDFA
+    return ASIdentifierManager.shared().advertisingIdentifier.uuidString
 }
 
 extension UIDevice {

@@ -10,7 +10,7 @@ import Foundation
 import AdSupport
 import StoreKit
 
-let sdk_version = "0.6.8"
+let sdk_version = "0.7.0"
 
 final class ApphudInternal {
     
@@ -20,8 +20,8 @@ final class ApphudInternal {
     var delegate : ApphudDelegate?
     var currentUser : ApphudUser?
     
-    var currentDeviceID : String!
-    var currentUserID : String!
+    var currentDeviceID : String = ""
+    var currentUserID : String = ""
     fileprivate var isSubmittingReceipt : Bool = false
     
     private var lastCheckDate = Date()
@@ -226,10 +226,7 @@ final class ApphudInternal {
     
     private func createOrGetUser(callback: @escaping (Bool) -> Void) {
         
-        var params : [String : String] = ["device_id" : self.currentDeviceID]
-        if self.currentUserID != nil {
-            params["user_id"] = self.currentUserID!
-        }
+        var params : [String : String] = ["device_id" : self.currentDeviceID, "user_id" : self.currentUserID]
         
         let deviceParams = currentDeviceParameters()
         params.merge(deviceParams) { (current, new) in current}
@@ -267,10 +264,9 @@ final class ApphudInternal {
         guard let currencyCode = priceLocale.currencyCode else { return }
         
         var params : [String : String] = ["country_code" : countryCode,
-                                          "currency_code" : currencyCode]
-        if self.currentUserID != nil {
-            params["user_id"] = self.currentUserID!
-        }
+                                          "currency_code" : currencyCode,
+                                          "user_id" : self.currentUserID]
+
         params.merge(currentDeviceParameters()) { (current, new) in current}
         
         updateUser(fields: params) { (result, response, error) in
@@ -678,6 +674,27 @@ final class ApphudInternal {
                     ApphudInquiryController.show(rule: rule)
                 }
             })
+        }
+    }
+    
+    //MARK:- Attribution
+    internal func addAttribution(data: [AnyHashable : Any], from provider: ApphudAttributionProvider, identifer: String? = nil, callback: @escaping (Bool) -> Void){
+        performWhenUserRegistered {
+            
+            var params : [String : Any] = ["device_id" : self.currentDeviceID]
+            
+            if provider == .appsFlyer {
+                guard identifer != nil else { 
+                    callback(false)
+                    return 
+                }
+                params["appsflyer_id"] = identifer
+                params["appsflyer_data"] = data
+            }
+            
+            self.httpClient.startRequest(path: "customers/attribution", params: params, method: .post) { (result, response, error) in
+                callback(result)
+            } 
         }
     }
 }
