@@ -10,7 +10,7 @@ import Foundation
 import AdSupport
 import StoreKit
 
-let sdk_version = "0.7.0"
+let sdk_version = "0.7.1"
 
 final class ApphudInternal {
     
@@ -126,7 +126,7 @@ final class ApphudInternal {
     
     @objc private func handleDidBecomeActive(){
         
-        let minCheckInterval :Double = 5
+        let minCheckInterval :Double = 30
         
         if Date().timeIntervalSince(lastCheckDate) >  minCheckInterval{
             self.checkForUnreadNotifications()

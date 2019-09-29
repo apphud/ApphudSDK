@@ -41,10 +41,13 @@ internal struct ApphudUser {
         }
     }
     
-    func subscriptionsStates() -> [String : String] {
-        var dict = [String : String]()
+    func subscriptionsStates() -> [String : AnyHashable] {
+        var dict = [String : AnyHashable]()
         for subscription in self.subscriptions {
-            dict[subscription.productId] = subscription.status.toString()
+            dict["status"] = subscription.status.toString()
+            dict["expires_date"] = subscription.expiresDate
+            dict["product_id"] = subscription.productId
+            dict["autorenew"] = subscription.isAutorenewEnabled
         }
         return dict
     }

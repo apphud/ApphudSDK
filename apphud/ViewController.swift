@@ -165,6 +165,7 @@ extension ViewController : ApphudDelegate {
     }
     
     func apphudSubscriptionsUpdated(_ subscriptions: [ApphudSubscription]) {
+        self.reload()
         print("apphudSubscriptionsUpdated")
     }
     
