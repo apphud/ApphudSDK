@@ -158,7 +158,7 @@ class ApphudScreenController: UIViewController{
         
         guard product != nil else {
             if !addedObserver {
-                NotificationCenter.default.addObserver(self, selector: #selector(updatePage), name: ApphudStoreKitProductsFetched, object: nil)
+                NotificationCenter.default.addObserver(self, selector: #selector(updatePage), name: Apphud.didFetchProductsNotification(), object: nil)
                 addedObserver = true
             }
             return
@@ -285,7 +285,7 @@ class ApphudScreenController: UIViewController{
                 if isPurchasing {return}
                 isPurchasing = true
                 self.startLoading()
-                Apphud.purchasePromo(product: product, discountID: offerID!) { (subscription, error) in
+                Apphud.purchasePromo(product, discountID: offerID!) { (subscription, error) in
                     self.handlePurchaseResult(product: product, offerID: offerID!, subscription: subscription, error: error)
                 }
             } else {
@@ -298,7 +298,7 @@ class ApphudScreenController: UIViewController{
             if isPurchasing {return}
             isPurchasing = true
             self.startLoading()
-            Apphud.purchase(product: product) { (subscription, error) in
+            Apphud.purchase(product) { (subscription, error) in
                 self.handlePurchaseResult(product: product, subscription: subscription, error: error)
             }
         }

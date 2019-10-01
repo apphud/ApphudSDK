@@ -131,13 +131,13 @@ class ViewController: UITableViewController{
     
     @available(iOS 12.2, *)
     func purchaseProduct(product: SKProduct, promoID: String){
-        Apphud.purchasePromo(product: product, discountID: promoID, callback: { (subs, error) in
+        Apphud.purchasePromo(product, discountID: promoID) { (subsription, error) in
             self.reload()
-        }) 
+        } 
     }
     
     func purchaseProduct(product : SKProduct) {
-        Apphud.purchase(product: product) { (subs, error) in
+        Apphud.purchase(product) { (subs, error) in
             self.reload()
         }
     }

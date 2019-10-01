@@ -43,7 +43,9 @@ public typealias ApphudEligibilityCallback = (([String : Bool]) -> Void)
     @objc optional func apphudDidChangeUserID(_ userID: String)    
     
     /**
-        Returns array of StoreKit products. Note that you have to add all product identifiers in Apphud settings.
+        Returns array of `SKProduct` objects after they are fetched from StoreKit. Note that you have to add all product identifiers in Apphud.
+     
+        You can use this delegate method or observe for `Apphud.didFetchProductsNotification()` notification. 
      */
     @objc optional func apphudDidFetchStoreKitProducts(_ products: [SKProduct])
     
@@ -121,6 +123,36 @@ final public class Apphud: NSObject {
     //MARK:- Make Purchase
     
     /**
+     This notification is sent when SKProducts are fetched from StoreKit. Note that you have to add all product identifiers in Apphud.
+     
+     You can observe for this notification or implement `apphudDidFetchStoreKitProducts` delegate method.
+     */
+    @objc public static func didFetchProductsNotification() -> Notification.Name {
+        return Notification.Name("ApphudDidFetchProductsNotification")
+    }
+    
+    /**
+     Returns array of `SKProduct` objects that you added in Apphud. 
+     
+     Note that this method will return `nil` if products are not yet fetched. You should observe for `Apphud.didFetchProductsNotification` notification or implement  `apphudDidFetchStoreKitProducts` delegate method.
+     */
+    @objc public static func products() -> [SKProduct]? {
+        guard ApphudStoreKitWrapper.shared.products.count > 0 else {
+            return nil
+        }
+        return ApphudStoreKitWrapper.shared.products
+    }
+    
+    /**
+     Returns `SKProduct` object by product identifier. Note that you have to add this product identifier in Apphud.
+     
+     Will retun `nil` if product is not yet fetched from StoreKit.
+     */
+    @objc public static func product(productIdentifier : String) -> SKProduct? {
+        return ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == productIdentifier})
+    }
+    
+    /**
      Purchases product and automatically submits App Store Receipt to Apphud.
      
      __Note__: This method automatically sends in-app purchase receipt to Apphud, so you don't need to call `submitReceipt` method.    
@@ -128,7 +160,7 @@ final public class Apphud: NSObject {
      - parameter product: Required. This is an `SKProduct` object that user wants to purchase.
      - parameter callback: Optional. Returns `ApphudSubscription` object if succeeded and an optional error otherwise.
      */
-    @objc public static func purchase(product: SKProduct, callback: ((ApphudSubscription?, Error?) -> Void)?){
+    @objc public static func purchase(_ product: SKProduct, callback: ((ApphudSubscription?, Error?) -> Void)?){
         ApphudInternal.shared.purchase(product: product, callback: callback)
     }
 
@@ -142,7 +174,7 @@ final public class Apphud: NSObject {
         - parameter callback: Optional. Returns `ApphudSubscription` object if succeeded and an optional error otherwise.
      */
     @available(iOS 12.2, *)
-    @objc public static func purchasePromo(product: SKProduct, discountID: String, callback: ((ApphudSubscription?, Error?) -> Void)?){
+    @objc public static func purchasePromo(_ product: SKProduct, discountID: String, _ callback: ((ApphudSubscription?, Error?) -> Void)?){
         ApphudInternal.shared.purchasePromo(product: product, discountID: discountID, callback: callback)
     }
     
@@ -152,7 +184,7 @@ final public class Apphud: NSObject {
          - parameter productIdentifier: Required. This is an identifier string of the product that user has just purchased.
          - parameter callback: Optional. Returns `ApphudSubscription` object if succeeded and an optional error otherwise.  
      */
-    @objc public static func submitReceipt(_ productIdentifier : String, callback : ((ApphudSubscription?, Error?) -> Void)?) {
+    @objc public static func submitReceipt(_ productIdentifier : String, _ callback : ((ApphudSubscription?, Error?) -> Void)?) {
         ApphudInternal.shared.submitReceipt(productId: productIdentifier, callback: callback)        
     }
     
