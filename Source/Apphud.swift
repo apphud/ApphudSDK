@@ -11,6 +11,7 @@ import StoreKit
 import UserNotifications
 
 public typealias ApphudEligibilityCallback = (([String : Bool]) -> Void)
+public typealias ApphudBoolCallback = ((Bool) -> Void)
 
 // MARK:- Delegate
 
@@ -134,7 +135,7 @@ final public class Apphud: NSObject {
     /**
      Returns array of `SKProduct` objects that you added in Apphud. 
      
-     Note that this method will return `nil` if products are not yet fetched. You should observe for `Apphud.didFetchProductsNotification` notification or implement  `apphudDidFetchStoreKitProducts` delegate method.
+     Note that this method will return `nil` if products are not yet fetched. You should observe for `Apphud.didFetchProductsNotification()` notification or implement  `apphudDidFetchStoreKitProducts` delegate method.
      */
     @objc public static func products() -> [SKProduct]? {
         guard ApphudStoreKitWrapper.shared.products.count > 0 else {
@@ -242,7 +243,7 @@ final public class Apphud: NSObject {
      - parameter token: Push token in Data class.
      - parameter callback: Returns true if successfully sent.
     */
-    @objc public static func submitPushNotificationsToken(token: Data, callback: @escaping (Bool) -> Void){
+    @objc public static func submitPushNotificationsToken(token: Data, callback: ApphudBoolCallback?){
         ApphudInternal.shared.submitPushNotificationsToken(token: token, callback: callback)
     }
     
@@ -258,7 +259,7 @@ final public class Apphud: NSObject {
     
     //MARK:- Attribution
     
-    @objc public static func addAttribution(data: [AnyHashable : Any], from provider: ApphudAttributionProvider, identifer: String? = nil, callback: @escaping (Bool) -> Void){
+    @objc public static func addAttribution(data: [AnyHashable : Any], from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ApphudBoolCallback?){
         ApphudInternal.shared.addAttribution(data: data, from: provider, identifer: identifer, callback: callback)
     }
     
@@ -274,7 +275,7 @@ final public class Apphud: NSObject {
         */    
     
     @available(iOS 12.2, *)
-    @objc public static func checkEligibilityForPromotionalOffer(product: SKProduct, callback: @escaping (Bool) -> Void){
+    @objc public static func checkEligibilityForPromotionalOffer(product: SKProduct, callback: @escaping ApphudBoolCallback){
         ApphudInternal.shared.checkEligibilitiesForPromotionalOffers(products: [product]) { result in
             callback(result[product.productIdentifier] ?? false)
         }
@@ -292,7 +293,7 @@ final public class Apphud: NSObject {
         - parameter product: Required. This is an `SKProduct` object for which you want to check promo offers eligibility.
         - parameter callback: Returns true if product is eligible for purchasing promotional offer.
      */  
-    @objc public static func checkEligibilityForIntroductoryOffer(product: SKProduct, callback: @escaping (Bool) -> Void){
+    @objc public static func checkEligibilityForIntroductoryOffer(product: SKProduct, callback: @escaping ApphudBoolCallback){
         ApphudInternal.shared.checkEligibilitiesForIntroductoryOffers(products: [product]) { result in
             callback(result[product.productIdentifier] ?? true)
         }

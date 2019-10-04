@@ -10,7 +10,7 @@ import Foundation
 import AdSupport
 import StoreKit
 
-let sdk_version = "0.7.1"
+let sdk_version = "0.7.2"
 
 final class ApphudInternal {
     
@@ -620,12 +620,12 @@ final class ApphudInternal {
         }
     }
     
-    internal func submitPushNotificationsToken(token: Data, callback: @escaping (Bool) -> Void){
+    internal func submitPushNotificationsToken(token: Data, callback: ApphudBoolCallback?){
         performWhenUserRegistered {
             let tokenString = token.map { String(format: "%02.2hhx", $0) }.joined()
             let params : [String : String] = ["device_id" : self.currentDeviceID, "push_token" : tokenString]
             self.httpClient.startRequest(path: "customers/push_token", params: params, method: .put) { (result, response, error) in
-                callback(result)
+                callback?(result)
             }             
         }
     }
@@ -678,14 +678,14 @@ final class ApphudInternal {
     }
     
     //MARK:- Attribution
-    internal func addAttribution(data: [AnyHashable : Any], from provider: ApphudAttributionProvider, identifer: String? = nil, callback: @escaping (Bool) -> Void){
+    internal func addAttribution(data: [AnyHashable : Any], from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ((Bool) -> Void)?){
         performWhenUserRegistered {
             
             var params : [String : Any] = ["device_id" : self.currentDeviceID]
             
             if provider == .appsFlyer {
                 guard identifer != nil else { 
-                    callback(false)
+                    callback?(false)
                     return 
                 }
                 params["appsflyer_id"] = identifer
@@ -693,7 +693,7 @@ final class ApphudInternal {
             }
             
             self.httpClient.startRequest(path: "customers/attribution", params: params, method: .post) { (result, response, error) in
-                callback(result)
+                callback?(result)
             } 
         }
     }

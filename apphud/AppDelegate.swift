@@ -22,7 +22,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         Apphud.start(apiKey: APPHUD_API_KEY)
                 
         registerForNotifications()
-
+        
         return true
     }
     
@@ -39,7 +39,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
         print("device token = \(tokenString)")
-        Apphud.submitPushNotificationsToken(token: deviceToken, callback: {_ in})
+        Apphud.submitPushNotificationsToken(token: deviceToken, callback: nil)
     }
     
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
