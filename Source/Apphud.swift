@@ -259,6 +259,13 @@ final public class Apphud: NSObject {
     
     //MARK:- Attribution
     
+    /**
+     Submit attribution data to Apphud from your attribution network provider.
+     - parameter data: Required. Attribution dictionary.
+     - parameter provider: Required. Attribution provider name. Available values: .appsFlyer. Will be added more soon.
+     - parameter identifier: Optional. Identifier that matches Apphud and Attrubution provider. Required for AppsFlyer. 
+     - parameter callback: Optional. Returns true if successfully sent.
+     */
     @objc public static func addAttribution(data: [AnyHashable : Any], from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ApphudBoolCallback?){
         ApphudInternal.shared.addAttribution(data: data, from: provider, identifer: identifer, callback: callback)
     }
