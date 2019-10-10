@@ -91,7 +91,7 @@ Apphud will automatically fetch SKProduct objects upon launch. Products identifi
 Apphud.products()
 ```
 
-When products are fetched from App Store you will also receive notification from Notification Center and delegate method called as well.
+When products are fetched from App Store you will also receive notification from Notification Center along with Apphud delegate method call (use what fits better your needs).
 
 ## Making a Purchase
 
