@@ -20,7 +20,7 @@ Visit our website for details: https://apphud.com
 
 ✔ Promotional [subscription offers](https://docs.apphud.com/getting-started/promo-offers) support.
 
-📈 [Integrations](https://docs.apphud.com/integrations/events) with mobile analytics and messengers (Amplitude, AppsFlyer, Branch, Mixpanel, Slack, Telegram).
+📈 [Integrations](https://docs.apphud.com/integrations/events) with mobile analytics and messengers (Amplitude, AppsFlyer, Mixpanel, Slack, Telegram).
 
 💱 User local currency real-time conversion.
 
