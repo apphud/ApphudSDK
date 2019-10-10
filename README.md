@@ -1,3 +1,7 @@
+<p align="left">
+  <img src="https://cdn.siter.io/assets/ast_kSk43nA4wqPNF8sfBtWdJsL1Z/85cc5c6c-43dd-44a2-90cf-2ae17cd6a25d.svg" alt="Apphud"/>
+</p>
+
 ## Apphud SDK
 
 Apphud SDK is a lightweight open-source Swift library to help you grow your iOS subscriptions business.
