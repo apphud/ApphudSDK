@@ -24,7 +24,7 @@ Visit our website for details: https://apphud.com
 
 ✔ Promotional [subscription offers](https://docs.apphud.com/getting-started/promo-offers) support.<br/>Use Apphud to easily give a discount for existing and lapsed customers. No backend required.
 
-🔌 Send subscription events to other mobile analytics.<br/>Apphud reduces pain in sending subscription events to external mobile analytics: Amplitude, Mixpanel etc.
+🔌 Send subscription renewal events to other mobile analytics.<br/>Apphud reduces pain in sending all subscription events to external mobile analytics: Amplitude, Mixpanel, AppsFlyer, etc.
 
 💱 User local currency real-time conversion.
 
