@@ -14,13 +14,13 @@ Visit our website for details: https://apphud.com
 
 🕗 View subscription details and transactions history.<br/>Get expiration date, autorenew status in our SDK.
 
-🔍 Determine for trial, introductory and promotional offer eligibility using our SDK. Useful 
+🔍 Determine for trial, introductory and promotional offer eligibility using our SDK. 
 
 🔔 Receive a real-time notification when a user gets billed.<br/>We will send you a message to Slack and Telegram immediately when a user gets billed or started trial.
 
 📊 View key subscription metrics in our [dashboard](https://docs.apphud.com/analyze/dashboard).<br/>Apphud has a convenient dashboard with key metrics of your subscriptions.
 
-💻 Create mobile purchase screens with no coding in our visual editor.<br/>You don't need to develop purchase screens. Just pick a template and modify it. So easy! *promotional purchase screen are only available for now, contact us to get access to visual editor for creating initial purchase screens*
+💻 Create mobile purchase screens with no coding in our visual editor.<br/>You don't need to develop purchase screens. Just pick a template and modify it. So easy! *For now only promotional purchase screen are available, contact us to get access to visual editor for creating initial purchase screens.*
 
 ✔ Promotional [subscription offers](https://docs.apphud.com/getting-started/promo-offers) support.<br/>Use Apphud to easily give a discount for existing and lapsed customers. No backend required.
 
