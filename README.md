@@ -8,39 +8,31 @@ Visit our website for details: https://apphud.com
 
 ## Features
 
-👍 Integrating subscriptions using our SDK is very easy.
-Apphud takes care of a subscription purchase process. Integrate SDK in just a few lines of code.
+👍 Integrating subscriptions using our SDK is very easy.<br/>Apphud takes care of a subscription purchase process. Integrate SDK in just a few lines of code.
 
-🧾 App Store receipts validation.
-Apphud validates and periodically refreshes App Store receipts to give you real-time data.
+🧾 App Store receipts validation.<br/>Apphud validates and periodically refreshes App Store receipts to give you real-time data.
 
-🕗 View subscription details and transactions history. Get expiration date, autorenew status in our SDK.
+🕗 View subscription details and transactions history.<br/>Get expiration date, autorenew status in our SDK.
 
 🔍 Determine for trial, introductory and promotional offer eligibility using our SDK. Useful 
 
-🔔 Receive a real-time notification when a user gets billed.
-We will send you a message to Slack and Telegram immediately when a user gets billed or started trial.
+🔔 Receive a real-time notification when a user gets billed.<br/>We will send you a message to Slack and Telegram immediately when a user gets billed or started trial.
 
-📊 View key subscription metrics in our [dashboard](https://docs.apphud.com/analyze/dashboard).
-Apphud has a convenient dashboard with key metrics of your subscriptions.
+📊 View key subscription metrics in our [dashboard](https://docs.apphud.com/analyze/dashboard).<br/>Apphud has a convenient dashboard with key metrics of your subscriptions.
 
-💻 Create mobile purchase screens with no coding in our visual editor. 
-You don't need to develop purchase screens. Just pick a template and modify it. So easy! *promotional purchase screen are only available for now, contact us to get access to visual editor for creating initial purchase screens*
+💻 Create mobile purchase screens with no coding in our visual editor.<br/>You don't need to develop purchase screens. Just pick a template and modify it. So easy! *promotional purchase screen are only available for now, contact us to get access to visual editor for creating initial purchase screens*
 
-✔ Promotional [subscription offers](https://docs.apphud.com/getting-started/promo-offers) support.
-Use Apphud to easily give a discount for existing and lapsed customers. No backend required.
+✔ Promotional [subscription offers](https://docs.apphud.com/getting-started/promo-offers) support.<br/>Use Apphud to easily give a discount for existing and lapsed customers. No backend required.
 
-🔌 Send subscription events to other mobile analytics.
-Apphud reduces pain in sending subscription events to external mobile analytics: Amplitude, Mixpanel etc.
+🔌 Send subscription events to other mobile analytics.<br/>Apphud reduces pain in sending subscription events to external mobile analytics: Amplitude, Mixpanel etc.
 
 💱 User local currency real-time conversion.
 
-🏆 Automated rules to [win back](https://docs.apphud.com/win-back/rules) lapsed subscribers. Apphud will automatically offer user a discount when user cancels a subscription.
+🏆 Automated rules to [win back](https://docs.apphud.com/win-back/rules) lapsed subscribers.<br/>Apphud will automatically offer user a discount when user cancels a subscription.
 
-🕵️ Subscription cancellation insights tool. Understand why you customers cancel a subscription to make right product decisions.
+🕵️ Subscription cancellation insights tool.<br/>Understand why you customers cancel a subscription to make right product decisions.
 
-💸 Handle billing grace period and billing issues.
-Apphud will automatically ask a user to update his billing details in case of billing issue during renewal.
+💸 Handle billing grace period and billing issues.<br/>Apphud will automatically ask a user to update his billing details in case of billing issue during renewal.
 
 👏 Great [documentation](https://docs.apphud.com/).
 
