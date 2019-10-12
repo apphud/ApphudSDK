@@ -18,8 +18,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         
-        let APPHUD_API_KEY = "YOUR_API_KEY"
-        Apphud.start(apiKey: APPHUD_API_KEY)
+        Apphud.start(apiKey: "APPHUD_API_KEY")
                 
         registerForNotifications()
         

@@ -10,7 +10,7 @@ import Foundation
 import AdSupport
 import StoreKit
 
-let sdk_version = "0.7.3"
+let sdk_version = "0.7.4"
 
 final class ApphudInternal {
     
@@ -19,6 +19,8 @@ final class ApphudInternal {
     static let shared = ApphudInternal()
     var delegate : ApphudDelegate?
     var currentUser : ApphudUser?
+    
+    var isIntegrationsTestMode = false
     
     var currentDeviceID : String = ""
     var currentUserID : String = ""
@@ -29,6 +31,8 @@ final class ApphudInternal {
     var httpClient : ApphudHttpClient!
     fileprivate var requires_currency_update = false
         
+    private var addedObservers = false
+    
     fileprivate var userRegisteredCallbacks = [ApphudVoidCallback]()
     fileprivate var productGroupsFetchedCallbacks = [ApphudVoidCallback]()
     
@@ -78,50 +82,54 @@ final class ApphudInternal {
             if success {
                 apphudLog("User successfully registered")
                 self.performAllUserRegisteredBlocks()                
-                self.continueToUpdateProducts()
-                self.listenForAwakeNotification()
+                self.setupObservers()
                 self.checkForUnreadNotifications()
             } else {                
                 self.userRegisteredCallbacks.removeAll()
             }
+            // try to continue anyway, because maybe already has cached data, try to fetch storekit products
+            self.continueToFetchProducts()
         }
     }
     
-    private func continueToUpdateProducts(){
+    private func continueToFetchProducts(){
         self.getProducts(callback: { (productsGroupsMap) in
             // perform even if productsGroupsMap is nil or empty
             self.performAllProductGroupsFetchedCallbacks()
             
-            guard productsGroupsMap?.keys.count ?? 0 > 0 else {
-                return
+            if productsGroupsMap?.keys.count ?? 0 > 0 {
+                self.productsGroupsMap = productsGroupsMap
+                apphudLog("Products groups fetched: \(self.productsGroupsMap as AnyObject)")
+                toUserDefaultsCache(dictionary: self.productsGroupsMap!, key: "productsGroupsMap")                
             }
-            
-            self.productsGroupsMap = productsGroupsMap
-            
-            apphudLog("Products groups fetched: \(self.productsGroupsMap as AnyObject)")
-            
-            toUserDefaultsCache(dictionary: self.productsGroupsMap!, key: "productsGroupsMap")
-            
+            // continue to fetch storekit products anyway
             self.continueToFetchStoreKitProducts()
         })
     }
     
     private func continueToFetchStoreKitProducts(){
+        
+        guard self.productsGroupsMap?.keys.count ?? 0 > 0 else {
+            return
+        }
+            
         ApphudStoreKitWrapper.shared.fetchProducts(identifiers: Set(self.productsGroupsMap!.keys)) { (skproducts) in
             self.updateUserCurrencyIfNeeded(priceLocale: skproducts.first?.priceLocale)
-            self.submitProducts(products: skproducts) { (result3, response3, error3) in
-                if result3 {
-                    apphudLog("Products prices successfully submitted")
-                } else {
-                    apphudLog("Failed to submit products prices, error:\(error3?.localizedDescription ?? "")")
-                }
+            if skproducts.count > 0 {
+                self.continueToUpdateProductsPrices(products: skproducts)
             }
-            
         }
     }
     
-    private func listenForAwakeNotification(){
-        NotificationCenter.default.addObserver(self, selector: #selector(handleDidBecomeActive), name: UIApplication.didBecomeActiveNotification, object: nil)
+    private func continueToUpdateProductsPrices(products : [SKProduct]){
+        self.submitProducts(products: products, callback: nil)
+    }
+    
+    private func setupObservers(){
+        if !addedObservers {
+            NotificationCenter.default.addObserver(self, selector: #selector(handleDidBecomeActive), name: UIApplication.didBecomeActiveNotification, object: nil)
+            addedObservers = true
+        }
     }
     
     @objc private func handleDidBecomeActive(){
@@ -226,12 +234,7 @@ final class ApphudInternal {
     
     private func createOrGetUser(callback: @escaping (Bool) -> Void) {
         
-        var params : [String : String] = ["device_id" : self.currentDeviceID, "user_id" : self.currentUserID]
-        
-        let deviceParams = currentDeviceParameters()
-        params.merge(deviceParams) { (current, new) in current}
-        
-        httpClient.startRequest(path: "customers", params: params, method: .post) { (result, response, error) in
+        self.updateUser(fields: ["user_id" : self.currentUserID]) { (result, response, error) in
             
             var hasSubscriptionChanges = false
             if result {
@@ -295,7 +298,8 @@ final class ApphudInternal {
         var params = currentDeviceParameters() as [String : Any]
         params.merge(fields) { (current, new) in current}
         params["device_id"] = self.currentDeviceID
-        
+        params["is_debug"] = self.isIntegrationsTestMode
+        // do not automatically pass currentUserID here,because we have separate method updateUserID
         httpClient.startRequest(path: "customers", params: params, method: .post, callback: callback)
     }
     
@@ -325,7 +329,7 @@ final class ApphudInternal {
         }
     }
     
-    private func submitProducts(products: [SKProduct], callback : @escaping ApphudBoolDictionaryCallback) {
+    private func submitProducts(products: [SKProduct], callback: ApphudBoolDictionaryCallback?) {
         var array = [[String : Any]]()
         for product in products {
             let productParams : [String : Any] = product.submittableParameters()            

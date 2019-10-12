@@ -18,8 +18,8 @@ public class ApphudUtils : NSObject {
     */
     @objc public class func enableDebugLogs() {
         shared.isLoggingEnabled = true
-    }
-
+    } 
+    
     internal static let shared = ApphudUtils()
     private(set) var isLoggingEnabled = false
 }
