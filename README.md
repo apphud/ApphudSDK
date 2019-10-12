@@ -2,33 +2,45 @@
 
 ## Apphud SDK
 
-Apphud SDK is a lightweight open-source Swift library to help you grow your iOS subscriptions business.
+Apphud SDK is a lightweight open-source Swift library to create, manage and improve subscriptions in your iOS app.
 
 Visit our website for details: https://apphud.com
 
 ## Features
 
-👍 Easily purchase subscriptions using our SDK.
+👍 Integrating subscriptions using our SDK is very easy.
+Apphud takes care of a subscription purchase process. Integrate SDK in just a few lines of code.
 
 🧾 App Store receipts validation.
+Apphud validates and periodically refreshes App Store receipts to give you real-time data.
 
-💰 Track subscriptions info and view transactions history.
+🕗 View subscription details and transactions history. Get expiration date, autorenew status in our SDK.
 
-📊 View key subscription metrics in our [dashboard.](https://docs.apphud.com/analyze/dashboard)
+🔍 Determine for trial, introductory and promotional offer eligibility using our SDK. Useful 
 
-💻 Create mobile purchase screens in our dashboard in just a few clicks with no coding.
+🔔 Receive a real-time notification when a user gets billed.
+We will send you a message to Slack and Telegram immediately when a user gets billed or started trial.
+
+📊 View key subscription metrics in our [dashboard](https://docs.apphud.com/analyze/dashboard).
+Apphud has a convenient dashboard with key metrics of your subscriptions.
+
+💻 Create mobile purchase screens with no coding in our visual editor. 
+You don't need to develop purchase screens. Just pick a template and modify it. So easy! *promotional purchase screen are only available for now, contact us to get access to visual editor for creating initial purchase screens*
 
 ✔ Promotional [subscription offers](https://docs.apphud.com/getting-started/promo-offers) support.
+Use Apphud to easily give a discount for existing and lapsed customers. No backend required.
 
-📈 [Integrations](https://docs.apphud.com/integrations/events) with mobile analytics and messengers (Amplitude, AppsFlyer, Mixpanel, Slack, Telegram).
+🔌 Send subscription events to other mobile analytics.
+Apphud reduces pain in sending subscription events to external mobile analytics: Amplitude, Mixpanel etc.
 
 💱 User local currency real-time conversion.
 
-🏆 Automated rules to [win back](https://docs.apphud.com/win-back/rules) lapsed subscribers.
+🏆 Automated rules to [win back](https://docs.apphud.com/win-back/rules) lapsed subscribers. Apphud will automatically offer user a discount when user cancels a subscription.
 
-🕵️ Subscription cancellation insights tool.
+🕵️ Subscription cancellation insights tool. Understand why you customers cancel a subscription to make right product decisions.
 
 💸 Handle billing grace period and billing issues.
+Apphud will automatically ask a user to update his billing details in case of billing issue during renewal.
 
 👏 Great [documentation](https://docs.apphud.com/).
 
