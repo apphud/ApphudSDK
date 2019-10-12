@@ -163,27 +163,28 @@ You can set a delegate at any time but after Apphud SDK has been initialized.
 
  See `Apphud.swift` file for details.
 
-## Determing User Eligibility
+## Determing Eligibility for Introductory or Promotional Offer
 
-You can use Apphud to determine if a user eligible to activate introductory or promotional offer:
+You can use Apphud to determine if a user is eligible for an introductory or promotional offer:
 
 ```swift
 // Checking eligibility for introductory offer
 Apphud.checkEligibilityForIntroductoryOffer(product: myProduct) { result in
   if result {
-    // User is eligible to purchase introductory offer
+    // User is eligible for introductory offer
   }
 }
 
 // Checking eligibility for promotional offer
 Apphud.checkEligibilityForPromotionalOffer(product: myProduct) { result in
   if result {
-    // User is eligible to purchase promotional offer
+    // User is eligible for promotional offer
   }
 }
 ```
 
-You may also check eligibility of multiple offers using just one SDK method: `checkEligibilitiesForPromotionalOffers(products: [SKProduct], callback: ApphudEligibilityCallback)` or `checkEligibilitiesForIntroductoryOffers(products: [SKProduct], callback: ApphudEligibilityCallback)`
+You may also check eligibility for multiple offers at one call: 
+`checkEligibilitiesForPromotionalOffers(products: [SKProduct], callback: ApphudEligibilityCallback)` or `checkEligibilitiesForIntroductoryOffers(products: [SKProduct], callback: ApphudEligibilityCallback)`
 
 ## Integrations
 
