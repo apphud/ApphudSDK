@@ -36,7 +36,7 @@ public class ApphudHttpClient {
         return URLSession.init(configuration: config)
     }()
         
-    internal func startRequest(path: String, params : [String : Any]?, method : ApphudHttpMethod, callback: @escaping ApphudBoolDictionaryCallback) {
+    internal func startRequest(path: String, params : [String : Any]?, method : ApphudHttpMethod, callback: ApphudBoolDictionaryCallback?) {
         if let request = makeRequest(path: path, params: params, method: method) {
             start(request: request, callback: callback)
         }

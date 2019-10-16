@@ -336,4 +336,10 @@ final public class Apphud: NSObject {
         ApphudUtils.enableDebugLogs()
     }
     
+    /**
+        This method must be called before SDK initialization. Apphud will send all subscription events of current user to your test analytics, if test api keys are set in integrations dashboard.
+     */
+    @objc public static func setIntegrationsTestMode(){
+        ApphudInternal.shared.isIntegrationsTestMode = true
+    }
 }
