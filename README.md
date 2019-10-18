@@ -20,11 +20,11 @@ Visit our website for details: https://apphud.com
 
 📊 View key subscription metrics in our [dashboard](https://docs.apphud.com/analyze/dashboard).<br/>Apphud has a convenient dashboard with key metrics of your subscriptions.
 
+🔌 Integrations. Are available on all plans. Send subscription renewal events to other mobile analytics.<br/>Apphud reduces pain in sending all subscription events to external mobile analytics: Amplitude, Mixpanel, AppsFlyer, etc.
+
 🎨 Create mobile purchase screens with no coding in our visual editor.<br/>You don't need to develop purchase screens. Just pick a template and modify it. So easy! *For now only promotional purchase screen are available, contact us to get access to visual editor for creating initial purchase screens.*
 
 ✔ Promotional [subscription offers](https://docs.apphud.com/getting-started/promo-offers) support.<br/>Use Apphud to easily give a discount for existing and lapsed customers. No backend required.
-
-🔌 Send subscription renewal events to other mobile analytics.<br/>Apphud reduces pain in sending all subscription events to external mobile analytics: Amplitude, Mixpanel, AppsFlyer, etc.
 
 💱 User local currency real-time conversion.
 
