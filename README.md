@@ -83,7 +83,7 @@ func application(_ application: UIApplication, didFinishLaunchingWithOptions lau
 
 ```
 
-> In Objective-C project you should import like this: `#import <ApphudSDK-Swift.h>
+> In Objective-C project you should import like this: `#import "ApphudSDK-Swift.h"`
 
 However if you want to use Integrations, you will need to update the code to set user identifier. See the bottom of this guide to get the link.
 
