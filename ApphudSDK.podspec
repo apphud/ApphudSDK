@@ -10,7 +10,7 @@ Pod::Spec.new do |s|
   s.source           = { :git => 'https://github.com/apphud/ApphudSDK.git', :tag => s.version.to_s }
   s.frameworks = 'StoreKit'
   s.ios.deployment_target = '11.2'
-  s.swift_version = '5.0'
+  s.swift_version = '4.2'
   s.source_files = 'Source/*.swift'
 
 end
