@@ -10,7 +10,7 @@ import Foundation
 import AdSupport
 import StoreKit
 
-let sdk_version = "0.7.4"
+let sdk_version = "0.7.5"
 
 final class ApphudInternal {
     
@@ -40,9 +40,14 @@ final class ApphudInternal {
         
     private var restoreSubscriptionCallback : (([ApphudSubscription]?) -> Void)?
     
+    private var allowInitialize = true
+    
     internal func initialize(apiKey: String, userID : String?, deviceIdentifier : String? = nil){
         
         apphudLog("Started Apphud SDK (\(sdk_version))", forceDisplay: true)
+        
+        if !allowInitialize {return}
+        allowInitialize = false
         
         ApphudStoreKitWrapper.shared.setupObserver()
         
@@ -79,6 +84,9 @@ final class ApphudInternal {
 
     private func continueToRegisteringUser(){
         createOrGetUser { success in
+            
+            self.allowInitialize = !success
+            
             if success {
                 apphudLog("User successfully registered")
                 self.performAllUserRegisteredBlocks()                

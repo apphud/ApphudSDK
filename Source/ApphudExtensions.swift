@@ -74,7 +74,7 @@ internal func currentDeviceParameters() -> [String : String]{
         params["idfv"] = idfv
     }
     
-    if let idfa = identifierForAdvertising() {
+    if !ApphudUtils.shared.optOutOfIDFACollection, let idfa = identifierForAdvertising(){
         params["idfa"] = idfa
     }
     
