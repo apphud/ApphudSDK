@@ -71,6 +71,13 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
 /// List of available attribution providers
 @objc public enum ApphudAttributionProvider : Int {
     case appsFlyer
+    
+    /**
+     Branch is implemented and doesn't required any additional code from Apphud SDK 
+     More details: https://docs.apphud.com/integrations/attribution/branch
+     
+     case branch
+     */
 }
 
 //MARK:- Initialization
@@ -344,7 +351,7 @@ final public class Apphud: NSObject {
     }
     
     /**
-     Opt out of IDFA tracking. Currently we collect IDFA for attribution matching. If you don't use and not planning to use integrations with attribution platforms (AppsFlyer, Branch) you can safely call this method.
+     Opt out of IDFA tracking. Currently we collect IDFA to match users in attribution platforms (AppsFlyer, Branch). If you don't use and not planning to use such services, you can call this method.
      
      __Note__: This method must be called before Apphud SDK initialization.
      */
