@@ -342,4 +342,13 @@ final public class Apphud: NSObject {
     @objc public static func setIntegrationsTestMode(){
         ApphudInternal.shared.isIntegrationsTestMode = true
     }
+    
+    /**
+     Opt out of IDFA tracking. Currently we collect IDFA for attribution matching. If you don't use and not planning to use integrations with attribution platforms (AppsFlyer, Branch) you can safely call this method.
+     
+     __Note__: This method must be called before Apphud SDK initialization.
+     */
+    @objc public static func disableIDFATracking(){
+        ApphudUtils.shared.optOutOfIDFATracking = true
+    }
 }
