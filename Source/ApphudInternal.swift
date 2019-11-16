@@ -10,7 +10,7 @@ import Foundation
 import AdSupport
 import StoreKit
 
-let sdk_version = "0.7.5"
+let sdk_version = "0.7.6"
 
 final class ApphudInternal {
     
@@ -433,11 +433,7 @@ final class ApphudInternal {
     
     internal func purchase(product: SKProduct, callback: ((ApphudSubscription?, Error?) -> Void)?){
         ApphudStoreKitWrapper.shared.purchase(product: product) { transaction in
-            if transaction.transactionState == .purchased {
-                self.submitReceipt(productId: product.productIdentifier, callback: callback)
-            } else {
-                callback?(nil, transaction.error)
-            }
+            self.handleTransaction(product: product, transaction: transaction, callback: callback)
         }
     }    
     
@@ -455,11 +451,18 @@ final class ApphudInternal {
     @available(iOS 12.2, *)
     internal func purchasePromo(product: SKProduct, discount: SKPaymentDiscount, callback: ((ApphudSubscription?, Error?) -> Void)?){
         ApphudStoreKitWrapper.shared.purchase(product: product, discount: discount) { transaction in
-            if transaction.transactionState == .purchased {
-                self.submitReceipt(productId: product.productIdentifier, callback: callback)
-            } else {
-                callback?(nil, transaction.error)
+            self.handleTransaction(product: product, transaction: transaction, callback: callback)
+        }
+    }
+    
+    private func handleTransaction(product: SKProduct, transaction: SKPaymentTransaction, callback: ((ApphudSubscription?, Error?) -> Void)?){
+        if transaction.transactionState == .purchased {
+            self.submitReceipt(productId: product.productIdentifier) { (subscription, error) in
+                SKPaymentQueue.default().finishTransaction(transaction)
+                callback?(subscription, error)
             }
+        } else {
+            callback?(nil, transaction.error)
         }
     }
     
