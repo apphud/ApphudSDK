@@ -29,7 +29,6 @@ final class ApphudInternal {
     private var lastCheckDate = Date()
     
     var httpClient : ApphudHttpClient!
-    fileprivate var requires_currency_update = false
         
     private var addedObservers = false
     
@@ -158,10 +157,6 @@ final class ApphudInternal {
         guard let userDict = dataDict["results"] as? [String : Any] else {
             return false
         }
-        let currency = userDict["currency"] 
-        if currency is NSNull {
-            requires_currency_update = true            
-        } 
         
         let oldStates = self.currentUser?.subscriptionsStates()
         
@@ -182,7 +177,7 @@ final class ApphudInternal {
             return false
         }
     }
-        
+    
     private func checkUserID(tellDelegate : Bool){
         guard let userID = self.currentUser?.user_id else {return}        
         if self.currentUserID != userID {
@@ -269,20 +264,20 @@ final class ApphudInternal {
     }
     
     private func updateUserCurrencyIfNeeded(priceLocale : Locale?){
-        guard requires_currency_update else { return }
         guard let priceLocale = priceLocale else { return }
         guard let countryCode = priceLocale.regionCode else { return }
         guard let currencyCode = priceLocale.currencyCode else { return }
         
+        if countryCode == self.currentUser?.countryCode && currencyCode == self.currentUser?.currencyCode {return}
+
         var params : [String : String] = ["country_code" : countryCode,
                                           "currency_code" : currencyCode,
-                                          "user_id" : self.currentUserID]
-
+                                          "user_id" : self.currentUserID]       
+        
         params.merge(currentDeviceParameters()) { (current, new) in current}
         
         updateUser(fields: params) { (result, response, error) in
             if result {
-                self.requires_currency_update = false
                 self.parseUser(response)
             }
         }
@@ -292,7 +287,6 @@ final class ApphudInternal {
         let exist = performWhenUserRegistered { 
             self.updateUser(fields: ["user_id" : userID]) { (result, response, error) in
                 if result {
-                    self.requires_currency_update = false
                     self.parseUser(response)
                 }
             }            
@@ -702,7 +696,7 @@ final class ApphudInternal {
                 guard identifer != nil else { 
                     callback?(false)
                     return 
-                }
+                }   
                 params["appsflyer_id"] = identifer
                 params["appsflyer_data"] = data
             }

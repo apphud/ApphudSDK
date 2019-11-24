@@ -20,11 +20,19 @@ internal struct ApphudUser {
      */
     var subscriptions : [ApphudSubscription]
     
+    var currencyCode: String?
+    var countryCode: String?
+    
     // MARK:- Private methods
     
     init?(dictionary : [String : Any]) {
         guard let userID = dictionary["user_id"] as? String else { return nil }
         self.user_id = userID
+        
+        if let currencyDict = dictionary["currency"] as? [String : Any] {
+            self.currencyCode = currencyDict["code"] as? String
+            self.countryCode = currencyDict["country_code"] as? String
+        }
         
         var subs = [ApphudSubscription]()
         if let subscriptionsDictsArray = dictionary["subscriptions"] as? [[String : Any]]{
