@@ -23,6 +23,6 @@ public class ApphudUtils : NSObject {
     internal static let shared = ApphudUtils()
     private(set) var isLoggingEnabled = false
     
-    internal var optOutOfIDFATracking = false
+    internal var optOutOfIDFACollection = false
 }
 

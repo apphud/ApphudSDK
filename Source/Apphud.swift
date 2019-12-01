@@ -351,11 +351,11 @@ final public class Apphud: NSObject {
     }
     
     /**
-     Opt out of IDFA tracking. Currently we collect IDFA to match users in attribution platforms (AppsFlyer, Branch). If you don't use and not planning to use such services, you can call this method.
+     Opt out of IDFA collection. Currently we collect IDFA to match users between Apphud and attribution platforms (AppsFlyer, Branch). If you don't use and not planning to use such services, you can call this method.
      
      __Note__: This method must be called before Apphud SDK initialization.
      */
-    @objc public static func disableIDFATracking(){
-        ApphudUtils.shared.optOutOfIDFATracking = true
+    @objc public static func disableIDFACollection(){
+        ApphudUtils.shared.optOutOfIDFACollection = true
     }
 }
