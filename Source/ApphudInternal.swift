@@ -37,6 +37,8 @@ final class ApphudInternal {
     
     private var productsGroupsMap : [String : String]?
         
+    private var submitReceiptCallback : ((Error?) -> Void)?
+    
     private var restoreSubscriptionCallback : (([ApphudSubscription]?) -> Void)?
     
     private var allowInitialize = true
@@ -401,6 +403,10 @@ final class ApphudInternal {
     
     private func submitReceipt(receiptString : String, notifyDelegate : Bool, callback : ((Error?) -> Void)?) {
         
+        if callback != nil {
+            self.submitReceiptCallback = callback
+        }
+        
         if isSubmittingReceipt {return}
         isSubmittingReceipt = true
         
@@ -431,7 +437,8 @@ final class ApphudInternal {
                 }
             }
             
-            callback?(error)
+            self.submitReceiptCallback?(error)
+            self.submitReceiptCallback = nil
         }
     }
     

@@ -138,7 +138,7 @@ class ViewController: UITableViewController{
     
     func purchaseProduct(product : SKProduct) {
         Apphud.purchase(product) { (subs, error) in
-            self.reload()
+            self.reload()            
         }
     }
     

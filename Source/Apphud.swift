@@ -187,11 +187,9 @@ final public class Apphud: NSObject {
     }
     
     /**
-         Use this method if you have your own purchase mechanism and you want only to submit App Store Receipt to Apphud.
-     
-         - parameter productIdentifier: Required. This is an identifier string of the product that user has just purchased.
-         - parameter callback: Optional. Returns `ApphudSubscription` object if succeeded and an optional error otherwise.  
+         __Deprecated__. Just remove this method from your code, because Apphud SDK will automatically intercept and submit receipt after purchase is made. 
      */
+    @available(*, deprecated, message: "You don't need to use this method anymore, because starting now we automatically handle all purchases. This method will be removed soon.")
     @objc public static func submitReceipt(_ productIdentifier : String, _ callback : ((ApphudSubscription?, Error?) -> Void)?) {
         ApphudInternal.shared.submitReceipt(productId: productIdentifier, callback: callback)        
     }
