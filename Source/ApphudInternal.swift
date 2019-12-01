@@ -10,7 +10,7 @@ import Foundation
 import AdSupport
 import StoreKit
 
-let sdk_version = "0.7.6"
+let sdk_version = "0.7.7"
 
 final class ApphudInternal {
     
@@ -346,6 +346,16 @@ final class ApphudInternal {
     internal func restoreSubscriptions(callback: @escaping ([ApphudSubscription]?) -> Void) {
         self.restoreSubscriptionCallback = callback
         self.submitReceiptRestore(allowsReceiptRefresh: true)
+    }
+    
+    internal func submitReceiptAutomaticPurchaseTracking() {
+        
+        if isSubmittingReceipt {return}
+        
+        performWhenUserRegistered {
+            guard let receiptString = receiptDataString() else { return }
+            self.submitReceipt(receiptString: receiptString, notifyDelegate: true, callback: nil)
+        }
     }
     
     internal func submitReceiptRestore(allowsReceiptRefresh : Bool) {

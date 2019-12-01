@@ -41,7 +41,15 @@ class ApphudKeychain: NSObject {
     
     private class func save(_ service: NSString, data: String) {
         if let dataFromString = data.data(using: .utf8, allowLossyConversion: false) {
-            let keychainQuery: NSMutableDictionary = NSMutableDictionary(objects: [kSecClassGenericPasswordValue, service, userAccount, dataFromString], forKeys: [kSecClassValue, kSecAttrServiceValue, kSecAttrAccountValue, kSecValueDataValue])
+            
+            let keychainQuery : NSMutableDictionary = [
+                kSecClassValue : kSecClassGenericPasswordValue,
+                kSecAttrServiceValue : service,
+                kSecAttrAccountValue : userAccount,
+                kSecValueDataValue : dataFromString,
+                NSString(format: kSecAttrAccessible)  : NSString(format: kSecAttrAccessibleAfterFirstUnlock),
+            ]
+            
             SecItemDelete(keychainQuery as CFDictionary)
             SecItemAdd(keychainQuery as CFDictionary, nil)
         }        

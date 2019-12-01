@@ -104,7 +104,12 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
                 SKPaymentQueue.default().finishTransaction(transaction)
             }
             self.paymentCallback = nil
-        } 
+        } else {
+            // we didn't start this transaction, just submit receipt
+            if transaction.transactionState == .purchased {
+                ApphudInternal.shared.submitReceiptAutomaticPurchaseTracking()
+            }
+        }
     }
     
     // MARK:- SKRequestDelegate
