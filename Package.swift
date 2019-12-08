@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "ApphudSDK",
     platforms: [
-   		.iOS(.v11)
+        .iOS(.v11)
 	],
     products: [
         .library(name: "ApphudSDK", targets: ["ApphudSDK"])
