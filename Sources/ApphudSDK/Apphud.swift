@@ -82,6 +82,7 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
 
 //MARK:- Initialization
 
+@available(iOS 11.2, *)
 final public class Apphud: NSObject {
     
     /**

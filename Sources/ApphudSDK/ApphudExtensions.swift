@@ -119,6 +119,7 @@ internal func receiptDataString() -> String? {
     return string
 }
 
+@available(iOS 11.2, *)
 extension SKProduct {
     
     func submittableParameters() -> [String : Any] {
@@ -135,15 +136,13 @@ extension SKProduct {
             params["currency_code"] = currencyCode
         }
         
-        if #available(iOS 11.2, *) {
-            if let introData = introParameters() {
-                params.merge(introData, uniquingKeysWith: {$1})
-            }
-            if subscriptionPeriod != nil {
-                let units_count = subscriptionPeriod!.numberOfUnits
-                params["unit"] = unitStringFrom(periodUnit: subscriptionPeriod!.unit)
-                params["units_count"] = units_count                
-            }
+        if let introData = introParameters() {
+            params.merge(introData, uniquingKeysWith: {$1})
+        }
+        if subscriptionPeriod != nil {
+            let units_count = subscriptionPeriod!.numberOfUnits
+            params["unit"] = unitStringFrom(periodUnit: subscriptionPeriod!.unit)
+            params["units_count"] = units_count
         }
         
         if #available(iOS 12.2, *) {
