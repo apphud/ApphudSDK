@@ -10,6 +10,7 @@ import Foundation
 import UIKit
 import UserNotifications
 
+@available(iOS 11.2, *)
 internal class ApphudNotificationsHandler {
     
     static let shared = ApphudNotificationsHandler()        

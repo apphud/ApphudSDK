@@ -8,6 +8,7 @@
 
 import UIKit
 
+@available(iOS 11.2, *)
 internal class ApphudInquiryController: UIViewController {
 
     private var rule: ApphudRule
@@ -57,7 +58,7 @@ internal class ApphudInquiryController: UIViewController {
         fatalError("not implemented")
     }
     
-    internal class func show(rule: ApphudRule){
+    internal class func show(rule: ApphudRule) {
         
         let visibleViewController = apphudVisibleViewController()
         if visibleViewController is ApphudNavigationController {
@@ -102,7 +103,7 @@ internal class ApphudInquiryController: UIViewController {
             ])
     }
     
-    private func constructView(){
+    private func constructView() {
         if self.rule.condition == .billingIssue {
             self.constructBillingIssue()              
         } else {
@@ -110,7 +111,7 @@ internal class ApphudInquiryController: UIViewController {
         }
     }
     
-    private func constructBillingIssue(){
+    private func constructBillingIssue() {
         let question = "Subscription couldn't be renewed" //
         self.titleLabel.text = question
         self.subtitleLabel.text = "Please update payment information in your App Store account"
@@ -121,7 +122,7 @@ internal class ApphudInquiryController: UIViewController {
         button.bottomAnchor.constraint(equalTo: self.container.bottomAnchor, constant: 0).isActive = true
     }
     
-    private func constructInquiry(){
+    private func constructInquiry() {
         self.titleLabel.text = self.rule.question
         var prevButton : UIButton? = nil
         for option in self.rule.options {
@@ -160,7 +161,7 @@ internal class ApphudInquiryController: UIViewController {
         return button
     }
         
-    @objc private func buttonTapped(sender: ApphudInquiryButton){
+    @objc private func buttonTapped(sender: ApphudInquiryButton) {
         apphudLog("option selected: \(String(describing: sender.option))")
         if let option = sender.option {
             ApphudInternal.shared.trackRuleEvent(ruleID: self.rule.id, params: ["kind" : "option_selected", "option_id" : option.id]){}
@@ -178,12 +179,12 @@ internal class ApphudInquiryController: UIViewController {
         }
     }
     
-    @objc private func dismissTapped(){
+    @objc private func dismissTapped() {
         apphudLog("dismiss tapped")
-        self.dismiss()
+        dismiss()
     }
     
-    @objc private func handleOpenBilling(sender: ApphudInquiryButton){
+    @objc private func handleOpenBilling(sender: ApphudInquiryButton) {
         if let url = URL(string: "https://apps.apple.com/account/billing"), UIApplication.shared.canOpenURL(url){
             sender.isEnabled = false
             ApphudInternal.shared.trackRuleEvent(ruleID: self.rule.id, params: ["kind" : "update_payment_tapped"]) { 
@@ -193,14 +194,14 @@ internal class ApphudInquiryController: UIViewController {
         }
     }
     
-    private func dismiss(){
+    private func dismiss() {
         ApphudInternal.shared.delegate?.apphudWillDismissScreen?()
         (self.navigationController ?? self).dismiss(animated: true) { 
             ApphudInternal.shared.delegate?.apphudDidDismissScreen?()
         }
     }
     
-    private func loadScreensInAdvance(){
+    private func loadScreensInAdvance() {
         for option in self.rule.options {
             if option.optionAction == .presentPurchase {
                 if #available(iOS 12.2, *) {
@@ -221,7 +222,7 @@ class ApphudInquiryButton: UIButton {
 
 class ApphudNavigationController: UINavigationController {
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask{
-        get{
+        get {
             return .portrait
         }
     }

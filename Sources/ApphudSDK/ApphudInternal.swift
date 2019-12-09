@@ -12,6 +12,7 @@ import StoreKit
 
 let sdk_version = "0.7.7"
 
+@available(iOS 11.2, *)
 final class ApphudInternal {
     
     fileprivate let requiresReceiptSubmissionKey = "requiresReceiptSubmissionKey"
@@ -573,7 +574,6 @@ final class ApphudInternal {
     }
     
     /// Checks introductory offers eligibility (includes free trial, pay as you go or pay up front)
-    @available(iOS 11.2, *)
     internal func checkEligibilitiesForIntroductoryOffers(products: [SKProduct], callback: @escaping ApphudEligibilityCallback){
 
         let result = performWhenUserRegistered {
@@ -611,7 +611,6 @@ final class ApphudInternal {
         }
     }
     
-    @available(iOS 11.2, *)
     private func _checkIntroEligibilitiesForRegisteredUser(products: [SKProduct], callback: @escaping ApphudEligibilityCallback) {
         
         var response = [String : Bool]()

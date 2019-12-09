@@ -48,6 +48,7 @@ internal class ApphudPlaceholderTextView: UITextView {
     }
 }
 
+@available(iOS 11.2, *)
 class ApphudFeedbackController: UIViewController {
 
     let option: ApphudRuleOption

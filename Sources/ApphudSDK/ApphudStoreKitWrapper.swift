@@ -11,6 +11,7 @@ import StoreKit
 
 internal typealias ApphudStoreKitProductsCallback = ([SKProduct]) -> Void
 
+@available(iOS 11.2, *)
 internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SKRequestDelegate{
     static var shared = ApphudStoreKitWrapper()
     
