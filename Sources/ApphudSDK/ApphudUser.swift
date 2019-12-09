@@ -49,15 +49,17 @@ internal struct ApphudUser {
         }
     }
     
-    func subscriptionsStates() -> [String : AnyHashable] {
-        var dict = [String : AnyHashable]()
+    func subscriptionsStates() -> [[String : AnyHashable]] {
+        var array = [[String : AnyHashable]]()
         for subscription in self.subscriptions {
+            var dict = [String : AnyHashable]()
             dict["status"] = subscription.status.toString()
             dict["expires_date"] = subscription.expiresDate
             dict["product_id"] = subscription.productId
             dict["autorenew"] = subscription.isAutorenewEnabled
+            array.append(dict)
         }
-        return dict
+        return array
     }
     
     static func toCache(_ dictionary : [String : Any]) {

@@ -393,8 +393,8 @@ final class ApphudInternal {
         }
         
         let exist = performWhenUserRegistered { 
-            self.submitReceipt(receiptString: receiptString, notifyDelegate: true) { error in
-                callback?(Apphud.subscriptions()?.first(where: {$0.productId == productId}), error)
+            self.submitReceipt(receiptString: receiptString, notifyDelegate: true) { error in                
+                callback?(self.subscription(productId: productId), error)
             }            
         }
         if !exist {
@@ -474,8 +474,17 @@ final class ApphudInternal {
                 callback?(subscription, error)
             }
         } else {
-            callback?(nil, transaction.error)
+            callback?(subscription(productId: product.productIdentifier), transaction.error)
         }
+    }
+    
+    private func subscription(productId: String) -> ApphudSubscription? {
+        var subscription = Apphud.subscriptions()?.first(where: {$0.productId == productId})
+        if subscription == nil, let groupID = self.productsGroupsMap?[productId] {
+            subscription = Apphud.subscriptions()?.first(where: { self.productsGroupsMap?[$0.productId] == groupID})
+        }
+        
+        return subscription
     }
     
     @available(iOS 12.2, *)
