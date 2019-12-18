@@ -10,7 +10,7 @@ import Foundation
 import AdSupport
 import StoreKit
 
-let sdk_version = "0.7.7"
+let sdk_version = "0.8"
 
 @available(iOS 11.2, *)
 final class ApphudInternal {
@@ -445,15 +445,27 @@ final class ApphudInternal {
     
     internal func purchase(product: SKProduct, callback: ((ApphudSubscription?, Error?) -> Void)?){
         ApphudStoreKitWrapper.shared.purchase(product: product) { transaction in
-            self.handleTransaction(product: product, transaction: transaction, callback: callback)
+            self.handleTransaction(product: product, transaction: transaction) { (subscription, transaction, error) in
+                callback?(subscription, error)
+            }
         }
     }    
+    
+    internal func purchase(product: SKProduct, callback: ((ApphudSubscription?, SKPaymentTransaction?, Error?) -> Void)?){
+        ApphudStoreKitWrapper.shared.purchase(product: product) { transaction in
+            self.handleTransaction(product: product, transaction: transaction) { (subscription, transaction, error) in
+                callback?(subscription, transaction, error)
+            }
+        }
+    }
     
     @available(iOS 12.2, *)
     internal func purchasePromo(product: SKProduct, discountID: String, callback: ((ApphudSubscription?, Error?) -> Void)?){
         self.signPromoOffer(productID: product.productIdentifier, discountID: discountID) { (paymentDiscount, error) in
-            if let paymentDiscount = paymentDiscount {                
-                ApphudInternal.shared.purchasePromo(product: product, discount: paymentDiscount, callback: callback)
+            if let paymentDiscount = paymentDiscount {  
+                self.purchasePromo(product: product, discount: paymentDiscount) { (subscription, transaction, error) in
+                    callback?(subscription, error)
+                }
             } else {
                 callback?(nil, ApphudError.error(message: "Could not sign offer id: \(discountID), product id: \(product.productIdentifier)"))
             }
@@ -461,26 +473,38 @@ final class ApphudInternal {
     }
     
     @available(iOS 12.2, *)
-    internal func purchasePromo(product: SKProduct, discount: SKPaymentDiscount, callback: ((ApphudSubscription?, Error?) -> Void)?){
+    internal func purchasePromo(product: SKProduct, discountID: String, callback: ((ApphudSubscription?, SKPaymentTransaction?, Error?) -> Void)?){
+        self.signPromoOffer(productID: product.productIdentifier, discountID: discountID) { (paymentDiscount, error) in
+            if let paymentDiscount = paymentDiscount {                
+                self.purchasePromo(product: product, discount: paymentDiscount, callback: callback)
+            } else {
+                callback?(nil, nil, ApphudError.error(message: "Could not sign offer id: \(discountID), product id: \(product.productIdentifier)"))
+            }
+        }
+    }
+    
+    @available(iOS 12.2, *)
+    internal func purchasePromo(product: SKProduct, discount: SKPaymentDiscount, callback: ((ApphudSubscription?, SKPaymentTransaction?, Error?) -> Void)?){
         ApphudStoreKitWrapper.shared.purchase(product: product, discount: discount) { transaction in
             self.handleTransaction(product: product, transaction: transaction, callback: callback)
         }
     }
     
-    private func handleTransaction(product: SKProduct, transaction: SKPaymentTransaction, callback: ((ApphudSubscription?, Error?) -> Void)?){
+    private func handleTransaction(product: SKProduct, transaction: SKPaymentTransaction, callback: ((ApphudSubscription?, SKPaymentTransaction?, Error?) -> Void)?){
         if transaction.transactionState == .purchased {
             self.submitReceipt(productId: product.productIdentifier) { (subscription, error) in
                 SKPaymentQueue.default().finishTransaction(transaction)
-                callback?(subscription, error)
+                callback?(subscription, transaction, error)
             }
         } else {
-            callback?(subscription(productId: product.productIdentifier), transaction.error)
+            callback?(subscription(productId: product.productIdentifier), transaction, transaction.error)
         }
     }
     
     private func subscription(productId: String) -> ApphudSubscription? {
         var subscription = Apphud.subscriptions()?.first(where: {$0.productId == productId})
         if subscription == nil, let groupID = self.productsGroupsMap?[productId] {
+            #warning("IMPROVE THIS BY CHECKING IOS SDK subscription group identifier also")
             subscription = Apphud.subscriptions()?.first(where: { self.productsGroupsMap?[$0.productId] == groupID})
         }
         
@@ -664,11 +688,13 @@ final class ApphudInternal {
         }
     }
     
-    internal func trackRuleEvent(ruleID: String, params: [String : String], callback: @escaping ()->Void){
+    //MARK:- V2 API
+    
+    internal func trackRuleEvent(ruleID: String, params: [String : AnyHashable], callback: @escaping ()->Void){
         
         let result = performWhenUserRegistered {
-            let final_params : [String : String] = ["device_id" : self.currentDeviceID].merging(params, uniquingKeysWith: {(current,_) in current})
-            self.httpClient.startRequest(path: "rules/\(ruleID)/events", params: final_params, method: .post) { (result, response, error) in
+            let final_params : [String : AnyHashable] = ["device_id" : self.currentDeviceID].merging(params, uniquingKeysWith: {(current,_) in current})
+            self.httpClient.startRequest(path: "rules/\(ruleID)/events", apiVersion: .v2, params: final_params, method: .post) { (result, response, error) in
                 callback()
             }            
         }
@@ -682,7 +708,7 @@ final class ApphudInternal {
         let result = performWhenUserRegistered {
             let params = ["device_id": self.currentDeviceID] as [String : String]
             
-            self.httpClient.startRequest(path: "rules/\(ruleID)", params: params, method: .get) { (result, response, error) in
+            self.httpClient.startRequest(path: "rules/\(ruleID)", apiVersion: .v2, params: params, method: .get) { (result, response, error) in
                 if result, let dataDict = response?["data"] as? [String : Any],
                     let ruleDict = dataDict["results"] as? [String : Any] {
                     callback(ApphudRule(dictionary: ruleDict))
@@ -699,13 +725,12 @@ final class ApphudInternal {
     internal func checkForUnreadNotifications(){
         performWhenUserRegistered {
             let params = ["device_id": self.currentDeviceID] as [String : String]
-            self.httpClient.startRequest(path: "notifications/unread", params: params, method: .get, callback: { (result, response, error) in
-                if  result, 
-                    let dataDict = response?["data"] as? [String : Any],
-                    let notifArray = dataDict["results"] as? [[String : Any]], 
-                    let ruleDict = notifArray.first?["rule"] as? [String : Any] {
+            self.httpClient.startRequest(path: "notifications", apiVersion: .v2, params: params, method: .get, callback: { (result, response, error) in
+                
+                if result, let dataDict = response?["data"] as? [String : Any], let notifArray = dataDict["results"] as? [[String : Any]], let ruleDict = notifArray.first?["rule"] as? [String : Any] {
+                        
                     let rule = ApphudRule(dictionary: ruleDict)
-                    ApphudInquiryController.show(rule: rule)
+                    ApphudNotificationsHandler.shared.handleRule(rule: rule)
                 }
             })
         }
@@ -733,3 +758,6 @@ final class ApphudInternal {
     }
 }
 
+/*
+    p print(String(data: try! JSONSerialization.data(withJSONObject: response, options: .prettyPrinted), encoding: .utf8 )!)
+ */

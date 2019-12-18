@@ -37,7 +37,7 @@ class ApphudScreenController: UIViewController{
         ])
         return wv
     }()
-    
+        
     override var preferredStatusBarStyle: UIStatusBarStyle{
         if self.screen?.status_bar_color == "white" {
             return .lightContent
@@ -46,14 +46,17 @@ class ApphudScreenController: UIViewController{
         }
     }
     
-    private var rule: ApphudRule
-    private var option: ApphudRuleOption
+    private(set) var rule: ApphudRule
+    private(set) var screenID: String
     
     private var screen: ApphudScreen?
     private var addedObserver = false
     private var isPurchasing = false
     private var start = Date()
     private var error : Error?
+    private var loadedCallback: ((Bool) -> Void)?
+    private var originalHTML: String?
+    private var macrosesMap = [[String : String]]()
     
     private lazy var loadingIndicator: UIActivityIndicatorView = {
         let loading = UIActivityIndicatorView(style: .gray)
@@ -65,33 +68,65 @@ class ApphudScreenController: UIViewController{
         return loading
     }()
     
+    init(rule: ApphudRule, screenID: String, didLoadCallback: @escaping (Bool) -> Void) {
+        self.rule = rule
+        self.screenID = screenID
+        self.loadedCallback = didLoadCallback
+        super.init(nibName: nil, bundle: nil)
+    }
+    
+    internal func loadScreenPage(){
+                            
+        // if after 10 seconds webview not appeared, then fail
+        self.perform(#selector(failedByTimeOut), with: nil, afterDelay: 15.0)
+        self.startLoading()
+        _ = self.view // trigger viewdidload
+        self.webView.alpha = 0
+        
+        
+        ApphudHttpClient.shared.loadScreenHtmlData(screenID: self.screenID) { (html) in
+            let date = Date().timeIntervalSince(self.start)
+            apphudLog("data loaded exec time: \(date)")
+            if let html = html {
+                self.originalHTML = html
+                self.extractMacrosesUsingRegexp()
+            } else {
+                let error = ApphudError.error(message: "html is nil for rule id: \(self.rule.id), screen id: \(self.screenID)")
+                self.failed(error)
+            }
+            
+        }        
+    }
+    
+    @objc private func editAndReloadPage(html: String){
+        
+        let date = Date().timeIntervalSince(self.start)
+        apphudLog("replace finished exec time: \(date)")
+        
+        let url = URL(string: ApphudHttpClient.shared.domain_url_string)
+        self.webView.tag = 1
+        self.webView.loadHTMLString(html as String, baseURL: url)
+    }
+    
+    //MARK:- Private
+    
     deinit {
         NotificationCenter.default.removeObserver(self)
     }
     
-    init(rule: ApphudRule, option: ApphudRuleOption) {
-        self.rule = rule
-        self.option = option
-        super.init(nibName: nil, bundle: nil)
-    }
-       
     required init?(coder aDecoder: NSCoder) {
         fatalError("Init with coder has not been implemented")
     }
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        self.view.backgroundColor = UIColor.white
-        // if after 10 seconds webview not appeared, then fail
-        self.perform(#selector(failedByTimeOut), with: nil, afterDelay: 15.0)
-        self.loadScreenPage()
-        self.startLoading()
+        self.view.backgroundColor = UIColor.white        
     }
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(true)
         if error != nil {
-            apphudLog("Closing screen due to fatal error: \(error!) option id: \(option.id)", forceDisplay: true)
+            apphudLog("Closing screen due to fatal error: \(error!) rule ID: \(self.rule.id) screen ID: \(self.screenID)", forceDisplay: true)
             dismiss()
         }
     }
@@ -104,22 +139,12 @@ class ApphudScreenController: UIViewController{
         // for now just dismiss
         self.error = error
         apphudLog("Could not show screen with error: \(error)", forceDisplay: true)
-        self.dismiss()
-    }
-    
-    private func loadScreenPage(){
-        if let screenID = self.option.screenID, let request = ApphudHttpClient.shared.makeScreenRequest(screenID: screenID) {   
-            apphudLog("started loading page:\(request)")
-            self.webView.alpha = 0
-            self.webView.load(request)
-        } else {
-            let error = ApphudError.error(message: "screen ID not found in option: \(self.option.id)")
-            failed(error)
-        }
+        self.loadedCallback?(false)
+        self.loadedCallback = nil
     }
     
     private func getScreenInfo(){
-        
+                
         let js = "window.screenInfo"
         self.webView.evaluateJavaScript(js) { (result, error) in
             DispatchQueue.main.async {
@@ -128,15 +153,17 @@ class ApphudScreenController: UIViewController{
                     self.screen = screen
                     self.setNeedsStatusBarAppearanceUpdate()
                     self.updateBackgroundColor()
-                    self.updatePage()
                 } else {
-                    let error = ApphudError.error(message: "screen info not found in template: \(self.option.screenID ?? "")")
-                    self.failed(error)
+                    apphudLog("screen info not found in screen ID: \(self.screenID)", forceDisplay: true)
                 }
             }
         }
     }
 
+    private func preloadSurveyAnswerPages(){
+        
+    }
+    
     private func updateBackgroundColor(){
         if self.screen?.status_bar_color == "white" {
             self.view.backgroundColor = UIColor.black
@@ -147,37 +174,10 @@ class ApphudScreenController: UIViewController{
         }
     }
     
-    @objc private func updatePage(){    
-        let anyProductID = self.screen!.products_offers_map?.first?["product_id"] as? String
-        let product = ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == anyProductID})
-        
-        if ApphudStoreKitWrapper.shared.products.count > 0 && product == nil {
-            let error = ApphudError.error(message: "Couldn't find product with id: \(anyProductID ?? "")")
-            self.failed(error)
-            return
-        } 
-        
-        guard product != nil else {
-            if !addedObserver {
-                NotificationCenter.default.addObserver(self, selector: #selector(updatePage), name: Apphud.didFetchProductsNotification(), object: nil)
-                addedObserver = true
-            }
-            return
-        }
-                
-        webView.evaluateJavaScript("document.documentElement.outerHTML") { (result, error) in
-            if var html = result as? NSString {
-
-                html = self.replaceMacroses(html: html)
-                self.webView.tag = 1                
-                
-                let url = URL(string: ApphudHttpClient.shared.domain_url_string)
-                
-                self.webView.loadHTMLString(html as String, baseURL: url)
-            } else {
-                let error = ApphudError.error(message: "html is nil in: \(self.webView.url?.absoluteString ?? "")")
-                self.failed(error)
-            }
+    private func addObserverIfNeeded(){
+        if !addedObserver {
+            NotificationCenter.default.addObserver(self, selector: #selector(replaceMacroses), name: Apphud.didFetchProductsNotification(), object: nil)
+            addedObserver = true
         }
     }
     
@@ -199,85 +199,133 @@ class ApphudScreenController: UIViewController{
     
     //MARK:- Handle Macroses
     
-    func macrosStringFor(product : SKProduct, offerID : String? = nil) -> String {
-        if offerID != nil {
-            return "{{\"\(product.productIdentifier)\" | price: \"\(offerID!)\"}}"
-        } else {
-            return "{{\"\(product.productIdentifier)\" | price}}"
-        }
-    }
-    
     func replaceStringFor(product: SKProduct, offerID : String? = nil) -> String {
         if offerID != nil {
-            if #available(iOS 12.2, *), let discount = product.discounts.first(where: {$0.identifier == offerID!}) {
-                return product.localizedDiscountPrice(discount: discount)
+            
+            if #available(iOS 12.2, *) {
+                if let discount = product.discounts.first(where: {$0.identifier == offerID!}) {
+                    return product.localizedDiscountPrice(discount: discount)
+                } else {
+                    apphudLog("Couldn't find promo offer with id: \(offerID!) in product: \(product.productIdentifier)", forceDisplay: true)
+                    return ""
+                }
             } else {
-                apphudLog("Couldn't find promo offer with id: \(offerID!) in product: \(product.productIdentifier)", forceDisplay: true)
+                apphudLog("Promo offers are not available under iOS 12.2, offerID: \(offerID!) in product: \(product.productIdentifier)", forceDisplay: true)
                 return ""
-            }
+            }            
         } else {
             return product.localizedPrice()
         }
     }
     
-    func replaceMacroses(html: NSString) -> NSString {
-        let firstDiv = html.range(of: "<div")
-        var searchStart = 0
-        if firstDiv.location != NSNotFound {                        
-            searchStart = firstDiv.location
-        }
-        var newHtml = html
-                  
-        for map in self.screen?.products_offers_map ?? [] {
-            let product_id = map["product_id"] as? String
-            let offer_id = map["offer_id"] as? String
-            
-            if let product = ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == product_id}){
-                
-                if offer_id != nil {
-                    let offer_macros = macrosStringFor(product: product, offerID: offer_id)
-                    let offer_replace_string = replaceStringFor(product: product, offerID: offer_id)
-                    newHtml = newHtml.replacingOccurrences(of: offer_macros, with: offer_replace_string, options: [], range: NSMakeRange(searchStart, newHtml.length - searchStart)) as NSString
+    func extractMacrosesUsingRegexp(){
+        
+        guard self.originalHTML != nil else {return}
+        let scanner = Scanner(string: self.originalHTML!)
+        
+        var shouldScan = true
+        
+        var macroses = [String]()
+        
+        while shouldScan {
+            var tempString : NSString?
+            scanner.scanUpTo("{{\"", into: &tempString)           
+            if tempString != nil {
+                scanner.scanUpTo("}}", into: &tempString)
+                if scanner.isAtEnd {
+                    shouldScan = false
+                } else {
+                    macroses.append("\(tempString as String? ?? "")}}")
                 }
-                
-                let product_macros = macrosStringFor(product: product)
-                let product_replace_string = replaceStringFor(product: product)
-                newHtml = newHtml.replacingOccurrences(of: product_macros, with: product_replace_string, options: [], range: NSMakeRange(searchStart, newHtml.length - searchStart)) as NSString
+            } else {
+                shouldScan = false
             }
         }
         
-        let searchUnreplacedMarcoses = newHtml.range(of: " | price")
-        if searchUnreplacedMarcoses.location != NSNotFound {
-            apphudLog("Couldn't replace all macroses. Please make sure you set up macroses correctly at Apphud Screen Constructor.", forceDisplay: true)
+        var productsOffersMap = [[String : String]]()
+        
+        for macros in macroses {
+            let scanner = Scanner(string: macros)
+            var tempString : NSString?
+            
+            var dict = [String : String]()
+            dict["macros"] = macros
+            if scanner.scanUpTo("\"", into: &tempString) && !scanner.isAtEnd {
+                scanner.scanLocation = scanner.scanLocation + 1
+                scanner.scanUpTo("\"", into: &tempString)
+                
+                if let product_id = tempString as String? {
+                    dict["product_id"] = product_id
+                }
+                
+                if scanner.scanUpTo("price: \"", into: &tempString) && !scanner.isAtEnd {
+                    scanner.scanLocation = scanner.scanLocation + 8
+                    scanner.scanUpTo("\"", into: &tempString)
+                    if let offer_id = (tempString as String?){
+                        dict["offer_id"] = offer_id
+                    }   
+                }       
+            }
+            productsOffersMap.append(dict)
+        }
+
+        self.macrosesMap = productsOffersMap
+        
+        // replace macroses
+        self.replaceMacroses()
+    }
+    
+    @objc func replaceMacroses(){
+        
+        if ApphudStoreKitWrapper.shared.products.count == 0 {
+            addObserverIfNeeded()
+            return
         }
         
-        return newHtml
+        var html : NSString = self.originalHTML! as NSString
+        
+        for macrosDict in self.macrosesMap {
+            
+            guard let macros = macrosDict["macros"] else { continue }
+            
+            var replace_string = ""
+            
+            if let product_id = macrosDict["product_id"], let product = ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == product_id}) {
+                if let offer_id = macrosDict["offer_id"]  {
+                    replace_string = replaceStringFor(product: product, offerID: offer_id) 
+                } else {
+                    replace_string = replaceStringFor(product: product)
+                }
+            }
+             
+            html = html.replacingOccurrences(of: macros, with: replace_string) as NSString
+        }
+        
+        self.editAndReloadPage(html: html as String)
     }
     
     //MARK:- Actions
     
     func makeVisible(){
-        let date = Date().timeIntervalSince(start)
-        apphudLog("exec time: \(date)")
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(failedByTimeOut), object: nil)
-        webView.alpha = 1
+        
+        self.webView.alpha = 1
+        let date = Date().timeIntervalSince(self.start)
+        apphudLog("final exec time: \(date)")
+        self.getScreenInfo()
+        self.preloadSurveyAnswerPages()
+        self.handleScreenPresented()
         self.stopLoading()
+        self.loadedCallback?(true)
+        self.loadedCallback = nil
     }
     
-    private func purchaseTapped(url: URL?){
-
-        guard let url = url else {
-            return
-        }
-        
-        let urlComps = URLComponents(url: url, resolvingAgainstBaseURL: true)
-        let productID = urlComps?.queryItems?.first(where: { $0.name == "product_id" })?.value
-        
+    private func purchaseProduct(productID: String?, offerID: String?) {
+                
         guard let product = ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == productID}) else {
+            apphudLog("Aborting purchase because couldn't find product with id: \(productID ?? "")", forceDisplay: true)
             return
         }
-        
-        let offerID = urlComps?.queryItems?.first(where: { $0.name == "offer_id" })?.value
                    
         if offerID != nil {
             
@@ -286,8 +334,9 @@ class ApphudScreenController: UIViewController{
                 if isPurchasing {return}
                 isPurchasing = true
                 self.startLoading()
-                Apphud.purchasePromo(product, discountID: offerID!) { (subscription, error) in
-                    self.handlePurchaseResult(product: product, offerID: offerID!, subscription: subscription, error: error)
+                
+                ApphudInternal.shared.purchasePromo(product: product, discountID: offerID!) { (subscription, transaction, error) in
+                    self.handlePurchaseResult(product: product, offerID: offerID!, subscription: subscription, transaction: transaction, error: error)                    
                 }
             } else {
                 apphudLog("Aborting purchase because couldn't find promo offer with id: \(offerID!) in product: \(product.productIdentifier)", forceDisplay: true)
@@ -299,28 +348,10 @@ class ApphudScreenController: UIViewController{
             if isPurchasing {return}
             isPurchasing = true
             self.startLoading()
-            Apphud.purchase(product) { (subscription, error) in
-                self.handlePurchaseResult(product: product, subscription: subscription, error: error)
+            
+            ApphudInternal.shared.purchase(product: product) { (subscription, transaction, error) in
+                self.handlePurchaseResult(product: product, subscription: subscription, transaction: transaction, error: error)
             }
-        }
-    }
-    
-    private func handlePurchaseResult(product: SKProduct, offerID: String? = nil, subscription: ApphudSubscription?, error: Error?) {
-        self.stopLoading(error: error)
-        self.isPurchasing = false                    
-        if subscription != nil {
-            if offerID != nil {
-                apphudLog("Promo purchased with id: \(offerID!)", forceDisplay: true)                
-                ApphudInternal.shared.trackRuleEvent(ruleID: self.rule.id, params: ["kind" : "offer_activated", "option_id" : self.option.id, "product_id" : product.productIdentifier, "offer_id" : offerID!, "screen_id" : self.option.screenID!]) {}
-            } else {
-                apphudLog("Product purchased with id: \(product.productIdentifier)", forceDisplay: true)
-                ApphudInternal.shared.trackRuleEvent(ruleID: self.rule.id, params: ["kind" : "product_purchased", "option_id" : self.option.id, "product_id" : product.productIdentifier, "screen_id" : self.option.screenID!]) {}
-            }
-            self.dismiss()
-        } else {
-            apphudLog("Couldn't purchase with error:\(error?.localizedDescription ?? "")", forceDisplay: true)
-            // if error occurred, restore subscriptions
-            Apphud.restoreSubscriptions { subscriptions in }
         }
     }
     
@@ -329,11 +360,18 @@ class ApphudScreenController: UIViewController{
     }
     
     private func dismiss(){   
+                
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(failedByTimeOut), object: nil)
         
-        ApphudInternal.shared.delegate?.apphudWillDismissScreen?()
-        (self.navigationController ?? self).dismiss(animated: true) { 
-            ApphudInternal.shared.delegate?.apphudDidDismissScreen?()
+        let supportBackNavigation = false
+        
+        if let nc = navigationController, nc.viewControllers.count > 1 && supportBackNavigation {
+            nc.popViewController(animated: true)
+        } else {
+            ApphudInternal.shared.delegate?.apphudWillDismissScreen?()
+            (self.navigationController ?? self).dismiss(animated: true) { 
+                ApphudInternal.shared.delegate?.apphudDidDismissScreen?()
+            }
         }
     }
     
@@ -347,27 +385,16 @@ class ApphudScreenController: UIViewController{
         }
     }
     
-    private func openURL(url: URL?){
-        guard let url = url else {
-            return
-        }
-        
-        let urlComps = URLComponents(url: url, resolvingAgainstBaseURL: true)
-        
-        guard let urlString = urlComps?.queryItems?.first(where: { $0.name == "url" })?.value else {
-            return
-        }        
-        guard let navigationURL = URL(string: urlString) else {
-            return
-        }
-
-        if UIApplication.shared.canOpenURL(navigationURL){
-            let controller = SFSafariViewController(url: navigationURL)
-            controller.modalPresentationStyle = self.navigationController?.modalPresentationStyle ?? .fullScreen
-            present(controller, animated: true, completion: nil)
-        }
+    private func thankForFeedbackAndClose(){
+        let alertController = UIAlertController(title: "Thank you for feedback!", message: "Feedback sent", preferredStyle: .alert)
+        alertController.addAction(UIAlertAction(title: "OK", style: .default, handler: { (action) in
+            self.dismiss()
+        }))
+        present(alertController, animated: true, completion: nil)
     }
 }
+
+
 
 // MARK:- WKNavigationDelegate delegate
 
@@ -376,19 +403,22 @@ extension ApphudScreenController : WKNavigationDelegate {
     
     func handleNavigationAction(navigationAction: WKNavigationAction) -> Bool {
         
-        if webView.tag == 1, let lastComponent = navigationAction.request.url?.lastPathComponent {    
+        if webView.tag == 1, let url = navigationAction.request.url {
+            
+            let lastComponent = url.lastPathComponent
+            
             switch lastComponent {
-            case "confirm":
-                self.purchaseTapped(url: navigationAction.request.url)
+            case "action":
+                self.handleAction(url: url)
+                return false
+            case "screen":
+                self.handleNavigation(url: url)
+                return false
+            case "link":
+                self.handleLink(url: url)
                 return false
             case "dismiss":
                 self.closeTapped()
-                return false
-            case "link":
-                self.openURL(url: navigationAction.request.url)
-                return false
-            case "restore":
-                self.restoreTapped()
                 return false
             default:
                 break
@@ -401,8 +431,6 @@ extension ApphudScreenController : WKNavigationDelegate {
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         if webView.tag == 1 {
             makeVisible()
-        } else {
-            getScreenInfo()
         }
     }
     
@@ -418,5 +446,139 @@ extension ApphudScreenController : WKNavigationDelegate {
         } else {
             decisionHandler(.cancel)
         }
+    }
+}
+
+// MARK:- Handle Events
+
+extension ApphudScreenController {
+    
+    private func handleAction(url: URL) {
+        
+        guard let urlComps = URLComponents(url: url, resolvingAgainstBaseURL: true) else {return}
+        guard let action = urlComps.queryItems?.first(where: { $0.name == "type" })?.value else {return}
+        
+        if let answer_index_string = urlComps.queryItems?.first(where: { $0.name == "answer_index"})?.value {
+            let answer_index_int = Int(answer_index_string) ?? -1
+            if answer_index_int >= 0 {
+                handleSurveyAnswer(index: answer_index_int)
+            }
+        }
+        
+        switch action {
+            case "purchase":
+                let productID = urlComps.queryItems?.first(where: { $0.name == "product_id" })?.value
+                let offerID = urlComps.queryItems?.first(where: { $0.name == "offer_id" })?.value
+                purchaseProduct(productID: productID, offerID: offerID)
+            case "restore":
+                restoreTapped()
+            case "dismiss":
+                closeTapped()
+            case "post_feedback":
+                handlePostFeedbackTapped()
+            case "billing_issue":
+                handleBillingIssueTapped()
+            default:
+                break
+        }
+    }
+    
+    private func handleNavigation(url: URL) {
+        
+        let urlComps = URLComponents(url: url, resolvingAgainstBaseURL: true)
+        
+        guard let screen_id = urlComps?.queryItems?.first(where: { $0.name == "id" })?.value else {
+            return
+        }
+        guard let nc = navigationController as? ApphudNavigationController else {return}
+        
+        nc.pushScreenController(screenID: screen_id, rule: self.rule)
+    }
+    
+    private func handleLink(url: URL){
+        
+        let urlComps = URLComponents(url: url, resolvingAgainstBaseURL: true)
+        
+        guard let urlString = urlComps?.queryItems?.first(where: { $0.name == "url" })?.value else {
+            return
+        }
+        
+        guard let navigationURL = URL(string: urlString) else {
+            return
+        }
+
+        if UIApplication.shared.canOpenURL(navigationURL){
+            let controller = SFSafariViewController(url: navigationURL)
+            controller.modalPresentationStyle = self.navigationController?.modalPresentationStyle ?? .fullScreen
+            present(controller, animated: true, completion: nil)
+        }
+    }
+    
+    private func handleScreenPresented(){
+        ApphudInternal.shared.trackRuleEvent(ruleID: self.rule.id, params: ["screen_id" : self.screenID, "name" : "$screen_presented"]) {}
+    }
+    
+    private func handleSurveyAnswer(index: Int){
+        ApphudInternal.shared.trackRuleEvent(ruleID: self.rule.id, params: ["screen_id" : self.screenID, "name" : "$survey_answer", "answer_index" : index]) {}
+    }
+    
+    private func handleBillingIssueTapped(){
+        ApphudInternal.shared.trackRuleEvent(ruleID: self.rule.id, params: ["screen_id" : self.screenID, "name" : "$billing_issue"]) {}
+    }
+    
+    private func handlePurchaseResult(product: SKProduct, offerID: String? = nil, subscription: ApphudSubscription?, transaction: SKPaymentTransaction?, error: Error?) {
+            
+        var userCancelled = false
+        if let skError = error as? SKError, skError.code == .paymentCancelled {
+            userCancelled = true
+        }
+        
+        let isActive = subscription?.isActive() ?? false
+        let productIDChanged = subscription?.productId != product.productIdentifier
+        
+        let shouldSubmitPurchaseEvent = error == nil || (isActive && !userCancelled && (offerID != nil || productIDChanged))
+        
+        if shouldSubmitPurchaseEvent {
+            
+            var params = ["name" : "$purchase", "product_id" : product.productIdentifier, "screen_id" : self.screenID]
+            
+            if offerID != nil {   
+                apphudLog("Promo purchased with id: \(offerID!)", forceDisplay: true)
+                params["offer_id"] = offerID!
+            } else {
+                apphudLog("Product purchased with id: \(product.productIdentifier)", forceDisplay: true)
+            }
+            
+            if let trx = transaction, trx.transactionState == .purchased, let transaction_id = trx.transactionIdentifier {
+                params["transaction_id"] = transaction_id
+            }
+            
+            ApphudInternal.shared.trackRuleEvent(ruleID: self.rule.id, params: params) {}
+            
+            self.dismiss() // dismiss only when purchase is successful
+            
+        } else if userCancelled {
+            apphudLog("User canceled purchase", forceDisplay: true)
+        } else {
+            apphudLog("Couldn't purchase with error:\(error?.localizedDescription ?? "")", forceDisplay: true)
+            // if error occurred, restore subscriptions
+            Apphud.restoreSubscriptions { subscriptions in }
+        }
+    }
+    
+    private func handlePostFeedbackTapped(){
+        self.startLoading()
+        
+        self.webView.evaluateJavaScript("document.getElementById('text').textContent") { (result, error) in
+            if let text = result as? String, text.count > 0 {   
+                ApphudInternal.shared.trackRuleEvent(ruleID: self.rule.id, params: ["screen_id" : self.screenID, "name" : "$feedback", "text" : text]) { 
+                    self.thankForFeedbackAndClose()
+                }
+            } else {
+                apphudLog("Couldn't find text content in screen: \(self.screenID)", forceDisplay: true)
+                self.dismiss()
+            }
+        }
+        
     }
 }

@@ -15,7 +15,7 @@ class ViewController: UITableViewController{
     
     var introductoryEligibility = [String : Bool]()
     var promoOffersEligibility = [String : Bool]()
-    
+
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -25,7 +25,7 @@ class ViewController: UITableViewController{
         reload()
         navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Restore transactions", style: .done, target: self, action: #selector(restore))        
     }
-    
+
     override func viewWillAppear(_ animated: Bool) {
         print("will appear")
         super.viewWillAppear(animated)
@@ -37,7 +37,11 @@ class ViewController: UITableViewController{
     }
     
     @objc func restore(){
-        Apphud.restoreSubscriptions { subscriptions in self.reload()}
+        
+        #warning("REMOVE THIS")
+        ApphudNotificationsHandler.shared.handleRule(ruleID: "0f67e22a-2367-4191-87e1-bfde466d3e40")
+        
+//        Apphud.restoreSubscriptions { subscriptions in self.reload()}
     }
     
     @objc func reload(){
@@ -170,7 +174,7 @@ extension ViewController : ApphudDelegate {
     
     func apphudScreenPresentationStyle() -> UIModalPresentationStyle {
         if UIDevice.current.userInterfaceIdiom == .pad {
-            return .formSheet
+            return .pageSheet
         } else {
             return .fullScreen
         }

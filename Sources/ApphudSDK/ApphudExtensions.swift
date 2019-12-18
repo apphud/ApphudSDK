@@ -139,7 +139,7 @@ extension SKProduct {
         if let introData = introParameters() {
             params.merge(introData, uniquingKeysWith: {$1})
         }
-        if subscriptionPeriod != nil {
+        if subscriptionPeriod != nil && subscriptionPeriod!.numberOfUnits > 0 {
             let units_count = subscriptionPeriod!.numberOfUnits
             params["unit"] = unitStringFrom(periodUnit: subscriptionPeriod!.unit)
             params["units_count"] = units_count
