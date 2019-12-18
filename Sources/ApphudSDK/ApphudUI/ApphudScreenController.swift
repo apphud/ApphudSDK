@@ -83,7 +83,6 @@ class ApphudScreenController: UIViewController{
         _ = self.view // trigger viewdidload
         self.webView.alpha = 0
         
-        
         ApphudHttpClient.shared.loadScreenHtmlData(screenID: self.screenID) { (html) in
             let date = Date().timeIntervalSince(self.start)
             apphudLog("data loaded exec time: \(date)")
@@ -161,7 +160,7 @@ class ApphudScreenController: UIViewController{
     }
 
     private func preloadSurveyAnswerPages(){
-        
+        #warning("IMPLEMENT THIS")
     }
     
     private func updateBackgroundColor(){
@@ -201,7 +200,6 @@ class ApphudScreenController: UIViewController{
     
     func replaceStringFor(product: SKProduct, offerID : String? = nil) -> String {
         if offerID != nil {
-            
             if #available(iOS 12.2, *) {
                 if let discount = product.discounts.first(where: {$0.identifier == offerID!}) {
                     return product.localizedDiscountPrice(discount: discount)
@@ -365,12 +363,15 @@ class ApphudScreenController: UIViewController{
         
         let supportBackNavigation = false
         
+        let presentedVC = (self.navigationController ?? self)
+        
         if let nc = navigationController, nc.viewControllers.count > 1 && supportBackNavigation {
             nc.popViewController(animated: true)
         } else {
-            ApphudInternal.shared.delegate?.apphudWillDismissScreen?()
-            (self.navigationController ?? self).dismiss(animated: true) { 
-                ApphudInternal.shared.delegate?.apphudDidDismissScreen?()
+            ApphudInternal.shared.uiDelegate?.apphudWillDismissScreen?(controller: presentedVC)
+            presentedVC.dismiss(animated: true) { 
+                ApphudInternal.shared.uiDelegate?.apphudDidDismissScreen?(controller: presentedVC)
+                ApphudRulesManager.shared.pendingController = nil
             }
         }
     }
@@ -453,17 +454,17 @@ extension ApphudScreenController : WKNavigationDelegate {
 
 extension ApphudScreenController {
     
+    private func isSurveyAnswer(urlComps: URLComponents) -> Bool {
+        let type = urlComps.queryItems?.first(where: { $0.name == "type" })?.value
+        let question = urlComps.queryItems?.first(where: { $0.name == "question" })?.value
+        let answer = urlComps.queryItems?.first(where: { $0.name == "answer" })?.value
+        return question != nil && answer != nil && type != "post_feedback"
+    }
+    
     private func handleAction(url: URL) {
         
         guard let urlComps = URLComponents(url: url, resolvingAgainstBaseURL: true) else {return}
         guard let action = urlComps.queryItems?.first(where: { $0.name == "type" })?.value else {return}
-        
-        if let answer_index_string = urlComps.queryItems?.first(where: { $0.name == "answer_index"})?.value {
-            let answer_index_int = Int(answer_index_string) ?? -1
-            if answer_index_int >= 0 {
-                handleSurveyAnswer(index: answer_index_int)
-            }
-        }
         
         switch action {
             case "purchase":
@@ -474,8 +475,11 @@ extension ApphudScreenController {
                 restoreTapped()
             case "dismiss":
                 closeTapped()
+                if isSurveyAnswer(urlComps: urlComps) {
+                    handleSurveyAnswer(urlComps: urlComps)
+                }
             case "post_feedback":
-                handlePostFeedbackTapped()
+                handlePostFeedbackTapped(urlComps: urlComps)
             case "billing_issue":
                 handleBillingIssueTapped()
             default:
@@ -485,11 +489,13 @@ extension ApphudScreenController {
     
     private func handleNavigation(url: URL) {
         
-        let urlComps = URLComponents(url: url, resolvingAgainstBaseURL: true)
+        guard let urlComps = URLComponents(url: url, resolvingAgainstBaseURL: true) else {return}
+        guard let screen_id = urlComps.queryItems?.first(where: { $0.name == "id" })?.value else {return}
         
-        guard let screen_id = urlComps?.queryItems?.first(where: { $0.name == "id" })?.value else {
-            return
+        if isSurveyAnswer(urlComps: urlComps) {
+            handleSurveyAnswer(urlComps: urlComps)
         }
+        
         guard let nc = navigationController as? ApphudNavigationController else {return}
         
         nc.pushScreenController(screenID: screen_id, rule: self.rule)
@@ -515,15 +521,25 @@ extension ApphudScreenController {
     }
     
     private func handleScreenPresented(){
-        ApphudInternal.shared.trackRuleEvent(ruleID: self.rule.id, params: ["screen_id" : self.screenID, "name" : "$screen_presented"]) {}
+        ApphudInternal.shared.trackEvent(params: ["rule_id" : self.rule.id, "screen_id" : self.screenID, "name" : "$screen_presented"]) {}
     }
     
-    private func handleSurveyAnswer(index: Int){
-        ApphudInternal.shared.trackRuleEvent(ruleID: self.rule.id, params: ["screen_id" : self.screenID, "name" : "$survey_answer", "answer_index" : index]) {}
+    private func handleSurveyAnswer(urlComps: URLComponents){
+        
+        let question = urlComps.queryItems?.first(where: { $0.name == "question" })?.value
+        let answer = urlComps.queryItems?.first(where: { $0.name == "answer" })?.value
+        
+        if question != nil && answer != nil {
+            ApphudInternal.shared.trackEvent(params: ["rule_id" : self.rule.id, "screen_id" : self.screenID, "name" : "$survey_answer", "properties" : ["question" : question!, "answer" : answer!]]) {}            
+        }
     }
     
     private func handleBillingIssueTapped(){
-        ApphudInternal.shared.trackRuleEvent(ruleID: self.rule.id, params: ["screen_id" : self.screenID, "name" : "$billing_issue"]) {}
+        ApphudInternal.shared.trackEvent(params: ["rule_id" : self.rule.id, "screen_id" : self.screenID, "name" : "$billing_issue"]) {}
+        self.dismiss()
+        if let url = URL(string: "https://apps.apple.com/account/billing"), UIApplication.shared.canOpenURL(url) {
+            UIApplication.shared.open(url, options: [:], completionHandler: nil)
+        }
     }
     
     private func handlePurchaseResult(product: SKProduct, offerID: String? = nil, subscription: ApphudSubscription?, transaction: SKPaymentTransaction?, error: Error?) {
@@ -540,20 +556,24 @@ extension ApphudScreenController {
         
         if shouldSubmitPurchaseEvent {
             
-            var params = ["name" : "$purchase", "product_id" : product.productIdentifier, "screen_id" : self.screenID]
+            var params : [String : AnyHashable] = ["rule_id" : self.rule.id, "name" : "$purchase", "screen_id" : self.screenID]
+            
+            var properties = ["product_id" : product.productIdentifier]
             
             if offerID != nil {   
                 apphudLog("Promo purchased with id: \(offerID!)", forceDisplay: true)
-                params["offer_id"] = offerID!
+                properties["offer_id"] = offerID!
             } else {
                 apphudLog("Product purchased with id: \(product.productIdentifier)", forceDisplay: true)
             }
             
             if let trx = transaction, trx.transactionState == .purchased, let transaction_id = trx.transactionIdentifier {
-                params["transaction_id"] = transaction_id
+                properties["transaction_id"] = transaction_id
             }
             
-            ApphudInternal.shared.trackRuleEvent(ruleID: self.rule.id, params: params) {}
+            params["properties"] = properties
+            
+            ApphudInternal.shared.trackEvent(params: params) {}
             
             self.dismiss() // dismiss only when purchase is successful
             
@@ -566,14 +586,16 @@ extension ApphudScreenController {
         }
     }
     
-    private func handlePostFeedbackTapped(){
+    private func handlePostFeedbackTapped(urlComps: URLComponents){
         self.startLoading()
         
         self.webView.evaluateJavaScript("document.getElementById('text').textContent") { (result, error) in
-            if let text = result as? String, text.count > 0 {   
-                ApphudInternal.shared.trackRuleEvent(ruleID: self.rule.id, params: ["screen_id" : self.screenID, "name" : "$feedback", "text" : text]) { 
+            if let text = result as? String, text.count > 0, let question = urlComps.queryItems?.first(where: { $0.name == "question" })?.value {   
+                
+                ApphudInternal.shared.trackEvent(params: ["rule_id" : self.rule.id, "screen_id" : self.screenID, "name" : "$feedback", "properties" : ["question" : question, "answer" : text]]) { 
                     self.thankForFeedbackAndClose()
                 }
+                
             } else {
                 apphudLog("Couldn't find text content in screen: \(self.screenID)", forceDisplay: true)
                 self.dismiss()

@@ -1,5 +1,5 @@
 //
-//  ApphudNotificationsHandler.swift
+//  ApphudRulesManager.swift
 //  apphudTestApp
 //
 //  Created by Renat on 22/08/2019.
@@ -11,13 +11,13 @@ import UIKit
 import UserNotifications
 
 @available(iOS 11.2, *)
-internal class ApphudNotificationsHandler {
+internal class ApphudRulesManager {
     
-    static let shared = ApphudNotificationsHandler()        
-    var handledRules = [String]()
+    static let shared = ApphudRulesManager()        
+    var pendingController : UIViewController?
     
-    var pendingController : ApphudScreenController?
-    
+    private var handledRules = [String]()
+        
     @discardableResult internal func handleNotification(_ apsInfo: [AnyHashable : Any]) -> Bool{
         
         guard let rule_id = apsInfo["rule_id"] as? String else {
@@ -56,32 +56,21 @@ internal class ApphudNotificationsHandler {
         
         guard !alreadyDisplayed() else { return }
         
-        pendingController = ApphudScreenController(rule: rule, screenID: rule.screen_id) { result in
-            if result {
-//                self.displayPendingController()
-            } else {
-                self.pendingController = nil
-            }
-        }
-        pendingController?.loadScreenPage()
-        self.displayPendingController()
-    }
-    
-    internal func displayPendingController(){
+        let controller = ApphudScreenController(rule: rule, screenID: rule.screen_id) {_ in}
+        controller.loadScreenPage()
         
-        guard pendingController != nil else {return}
-        guard !alreadyDisplayed() else { return }
-        
-        let nc = ApphudNavigationController(rootViewController: pendingController!)
-        
-        if let style = ApphudInternal.shared.delegate?.apphudScreenPresentationStyle?(){
-             nc.modalPresentationStyle = style
-        }
-        
+        let nc = ApphudNavigationController(rootViewController: controller)
         nc.setNavigationBarHidden(true, animated: false)
         
-        apphudVisibleViewController()?.present(nc, animated: true, completion: nil) 
-        self.pendingController = nil
+        if ApphudInternal.shared.uiDelegate?.apphudShouldShowScreen?(controller: nc) ?? true {
+            self.pendingController = nil
+            if let style = ApphudInternal.shared.uiDelegate?.apphudScreenPresentationStyle?(controller: nc){
+                 nc.modalPresentationStyle = style
+            }
+            apphudVisibleViewController()?.present(nc, animated: true, completion: nil) 
+        } else {
+            self.pendingController = nc
+        }
     }
 }
 

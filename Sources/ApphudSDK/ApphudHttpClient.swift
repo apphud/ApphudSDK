@@ -42,8 +42,8 @@ public class ApphudHttpClient {
         return URLSession.init(configuration: config)
     }()
     
-    internal func startRequest(path: String, apiVersion: ApphudApiVersion? = .v1, params: [String : Any]?, method: ApphudHttpMethod, callback: ApphudBoolDictionaryCallback?) {
-        if let request = makeRequest(path: path, apiVersion: apiVersion ?? .v1, params: params, method: method) {
+    internal func startRequest(path: String, apiVersion: ApphudApiVersion = .v1, params: [String : Any]?, method: ApphudHttpMethod, callback: ApphudBoolDictionaryCallback?) {
+        if let request = makeRequest(path: path, apiVersion: apiVersion, params: params, method: method) {
             start(request: request, callback: callback)
         }
     }
@@ -87,8 +87,11 @@ public class ApphudHttpClient {
         var request: URLRequest? = nil
         do {
             var url: URL? = nil
+            
+            let urlString = "\(domain_url_string)/\(apiVersion.rawValue)/\(path)"
+            
             if method == .get {
-                var components = URLComponents(string: "\(domain_url_string)/\(apiVersion.rawValue)/\(path)")
+                var components = URLComponents(string: urlString)
                 var items: [URLQueryItem] = [URLQueryItem(name: "api_key", value: apiKey)]
                 if let requestParams = params {
                     for key in requestParams.keys {
@@ -99,7 +102,7 @@ public class ApphudHttpClient {
                 url = components?.url
             }
             else {
-                url = URL(string: "\(domain_url_string)/v1/\(path)")
+                url = URL(string: urlString)
             }
             guard let finalURL = url else {
                 return nil

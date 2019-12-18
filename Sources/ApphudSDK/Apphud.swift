@@ -49,23 +49,33 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
         You can use this delegate method or observe for `Apphud.didFetchProductsNotification()` notification. 
      */
     @objc optional func apphudDidFetchStoreKitProducts(_ products: [SKProduct])
+}
+
+@objc public protocol ApphudUIDelegate {
+    
+    /**
+        You can return `false` to this delegate method if you don't want Apphud Screen to be displayed at this time.
+     
+        If you returned `false`, this controller will be accessible in `Apphud.pendingScreen()` method. You will be able to present it manually later.
+     */
+    @objc optional func apphudShouldShowScreen(controller: UIViewController) -> Bool
     
     /**
      Pass your own modal presentation style to Apphud Screens. This is useful since iOS 13 presents in page sheet style by default. 
      
      To get full screen style you should pass `.fullScreen` or `.overFullScreen`.
      */
-    @objc optional func apphudScreenPresentationStyle() -> UIModalPresentationStyle
+    @objc optional func apphudScreenPresentationStyle(controller: UIViewController) -> UIModalPresentationStyle
     
     /**
      Notifies that Apphud Screen is about to dismiss
     */
-    @objc optional func apphudWillDismissScreen()
+    @objc optional func apphudWillDismissScreen(controller: UIViewController)
     
     /**
      Notifies that Apphud Screen did dismiss
     */
-    @objc optional func apphudDidDismissScreen()
+    @objc optional func apphudDidDismissScreen(controller: UIViewController)
 }
 
 /// List of available attribution providers
@@ -73,7 +83,7 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
     case appsFlyer
     
     /**
-     Branch is implemented and doesn't required any additional code from Apphud SDK 
+     Branch is implemented and doesn't require any additional code from Apphud SDK 
      More details: https://docs.apphud.com/integrations/attribution/branch
      
      case branch
@@ -94,15 +104,6 @@ final public class Apphud: NSObject {
     @objc public static func start(apiKey: String, userID: String? = nil) {
         ApphudInternal.shared.initialize(apiKey: apiKey, userID: userID)
     }
-    
-    /**
-    Not yet available to public.
-    */
-    #if DEBUG
-    @objc public static func start(apiKey: String, userID : String? = nil, deviceID : String? = nil) {
-        ApphudInternal.shared.initialize(apiKey: apiKey, userID: userID, deviceIdentifier: deviceID)
-    }
-    #endif
     
     /**
      Updates user ID value 
@@ -128,7 +129,15 @@ final public class Apphud: NSObject {
     @objc public static func setDelegate(_ delegate : ApphudDelegate) {
         ApphudInternal.shared.delegate = delegate
     }
-        
+      
+    /**
+     Set a UI delegate.
+     - parameter delegate: Required. Any ApphudUIDelegate conformable object.
+     */
+    @objc public static func setUIDelegate(_ delegate : ApphudUIDelegate) {
+        ApphudInternal.shared.uiDelegate = delegate
+    }
+    
     //MARK:- Make Purchase
     
     /**
@@ -190,7 +199,7 @@ final public class Apphud: NSObject {
     /**
          __Deprecated__. Just remove this method from your code, because Apphud SDK will automatically intercept and submit receipt after purchase is made. 
      */
-    @available(*, deprecated, message: "You don't need to use this method anymore, because starting now we automatically handle all purchases. This method will be removed soon.")
+    @available(*, deprecated, message: "You don't need to call this method anymore, because starting now we are automatically intercepting all purchases. This method will be removed soon.")
     @objc public static func submitReceipt(_ productIdentifier : String, _ callback : ((ApphudSubscription?, Error?) -> Void)?) {
         ApphudInternal.shared.submitReceipt(productId: productIdentifier, callback: callback)        
     }
@@ -242,6 +251,17 @@ final public class Apphud: NSObject {
         ApphudInternal.shared.restoreSubscriptions(callback: callback)
     }
     
+    //MARK:- Rules & Screens Methods
+    
+    /**
+     Returns `UIViewController` object if you returned `false` in `apphudShouldShowScreen(controller: UIViewcontroller)` method. Present this controller modally.
+     
+     __Note__: Only modal presentation is supported. Behavior for other display methods is unknown.
+     */
+    @objc public static func pendingScreen() -> UIViewController? {
+        return ApphudRulesManager.shared.pendingController
+    }
+    
     //MARK:- Push Notifications
     
     /**
@@ -260,7 +280,7 @@ final public class Apphud: NSObject {
      Returns true if push notification was handled by Apphud.
      */
     @discardableResult @objc public static func handlePushNotification(apsInfo: [AnyHashable : Any]) -> Bool{
-        return ApphudNotificationsHandler.shared.handleNotification(apsInfo)
+        return ApphudRulesManager.shared.handleNotification(apsInfo)
     }
     
     //MARK:- Attribution
@@ -357,4 +377,13 @@ final public class Apphud: NSObject {
     @objc public static func disableIDFACollection(){
         ApphudUtils.shared.optOutOfIDFACollection = true
     }
+    
+    /**
+    Not yet available for public use.
+    */
+    #if DEBUG
+    @objc public static func start(apiKey: String, userID : String? = nil, deviceID : String? = nil) {
+        ApphudInternal.shared.initialize(apiKey: apiKey, userID: userID, deviceIdentifier: deviceID)
+    }
+    #endif
 }

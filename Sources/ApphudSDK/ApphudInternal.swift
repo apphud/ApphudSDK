@@ -19,6 +19,7 @@ final class ApphudInternal {
     
     static let shared = ApphudInternal()
     var delegate : ApphudDelegate?
+    var uiDelegate : ApphudUIDelegate?
     var currentUser : ApphudUser?
     
     var isIntegrationsTestMode = false
@@ -144,7 +145,7 @@ final class ApphudInternal {
     
     @objc private func handleDidBecomeActive(){
         
-        let minCheckInterval :Double = 30
+        let minCheckInterval :Double = 20
         
         if Date().timeIntervalSince(lastCheckDate) >  minCheckInterval{
             self.checkForUnreadNotifications()
@@ -346,6 +347,8 @@ final class ApphudInternal {
         httpClient.startRequest(path: "products", params: params, method: .put, callback: callback)        
     }    
     
+    //MARK:- Main Purchase and Submit Receipt methods
+    
     internal func restoreSubscriptions(callback: @escaping ([ApphudSubscription]?) -> Void) {
         self.restoreSubscriptionCallback = callback
         self.submitReceiptRestore(allowsReceiptRefresh: true)
@@ -502,9 +505,24 @@ final class ApphudInternal {
     }
     
     private func subscription(productId: String) -> ApphudSubscription? {
+        
+        // 1. try to find subscription by product id
         var subscription = Apphud.subscriptions()?.first(where: {$0.productId == productId})
+        
+        // 2. try to find subscription by SKProduct's subscriptionGroupIdentifier
+        if subscription == nil, #available(iOS 12.2, *){
+            let targetProduct = ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == productId})
+            for sub in Apphud.subscriptions() ?? [] {
+                if let product = ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == sub.productId}),
+                targetProduct?.subscriptionGroupIdentifier == product.subscriptionGroupIdentifier {
+                    subscription = sub
+                    break
+                }
+            }
+        }
+        
+        // 3. Try to find subscription by groupID provided in Apphud project settings
         if subscription == nil, let groupID = self.productsGroupsMap?[productId] {
-            #warning("IMPROVE THIS BY CHECKING IOS SDK subscription group identifier also")
             subscription = Apphud.subscriptions()?.first(where: { self.productsGroupsMap?[$0.productId] == groupID})
         }
         
@@ -535,7 +553,7 @@ final class ApphudInternal {
         }
     }
     
-    /// Promo offers eligibility
+    //MARK:- Eligibilities API
     
     @available(iOS 12.2, *)
     internal func checkEligibilitiesForPromotionalOffers(products: [SKProduct], callback: @escaping ApphudEligibilityCallback){
@@ -678,6 +696,8 @@ final class ApphudInternal {
         }
     }
     
+    //MARK:- Push Notifications API
+    
     internal func submitPushNotificationsToken(token: Data, callback: ApphudBoolCallback?){
         performWhenUserRegistered {
             let tokenString = token.map { String(format: "%02.2hhx", $0) }.joined()
@@ -690,11 +710,12 @@ final class ApphudInternal {
     
     //MARK:- V2 API
     
-    internal func trackRuleEvent(ruleID: String, params: [String : AnyHashable], callback: @escaping ()->Void){
+    internal func trackEvent(params: [String : AnyHashable], callback: @escaping ()->Void){
         
         let result = performWhenUserRegistered {
             let final_params : [String : AnyHashable] = ["device_id" : self.currentDeviceID].merging(params, uniquingKeysWith: {(current,_) in current})
-            self.httpClient.startRequest(path: "rules/\(ruleID)/events", apiVersion: .v2, params: final_params, method: .post) { (result, response, error) in
+            
+            self.httpClient.startRequest(path: "events", apiVersion: .v2, params: final_params, method: .post) { (result, response, error) in
                 callback()
             }            
         }
@@ -730,7 +751,7 @@ final class ApphudInternal {
                 if result, let dataDict = response?["data"] as? [String : Any], let notifArray = dataDict["results"] as? [[String : Any]], let ruleDict = notifArray.first?["rule"] as? [String : Any] {
                         
                     let rule = ApphudRule(dictionary: ruleDict)
-                    ApphudNotificationsHandler.shared.handleRule(rule: rule)
+                    ApphudRulesManager.shared.handleRule(rule: rule)
                 }
             })
         }

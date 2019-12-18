@@ -37,11 +37,7 @@ class ViewController: UITableViewController{
     }
     
     @objc func restore(){
-        
-        #warning("REMOVE THIS")
-        ApphudNotificationsHandler.shared.handleRule(ruleID: "0f67e22a-2367-4191-87e1-bfde466d3e40")
-        
-//        Apphud.restoreSubscriptions { subscriptions in self.reload()}
+        Apphud.restoreSubscriptions { subscriptions in self.reload()}
     }
     
     @objc func reload(){
