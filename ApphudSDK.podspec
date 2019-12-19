@@ -11,6 +11,6 @@ Pod::Spec.new do |s|
   s.frameworks = 'StoreKit'
   s.ios.deployment_target = '11.2'
   s.swift_version = '4.2'
-  s.source_files = 'Source/*'
+  s.source_files = 'Sources/**/*.swift'
 
 end
