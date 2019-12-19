@@ -84,6 +84,7 @@ class ApphudScreenController: UIViewController{
         self.webView.alpha = 0
         
         ApphudHttpClient.shared.loadScreenHtmlData(screenID: self.screenID) { (html) in
+            
             let date = Date().timeIntervalSince(self.start)
             apphudLog("data loaded exec time: \(date)")
             if let html = html {
@@ -140,6 +141,7 @@ class ApphudScreenController: UIViewController{
         apphudLog("Could not show screen with error: \(error)", forceDisplay: true)
         self.loadedCallback?(false)
         self.loadedCallback = nil
+        self.dismiss()
     }
     
     private func getScreenInfo(){
