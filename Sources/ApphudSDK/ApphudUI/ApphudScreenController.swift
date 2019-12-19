@@ -162,7 +162,38 @@ class ApphudScreenController: UIViewController{
     }
 
     private func preloadSurveyAnswerPages(){
-        #warning("IMPLEMENT THIS")
+        let js = """
+                        function getScreenIds(){
+                            var elems = [];
+                            for (let elem of document.links){
+                               if (elem.href.includes('/screen')){
+                                    elems.push(elem.href);
+                               }
+                            }
+                            return elems;
+                        }
+                        getScreenIds();
+                """
+        
+        var screen_ids = [String]()
+        
+        self.webView.evaluateJavaScript(js) { (result, error) in
+            if let array = result as? [String] {
+                for urlString in array {
+                    let urlComps = URLComponents(string: urlString)
+                    if let screen_id = urlComps?.queryItems?.first(where: { $0.name == "id" })?.value {
+                        screen_ids.append(screen_id)
+                    }
+                    
+                }
+            }
+            
+            if let nc = self.navigationController as? ApphudNavigationController {
+                nc.preloadScreens(screenIDS: screen_ids, rule: self.rule)
+            }
+        }
+        
+        
     }
     
     private func updateBackgroundColor(){
