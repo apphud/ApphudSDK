@@ -93,12 +93,14 @@ public class ApphudSubscription : NSObject{
      */
     @objc public let isIntroductoryActivated : Bool
     
+    @objc internal let id : String
     
     // MARK:- Private methods
     
     /// Subscription private initializer
     init?(dictionary : [String : Any]) {
         guard let expDate = ApphudSubscription.dateFrom(dictionary["expires_at"]) else {return nil}
+        id = dictionary["id"] as? String ?? ""
         expiresDate = expDate
         productId = dictionary["product_id"] as? String ?? ""  
         canceledAt = ApphudSubscription.dateFrom(dictionary["cancelled_at"])

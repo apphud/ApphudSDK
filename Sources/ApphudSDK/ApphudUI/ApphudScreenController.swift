@@ -174,26 +174,20 @@ class ApphudScreenController: UIViewController{
                         }
                         getScreenIds();
                 """
-        
-        var screen_ids = [String]()
+        var screenIDS = [String]()
         
         self.webView.evaluateJavaScript(js) { (result, error) in
             if let array = result as? [String] {
-                for urlString in array {
-                    let urlComps = URLComponents(string: urlString)
-                    if let screen_id = urlComps?.queryItems?.first(where: { $0.name == "id" })?.value {
-                        screen_ids.append(screen_id)
-                    }
-                    
+                for url in array {
+                    if let comps = URLComponents(string: url), let id = comps.queryItems?.first(where: { $0.name == "id" })?.value {
+                        screenIDS.append(id)
+                    } 
                 }
             }
-            
             if let nc = self.navigationController as? ApphudNavigationController {
-                nc.preloadScreens(screenIDS: screen_ids, rule: self.rule)
+                nc.preloadScreens(screenIDS: screenIDS, rule: self.rule)
             }
         }
-        
-        
     }
     
     private func updateBackgroundColor(){
@@ -602,6 +596,10 @@ extension ApphudScreenController {
             
             if let trx = transaction, trx.transactionState == .purchased, let transaction_id = trx.transactionIdentifier {
                 properties["transaction_id"] = transaction_id
+            }
+            
+            if let id = subscription?.id, id.count > 0 {
+                properties["subscription_id"] = id
             }
             
             params["properties"] = properties
