@@ -55,6 +55,7 @@ internal class ApphudRulesManager {
     internal func handleRule(rule: ApphudRule) {
         
         guard !alreadyDisplayed() else { return }
+        guard rule.screen_id.count > 0 else { return }
         
         let controller = ApphudScreenController(rule: rule, screenID: rule.screen_id) {_ in}
         controller.loadScreenPage()
