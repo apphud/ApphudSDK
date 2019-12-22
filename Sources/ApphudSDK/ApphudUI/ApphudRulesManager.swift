@@ -48,13 +48,9 @@ internal class ApphudRulesManager {
         }
     }
     
-    internal func alreadyDisplayed() -> Bool {
-        return apphudVisibleViewController() is ApphudNavigationController
-    }
-    
     internal func handleRule(rule: ApphudRule) {
         
-        guard !alreadyDisplayed() else { return }
+        guard self.pendingController == nil else { return }
         guard rule.screen_id.count > 0 else { return }
         
         let controller = ApphudScreenController(rule: rule, screenID: rule.screen_id) {_ in}
@@ -62,15 +58,14 @@ internal class ApphudRulesManager {
         
         let nc = ApphudNavigationController(rootViewController: controller)
         nc.setNavigationBarHidden(true, animated: false)
+        self.pendingController = nc
         
         if ApphudInternal.shared.uiDelegate?.apphudShouldShowScreen?(controller: nc) ?? true {
-            self.pendingController = nil
             if let style = ApphudInternal.shared.uiDelegate?.apphudScreenPresentationStyle?(controller: nc){
                  nc.modalPresentationStyle = style
             }
-            apphudVisibleViewController()?.present(nc, animated: true, completion: nil) 
-        } else {
-            self.pendingController = nc
+            let parent = ApphudInternal.shared.uiDelegate?.apphudParentViewController?(controller: nc) ?? apphudVisibleViewController()
+            parent?.present(nc, animated: true, completion: nil) 
         }
     }
 }

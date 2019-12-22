@@ -61,6 +61,13 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
     @objc optional func apphudShouldShowScreen(controller: UIViewController) -> Bool
     
     /**
+        Return `UIViewController` instance from which you want to present given Apphud controller. If you don't implement this method, then top visible viewcontroller from key window will be used.
+     
+        __Note__: This delegate method is recommended for implementation when you have multiple windows in your app, because Apphud SDK may have issues while presenting screens in this case. 
+     */
+    @objc optional func apphudParentViewController(controller: UIViewController) -> UIViewController
+    
+    /**
      Pass your own modal presentation style to Apphud Screens. This is useful since iOS 13 presents in page sheet style by default. 
      
      To get full screen style you should pass `.fullScreen` or `.overFullScreen`.
