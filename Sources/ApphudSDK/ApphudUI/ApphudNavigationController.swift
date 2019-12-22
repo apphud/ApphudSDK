@@ -11,12 +11,25 @@ import StoreKit
 
 internal class ApphudNavigationController: UINavigationController {
     
+    deinit {
+        apphudLog("Deinit ApphudNavigationController")
+    }
+    
     private var pendingScreens = [ApphudScreenController]()
     
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask{
         get {
             return .portrait
         }
+    }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        self.presentationController?.delegate = self
+    }
+    
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
     }
     
     func pushScreenController(screenID: String, rule: ApphudRule){
@@ -42,4 +55,17 @@ internal class ApphudNavigationController: UINavigationController {
     func pendingScreenController(screenID: String) -> ApphudScreenController? {
         return pendingScreens.first(where: {$0.screenID == screenID})
     }
+    
+    func handleDidDismiss(){
+        ApphudInternal.shared.uiDelegate?.apphudDidDismissScreen?(controller: self)
+        ApphudRulesManager.shared.pendingController = nil
+    }
+}
+
+extension ApphudNavigationController: UIAdaptivePresentationControllerDelegate {
+    
+    func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+        handleDidDismiss()
+    }
+    
 }

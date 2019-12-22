@@ -16,12 +16,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     
     var window: UIWindow?
     
+    var canShowApphudScreen = true
+    
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         
-        
-        Apphud.enableDebugLogs()     
+        Apphud.enableDebugLogs()    
+        Apphud.setUIDelegate(self)
+        canShowApphudScreen = false
         ApphudHttpClient.shared.domain_url_string = "https://api.bitcolio.com"
         Apphud.start(apiKey: "app_MDn9JRkSZzLMHtsFzWJXrscF7tZnis", userID: "renat_98.2", deviceID: "device_98.2")
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 13) { 
+            self.canShowApphudScreen = true
+            Apphud.showPendingScreen()
+        }
         
 //        Apphud.start(apiKey: "YOUR_SDK_TOKEN")
                 
@@ -55,4 +63,24 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         Apphud.handlePushNotification(apsInfo: notification.request.content.userInfo)
         completionHandler([])
     }
+}
+
+extension AppDelegate : ApphudUIDelegate {
+    
+    func apphudShouldShowScreen(controller: UIViewController) -> Bool {
+        return canShowApphudScreen
+    }
+    
+    func apphudScreenPresentationStyle(controller: UIViewController) -> UIModalPresentationStyle {
+        
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            return .pageSheet
+        } else {
+            return .overFullScreen
+        }
+    }
+    
+    func apphudDidDismissScreen(controller: UIViewController) {
+        print("did dismiss screen")
+    }    
 }

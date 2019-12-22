@@ -75,11 +75,6 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
     @objc optional func apphudScreenPresentationStyle(controller: UIViewController) -> UIModalPresentationStyle
     
     /**
-     Notifies that Apphud Screen is about to dismiss
-    */
-    @objc optional func apphudWillDismissScreen(controller: UIViewController)
-    
-    /**
      Notifies that Apphud Screen did dismiss
     */
     @objc optional func apphudDidDismissScreen(controller: UIViewController)

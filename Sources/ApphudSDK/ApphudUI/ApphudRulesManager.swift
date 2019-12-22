@@ -67,7 +67,7 @@ internal class ApphudRulesManager {
     
     internal func showPendingScreen(){
         
-        guard self.pendingController == nil else { return }
+        guard self.pendingController != nil else { return }
         
         if let style = ApphudInternal.shared.uiDelegate?.apphudScreenPresentationStyle?(controller: pendingController!){
              pendingController!.modalPresentationStyle = style

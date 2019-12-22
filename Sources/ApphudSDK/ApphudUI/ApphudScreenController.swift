@@ -57,6 +57,8 @@ class ApphudScreenController: UIViewController{
     private var loadedCallback: ((Bool) -> Void)?
     private var originalHTML: String?
     private var macrosesMap = [[String : String]]()
+    private var didAppear = false
+    private var handledDidAppearAndDidLoadScreen = false
     
     private lazy var loadingIndicator: UIActivityIndicatorView = {
         let loading = UIActivityIndicatorView(style: .gray)
@@ -94,7 +96,6 @@ class ApphudScreenController: UIViewController{
                 let error = ApphudError.error(message: "html is nil for rule id: \(self.rule.id), screen id: \(self.screenID)")
                 self.failed(error)
             }
-            
         }        
     }
     
@@ -111,6 +112,8 @@ class ApphudScreenController: UIViewController{
     //MARK:- Private
     
     deinit {
+        apphudLog("Deinit ApphudScreenController(\(screenID))")
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(failedByTimeOut), object: nil)
         NotificationCenter.default.removeObserver(self)
     }
     
@@ -125,10 +128,25 @@ class ApphudScreenController: UIViewController{
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(true)
+        didAppear = true
         if error != nil {
             apphudLog("Closing screen due to fatal error: \(error!) rule ID: \(self.rule.id) screen ID: \(self.screenID)", forceDisplay: true)
             dismiss()
+        } else if self.webView.tag == 1 {
+            handleDidAppearAndDidLoadScreen()
         }
+    }
+    
+    private func handleDidAppearAndDidLoadScreen(){
+        
+        if handledDidAppearAndDidLoadScreen {return}
+        handledDidAppearAndDidLoadScreen = true
+        
+        apphudLog("Screen is appeared: \(self.screenID)")
+        
+        self.getScreenInfo()
+        self.preloadSurveyAnswerPages()
+        self.handleScreenPresented()
     }
     
     @objc private func failedByTimeOut(){
@@ -179,7 +197,7 @@ class ApphudScreenController: UIViewController{
         self.webView.evaluateJavaScript(js) { (result, error) in
             if let array = result as? [String] {
                 for url in array {
-                    if let comps = URLComponents(string: url), let id = comps.queryItems?.first(where: { $0.name == "id" })?.value {
+                    if let comps = URLComponents(string: url), let id = comps.queryItems?.first(where: { $0.name == "id" })?.value, !screenIDS.contains(id) {
                         screenIDS.append(id)
                     } 
                 }
@@ -331,18 +349,20 @@ class ApphudScreenController: UIViewController{
     
     //MARK:- Actions
     
-    func makeVisible(){
+    func handleScreenDidLoad(){
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(failedByTimeOut), object: nil)
         
-        self.webView.alpha = 1
-        let date = Date().timeIntervalSince(self.start)
+        webView.alpha = 1
+        let date = Date().timeIntervalSince(start)
         apphudLog("final exec time: \(date)")
-        self.getScreenInfo()
-        self.preloadSurveyAnswerPages()
-        self.handleScreenPresented()
-        self.stopLoading()
-        self.loadedCallback?(true)
-        self.loadedCallback = nil
+        
+        if didAppear {
+            handleDidAppearAndDidLoadScreen()
+        }
+        
+        stopLoading()
+        loadedCallback?(true)
+        loadedCallback = nil
     }
     
     private func purchaseProduct(productID: String?, offerID: String?) {
@@ -388,17 +408,19 @@ class ApphudScreenController: UIViewController{
                 
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(failedByTimeOut), object: nil)
         
+        if !didAppear {return}
+        
         let supportBackNavigation = false
         
         let presentedVC = (self.navigationController ?? self)
-        
+
         if let nc = navigationController, nc.viewControllers.count > 1 && supportBackNavigation {
             nc.popViewController(animated: true)
         } else {
-            ApphudInternal.shared.uiDelegate?.apphudWillDismissScreen?(controller: presentedVC)
-            presentedVC.dismiss(animated: true) { 
-                ApphudInternal.shared.uiDelegate?.apphudDidDismissScreen?(controller: presentedVC)
-                ApphudRulesManager.shared.pendingController = nil
+            presentedVC.dismiss(animated: true) {
+                if let nc = presentedVC as? ApphudNavigationController {
+                    nc.handleDidDismiss()
+                }
             }
         }
     }
@@ -458,7 +480,7 @@ extension ApphudScreenController : WKNavigationDelegate {
     
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         if webView.tag == 1 {
-            makeVisible()
+            handleScreenDidLoad()
         }
     }
     

@@ -21,7 +21,6 @@ class ViewController: UITableViewController{
         
         // In this example we set delegate to ViewController to reload tableview when changes come
         Apphud.setDelegate(self)
-        Apphud.setUIDelegate(self)
         reload()
         navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Restore transactions", style: .done, target: self, action: #selector(restore))        
     }
@@ -158,24 +157,5 @@ extension ViewController : ApphudDelegate {
     func apphudSubscriptionsUpdated(_ subscriptions: [ApphudSubscription]) {
         self.reload()
         print("apphudSubscriptionsUpdated")
-    }
-}
-
-extension ViewController : ApphudUIDelegate {
-    func apphudScreenPresentationStyle(controller: UIViewController) -> UIModalPresentationStyle {
-        
-        if UIDevice.current.userInterfaceIdiom == .pad {
-            return .pageSheet
-        } else {
-            return .overFullScreen
-        }
-    }
-    
-    func apphudWillDismissScreen() {
-        print("apphudWillDismissScreen")
-    }
-    
-    func apphudDidDismissScreen() {
-        print("apphudDidDismissScreen")
     }
 }
