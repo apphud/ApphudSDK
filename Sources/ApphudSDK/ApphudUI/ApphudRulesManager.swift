@@ -61,11 +61,18 @@ internal class ApphudRulesManager {
         self.pendingController = nc
         
         if ApphudInternal.shared.uiDelegate?.apphudShouldShowScreen?(controller: nc) ?? true {
-            if let style = ApphudInternal.shared.uiDelegate?.apphudScreenPresentationStyle?(controller: nc){
-                 nc.modalPresentationStyle = style
-            }
-            let parent = ApphudInternal.shared.uiDelegate?.apphudParentViewController?(controller: nc) ?? apphudVisibleViewController()
-            parent?.present(nc, animated: true, completion: nil) 
+             showPendingScreen()
         }
+    }
+    
+    internal func showPendingScreen(){
+        
+        guard self.pendingController == nil else { return }
+        
+        if let style = ApphudInternal.shared.uiDelegate?.apphudScreenPresentationStyle?(controller: pendingController!){
+             pendingController!.modalPresentationStyle = style
+        }
+        let parent = ApphudInternal.shared.uiDelegate?.apphudParentViewController?(controller: pendingController!) ?? apphudVisibleViewController()
+        parent?.present(pendingController!, animated: true, completion: nil)
     }
 }

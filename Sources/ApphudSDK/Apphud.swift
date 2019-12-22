@@ -261,12 +261,10 @@ final public class Apphud: NSObject {
     //MARK:- Rules & Screens Methods
     
     /**
-     Returns `UIViewController` object if you returned `false` in `apphudShouldShowScreen(controller: UIViewcontroller)` method. Present this controller modally.
-     
-     __Note__: Only modal presentation is supported. Behavior for other display methods is unknown.
+     Presents Apphud screen that was delayed for presentation in `apphudShouldShowScreen` delegate method.
      */
-    @objc public static func pendingScreen() -> UIViewController? {
-        return ApphudRulesManager.shared.pendingController
+    @objc public static func showPendingScreen() {
+        return ApphudRulesManager.shared.showPendingScreen()
     }
     
     //MARK:- Push Notifications
