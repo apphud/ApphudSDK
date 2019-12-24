@@ -33,7 +33,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 //        }
         
 //        Apphud.start(apiKey: "YOUR_SDK_TOKEN")
-    
+        
         registerForNotifications()
         
         return true

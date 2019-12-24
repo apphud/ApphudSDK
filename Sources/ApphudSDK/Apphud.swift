@@ -218,7 +218,7 @@ final public class Apphud: NSObject {
     /**
          __Deprecated__. Just remove this method from your code, because Apphud SDK will automatically intercept and submit receipt after purchase is made. 
      */
-    @available(*, deprecated, message: "You don't need to call this method anymore, because starting now we are automatically intercepting all purchases. This method will be removed soon.")
+    @available(*, deprecated, message: "Starting now we intercept all your in-app purchases and automatically submit App Store receipts to Apphud. You can safely remove this method from your code.")
     @objc public static func submitReceipt(_ productIdentifier : String, _ callback : ((ApphudSubscription?, Error?) -> Void)?) {
         ApphudInternal.shared.submitReceipt(productId: productIdentifier, callback: callback)        
     }
@@ -270,10 +270,33 @@ final public class Apphud: NSObject {
         ApphudInternal.shared.restoreSubscriptions(callback: callback)
     }
     
+    /**
+     If you already have a live app with paying users and you want Apphud to track their subscriptions, you should import their App Store receipts into Apphud. Call this method at launch of your app for your paying users. This method should be used only to migrate existing paying users that are not yet tracked by Apphud.
+     
+     Example:
+     
+        ````
+        // hasPurchases - is your own boolean value indicating that current user is paying user.
+        if hasPurchases {
+            Apphud.migrateSubscriptionsIfNeeded {_ in}
+        }
+        ````
+     
+    __Note__: You can remove this method after a some period of time, i.e. when you are sure that all paying users are already synced with Apphud.
+     */
+    @objc public static func migrateSubscriptionsIfNeeded(callback: @escaping ([ApphudSubscription]?) -> Void) {
+        if !apphudIsMigrated() {
+            ApphudInternal.shared.restoreSubscriptions { subscriptions in
+                apphudDidMigrate()
+                callback(subscriptions)
+            }
+        } 
+    }
+    
     //MARK:- Rules & Screens Methods
     
     /**
-     Presents Apphud screen that was delayed for presentation in `apphudShouldShowScreen` delegate method.
+     Presents Apphud screen that was delayed for presentation, i.e. `false` was returned in `apphudShouldShowScreen` delegate method.
      */
     @objc public static func showPendingScreen() {
         return ApphudRulesManager.shared.showPendingScreen()
