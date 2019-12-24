@@ -23,15 +23,20 @@ internal class ApphudRulesManager {
         guard let rule_id = apsInfo["rule_id"] as? String else {
             return false
         }
+                
         guard !handledRules.contains(rule_id) else {
             return true
         }
         
         apphudLog("handle APS: \(apsInfo as AnyObject)")
         
-        handledRules.append(rule_id)
-        handleRule(ruleID: rule_id)
+        ApphudInternal.shared.trackEvent(params: ["rule_id" : rule_id, "name" : "$push_opened"]) {}
         
+        if let screen_id = apsInfo["screen_id"] as? String {
+            handleRule(ruleID: rule_id, screenID: screen_id)            
+        }
+        
+        handledRules.append(rule_id)
         // allow handling the same push notification rule after 5 seconds. This is needed for testing rules from Apphud dashboard
         DispatchQueue.main.asyncAfter(deadline: .now() + 5) { 
             self.handledRules.removeAll()
@@ -40,12 +45,10 @@ internal class ApphudRulesManager {
         return true    
     }
     
-    internal func handleRule(ruleID: String){
-        ApphudInternal.shared.getRule(ruleID: ruleID) { rule in
-            if rule != nil {
-                self.handleRule(rule: rule!)
-            }
-        }
+    internal func handleRule(ruleID: String, screenID: String){
+        let dict = ["id" : ruleID, "screen_id" : screenID]
+        let rule = ApphudRule(dictionary: dict)
+        self.handleRule(rule: rule)
     }
     
     internal func handleRule(rule: ApphudRule) {

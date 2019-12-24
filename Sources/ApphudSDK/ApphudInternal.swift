@@ -145,7 +145,7 @@ final class ApphudInternal {
     
     @objc private func handleDidBecomeActive(){
         
-        let minCheckInterval :Double = 20
+        let minCheckInterval :Double = 30
         
         if Date().timeIntervalSince(lastCheckDate) >  minCheckInterval{
             self.checkForUnreadNotifications()
@@ -714,10 +714,9 @@ final class ApphudInternal {
         
         let result = performWhenUserRegistered {
             let final_params : [String : AnyHashable] = ["device_id" : self.currentDeviceID].merging(params, uniquingKeysWith: {(current,_) in current})
-            
             self.httpClient.startRequest(path: "events", apiVersion: .v2, params: final_params, method: .post) { (result, response, error) in
                 callback()
-            }            
+            }
         }
         if !result {
             apphudLog("Tried to trackRuleEvent, but user not yet registered, adding to schedule")
@@ -748,11 +747,18 @@ final class ApphudInternal {
             let params = ["device_id": self.currentDeviceID] as [String : String]
             self.httpClient.startRequest(path: "notifications", apiVersion: .v2, params: params, method: .get, callback: { (result, response, error) in
                 
-                if result, let dataDict = response?["data"] as? [String : Any], let notifArray = dataDict["results"] as? [[String : Any]], let ruleDict = notifArray.first?["rule"] as? [String : Any] {
-                        
+                if result, let dataDict = response?["data"] as? [String : Any], let notifArray = dataDict["results"] as? [[String : Any]], let notifDict = notifArray.first, let ruleDict = notifDict["rule"] as? [String : Any] {
                     let rule = ApphudRule(dictionary: ruleDict)
                     ApphudRulesManager.shared.handleRule(rule: rule)
                 }
+            })
+        }
+    }
+    
+    internal func readAllNotifications(for ruleID: String){
+        performWhenUserRegistered {
+            let params = ["device_id": self.currentDeviceID, "rule_id": ruleID] as [String : String]
+            self.httpClient.startRequest(path: "notifications/read", apiVersion: .v2, params: params, method: .post, callback: { (result, response, error) in
             })
         }
     }

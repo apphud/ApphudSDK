@@ -73,6 +73,23 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
      To get full screen style you should pass `.fullScreen` or `.overFullScreen`.
      */
     @objc optional func apphudScreenPresentationStyle(controller: UIViewController) -> UIModalPresentationStyle
+
+    /**
+     Called when user tapped on purchase button in Apphud purchase screen.
+    */
+    @objc optional func apphudWillPurchase(product: SKProduct, offerID: String?)
+    
+    /**
+     Called when user successfully purchased product in Apphud purchase screen.
+    */
+    @objc optional func apphudDidPurchase(product: SKProduct, offerID: String?)
+    
+    /**
+     Called when purchase failed in Apphud purchase screen.
+     
+     See error code for details. For example, `.paymentCancelled` error code is when user canceled the purchase by himself.
+    */
+    @objc optional func apphudDidFailPurchase(product: SKProduct, offerID: String?, errorCode: SKError.Code)
     
     /**
      Notifies that Apphud Screen did dismiss

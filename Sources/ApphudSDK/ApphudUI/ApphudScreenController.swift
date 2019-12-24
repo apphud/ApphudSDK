@@ -147,6 +147,7 @@ class ApphudScreenController: UIViewController{
         self.getScreenInfo()
         self.preloadSurveyAnswerPages()
         self.handleScreenPresented()
+        self.handleReadNotificationsOnce()
     }
     
     @objc private func failedByTimeOut(){
@@ -380,6 +381,8 @@ class ApphudScreenController: UIViewController{
                 isPurchasing = true
                 self.startLoading()
                 
+                ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(product: product, offerID: offerID!)
+                
                 ApphudInternal.shared.purchasePromo(product: product, discountID: offerID!) { (subscription, transaction, error) in
                     self.handlePurchaseResult(product: product, offerID: offerID!, subscription: subscription, transaction: transaction, error: error)                    
                 }
@@ -393,6 +396,8 @@ class ApphudScreenController: UIViewController{
             if isPurchasing {return}
             isPurchasing = true
             self.startLoading()
+            
+            ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(product: product, offerID: nil)
             
             ApphudInternal.shared.purchase(product: product) { (subscription, transaction, error) in
                 self.handlePurchaseResult(product: product, subscription: subscription, transaction: transaction, error: error)
@@ -569,6 +574,13 @@ extension ApphudScreenController {
         }
     }
     
+    private func handleReadNotificationsOnce(){
+        // perform only for initial screen in view controllers stack
+        if self == navigationController?.viewControllers.first {
+            ApphudInternal.shared.readAllNotifications(for: self.rule.id)
+        }
+    }
+    
     private func handleScreenPresented(){
         ApphudInternal.shared.trackEvent(params: ["rule_id" : self.rule.id, "screen_id" : self.screenID, "name" : "$screen_presented"]) {}
     }
@@ -593,15 +605,16 @@ extension ApphudScreenController {
     
     private func handlePurchaseResult(product: SKProduct, offerID: String? = nil, subscription: ApphudSubscription?, transaction: SKPaymentTransaction?, error: Error?) {
             
-        var userCancelled = false
-        if let skError = error as? SKError, skError.code == .paymentCancelled {
-            userCancelled = true
+        var errorCode : SKError.Code = .unknown
+        
+        if let skError = error as? SKError {
+            errorCode = skError.code
         }
         
         let isActive = subscription?.isActive() ?? false
         let productIDChanged = subscription?.productId != product.productIdentifier
         
-        let shouldSubmitPurchaseEvent = error == nil || (isActive && !userCancelled && (offerID != nil || productIDChanged))
+        let shouldSubmitPurchaseEvent = error == nil || (isActive && !(errorCode == .paymentCancelled) && (offerID != nil || productIDChanged))
         
         if shouldSubmitPurchaseEvent {
             
@@ -628,14 +641,19 @@ extension ApphudScreenController {
             
             ApphudInternal.shared.trackEvent(params: params) {}
             
+            ApphudInternal.shared.uiDelegate?.apphudDidPurchase?(product: product, offerID: offerID)
+            
             self.dismiss() // dismiss only when purchase is successful
             
-        } else if userCancelled {
-            apphudLog("User canceled purchase", forceDisplay: true)
-        } else {
+        } else {            
             apphudLog("Couldn't purchase with error:\(error?.localizedDescription ?? "")", forceDisplay: true)
             // if error occurred, restore subscriptions
-            Apphud.restoreSubscriptions { subscriptions in }
+            if !(errorCode == .paymentCancelled) {
+                // maybe remove?
+                Apphud.restoreSubscriptions { subscriptions in }
+            }
+            
+            ApphudInternal.shared.uiDelegate?.apphudDidFailPurchase?(product: product, offerID: offerID, errorCode: errorCode)
         }
     }
     
