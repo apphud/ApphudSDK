@@ -15,13 +15,11 @@ public typealias BoolCallback = (Bool) -> Void
 class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     
     var window: UIWindow?
-    
-    var canShowApphudScreen = true
-    
+
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         
+        #warning("REMOVE THIS")
         Apphud.enableDebugLogs()    
-        Apphud.setUIDelegate(self)
 //        canShowApphudScreen = false
         ApphudHttpClient.shared.domain_url_string = "https://api.bitcolio.com"
         
@@ -64,24 +62,4 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         Apphud.handlePushNotification(apsInfo: notification.request.content.userInfo)
         completionHandler([])
     }
-}
-
-extension AppDelegate : ApphudUIDelegate {
-    
-    func apphudShouldShowScreen(controller: UIViewController) -> Bool {
-        return canShowApphudScreen
-    }
-    
-    func apphudScreenPresentationStyle(controller: UIViewController) -> UIModalPresentationStyle {
-        
-        if UIDevice.current.userInterfaceIdiom == .pad {
-            return .pageSheet
-        } else {
-            return .overFullScreen
-        }
-    }
-    
-    func apphudDidDismissScreen(controller: UIViewController) {
-        print("did dismiss screen")
-    }    
 }

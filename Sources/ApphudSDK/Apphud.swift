@@ -216,9 +216,9 @@ final public class Apphud: NSObject {
     }
     
     /**
-         __Deprecated__. Just remove this method from your code, because Apphud SDK will automatically intercept and submit receipt after purchase is made. 
+         __Deprecated__. Starting now Apphud SDK automatically tracks all your in-app purchases and submits App Store receipt to Apphud. You can safely remove this method from your code. If you were using callback, you can use `apphudSubscriptionsUpdated` delegate method instead.
      */
-    @available(*, deprecated, message: "Starting now we intercept all your in-app purchases and automatically submit App Store receipts to Apphud. You can safely remove this method from your code.")
+    @available(*, deprecated, message: "Starting now Apphud SDK automatically tracks all your in-app purchases and submits App Store receipt to Apphud. You can safely remove this method from your code. If you were using callback, you can use `apphudSubscriptionsUpdated` delegate method instead.")
     @objc public static func submitReceipt(_ productIdentifier : String, _ callback : ((ApphudSubscription?, Error?) -> Void)?) {
         ApphudInternal.shared.submitReceipt(productId: productIdentifier, callback: callback)        
     }

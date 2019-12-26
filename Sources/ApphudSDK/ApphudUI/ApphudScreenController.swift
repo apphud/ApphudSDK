@@ -440,8 +440,11 @@ class ApphudScreenController: UIViewController{
         }
     }
     
-    private func thankForFeedbackAndClose(){
-        let alertController = UIAlertController(title: "Thank you for feedback!", message: "Feedback sent", preferredStyle: .alert)
+    private func thankForFeedbackAndClose(isSurvey: Bool){
+        
+        let message = isSurvey ? "Answer sent" : "Feedback sent"
+        
+        let alertController = UIAlertController(title: "Thank you for feedback!", message: message, preferredStyle: .alert)
         alertController.addAction(UIAlertAction(title: "OK", style: .default, handler: { (action) in
             self.dismiss()
         }))
@@ -528,9 +531,10 @@ extension ApphudScreenController {
             case "restore":
                 restoreTapped()
             case "dismiss":
-                closeTapped()
                 if isSurveyAnswer(urlComps: urlComps) {
-                    handleSurveyAnswer(urlComps: urlComps)
+                    handleSurveyAnswer(urlComps: urlComps, answerAndDismiss: true)
+                } else {        
+                    closeTapped()
                 }
             case "post_feedback":
                 handlePostFeedbackTapped(urlComps: urlComps)
@@ -547,7 +551,7 @@ extension ApphudScreenController {
         guard let screen_id = urlComps.queryItems?.first(where: { $0.name == "id" })?.value else {return}
         
         if isSurveyAnswer(urlComps: urlComps) {
-            handleSurveyAnswer(urlComps: urlComps)
+            handleSurveyAnswer(urlComps: urlComps, answerAndDismiss: false)
         }
         
         guard let nc = navigationController as? ApphudNavigationController else {return}
@@ -585,13 +589,17 @@ extension ApphudScreenController {
         ApphudInternal.shared.trackEvent(params: ["rule_id" : self.rule.id, "screen_id" : self.screenID, "name" : "$screen_presented"]) {}
     }
     
-    private func handleSurveyAnswer(urlComps: URLComponents){
+    private func handleSurveyAnswer(urlComps: URLComponents, answerAndDismiss: Bool){
         
         let question = urlComps.queryItems?.first(where: { $0.name == "question" })?.value
         let answer = urlComps.queryItems?.first(where: { $0.name == "answer" })?.value
         
         if question != nil && answer != nil {
             ApphudInternal.shared.trackEvent(params: ["rule_id" : self.rule.id, "screen_id" : self.screenID, "name" : "$survey_answer", "properties" : ["question" : question!, "answer" : answer!]]) {}            
+        }
+        
+        if answerAndDismiss {
+            thankForFeedbackAndClose(isSurvey: true)
         }
     }
     
@@ -664,7 +672,7 @@ extension ApphudScreenController {
             if let text = result as? String, text.count > 0, let question = urlComps.queryItems?.first(where: { $0.name == "question" })?.value {   
                 
                 ApphudInternal.shared.trackEvent(params: ["rule_id" : self.rule.id, "screen_id" : self.screenID, "name" : "$feedback", "properties" : ["question" : question, "answer" : text]]) { 
-                    self.thankForFeedbackAndClose()
+                    self.thankForFeedbackAndClose(isSurvey: false)
                 }
                 
             } else {

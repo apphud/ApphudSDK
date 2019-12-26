@@ -15,12 +15,15 @@ class ViewController: UITableViewController{
     
     var introductoryEligibility = [String : Bool]()
     var promoOffersEligibility = [String : Bool]()
-
+    var canShowApphudScreen = true
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
         // In this example we set delegate to ViewController to reload tableview when changes come
         Apphud.setDelegate(self)
+        Apphud.setUIDelegate(self)
+        
         reload()
         navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Restore transactions", style: .done, target: self, action: #selector(restore))        
     }
@@ -158,4 +161,24 @@ extension ViewController : ApphudDelegate {
         self.reload()
         print("apphudSubscriptionsUpdated")
     }
+}
+
+extension ViewController : ApphudUIDelegate {
+    
+    func apphudShouldShowScreen(controller: UIViewController) -> Bool {
+        return canShowApphudScreen
+    }
+    
+    func apphudScreenPresentationStyle(controller: UIViewController) -> UIModalPresentationStyle {
+        
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            return .pageSheet
+        } else {
+            return .overFullScreen
+        }
+    }
+    
+    func apphudDidDismissScreen(controller: UIViewController) {
+        print("did dismiss screen")
+    }    
 }
