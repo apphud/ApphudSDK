@@ -73,7 +73,10 @@ internal class ApphudRulesManager {
         guard self.pendingController != nil else { return }
         
         if let style = ApphudInternal.shared.uiDelegate?.apphudScreenPresentationStyle?(controller: pendingController!){
-             pendingController!.modalPresentationStyle = style
+            pendingController!.modalPresentationStyle = style
+            if style == .fullScreen || style == .overFullScreen {
+                pendingController!.modalPresentationCapturesStatusBarAppearance = true
+            }
         }
         let parent = ApphudInternal.shared.uiDelegate?.apphudParentViewController?(controller: pendingController!) ?? apphudVisibleViewController()
         parent?.present(pendingController!, animated: true, completion: nil)

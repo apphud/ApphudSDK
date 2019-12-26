@@ -174,11 +174,23 @@ extension ViewController : ApphudUIDelegate {
         if UIDevice.current.userInterfaceIdiom == .pad {
             return .pageSheet
         } else {
-            return .overFullScreen
+            return .pageSheet
         }
     }
     
     func apphudDidDismissScreen(controller: UIViewController) {
         print("did dismiss screen")
     }    
+    
+    func apphudDidPurchase(product: SKProduct, offerID: String?, screenName: String) {
+        print("did purchase \(product.productIdentifier), offer: \(offerID ?? ""), screenName: \(screenName)")
+    }
+    
+    func apphudDidFailPurchase(product: SKProduct, offerID: String?, errorCode: SKError.Code, screenName: String) {
+        print("did fail purchase \(product.productIdentifier), offer: \(offerID ?? ""), screenName: \(screenName), errorCode:\(errorCode.rawValue)")
+    }
+    
+    func apphudWillPurchase(product: SKProduct, offerID: String?, screenName: String) {
+        print("will purchase \(product.productIdentifier), offer: \(offerID ?? ""), screenName: \(screenName)")
+    }
 }

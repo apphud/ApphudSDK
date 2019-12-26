@@ -77,19 +77,19 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
     /**
      Called when user tapped on purchase button in Apphud purchase screen.
     */
-    @objc optional func apphudWillPurchase(product: SKProduct, offerID: String?)
+    @objc optional func apphudWillPurchase(product: SKProduct, offerID: String?, screenName: String)
     
     /**
      Called when user successfully purchased product in Apphud purchase screen.
     */
-    @objc optional func apphudDidPurchase(product: SKProduct, offerID: String?)
+    @objc optional func apphudDidPurchase(product: SKProduct, offerID: String?, screenName: String)
     
     /**
      Called when purchase failed in Apphud purchase screen.
      
      See error code for details. For example, `.paymentCancelled` error code is when user canceled the purchase by himself.
     */
-    @objc optional func apphudDidFailPurchase(product: SKProduct, offerID: String?, errorCode: SKError.Code)
+    @objc optional func apphudDidFailPurchase(product: SKProduct, offerID: String?, errorCode: SKError.Code, screenName: String)
     
     /**
      Notifies that Apphud Screen did dismiss

@@ -11,16 +11,16 @@ import StoreKit
 
 internal class ApphudNavigationController: UINavigationController {
     
-    deinit {
-        apphudLog("Deinit ApphudNavigationController")
-    }
-    
     private var pendingScreens = [ApphudScreenController]()
     
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask{
         get {
             return .portrait
         }
+    }
+    
+    override var childForStatusBarStyle: UIViewController? {
+        return self.visibleViewController
     }
     
     override func viewDidAppear(_ animated: Bool) {
@@ -39,7 +39,10 @@ internal class ApphudNavigationController: UINavigationController {
             print("COULDNT FIND CONTROLLER IN CACHE \(screenID), creating a new one.")
             controller = ApphudScreenController(rule: rule, screenID: screenID) { ready in }
             controller!.loadScreenPage()
+        } else if let index = pendingScreens.firstIndex(of: controller!) {
+            pendingScreens.remove(at: index)
         }
+        
         pushViewController(controller!, animated: true)
     }
     

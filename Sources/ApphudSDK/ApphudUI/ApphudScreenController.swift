@@ -38,7 +38,7 @@ class ApphudScreenController: UIViewController{
         return wv
     }()
         
-    override var preferredStatusBarStyle: UIStatusBarStyle{
+    override var preferredStatusBarStyle: UIStatusBarStyle {
         if self.screen?.status_bar_color == "white" {
             return .lightContent
         } else {
@@ -85,10 +85,7 @@ class ApphudScreenController: UIViewController{
         _ = self.view // trigger viewdidload
         self.webView.alpha = 0
         
-        ApphudHttpClient.shared.loadScreenHtmlData(screenID: self.screenID) { (html) in
-            
-            let date = Date().timeIntervalSince(self.start)
-            apphudLog("data loaded exec time: \(date)")
+        ApphudHttpClient.shared.loadScreenHtmlData(screenID: self.screenID) { (html) in            
             if let html = html {
                 self.originalHTML = html
                 self.extractMacrosesUsingRegexp()
@@ -102,7 +99,6 @@ class ApphudScreenController: UIViewController{
     @objc private func editAndReloadPage(html: String){
         
         let date = Date().timeIntervalSince(self.start)
-        apphudLog("replace finished exec time: \(date)")
         
         let url = URL(string: ApphudHttpClient.shared.domain_url_string)
         self.webView.tag = 1
@@ -112,7 +108,7 @@ class ApphudScreenController: UIViewController{
     //MARK:- Private
     
     deinit {
-        apphudLog("Deinit ApphudScreenController(\(screenID))")
+//        apphudLog("Deinit ApphudScreenController(\(screenID))")
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(failedByTimeOut), object: nil)
         NotificationCenter.default.removeObserver(self)
     }
@@ -171,7 +167,7 @@ class ApphudScreenController: UIViewController{
                 if let dict = result as? [String : Any] {
                     let screen = ApphudScreen(dictionary: dict)
                     self.screen = screen
-                    self.setNeedsStatusBarAppearanceUpdate()
+                    self.navigationController?.setNeedsStatusBarAppearanceUpdate()
                     self.updateBackgroundColor()
                 } else {
                     apphudLog("screen info not found in screen ID: \(self.screenID)", forceDisplay: true)
@@ -355,7 +351,7 @@ class ApphudScreenController: UIViewController{
         
         webView.alpha = 1
         let date = Date().timeIntervalSince(start)
-        apphudLog("final exec time: \(date)")
+        apphudLog("screen final load time: \(date)")
         
         if didAppear {
             handleDidAppearAndDidLoadScreen()
@@ -381,7 +377,7 @@ class ApphudScreenController: UIViewController{
                 isPurchasing = true
                 self.startLoading()
                 
-                ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(product: product, offerID: offerID!)
+                ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(product: product, offerID: offerID!, screenName: self.screen?.name ?? "unknown")
                 
                 ApphudInternal.shared.purchasePromo(product: product, discountID: offerID!) { (subscription, transaction, error) in
                     self.handlePurchaseResult(product: product, offerID: offerID!, subscription: subscription, transaction: transaction, error: error)                    
@@ -397,7 +393,7 @@ class ApphudScreenController: UIViewController{
             isPurchasing = true
             self.startLoading()
             
-            ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(product: product, offerID: nil)
+            ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(product: product, offerID: nil, screenName: self.screen?.name ?? "unknown")
             
             ApphudInternal.shared.purchase(product: product) { (subscription, transaction, error) in
                 self.handlePurchaseResult(product: product, subscription: subscription, transaction: transaction, error: error)
@@ -649,11 +645,13 @@ extension ApphudScreenController {
             
             ApphudInternal.shared.trackEvent(params: params) {}
             
-            ApphudInternal.shared.uiDelegate?.apphudDidPurchase?(product: product, offerID: offerID)
+            ApphudInternal.shared.uiDelegate?.apphudDidPurchase?(product: product, offerID: offerID, screenName: self.screen?.name ?? "unknown")
             
-            self.dismiss() // dismiss only when purchase is successful
+            dismiss() // dismiss only when purchase is successful
             
-        } else {            
+        } else {        
+            stopLoading()
+            isPurchasing = false
             apphudLog("Couldn't purchase with error:\(error?.localizedDescription ?? "")", forceDisplay: true)
             // if error occurred, restore subscriptions
             if !(errorCode == .paymentCancelled) {
@@ -661,7 +659,7 @@ extension ApphudScreenController {
                 Apphud.restoreSubscriptions { subscriptions in }
             }
             
-            ApphudInternal.shared.uiDelegate?.apphudDidFailPurchase?(product: product, offerID: offerID, errorCode: errorCode)
+            ApphudInternal.shared.uiDelegate?.apphudDidFailPurchase?(product: product, offerID: offerID, errorCode: errorCode, screenName: self.screen?.name ?? "unknown")
         }
     }
     
