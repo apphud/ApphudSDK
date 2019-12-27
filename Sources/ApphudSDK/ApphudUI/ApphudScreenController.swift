@@ -661,20 +661,20 @@ extension ApphudScreenController {
     }
     
     private func handlePostFeedbackTapped(urlComps: URLComponents){
-        self.startLoading()
-        
         self.webView.evaluateJavaScript("document.getElementById('text').textContent") { (result, error) in
-            if let text = result as? String, text.count > 0, let question = urlComps.queryItems?.first(where: { $0.name == "question" })?.value {   
-                
-                ApphudInternal.shared.trackEvent(params: ["rule_id" : self.rule.id, "screen_id" : self.screenID, "name" : "$feedback", "properties" : ["question" : question, "answer" : text]]) { 
-                    self.thankForFeedbackAndClose(isSurvey: false)
+            if let text = result as? String, let question = urlComps.queryItems?.first(where: { $0.name == "question" })?.value {
+                if text.count > 0 {
+                    self.startLoading()
+                    ApphudInternal.shared.trackEvent(params: ["rule_id" : self.rule.id, "screen_id" : self.screenID, "name" : "$feedback", "properties" : ["question" : question, "answer" : text]]) { 
+                        self.thankForFeedbackAndClose(isSurvey: false)
+                    }
+                } else {
+                    // tapped on send button with empty text view, do nothing
                 }
-                
             } else {
                 apphudLog("Couldn't find text content in screen: \(self.screenID)", forceDisplay: true)
-                self.dismiss()
-            }
+                self.dismiss()                
+            }  
         }
-        
     }
 }
