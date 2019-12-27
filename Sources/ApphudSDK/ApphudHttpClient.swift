@@ -39,6 +39,8 @@ public class ApphudHttpClient {
     
     private let session : URLSession = {
         let config = URLSessionConfiguration.default
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        config.urlCache = nil
         return URLSession.init(configuration: config)
     }()
     
@@ -48,7 +50,7 @@ public class ApphudHttpClient {
         }
     }
     
-    internal func loadScreenHtmlData(screenID: String, callback: @escaping (String?) -> Void) {
+    internal func loadScreenHtmlData(screenID: String, callback: @escaping (String?, Error?) -> Void) {
         
         if let request = makeScreenRequest(screenID: screenID) {
             
@@ -60,13 +62,13 @@ public class ApphudHttpClient {
                     string = String(data: data!, encoding: .utf8)
                 }
                 DispatchQueue.main.async {
-                    callback(string)
+                    callback(string, error)
                 }
             }
             task.resume()
             
         } else {
-            callback(nil)
+            callback(nil, nil)
         }        
     }
     

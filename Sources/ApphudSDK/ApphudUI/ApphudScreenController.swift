@@ -85,21 +85,18 @@ class ApphudScreenController: UIViewController{
         _ = self.view // trigger viewdidload
         self.webView.alpha = 0
         
-        ApphudHttpClient.shared.loadScreenHtmlData(screenID: self.screenID) { (html) in            
+        ApphudHttpClient.shared.loadScreenHtmlData(screenID: self.screenID) { (html, error) in            
             if let html = html {
                 self.originalHTML = html
                 self.extractMacrosesUsingRegexp()
             } else {
-                let error = ApphudError.error(message: "html is nil for rule id: \(self.rule.id), screen id: \(self.screenID)")
-                self.failed(error)
+                let apphud_error = ApphudError.error(message: "html is nil for rule id: \(self.rule.id), screen id: \(self.screenID), error:\(String(describing: error))")
+                self.failed(apphud_error)
             }
         }        
     }
     
-    @objc private func editAndReloadPage(html: String){
-        
-        let date = Date().timeIntervalSince(self.start)
-        
+    @objc private func editAndReloadPage(html: String){        
         let url = URL(string: ApphudHttpClient.shared.domain_url_string)
         self.webView.tag = 1
         self.webView.loadHTMLString(html as String, baseURL: url)
