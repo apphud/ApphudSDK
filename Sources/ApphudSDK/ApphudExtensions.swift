@@ -68,7 +68,7 @@ internal func currentDeviceParameters() -> [String : String]{
     }    
     let app_version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? ""
     
-    var params : [String : String] = ["locale" : Locale.current.identifier, 
+    var params : [String : String] = ["locale" : Locale.current.identifier,
                                       "time_zone" : TimeZone.current.identifier,
                                       "device_type" : UIDevice.current.apphudModelName, 
                                       "device_family" : family, 
@@ -78,6 +78,10 @@ internal func currentDeviceParameters() -> [String : String]{
                                       "sdk_version" : sdk_version, 
                                       "os_version" : UIDevice.current.systemVersion,
     ]
+    
+    if let regionCode = Locale.current.regionCode {
+        params["country_iso_code"] = regionCode.uppercased()
+    }
     
     if let idfv = UIDevice.current.identifierForVendor?.uuidString {
         params["idfv"] = idfv
