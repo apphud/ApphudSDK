@@ -22,6 +22,11 @@ public class ApphudHttpClient {
         case put = "PUT"
     }
     
+    enum ApphudApiVersion : String {
+        case v1 = "v1"
+        case v2 = "v2"
+    }
+    
     #if DEBUG
     public static let shared = ApphudHttpClient()
     public var domain_url_string = "https://api.apphud.com"
@@ -34,19 +39,43 @@ public class ApphudHttpClient {
     
     private let session : URLSession = {
         let config = URLSessionConfiguration.default
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        config.urlCache = nil
         return URLSession.init(configuration: config)
     }()
-        
-    internal func startRequest(path: String, params : [String : Any]?, method : ApphudHttpMethod, callback: ApphudBoolDictionaryCallback?) {
-        if let request = makeRequest(path: path, params: params, method: method) {
+    
+    internal func startRequest(path: String, apiVersion: ApphudApiVersion = .v1, params: [String : Any]?, method: ApphudHttpMethod, callback: ApphudBoolDictionaryCallback?) {
+        if let request = makeRequest(path: path, apiVersion: apiVersion, params: params, method: method) {
             start(request: request, callback: callback)
         }
+    }
+    
+    internal func loadScreenHtmlData(screenID: String, callback: @escaping (String?, Error?) -> Void) {
+        
+        if let request = makeScreenRequest(screenID: screenID) {
+            
+            apphudLog("started loading screen html data:\(request)", forceDisplay: true)
+            
+            let task = session.dataTask(with: request) { (data, response, error) in
+                var string : String?
+                if data != nil, let http_response = response as? HTTPURLResponse, http_response.statusCode < 299 {
+                    string = String(data: data!, encoding: .utf8)
+                }
+                DispatchQueue.main.async {
+                    callback(string, error)
+                }
+            }
+            task.resume()
+            
+        } else {
+            callback(nil, nil)
+        }        
     }
     
     internal func makeScreenRequest(screenID: String) -> URLRequest? {
         
         let deviceID : String = ApphudInternal.shared.currentDeviceID
-        let urlString = "\(domain_url_string)/preview_screen/\(screenID)?api_key=\(apiKey)&locale=\(Locale.current.identifier)&device_id=\(deviceID)"
+        let urlString = "\(domain_url_string)/preview_screen/\(screenID)?api_key=\(apiKey)&locale=\(Locale.current.identifier)&device_id=\(deviceID)&v=2"
         
         let url = URL(string: urlString)
         if url != nil {
@@ -56,12 +85,15 @@ public class ApphudHttpClient {
         return nil
     }
     
-    private func makeRequest(path : String, params : [String : Any]?, method : ApphudHttpMethod) -> URLRequest? {
+    private func makeRequest(path : String, apiVersion: ApphudApiVersion, params : [String : Any]?, method : ApphudHttpMethod) -> URLRequest? {
         var request: URLRequest? = nil
         do {
             var url: URL? = nil
+            
+            let urlString = "\(domain_url_string)/\(apiVersion.rawValue)/\(path)"
+            
             if method == .get {
-                var components = URLComponents(string: "\(domain_url_string)/v1/\(path)")
+                var components = URLComponents(string: urlString)
                 var items: [URLQueryItem] = [URLQueryItem(name: "api_key", value: apiKey)]
                 if let requestParams = params {
                     for key in requestParams.keys {
@@ -72,7 +104,7 @@ public class ApphudHttpClient {
                 url = components?.url
             }
             else {
-                url = URL(string: "\(domain_url_string)/v1/\(path)")
+                url = URL(string: urlString)
             }
             guard let finalURL = url else {
                 return nil

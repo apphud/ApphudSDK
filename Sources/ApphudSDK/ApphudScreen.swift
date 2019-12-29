@@ -10,19 +10,11 @@ import UIKit
 
 struct ApphudScreen {
     
-    var identifier: String
-    var name: String
-    var terms_url: String?
-    var privacy_url: String?
     var status_bar_color: String?
-    var products_offers_map : [[String : Any]]?
+    var name: String?
     
     init(dictionary: [String : Any]) {
-        name = dictionary["name"] as? String ?? ""
-        identifier = dictionary["identifier"] as? String ?? ""
-        terms_url = dictionary["terms_url"] as? String ?? ""
-        privacy_url = dictionary["privacy_url"] as? String ?? ""        
-        status_bar_color = dictionary["status_bar_color"] as? String ?? ""
-        products_offers_map = dictionary["products"] as? [[String : Any]]
+        status_bar_color = dictionary["status_bar_color"] as? String
+        name = dictionary["name"] as? String
     }
 }

@@ -40,6 +40,15 @@ internal func apphudVisibleViewController() -> UIViewController? {
     return currentVC
 }
 
+internal func apphudDidMigrate(){
+    UserDefaults.standard.set(true, forKey: "ApphudSubscriptionsMigrated")
+    UserDefaults.standard.synchronize()    
+}
+
+internal func apphudShouldMigrate() -> Bool {
+    return !UserDefaults.standard.bool(forKey: "ApphudSubscriptionsMigrated")
+}
+
 internal func toUserDefaultsCache(dictionary: [String : String], key: String){
     UserDefaults.standard.set(dictionary, forKey: key)
     UserDefaults.standard.synchronize()
@@ -59,7 +68,7 @@ internal func currentDeviceParameters() -> [String : String]{
     }    
     let app_version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? ""
     
-    var params : [String : String] = ["locale" : Locale.current.identifier, 
+    var params : [String : String] = ["locale" : Locale.current.identifier,
                                       "time_zone" : TimeZone.current.identifier,
                                       "device_type" : UIDevice.current.apphudModelName, 
                                       "device_family" : family, 
@@ -69,6 +78,10 @@ internal func currentDeviceParameters() -> [String : String]{
                                       "sdk_version" : sdk_version, 
                                       "os_version" : UIDevice.current.systemVersion,
     ]
+    
+    if let regionCode = Locale.current.regionCode {
+        params["country_iso_code"] = regionCode.uppercased()
+    }
     
     if let idfv = UIDevice.current.identifierForVendor?.uuidString {
         params["idfv"] = idfv
@@ -132,6 +145,7 @@ extension SKProduct {
         if let countryCode = priceLocale.regionCode {
             params["country_code"] = countryCode
         }
+        
         if let currencyCode = priceLocale.currencyCode {
             params["currency_code"] = currencyCode
         }
@@ -139,7 +153,8 @@ extension SKProduct {
         if let introData = introParameters() {
             params.merge(introData, uniquingKeysWith: {$1})
         }
-        if subscriptionPeriod != nil {
+        
+        if subscriptionPeriod != nil && subscriptionPeriod!.numberOfUnits > 0 {
             let units_count = subscriptionPeriod!.numberOfUnits
             params["unit"] = unitStringFrom(periodUnit: subscriptionPeriod!.unit)
             params["units_count"] = units_count

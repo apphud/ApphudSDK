@@ -49,23 +49,52 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
         You can use this delegate method or observe for `Apphud.didFetchProductsNotification()` notification. 
      */
     @objc optional func apphudDidFetchStoreKitProducts(_ products: [SKProduct])
+}
+
+@objc public protocol ApphudUIDelegate {
+    
+    /**
+        You can return `false` to this delegate method if you don't want Apphud Screen to be displayed at this time.
+     
+        If you returned `false`, this controller will be accessible in `Apphud.pendingScreen()` method. You will be able to present it manually later.
+     */
+    @objc optional func apphudShouldShowScreen(controller: UIViewController) -> Bool
+    
+    /**
+        Return `UIViewController` instance from which you want to present given Apphud controller. If you don't implement this method, then top visible viewcontroller from key window will be used.
+     
+        __Note__: This delegate method is recommended for implementation when you have multiple windows in your app, because Apphud SDK may have issues while presenting screens in this case. 
+     */
+    @objc optional func apphudParentViewController(controller: UIViewController) -> UIViewController
     
     /**
      Pass your own modal presentation style to Apphud Screens. This is useful since iOS 13 presents in page sheet style by default. 
      
      To get full screen style you should pass `.fullScreen` or `.overFullScreen`.
      */
-    @objc optional func apphudScreenPresentationStyle() -> UIModalPresentationStyle
+    @objc optional func apphudScreenPresentationStyle(controller: UIViewController) -> UIModalPresentationStyle
+
+    /**
+     Called when user tapped on purchase button in Apphud purchase screen.
+    */
+    @objc optional func apphudWillPurchase(product: SKProduct, offerID: String?, screenName: String)
     
     /**
-     Notifies that Apphud Screen is about to dismiss
+     Called when user successfully purchased product in Apphud purchase screen.
     */
-    @objc optional func apphudWillDismissScreen()
+    @objc optional func apphudDidPurchase(product: SKProduct, offerID: String?, screenName: String)
+    
+    /**
+     Called when purchase failed in Apphud purchase screen.
+     
+     See error code for details. For example, `.paymentCancelled` error code is when user canceled the purchase by himself.
+    */
+    @objc optional func apphudDidFailPurchase(product: SKProduct, offerID: String?, errorCode: SKError.Code, screenName: String)
     
     /**
      Notifies that Apphud Screen did dismiss
     */
-    @objc optional func apphudDidDismissScreen()
+    @objc optional func apphudDidDismissScreen(controller: UIViewController)
 }
 
 /// List of available attribution providers
@@ -73,7 +102,7 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
     case appsFlyer
     
     /**
-     Branch is implemented and doesn't required any additional code from Apphud SDK 
+     Branch is implemented and doesn't require any additional code from Apphud SDK 
      More details: https://docs.apphud.com/integrations/attribution/branch
      
      case branch
@@ -94,15 +123,6 @@ final public class Apphud: NSObject {
     @objc public static func start(apiKey: String, userID: String? = nil) {
         ApphudInternal.shared.initialize(apiKey: apiKey, userID: userID)
     }
-    
-    /**
-    Not yet available to public.
-    */
-    #if DEBUG
-    @objc public static func start(apiKey: String, userID : String? = nil, deviceID : String? = nil) {
-        ApphudInternal.shared.initialize(apiKey: apiKey, userID: userID, deviceIdentifier: deviceID)
-    }
-    #endif
     
     /**
      Updates user ID value 
@@ -128,7 +148,15 @@ final public class Apphud: NSObject {
     @objc public static func setDelegate(_ delegate : ApphudDelegate) {
         ApphudInternal.shared.delegate = delegate
     }
-        
+      
+    /**
+     Set a UI delegate.
+     - parameter delegate: Required. Any ApphudUIDelegate conformable object.
+     */
+    @objc public static func setUIDelegate(_ delegate : ApphudUIDelegate) {
+        ApphudInternal.shared.uiDelegate = delegate
+    }
+    
     //MARK:- Make Purchase
     
     /**
@@ -188,9 +216,9 @@ final public class Apphud: NSObject {
     }
     
     /**
-         __Deprecated__. Just remove this method from your code, because Apphud SDK will automatically intercept and submit receipt after purchase is made. 
+         __Deprecated__. Starting now Apphud SDK automatically tracks all your in-app purchases and submits App Store receipt to Apphud. You can safely remove this method from your code. If you were using callback, you can use `apphudSubscriptionsUpdated` delegate method instead.
      */
-    @available(*, deprecated, message: "You don't need to use this method anymore, because starting now we automatically handle all purchases. This method will be removed soon.")
+    @available(*, deprecated, message: "Starting now Apphud SDK automatically tracks all your in-app purchases and submits App Store receipt to Apphud. You can safely remove this method from your code. If you were using callback, you can use `apphudSubscriptionsUpdated` delegate method instead.")
     @objc public static func submitReceipt(_ productIdentifier : String, _ callback : ((ApphudSubscription?, Error?) -> Void)?) {
         ApphudInternal.shared.submitReceipt(productId: productIdentifier, callback: callback)        
     }
@@ -242,6 +270,38 @@ final public class Apphud: NSObject {
         ApphudInternal.shared.restoreSubscriptions(callback: callback)
     }
     
+    /**
+     If you already have a live app with paying users and you want Apphud to track their subscriptions, you should import their App Store receipts into Apphud. Call this method at launch of your app for your paying users. This method should be used only to migrate existing paying users that are not yet tracked by Apphud.
+     
+     Example:
+     
+        ````
+        // hasPurchases - is your own boolean value indicating that current user is paying user.
+        if hasPurchases {
+            Apphud.migrateSubscriptionsIfNeeded {_ in}
+        }
+        ````
+     
+    __Note__: You can remove this method after a some period of time, i.e. when you are sure that all paying users are already synced with Apphud.
+     */
+    @objc public static func migrateSubscriptionsIfNeeded(callback: @escaping ([ApphudSubscription]?) -> Void) {
+        if apphudShouldMigrate() {
+            ApphudInternal.shared.restoreSubscriptions { subscriptions in
+                apphudDidMigrate()
+                callback(subscriptions)
+            }
+        } 
+    }
+    
+    //MARK:- Rules & Screens Methods
+    
+    /**
+     Presents Apphud screen that was delayed for presentation, i.e. `false` was returned in `apphudShouldShowScreen` delegate method.
+     */
+    @objc public static func showPendingScreen() {
+        return ApphudRulesManager.shared.showPendingScreen()
+    }
+    
     //MARK:- Push Notifications
     
     /**
@@ -260,7 +320,7 @@ final public class Apphud: NSObject {
      Returns true if push notification was handled by Apphud.
      */
     @discardableResult @objc public static func handlePushNotification(apsInfo: [AnyHashable : Any]) -> Bool{
-        return ApphudNotificationsHandler.shared.handleNotification(apsInfo)
+        return ApphudRulesManager.shared.handleNotification(apsInfo)
     }
     
     //MARK:- Attribution
@@ -357,4 +417,13 @@ final public class Apphud: NSObject {
     @objc public static func disableIDFACollection(){
         ApphudUtils.shared.optOutOfIDFACollection = true
     }
+    
+    /**
+    Not yet available for public use.
+    */
+    #if DEBUG
+    @objc public static func start(apiKey: String, userID : String? = nil, deviceID : String? = nil) {
+        ApphudInternal.shared.initialize(apiKey: apiKey, userID: userID, deviceIdentifier: deviceID)
+    }
+    #endif
 }
