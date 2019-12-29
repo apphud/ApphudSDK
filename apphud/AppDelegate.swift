@@ -18,19 +18,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         
-        #warning("REMOVE THIS")
-        Apphud.enableDebugLogs()    
-//        canShowApphudScreen = false
-        ApphudHttpClient.shared.domain_url_string = "https://api.bitcolio.com"
-        
-        Apphud.start(apiKey: "app_MDn9JRkSZzLMHtsFzWJXrscF7tZnis", userID: "renat_98.2", deviceID: "device_98.2")
-        
-//        DispatchQueue.main.asyncAfter(deadline: .now() + 13) { 
-//            self.canShowApphudScreen = true
-//            Apphud.showPendingScreen()
-//        }
-        
-//        Apphud.start(apiKey: "YOUR_SDK_TOKEN")
+        Apphud.start(apiKey: "YOUR_SDK_TOKEN")
         
         registerForNotifications()
         

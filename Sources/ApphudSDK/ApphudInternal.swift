@@ -723,6 +723,7 @@ final class ApphudInternal {
         }
     }
     
+    /// Not used yet
     internal func getRule(ruleID: String, callback: @escaping (ApphudRule?) -> Void){
         
         let result = performWhenUserRegistered {

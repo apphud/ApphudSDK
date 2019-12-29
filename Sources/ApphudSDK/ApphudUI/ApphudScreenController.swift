@@ -79,7 +79,7 @@ class ApphudScreenController: UIViewController{
     
     internal func loadScreenPage(){
                             
-        // if after 10 seconds webview not appeared, then fail
+        // if after 15 seconds webview not appeared, then fail
         self.perform(#selector(failedByTimeOut), with: nil, afterDelay: 15.0)
         self.startLoading()
         _ = self.view // trigger viewdidload
@@ -90,7 +90,7 @@ class ApphudScreenController: UIViewController{
                 self.originalHTML = html
                 self.extractMacrosesUsingRegexp()
             } else {
-                let apphud_error = ApphudError.error(message: "html is nil for rule id: \(self.rule.id), screen id: \(self.screenID), error:\(String(describing: error))")
+                let apphud_error = ApphudError.error(message: "html is nil for rule id: \(self.rule.id), screen id: \(self.screenID), error:\( error?.localizedDescription ?? "")")
                 self.failed(apphud_error)
             }
         }        

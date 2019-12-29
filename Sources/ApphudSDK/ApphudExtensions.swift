@@ -45,8 +45,8 @@ internal func apphudDidMigrate(){
     UserDefaults.standard.synchronize()    
 }
 
-internal func apphudIsMigrated() -> Bool {
-    return UserDefaults.standard.bool(forKey: "ApphudSubscriptionsMigrated")
+internal func apphudShouldMigrate() -> Bool {
+    return !UserDefaults.standard.bool(forKey: "ApphudSubscriptionsMigrated")
 }
 
 internal func toUserDefaultsCache(dictionary: [String : String], key: String){

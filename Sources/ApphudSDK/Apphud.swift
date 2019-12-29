@@ -285,7 +285,7 @@ final public class Apphud: NSObject {
     __Note__: You can remove this method after a some period of time, i.e. when you are sure that all paying users are already synced with Apphud.
      */
     @objc public static func migrateSubscriptionsIfNeeded(callback: @escaping ([ApphudSubscription]?) -> Void) {
-        if !apphudIsMigrated() {
+        if apphudShouldMigrate() {
             ApphudInternal.shared.restoreSubscriptions { subscriptions in
                 apphudDidMigrate()
                 callback(subscriptions)
