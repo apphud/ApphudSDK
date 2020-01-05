@@ -7,16 +7,16 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "109CFFF1-9EE5-41F9-BEC2-ADC2E38AB7AD"
+            uuid = "C86FB75E-69A3-4016-BA78-CE85F2896600"
             shouldBeEnabled = "Yes"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
-            filePath = "Extension/NotificationService.m"
+            filePath = "Sources/ApphudSDK/ApphudUI/ApphudRulesManager.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "36"
-            endingLineNumber = "36"
-            landmarkName = "-serviceExtensionTimeWillExpire"
+            startingLineNumber = "50"
+            endingLineNumber = "50"
+            landmarkName = "handleRule(ruleID:screenID:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

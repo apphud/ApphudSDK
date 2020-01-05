@@ -15,11 +15,11 @@ public typealias BoolCallback = (Bool) -> Void
 class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     
     var window: UIWindow?
-    
+
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         
-        Apphud.start(apiKey: "APPHUD_API_KEY")
-                
+        Apphud.start(apiKey: "YOUR_SDK_TOKEN")
+        
         registerForNotifications()
         
         return true

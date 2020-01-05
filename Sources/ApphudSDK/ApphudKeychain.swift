@@ -24,24 +24,32 @@ let kSecMatchLimitValue = NSString(format: kSecMatchLimit)
 let kSecReturnDataValue = NSString(format: kSecReturnData)
 let kSecMatchLimitOneValue = NSString(format: kSecMatchLimitOne)
 
-class ApphudKeychain: NSObject {
+internal class ApphudKeychain: NSObject {
     
-    public class func generateUUID() -> String{
+    internal class func generateUUID() -> String{
         let uuid = NSUUID.init().uuidString
         return uuid
     }
     
-    public class func loadDeviceID() -> String? {
+    internal class func loadDeviceID() -> String? {
         return self.load(deviceIdKey)
     }
     
-    public class func saveDeviceID(deviceID : String) {
+    internal class func saveDeviceID(deviceID : String) {
         self.save(deviceIdKey, data: deviceID)
     }
     
     private class func save(_ service: NSString, data: String) {
         if let dataFromString = data.data(using: .utf8, allowLossyConversion: false) {
-            let keychainQuery: NSMutableDictionary = NSMutableDictionary(objects: [kSecClassGenericPasswordValue, service, userAccount, dataFromString], forKeys: [kSecClassValue, kSecAttrServiceValue, kSecAttrAccountValue, kSecValueDataValue])
+            
+            let keychainQuery : NSMutableDictionary = [
+                kSecClassValue : kSecClassGenericPasswordValue,
+                kSecAttrServiceValue : service,
+                kSecAttrAccountValue : userAccount,
+                kSecValueDataValue : dataFromString,
+                NSString(format: kSecAttrAccessible)  : NSString(format: kSecAttrAccessibleAfterFirstUnlock),
+            ]
+            
             SecItemDelete(keychainQuery as CFDictionary)
             SecItemAdd(keychainQuery as CFDictionary, nil)
         }        

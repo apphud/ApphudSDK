@@ -15,17 +15,19 @@ class ViewController: UITableViewController{
     
     var introductoryEligibility = [String : Bool]()
     var promoOffersEligibility = [String : Bool]()
+    var canShowApphudScreen = true
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
         // In this example we set delegate to ViewController to reload tableview when changes come
         Apphud.setDelegate(self)
+        Apphud.setUIDelegate(self)
         
         reload()
         navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Restore transactions", style: .done, target: self, action: #selector(restore))        
     }
-    
+
     override func viewWillAppear(_ animated: Bool) {
         print("will appear")
         super.viewWillAppear(animated)
@@ -138,10 +140,9 @@ class ViewController: UITableViewController{
     
     func purchaseProduct(product : SKProduct) {
         Apphud.purchase(product) { (subs, error) in
-            self.reload()
+            self.reload()            
         }
     }
-    
 }
 
 extension ViewController : ApphudDelegate {
@@ -156,24 +157,40 @@ extension ViewController : ApphudDelegate {
         self.reload()
     }
     
-    func apphudWillDismissScreen() {
-        print("apphudWillDismissScreen")
-    }
-    
-    func apphudDidDismissScreen() {
-        print("apphudDidDismissScreen")
-    }
-    
     func apphudSubscriptionsUpdated(_ subscriptions: [ApphudSubscription]) {
         self.reload()
         print("apphudSubscriptionsUpdated")
     }
+}
+
+extension ViewController : ApphudUIDelegate {
     
-    func apphudScreenPresentationStyle() -> UIModalPresentationStyle {
+    func apphudShouldShowScreen(controller: UIViewController) -> Bool {
+        return canShowApphudScreen
+    }
+    
+    func apphudScreenPresentationStyle(controller: UIViewController) -> UIModalPresentationStyle {
+        
         if UIDevice.current.userInterfaceIdiom == .pad {
-            return .formSheet
+            return .pageSheet
         } else {
-            return .fullScreen
+            return .pageSheet
         }
+    }
+    
+    func apphudDidDismissScreen(controller: UIViewController) {
+        print("did dismiss screen")
+    }    
+    
+    func apphudDidPurchase(product: SKProduct, offerID: String?, screenName: String) {
+        print("did purchase \(product.productIdentifier), offer: \(offerID ?? ""), screenName: \(screenName)")
+    }
+    
+    func apphudDidFailPurchase(product: SKProduct, offerID: String?, errorCode: SKError.Code, screenName: String) {
+        print("did fail purchase \(product.productIdentifier), offer: \(offerID ?? ""), screenName: \(screenName), errorCode:\(errorCode.rawValue)")
+    }
+    
+    func apphudWillPurchase(product: SKProduct, offerID: String?, screenName: String) {
+        print("will purchase \(product.productIdentifier), offer: \(offerID ?? ""), screenName: \(screenName)")
     }
 }
