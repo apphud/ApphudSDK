@@ -182,7 +182,7 @@ You may also check eligibility for multiple offers at one call:
 
 See the full set up guide if you need to add integrations with mobile analytics and messengers.
 
-https://docs.apphud.com/getting-started/sdk-integration#user-identifier-and-integrations
+https://docs.apphud.com/getting-started/sdk-integration#match-user-identifiers-by-apphuds-userid-recommended
 
 https://docs.apphud.com/integrations/parameters-and-properties
 
