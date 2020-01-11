@@ -85,6 +85,10 @@ func application(_ application: UIApplication, didFinishLaunchingWithOptions lau
 
 > In Objective-C project you should import like this: `#import "ApphudSDK-Swift.h"`
 
+## Integrations
+
+If you want to send subscription events to third party analytics platforms, you will need to [match user IDs](https://docs.apphud.com/getting-started/sdk-integration#set-up-analytics-integrations-ios-part) (in case of Amplitude or Mixpanel). The full list of available integrations is available [here](https://apphud.com/integrations).
+
 ## Use Apphud in Observer Mode
 
 If you have a live app and already implemented subscription purchasing, it is not necessary to rewrite your subscription purchase flow with Apphud methods. Apphud SDK will still automatically track all purchases in your app.
@@ -185,14 +189,6 @@ Apphud.checkEligibilityForPromotionalOffer(product: myProduct) { result in
 You may also check eligibility for multiple offers at one call: 
 `checkEligibilitiesForPromotionalOffers(products: [SKProduct], callback: ApphudEligibilityCallback)` or `checkEligibilitiesForIntroductoryOffers(products: [SKProduct], callback: ApphudEligibilityCallback)`
 
-## Integrations
-
-See the full setup guide if you need to add integrations with mobile analytics and messengers.
-
-https://docs.apphud.com/getting-started/sdk-integration#match-user-identifiers-by-apphuds-userid-recommended
-
-https://docs.apphud.com/integrations/parameters-and-properties
-
 ## Pricing
 
 Apphud is absolutely free unless you make $10K per month. You can check our pricing [here](https://apphud.com/pricing).
@@ -202,7 +198,5 @@ Apphud is absolutely free unless you make $10K per month. You can check our pric
 If you have any questions or troubles with SDK integration feel free to contact us. We are online.
 
 https://apphud.com/contacts
-
-
 
 *Like Apphud? Place a star at the top 😊*
