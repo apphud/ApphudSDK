@@ -89,17 +89,13 @@ func application(_ application: UIApplication, didFinishLaunchingWithOptions lau
 
 If you want to send subscription events to third party analytics platforms, you will need to [match user IDs](https://docs.apphud.com/getting-started/sdk-integration#set-up-analytics-integrations-ios-part) (in case of Amplitude or Mixpanel). The full list of available integrations is available [here](https://apphud.com/integrations).
 
-## Use Apphud in Observer Mode
-
-If you have a live app and already implemented subscription purchasing, it is not necessary to rewrite your subscription purchase flow with Apphud methods. Apphud SDK will still automatically track all purchases in your app.
-
-In this case your setup is complete. However configuring push notifications is highly recommended.
-
 ## Push Notifications
 
 To handle [push notifications](https://docs.apphud.com/getting-started/push) you need to provide Apphud with device tokens and handle incoming notifications. This is highly recommended in order to use [Rules](https://docs.apphud.com/rules-and-screens/rules) – a powerful feature that lets you increase your app revenue by automatically offering a discount to a user at the specified moment.
 
 ## Handle Subscriptions
+
+If you have a live app and already implemented subscription purchasing, it is not necessary to rewrite your subscription purchase flow with Apphud methods. Apphud SDK will still automatically track all purchases in your app.
 
 Apphud SDK provides a set of methods to manage subscriptions. All these methods can be used regardless how you purchased the subscription (via Apphud SDK or your existing code).
 
