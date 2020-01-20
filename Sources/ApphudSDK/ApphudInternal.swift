@@ -10,7 +10,7 @@ import Foundation
 import AdSupport
 import StoreKit
 
-let sdk_version = "0.8"
+let sdk_version = "0.8.1"
 
 @available(iOS 11.2, *)
 final class ApphudInternal {
@@ -777,6 +777,8 @@ final class ApphudInternal {
                 }   
                 params["appsflyer_id"] = identifer
                 params["appsflyer_data"] = data
+            } else if provider == .adjust {
+                params["adjust_data"] = data
             }
             
             self.httpClient.startRequest(path: "customers/attribution", params: params, method: .post) { (result, response, error) in

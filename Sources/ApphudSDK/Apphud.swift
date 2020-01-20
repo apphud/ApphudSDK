@@ -100,7 +100,7 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
 /// List of available attribution providers
 @objc public enum ApphudAttributionProvider : Int {
     case appsFlyer
-    
+    case adjust
     /**
      Branch is implemented and doesn't require any additional code from Apphud SDK 
      More details: https://docs.apphud.com/integrations/attribution/branch
