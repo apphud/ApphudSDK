@@ -374,7 +374,7 @@ class ApphudScreenController: UIViewController{
                 isPurchasing = true
                 self.startLoading()
                 
-                ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(product: product, offerID: offerID!, screenName: self.screen?.name ?? "unknown")
+                ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(product: product, offerID: offerID!, screenName: self.rule.screen_name)
                 
                 ApphudInternal.shared.purchasePromo(product: product, discountID: offerID!) { (subscription, transaction, error) in
                     self.handlePurchaseResult(product: product, offerID: offerID!, subscription: subscription, transaction: transaction, error: error)                    
@@ -390,7 +390,7 @@ class ApphudScreenController: UIViewController{
             isPurchasing = true
             self.startLoading()
             
-            ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(product: product, offerID: nil, screenName: self.screen?.name ?? "unknown")
+            ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(product: product, offerID: nil, screenName: self.rule.screen_name)
             
             ApphudInternal.shared.purchase(product: product) { (subscription, transaction, error) in
                 self.handlePurchaseResult(product: product, subscription: subscription, transaction: transaction, error: error)
@@ -642,7 +642,7 @@ extension ApphudScreenController {
             
             ApphudInternal.shared.trackEvent(params: params) {}
             
-            ApphudInternal.shared.uiDelegate?.apphudDidPurchase?(product: product, offerID: offerID, screenName: self.screen?.name ?? "unknown")
+            ApphudInternal.shared.uiDelegate?.apphudDidPurchase?(product: product, offerID: offerID, screenName: self.rule.screen_name)
             
             dismiss() // dismiss only when purchase is successful
             
@@ -656,7 +656,7 @@ extension ApphudScreenController {
                 Apphud.restoreSubscriptions { subscriptions in }
             }
             
-            ApphudInternal.shared.uiDelegate?.apphudDidFailPurchase?(product: product, offerID: offerID, errorCode: errorCode, screenName: self.screen?.name ?? "unknown")
+            ApphudInternal.shared.uiDelegate?.apphudDidFailPurchase?(product: product, offerID: offerID, errorCode: errorCode, screenName: self.rule.screen_name)
         }
     }
     

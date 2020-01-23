@@ -54,11 +54,16 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
 @objc public protocol ApphudUIDelegate {
     
     /**
-        You can return `false` to this delegate method if you don't want Apphud Screen to be displayed at this time.
-     
-        If you returned `false`, this controller will be accessible in `Apphud.pendingScreen()` method. You will be able to present it manually later.
+        You can return `false` to ignore this rule. You should only do this if you want to handle your rules by yourself. Default implementation is `true`.
      */
-    @objc optional func apphudShouldShowScreen(controller: UIViewController) -> Bool
+    @objc optional func apphudShouldPerformRule(rule: ApphudRule) -> Bool
+    
+    /**
+        You can return `false` to this delegate method if you don't want to delay Apphud Screen presentation.
+     
+        Controller will be kept in memory until you present it via `Apphud.showPendingScreen()` method. If you don't want to show screen at all, you should check `apphudShouldPerformRule` delegate method.
+     */
+    @objc optional func apphudShouldShowScreen(screenName: String) -> Bool
     
     /**
         Return `UIViewController` instance from which you want to present given Apphud controller. If you don't implement this method, then top visible viewcontroller from key window will be used.

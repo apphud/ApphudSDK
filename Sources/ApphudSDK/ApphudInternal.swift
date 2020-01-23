@@ -10,7 +10,7 @@ import Foundation
 import AdSupport
 import StoreKit
 
-let sdk_version = "0.8.1"
+let sdk_version = "0.8.2"
 
 @available(iOS 11.2, *)
 final class ApphudInternal {
@@ -748,7 +748,9 @@ final class ApphudInternal {
             let params = ["device_id": self.currentDeviceID] as [String : String]
             self.httpClient.startRequest(path: "notifications", apiVersion: .v2, params: params, method: .get, callback: { (result, response, error) in
                 
-                if result, let dataDict = response?["data"] as? [String : Any], let notifArray = dataDict["results"] as? [[String : Any]], let notifDict = notifArray.first, let ruleDict = notifDict["rule"] as? [String : Any] {
+                if result, let dataDict = response?["data"] as? [String : Any], let notifArray = dataDict["results"] as? [[String : Any]], let notifDict = notifArray.first, var ruleDict = notifDict["rule"] as? [String : Any] {
+                    let properties = notifDict["properties"] as? [String : Any]
+                    ruleDict = ruleDict.merging(properties ?? [:], uniquingKeysWith: {old, new in new})
                     let rule = ApphudRule(dictionary: ruleDict)
                     ApphudRulesManager.shared.handleRule(rule: rule)
                 }

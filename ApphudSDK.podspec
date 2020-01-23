@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'ApphudSDK'
-  s.version          = '0.8.1'
+  s.version          = '0.8.2'
   s.summary          = 'Track and control iOS auto-renewable subscriptions.'
  
   s.description      = 'Track, control and analyze iOS auto-renewable subscriptions with Apphud.'

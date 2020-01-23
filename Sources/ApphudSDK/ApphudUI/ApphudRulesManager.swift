@@ -32,8 +32,8 @@ internal class ApphudRulesManager {
         
         ApphudInternal.shared.trackEvent(params: ["rule_id" : rule_id, "name" : "$push_opened"]) {}
         
-        if let screen_id = apsInfo["screen_id"] as? String {
-            handleRule(ruleID: rule_id, screenID: screen_id)            
+        if apsInfo["screen_id"] != nil {
+            handleRule(ruleID: rule_id, data: apsInfo as? [String : Any])            
         }
         
         handledRules.append(rule_id)
@@ -45,8 +45,8 @@ internal class ApphudRulesManager {
         return true    
     }
     
-    internal func handleRule(ruleID: String, screenID: String){
-        let dict = ["id" : ruleID, "screen_id" : screenID]
+    internal func handleRule(ruleID: String, data: [String : Any]?){
+        let dict = ["id" : ruleID].merging(data ?? [:], uniquingKeysWith: {old, new in new})
         let rule = ApphudRule(dictionary: dict)
         self.handleRule(rule: rule)
     }
@@ -55,6 +55,7 @@ internal class ApphudRulesManager {
         
         guard self.pendingController == nil else { return }
         guard rule.screen_id.count > 0 else { return }
+        guard ApphudInternal.shared.uiDelegate?.apphudShouldPerformRule?(rule: rule) ?? true else { return }
         
         let controller = ApphudScreenController(rule: rule, screenID: rule.screen_id) {_ in}
         controller.loadScreenPage()
@@ -63,7 +64,7 @@ internal class ApphudRulesManager {
         nc.setNavigationBarHidden(true, animated: false)
         self.pendingController = nc
         
-        if ApphudInternal.shared.uiDelegate?.apphudShouldShowScreen?(controller: nc) ?? true {
+        if ApphudInternal.shared.uiDelegate?.apphudShouldShowScreen?(screenName: rule.screen_name) ?? true {
              showPendingScreen()
         }
     }

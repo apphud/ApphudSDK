@@ -165,7 +165,7 @@ extension ViewController : ApphudDelegate {
 
 extension ViewController : ApphudUIDelegate {
     
-    func apphudShouldShowScreen(controller: UIViewController) -> Bool {
+    func apphudShouldShowScreen(screenName: String) -> Bool {
         return canShowApphudScreen
     }
     
