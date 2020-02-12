@@ -39,7 +39,7 @@ class ViewController: UITableViewController{
     }
     
     @objc func restore(){
-        Apphud.restoreSubscriptions { subscriptions in self.reload()}
+        Apphud.restoreSubscriptions { subscriptions, error in self.reload()}
     }
     
     @objc func reload(){

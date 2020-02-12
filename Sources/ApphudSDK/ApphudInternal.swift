@@ -41,7 +41,7 @@ final class ApphudInternal {
         
     private var submitReceiptCallback : ((Error?) -> Void)?
     
-    private var restoreSubscriptionCallback : (([ApphudSubscription]?) -> Void)?
+    private var restoreSubscriptionCallback : (([ApphudSubscription]?, Error?) -> Void)?
     
     private var allowInitialize = true
     
@@ -359,7 +359,7 @@ final class ApphudInternal {
     
     //MARK:- Main Purchase and Submit Receipt methods
     
-    internal func restoreSubscriptions(callback: @escaping ([ApphudSubscription]?) -> Void) {
+    internal func restoreSubscriptions(callback: @escaping ([ApphudSubscription]?, Error?) -> Void) {
         self.restoreSubscriptionCallback = callback
         self.submitReceiptRestore(allowsReceiptRefresh: true)
     }
@@ -381,7 +381,7 @@ final class ApphudInternal {
                 ApphudStoreKitWrapper.shared.refreshReceipt()
             } else {
                 apphudLog("App Store receipt is missing on device and couldn't be refreshed.", forceDisplay: true)
-                self.restoreSubscriptionCallback?(nil)
+                self.restoreSubscriptionCallback?(nil, nil)
                 self.restoreSubscriptionCallback = nil
             }
             return 
@@ -389,7 +389,7 @@ final class ApphudInternal {
         
         let exist = performWhenUserRegistered { 
             self.submitReceipt(receiptString: receiptString, notifyDelegate: true) { error in
-                self.restoreSubscriptionCallback?(self.currentUser?.subscriptions)
+                self.restoreSubscriptionCallback?(self.currentUser?.subscriptions, error)
                 self.restoreSubscriptionCallback = nil
             }
         }

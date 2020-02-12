@@ -425,7 +425,7 @@ class ApphudScreenController: UIViewController{
     
     private func restoreTapped(){
         self.startLoading()
-        Apphud.restoreSubscriptions { subscriptions in
+        Apphud.restoreSubscriptions { subscriptions, error in
             self.stopLoading()
             if subscriptions?.first?.isActive() ?? false {
                 self.dismiss()
@@ -653,7 +653,7 @@ extension ApphudScreenController {
             // if error occurred, restore subscriptions
             if !(errorCode == .paymentCancelled) {
                 // maybe remove?
-                Apphud.restoreSubscriptions { subscriptions in }
+                Apphud.restoreSubscriptions { subscriptions, error  in }
             }
             
             ApphudInternal.shared.uiDelegate?.apphudDidFailPurchase?(product: product, offerID: offerID, errorCode: errorCode, screenName: self.rule.screen_name)

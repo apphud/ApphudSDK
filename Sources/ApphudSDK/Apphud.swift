@@ -271,7 +271,7 @@ final public class Apphud: NSObject {
         * To migrate existing subsribers to Apphud. If you want your current subscribers to be tracked in Apphud, call this method once at the first launch.   
      - parameter callback: Required. Returns array of subscription (or subscriptions in case you more than one subscription group). Returns nil if user never purchased a subscription.
      */     
-    @objc public static func restoreSubscriptions(callback: @escaping ([ApphudSubscription]?) -> Void) {
+    @objc public static func restoreSubscriptions(callback: @escaping ([ApphudSubscription]?, Error?) -> Void) {
         ApphudInternal.shared.restoreSubscriptions(callback: callback)
     }
     
@@ -291,8 +291,10 @@ final public class Apphud: NSObject {
      */
     @objc public static func migrateSubscriptionsIfNeeded(callback: @escaping ([ApphudSubscription]?) -> Void) {
         if apphudShouldMigrate() {
-            ApphudInternal.shared.restoreSubscriptions { subscriptions in
-                apphudDidMigrate()
+            ApphudInternal.shared.restoreSubscriptions { (subscriptions, error) in
+                if error == nil {
+                    apphudDidMigrate()
+                }
                 callback(subscriptions)
             }
         } 
