@@ -71,13 +71,20 @@ final class ApphudInternal {
         self.httpClient.apiKey = apiKey
         
         self.currentUser = ApphudUser.fromCache()
+        let userIDFromKeychain = ApphudKeychain.loadUserID()
         
         if userID != nil {
             self.currentUserID = userID!
         } else if let existingUserID = self.currentUser?.user_id {
             self.currentUserID = existingUserID
+        } else if userIDFromKeychain != nil{
+            self.currentUserID = userIDFromKeychain!
         } else {
             self.currentUserID = ApphudKeychain.generateUUID()
+        }
+        
+        if self.currentUserID != userIDFromKeychain {
+            ApphudKeychain.saveUserID(userID: self.currentUserID)
         }
         
         self.productsGroupsMap = fromUserDefaultsCache(key: "productsGroupsMap")
@@ -147,6 +154,8 @@ final class ApphudInternal {
         
         let minCheckInterval :Double = 30
         
+        ApphudRulesManager.shared.handlePendingAPSInfo()
+        
         if Date().timeIntervalSince(lastCheckDate) >  minCheckInterval{
             self.checkForUnreadNotifications()
             self.refreshCurrentUser()
@@ -186,6 +195,7 @@ final class ApphudInternal {
         guard let userID = self.currentUser?.user_id else {return}        
         if self.currentUserID != userID {
             self.currentUserID = userID
+            ApphudKeychain.saveUserID(userID: self.currentUserID)
             if tellDelegate {
                 self.delegate?.apphudDidChangeUserID?(userID)
             }
