@@ -144,7 +144,7 @@ Apphud.subscription()
 If your app doesn't have a login system, which identifies a premium user by his credentials, then you need a restore mechanism. If you already have a restore purchases mechanism by calling `SKPaymentQueue.default().restoreCompletedTransactions()`, then you have nothing to worry about – Apphud SDK will automatically intercept and send latest App Store Receipt to Apphud servers when your restoration is completed. However, better to call our restore method from SDK:
 
 ```swift
-Apphud.restoreSubscriptions{ subscriptions in 
+Apphud.restoreSubscriptions{ subscriptions, error in 
    // handle here
 }
 ```

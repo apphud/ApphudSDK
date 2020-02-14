@@ -13,6 +13,7 @@ import Security
 let userAccount = "ApphudUser"
 let accessGroup = "SecuritySerivice"
 let deviceIdKey : NSString = "ApphudDeviceID"
+let userIdKey : NSString = "ApphudUserID"
 
 // Arguments for the keychain queries
 let kSecClassValue = NSString(format: kSecClass)
@@ -38,6 +39,14 @@ internal class ApphudKeychain: NSObject {
     internal class func saveDeviceID(deviceID : String) {
         self.save(deviceIdKey, data: deviceID)
     }
+    
+    internal class func loadUserID() -> String? {
+        return self.load(userIdKey)
+    }
+    
+    internal class func saveUserID(userID : String) {
+        self.save(userIdKey, data: userID)
+    }    
     
     private class func save(_ service: NSString, data: String) {
         if let dataFromString = data.data(using: .utf8, allowLossyConversion: false) {

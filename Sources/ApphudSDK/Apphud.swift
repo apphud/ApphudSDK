@@ -54,11 +54,16 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
 @objc public protocol ApphudUIDelegate {
     
     /**
-        You can return `false` to this delegate method if you don't want Apphud Screen to be displayed at this time.
-     
-        If you returned `false`, this controller will be accessible in `Apphud.pendingScreen()` method. You will be able to present it manually later.
+        You can return `false` to ignore this rule. You should only do this if you want to handle your rules by yourself. Default implementation is `true`.
      */
-    @objc optional func apphudShouldShowScreen(controller: UIViewController) -> Bool
+    @objc optional func apphudShouldPerformRule(rule: ApphudRule) -> Bool
+    
+    /**
+        You can return `false` to this delegate method if you don't want to delay Apphud Screen presentation.
+     
+        Controller will be kept in memory until you present it via `Apphud.showPendingScreen()` method. If you don't want to show screen at all, you should check `apphudShouldPerformRule` delegate method.
+     */
+    @objc optional func apphudShouldShowScreen(screenName: String) -> Bool
     
     /**
         Return `UIViewController` instance from which you want to present given Apphud controller. If you don't implement this method, then top visible viewcontroller from key window will be used.
@@ -100,7 +105,7 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
 /// List of available attribution providers
 @objc public enum ApphudAttributionProvider : Int {
     case appsFlyer
-    
+    case adjust
     /**
      Branch is implemented and doesn't require any additional code from Apphud SDK 
      More details: https://docs.apphud.com/integrations/attribution/branch
@@ -266,7 +271,7 @@ final public class Apphud: NSObject {
         * To migrate existing subsribers to Apphud. If you want your current subscribers to be tracked in Apphud, call this method once at the first launch.   
      - parameter callback: Required. Returns array of subscription (or subscriptions in case you more than one subscription group). Returns nil if user never purchased a subscription.
      */     
-    @objc public static func restoreSubscriptions(callback: @escaping ([ApphudSubscription]?) -> Void) {
+    @objc public static func restoreSubscriptions(callback: @escaping ([ApphudSubscription]?, Error?) -> Void) {
         ApphudInternal.shared.restoreSubscriptions(callback: callback)
     }
     
@@ -286,8 +291,10 @@ final public class Apphud: NSObject {
      */
     @objc public static func migrateSubscriptionsIfNeeded(callback: @escaping ([ApphudSubscription]?) -> Void) {
         if apphudShouldMigrate() {
-            ApphudInternal.shared.restoreSubscriptions { subscriptions in
-                apphudDidMigrate()
+            ApphudInternal.shared.restoreSubscriptions { (subscriptions, error) in
+                if error == nil {
+                    apphudDidMigrate()
+                }
                 callback(subscriptions)
             }
         } 

@@ -165,15 +165,17 @@ public class ApphudHttpClient {
                     
                     let code = httpResponse.statusCode
                     if code >= 200 && code < 300 {
-                        
-                        if data != nil {
-                            let stringResponse = String(data: data!, encoding: .utf8)
-                            apphudLog("Request \(method) \(request.url?.absoluteString ?? "") success with response: \n\(stringResponse ?? "")")
+                          
+                        if let dictionary = dictionary, 
+                            let json = try? JSONSerialization.data(withJSONObject: dictionary, options: .prettyPrinted),
+                            let string = String(data: json, encoding: .utf8){
+                            apphudLog("Request \(method) \(request.url?.absoluteString ?? "") success with response: \n\(string)")
                         }
+                        
                         callback?(true, dictionary, nil)
                         return
                     }
-                    apphudLog("Request \(method) \(request.url?.absoluteString ?? "") failed with code \(code), error: \(error?.localizedDescription ?? "") response: \(dictionary ?? [:])")
+                    apphudLog("Request \(method) \(request.url?.absoluteString ?? "") failed with code \(code), error: \(error?.localizedDescription ?? "") response: \(dictionary ?? [:])", forceDisplay: true)
                 }
                 
                 callback?(false, nil, error)

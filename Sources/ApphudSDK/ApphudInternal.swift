@@ -10,7 +10,7 @@ import Foundation
 import AdSupport
 import StoreKit
 
-let sdk_version = "0.8"
+let sdk_version = "0.8.5"
 
 @available(iOS 11.2, *)
 final class ApphudInternal {
@@ -41,7 +41,7 @@ final class ApphudInternal {
         
     private var submitReceiptCallback : ((Error?) -> Void)?
     
-    private var restoreSubscriptionCallback : (([ApphudSubscription]?) -> Void)?
+    private var restoreSubscriptionCallback : (([ApphudSubscription]?, Error?) -> Void)?
     
     private var allowInitialize = true
     
@@ -71,13 +71,20 @@ final class ApphudInternal {
         self.httpClient.apiKey = apiKey
         
         self.currentUser = ApphudUser.fromCache()
+        let userIDFromKeychain = ApphudKeychain.loadUserID()
         
         if userID != nil {
             self.currentUserID = userID!
         } else if let existingUserID = self.currentUser?.user_id {
             self.currentUserID = existingUserID
+        } else if userIDFromKeychain != nil{
+            self.currentUserID = userIDFromKeychain!
         } else {
             self.currentUserID = ApphudKeychain.generateUUID()
+        }
+        
+        if self.currentUserID != userIDFromKeychain {
+            ApphudKeychain.saveUserID(userID: self.currentUserID)
         }
         
         self.productsGroupsMap = fromUserDefaultsCache(key: "productsGroupsMap")
@@ -147,6 +154,8 @@ final class ApphudInternal {
         
         let minCheckInterval :Double = 30
         
+        ApphudRulesManager.shared.handlePendingAPSInfo()
+        
         if Date().timeIntervalSince(lastCheckDate) >  minCheckInterval{
             self.checkForUnreadNotifications()
             self.refreshCurrentUser()
@@ -186,6 +195,7 @@ final class ApphudInternal {
         guard let userID = self.currentUser?.user_id else {return}        
         if self.currentUserID != userID {
             self.currentUserID = userID
+            ApphudKeychain.saveUserID(userID: self.currentUserID)
             if tellDelegate {
                 self.delegate?.apphudDidChangeUserID?(userID)
             }
@@ -349,7 +359,7 @@ final class ApphudInternal {
     
     //MARK:- Main Purchase and Submit Receipt methods
     
-    internal func restoreSubscriptions(callback: @escaping ([ApphudSubscription]?) -> Void) {
+    internal func restoreSubscriptions(callback: @escaping ([ApphudSubscription]?, Error?) -> Void) {
         self.restoreSubscriptionCallback = callback
         self.submitReceiptRestore(allowsReceiptRefresh: true)
     }
@@ -371,7 +381,7 @@ final class ApphudInternal {
                 ApphudStoreKitWrapper.shared.refreshReceipt()
             } else {
                 apphudLog("App Store receipt is missing on device and couldn't be refreshed.", forceDisplay: true)
-                self.restoreSubscriptionCallback?(nil)
+                self.restoreSubscriptionCallback?(nil, nil)
                 self.restoreSubscriptionCallback = nil
             }
             return 
@@ -379,7 +389,7 @@ final class ApphudInternal {
         
         let exist = performWhenUserRegistered { 
             self.submitReceipt(receiptString: receiptString, notifyDelegate: true) { error in
-                self.restoreSubscriptionCallback?(self.currentUser?.subscriptions)
+                self.restoreSubscriptionCallback?(self.currentUser?.subscriptions, error)
                 self.restoreSubscriptionCallback = nil
             }
         }
@@ -748,7 +758,9 @@ final class ApphudInternal {
             let params = ["device_id": self.currentDeviceID] as [String : String]
             self.httpClient.startRequest(path: "notifications", apiVersion: .v2, params: params, method: .get, callback: { (result, response, error) in
                 
-                if result, let dataDict = response?["data"] as? [String : Any], let notifArray = dataDict["results"] as? [[String : Any]], let notifDict = notifArray.first, let ruleDict = notifDict["rule"] as? [String : Any] {
+                if result, let dataDict = response?["data"] as? [String : Any], let notifArray = dataDict["results"] as? [[String : Any]], let notifDict = notifArray.first, var ruleDict = notifDict["rule"] as? [String : Any] {
+                    let properties = notifDict["properties"] as? [String : Any]
+                    ruleDict = ruleDict.merging(properties ?? [:], uniquingKeysWith: {old, new in new})
                     let rule = ApphudRule(dictionary: ruleDict)
                     ApphudRulesManager.shared.handleRule(rule: rule)
                 }
@@ -777,6 +789,8 @@ final class ApphudInternal {
                 }   
                 params["appsflyer_id"] = identifer
                 params["appsflyer_data"] = data
+            } else if provider == .adjust {
+                params["adjust_data"] = data
             }
             
             self.httpClient.startRequest(path: "customers/attribution", params: params, method: .post) { (result, response, error) in
