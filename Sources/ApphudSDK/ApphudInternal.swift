@@ -10,7 +10,7 @@ import Foundation
 import AdSupport
 import StoreKit
 
-let sdk_version = "0.8.2"
+let sdk_version = "0.8.5"
 
 @available(iOS 11.2, *)
 final class ApphudInternal {

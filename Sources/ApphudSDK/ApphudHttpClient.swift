@@ -175,7 +175,7 @@ public class ApphudHttpClient {
                         callback?(true, dictionary, nil)
                         return
                     }
-                    apphudLog("Request \(method) \(request.url?.absoluteString ?? "") failed with code \(code), error: \(error?.localizedDescription ?? "") response: \(dictionary ?? [:])")
+                    apphudLog("Request \(method) \(request.url?.absoluteString ?? "") failed with code \(code), error: \(error?.localizedDescription ?? "") response: \(dictionary ?? [:])", forceDisplay: true)
                 }
                 
                 callback?(false, nil, error)
