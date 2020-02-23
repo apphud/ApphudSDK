@@ -19,6 +19,7 @@ internal struct ApphudUser {
      An array of subscriptions that user has ever purchased.
      */
     var subscriptions : [ApphudSubscription]
+    var purchases : [ApphudPurchase]
     
     var currencyCode: String?
     var countryCode: String?
@@ -35,18 +36,19 @@ internal struct ApphudUser {
         }
         
         var subs = [ApphudSubscription]()
+        var inapps = [ApphudPurchase]()
+        
         if let subscriptionsDictsArray = dictionary["subscriptions"] as? [[String : Any]]{
             for subdict in subscriptionsDictsArray {
                 if let subscription = ApphudSubscription(dictionary: subdict) {
                     subs.append(subscription)
+                } else if let purchase = ApphudPurchase(dictionary: subdict) {
+                    inapps.append(purchase)
                 }
             }
         }
-        if subs.count > 0 {
-            self.subscriptions = subs.sorted{ return $0.expiresDate > $1.expiresDate }
-        } else {
-            self.subscriptions = []
-        }
+        self.subscriptions = subs.sorted{ return $0.expiresDate > $1.expiresDate }
+        self.purchases = inapps
     }
     
     func subscriptionsStates() -> [[String : AnyHashable]] {
@@ -57,6 +59,18 @@ internal struct ApphudUser {
             dict["expires_date"] = subscription.expiresDate
             dict["product_id"] = subscription.productId
             dict["autorenew"] = subscription.isAutorenewEnabled
+            array.append(dict)
+        }
+        return array
+    }
+    
+    func purchasesStates() -> [[String : AnyHashable]] {
+        var array = [[String : AnyHashable]]()
+        for purchase in self.purchases {
+            var dict = [String : AnyHashable]()
+            dict["cancelled_at"] = purchase.canceledAt
+            dict["started_at"] = purchase.purchasedAt
+            dict["product_id"] = purchase.productId
             array.append(dict)
         }
         return array

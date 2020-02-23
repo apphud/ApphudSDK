@@ -13,6 +13,8 @@
 		9469E2F223AA1C1C002A5946 /* ApphudScreenController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9469E2EF23AA1C1B002A5946 /* ApphudScreenController.swift */; };
 		9469E2F323AA1C1C002A5946 /* ApphudNavigationController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9469E2F023AA1C1B002A5946 /* ApphudNavigationController.swift */; };
 		9469E2F423AA1C1C002A5946 /* ApphudRulesManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9469E2F123AA1C1B002A5946 /* ApphudRulesManager.swift */; };
+		94A9CDFF2402992400F3C5E3 /* ApphudRegularPurchase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94A9CDFE2402992400F3C5E3 /* ApphudRegularPurchase.swift */; };
+		94A9CE012402BAA900F3C5E3 /* ApphudPurchaseResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94A9CE002402BAA900F3C5E3 /* ApphudPurchaseResult.swift */; };
 		94AE4E9122A0FAC800564F85 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94AE4E9022A0FAC800564F85 /* AppDelegate.swift */; };
 		94AE4E9322A0FAC800564F85 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94AE4E9222A0FAC800564F85 /* ViewController.swift */; };
 		94AE4E9622A0FAC800564F85 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 94AE4E9422A0FAC800564F85 /* Main.storyboard */; };
@@ -52,6 +54,8 @@
 		9469E2EF23AA1C1B002A5946 /* ApphudScreenController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudScreenController.swift; sourceTree = "<group>"; };
 		9469E2F023AA1C1B002A5946 /* ApphudNavigationController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudNavigationController.swift; sourceTree = "<group>"; };
 		9469E2F123AA1C1B002A5946 /* ApphudRulesManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudRulesManager.swift; sourceTree = "<group>"; };
+		94A9CDFE2402992400F3C5E3 /* ApphudRegularPurchase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApphudRegularPurchase.swift; sourceTree = "<group>"; };
+		94A9CE002402BAA900F3C5E3 /* ApphudPurchaseResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApphudPurchaseResult.swift; sourceTree = "<group>"; };
 		94AE4E8D22A0FAC800564F85 /* ApphudTestApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ApphudTestApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		94AE4E9022A0FAC800564F85 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		94AE4E9222A0FAC800564F85 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
@@ -145,7 +149,9 @@
 				95E94701239D20D000CC306C /* ApphudUser.swift */,
 				95E94703239D20D000CC306C /* ApphudRule.swift */,
 				95E94704239D20D000CC306C /* ApphudScreen.swift */,
+				94A9CE002402BAA900F3C5E3 /* ApphudPurchaseResult.swift */,
 				95E94705239D20D000CC306C /* ApphudSubscription.swift */,
+				94A9CDFE2402992400F3C5E3 /* ApphudRegularPurchase.swift */,
 				95E94707239D20D000CC306C /* Apphud.swift */,
 				95E94708239D20D000CC306C /* ApphudStoreKitWrapper.swift */,
 				95E94709239D20D000CC306C /* ApphudUtils.swift */,
@@ -237,8 +243,10 @@
 				95E94716239D20D000CC306C /* Apphud.swift in Sources */,
 				9469E2F323AA1C1C002A5946 /* ApphudNavigationController.swift in Sources */,
 				94AE4E9322A0FAC800564F85 /* ViewController.swift in Sources */,
+				94A9CDFF2402992400F3C5E3 /* ApphudRegularPurchase.swift in Sources */,
 				95E94714239D20D000CC306C /* ApphudSubscription.swift in Sources */,
 				9469E2F423AA1C1C002A5946 /* ApphudRulesManager.swift in Sources */,
+				94A9CE012402BAA900F3C5E3 /* ApphudPurchaseResult.swift in Sources */,
 				95E9470C239D20D000CC306C /* ApphudKeychain.swift in Sources */,
 				95E9470E239D20D000CC306C /* ApphudHttpClient.swift in Sources */,
 				95E9471A239D20D000CC306C /* ApphudExtensions.swift in Sources */,

@@ -202,7 +202,7 @@ final public class Apphud: NSObject {
      - parameter product: Required. This is an `SKProduct` object that user wants to purchase.
      - parameter callback: Optional. Returns `ApphudSubscription` object if succeeded and an optional error otherwise.
      */
-    @objc public static func purchase(_ product: SKProduct, callback: ((ApphudSubscription?, Error?) -> Void)?){
+    @objc public static func purchase(_ product: SKProduct, callback: ((ApphudPurchaseResult) -> Void)?){
         ApphudInternal.shared.purchase(product: product, callback: callback)
     }
 

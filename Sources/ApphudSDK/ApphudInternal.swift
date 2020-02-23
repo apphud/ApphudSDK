@@ -172,10 +172,12 @@ final class ApphudInternal {
         }
         
         let oldStates = self.currentUser?.subscriptionsStates()
+        let olfPurchasesStates = self.currentUser?.purchasesStates()
         
         self.currentUser = ApphudUser(dictionary: userDict)
         
         let newStates = self.currentUser?.subscriptionsStates()
+        let newPurchasesStates = self.currentUser?.purchasesStates()
         
         ApphudUser.toCache(userDict)
         
@@ -456,7 +458,7 @@ final class ApphudInternal {
         }
     }
     
-    internal func purchase(product: SKProduct, callback: ((ApphudSubscription?, Error?) -> Void)?){
+    internal func purchase(product: SKProduct, callback: ((ApphudPurchaseResult) -> Void)?){
         ApphudStoreKitWrapper.shared.purchase(product: product) { transaction in
             self.handleTransaction(product: product, transaction: transaction) { (subscription, transaction, error) in
                 callback?(subscription, error)
@@ -473,12 +475,10 @@ final class ApphudInternal {
     }
     
     @available(iOS 12.2, *)
-    internal func purchasePromo(product: SKProduct, discountID: String, callback: ((ApphudSubscription?, Error?) -> Void)?){
+    internal func purchasePromo(product: SKProduct, discountID: String, callback: ((ApphudPurchaseResult) -> Void)?){
         self.signPromoOffer(productID: product.productIdentifier, discountID: discountID) { (paymentDiscount, error) in
             if let paymentDiscount = paymentDiscount {  
-                self.purchasePromo(product: product, discount: paymentDiscount) { (subscription, transaction, error) in
-                    callback?(subscription, error)
-                }
+                self.purchasePromo(product: product, discount: paymentDiscount, callback: callback)
             } else {
                 callback?(nil, ApphudError.error(message: "Could not sign offer id: \(discountID), product id: \(product.productIdentifier)"))
             }
@@ -486,7 +486,7 @@ final class ApphudInternal {
     }
     
     @available(iOS 12.2, *)
-    internal func purchasePromo(product: SKProduct, discountID: String, callback: ((ApphudSubscription?, SKPaymentTransaction?, Error?) -> Void)?){
+    internal func purchasePromo(product: SKProduct, discountID: String, callback: ((ApphudPurchaseResult) -> Void)?){
         self.signPromoOffer(productID: product.productIdentifier, discountID: discountID) { (paymentDiscount, error) in
             if let paymentDiscount = paymentDiscount {                
                 self.purchasePromo(product: product, discount: paymentDiscount, callback: callback)
@@ -497,7 +497,7 @@ final class ApphudInternal {
     }
     
     @available(iOS 12.2, *)
-    internal func purchasePromo(product: SKProduct, discount: SKPaymentDiscount, callback: ((ApphudSubscription?, SKPaymentTransaction?, Error?) -> Void)?){
+    internal func purchasePromo(product: SKProduct, discount: SKPaymentDiscount, callback: ((ApphudPurchaseResult) -> Void)?){
         ApphudStoreKitWrapper.shared.purchase(product: product, discount: discount) { transaction in
             self.handleTransaction(product: product, transaction: transaction, callback: callback)
         }
@@ -510,19 +510,21 @@ final class ApphudInternal {
                 callback?(subscription, transaction, error)
             }
         } else {
-            callback?(subscription(productId: product.productIdentifier), transaction, transaction.error)
+            callback?(purchaseResult(productId: product.productIdentifier), transaction, transaction.error)
         }
     }
     
-    private func subscription(productId: String) -> ApphudSubscription? {
+    private func purchaseResult(productId: String, transaction: SKPaymentTransaction) -> ApphudPurchaseResult {
+
+        // 1. try to find in app purchase by product id
+        var purchase = currentUser?.purchases.first(where: {$0.productId == productId})
         
         // 1. try to find subscription by product id
-        var subscription = Apphud.subscriptions()?.first(where: {$0.productId == productId})
-        
+        var subscription = currentUser?.subscriptions.first(where: {$0.productId == productId})
         // 2. try to find subscription by SKProduct's subscriptionGroupIdentifier
         if subscription == nil, #available(iOS 12.2, *){
             let targetProduct = ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == productId})
-            for sub in Apphud.subscriptions() ?? [] {
+            for sub in currentUser?.subscriptions ?? [] {
                 if let product = ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == sub.productId}),
                 targetProduct?.subscriptionGroupIdentifier == product.subscriptionGroupIdentifier {
                     subscription = sub
@@ -533,7 +535,7 @@ final class ApphudInternal {
         
         // 3. Try to find subscription by groupID provided in Apphud project settings
         if subscription == nil, let groupID = self.productsGroupsMap?[productId] {
-            subscription = Apphud.subscriptions()?.first(where: { self.productsGroupsMap?[$0.productId] == groupID})
+            subscription = currentUser?.subscriptions.first(where: { self.productsGroupsMap?[$0.productId] == groupID})
         }
         
         return subscription
