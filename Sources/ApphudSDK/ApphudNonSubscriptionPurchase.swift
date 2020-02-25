@@ -8,7 +8,7 @@
 
 import Foundation
 
-public class ApphudRegularPurchase : NSObject {
+public class ApphudNonSubscriptionPurchase : NSObject {
     
     /**
      Product identifier of this subscription
@@ -18,7 +18,7 @@ public class ApphudRegularPurchase : NSObject {
     /**
      Date when user bought regular in-app purchase.
      */
-    @objc public let purchasedAt : Date?
+    @objc public let purchasedAt : Date
     
     /**
      Canceled date of in-app purchase, i.e. refund date. Nil if in-app purchase is not refunded.
@@ -32,7 +32,7 @@ public class ApphudRegularPurchase : NSObject {
         guard dictionary["kind"] as? String == "nonrenewable" else {return nil}
         canceledAt = ApphudSubscription.dateFrom(dictionary["cancelled_at"])
         productId = dictionary["product_id"] as? String ?? ""
-        purchasedAt = ApphudSubscription.dateFrom(dictionary["started_at"])
+        purchasedAt = ApphudSubscription.dateFrom(dictionary["started_at"]) ?? Date()
     }
 
     /**

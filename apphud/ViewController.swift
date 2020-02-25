@@ -39,7 +39,16 @@ class ViewController: UITableViewController{
     }
     
     @objc func restore(){
-        Apphud.restoreSubscriptions { subscriptions, error in self.reload()}
+        Apphud.restorePurchases { subscriptions, purchases, error in 
+            
+            let isA = Apphud.isNonSubscriptionPurchased(productIdentifier: "NonConsumable")
+            let isB = Apphud.isNonSubscriptionPurchased(productIdentifier: "Consumable")
+            let isC = Apphud.isNonSubscriptionPurchased(productIdentifier: "NonRenewingSubscription")
+            
+            let purchases = Apphud.nonSubscriptionPurchases()
+            
+            self.reload()
+        }
     }
     
     @objc func reload(){
@@ -133,13 +142,13 @@ class ViewController: UITableViewController{
     
     @available(iOS 12.2, *)
     func purchaseProduct(product: SKProduct, promoID: String){
-        Apphud.purchasePromo(product, discountID: promoID) { (subsription, error) in
+        Apphud.purchasePromo(product, discountID: promoID) { (result) in
             self.reload()
         } 
     }
     
     func purchaseProduct(product : SKProduct) {
-        Apphud.purchase(product) { (subs, error) in
+        Apphud.purchase(product) { (result) in
             self.reload()            
         }
     }

@@ -27,6 +27,11 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
     @objc optional func apphudSubscriptionsUpdated(_ subscriptions: [ApphudSubscription])
     
     /**
+        Called when any of non subscription purchases changed its state. As for now, the only possible state change is getting refunded.
+     */
+    @objc optional func apphudNonSubscriptionPurchasesUpdated(_ purchases: [ApphudNonSubscriptionPurchase])
+    
+    /**
         Called when user ID has been changed. Use this if you implement integrations with Analytics services.
      
         Please read following if you implement integrations: `https://docs.apphud.com/docs/en/sdk-integration#user-identifier-and-integrations`
@@ -216,19 +221,11 @@ final public class Apphud: NSObject {
         - parameter callback: Optional. Returns `ApphudSubscription` object if succeeded and an optional error otherwise.
      */
     @available(iOS 12.2, *)
-    @objc public static func purchasePromo(_ product: SKProduct, discountID: String, _ callback: ((ApphudSubscription?, Error?) -> Void)?){
+    @objc public static func purchasePromo(_ product: SKProduct, discountID: String, _ callback: ((ApphudPurchaseResult) -> Void)?){
         ApphudInternal.shared.purchasePromo(product: product, discountID: discountID, callback: callback)
     }
     
-    /**
-         __Deprecated__. Starting now Apphud SDK automatically tracks all your in-app purchases and submits App Store receipt to Apphud. You can safely remove this method from your code. If you were using callback, you can use `apphudSubscriptionsUpdated` delegate method instead.
-     */
-    @available(*, deprecated, message: "Starting now Apphud SDK automatically tracks all your in-app purchases and submits App Store receipt to Apphud. You can safely remove this method from your code. If you were using callback, you can use `apphudSubscriptionsUpdated` delegate method instead.")
-    @objc public static func submitReceipt(_ productIdentifier : String, _ callback : ((ApphudSubscription?, Error?) -> Void)?) {
-        ApphudInternal.shared.submitReceipt(productId: productIdentifier, callback: callback)        
-    }
-    
-    //MARK:- Handle Subscriptions
+    //MARK:- Handle Purchases
     
     /**
         Returns true if user has active subscription.
@@ -262,6 +259,20 @@ final public class Apphud: NSObject {
     }
    
     /**
+     Returns an array of all non subscription purchases (consumables, nonconsumables or nonrenewing subscriptions) that this user has ever purchased. Purchases are cached on device.
+     */
+    @objc public static func nonSubscriptionPurchases() -> [ApphudNonSubscriptionPurchase]? {
+        return ApphudInternal.shared.currentUser?.purchases
+    }
+    
+    /**
+     Returns `true` if current user has purchased non subscription purchase with given product identifier. Returns `false` if this product never purchased or refunded. Includes consumables, nonconsumables or nonrenewing subscriptions.
+     */
+    @objc public static func isNonSubscriptionPurchased(productIdentifier : String) -> Bool {
+        return ApphudInternal.shared.currentUser?.purchases.first(where: {$0.productId == productIdentifier})?.isActive() ?? false
+    }
+    
+    /**
      Implements `Restore Purchases` mechanism. Basically it just sends current App Store Receipt to Apphud and returns subscriptions info.
      
      __Note__: Even if callback returns some subscription, it doesn't mean that subscription is active. You should check `subscription.isActive()` value.
@@ -271,8 +282,8 @@ final public class Apphud: NSObject {
         * To migrate existing subsribers to Apphud. If you want your current subscribers to be tracked in Apphud, call this method once at the first launch.   
      - parameter callback: Required. Returns array of subscription (or subscriptions in case you more than one subscription group). Returns nil if user never purchased a subscription.
      */     
-    @objc public static func restoreSubscriptions(callback: @escaping ([ApphudSubscription]?, Error?) -> Void) {
-        ApphudInternal.shared.restoreSubscriptions(callback: callback)
+    @objc public static func restorePurchases(callback: @escaping ([ApphudSubscription]?, [ApphudNonSubscriptionPurchase]?, Error?) -> Void) {
+        ApphudInternal.shared.restorePurchases(callback: callback)
     }
     
     /**
@@ -291,7 +302,7 @@ final public class Apphud: NSObject {
      */
     @objc public static func migrateSubscriptionsIfNeeded(callback: @escaping ([ApphudSubscription]?) -> Void) {
         if apphudShouldMigrate() {
-            ApphudInternal.shared.restoreSubscriptions { (subscriptions, error) in
+            ApphudInternal.shared.restorePurchases { (subscriptions, purchases, error) in
                 if error == nil {
                     apphudDidMigrate()
                 }
