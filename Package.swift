@@ -1,16 +1,10 @@
 // swift-tools-version:5.1
 import PackageDescription
 
-let package = Package(
-    name: "ApphudSDK",
-    platforms: [
-        .iOS(.v11)
-	],
-    products: [
-        .library(name: "ApphudSDK", targets: ["ApphudSDK"])
-    ],
-    targets: [
-        .target(name: "ApphudSDK")
-    ],
-    swiftLanguageVersions: [.v4_2]
-)
+let package = Package(name: "ApphudSDK",
+                      platforms: [.iOS("11.2")],
+                      products: [.library(name: "ApphudSDK",
+                                          targets: ["ApphudSDK"])],
+                      targets: [.target(name: "ApphudSDK",
+                                        path: "Sources")],
+                      swiftLanguageVersions: [.v4_2])
