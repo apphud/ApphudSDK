@@ -29,7 +29,7 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
     /**
         Called when any of non subscription purchases changed its state. As for now, the only possible state change is getting refunded.
      */
-    @objc optional func apphudNonSubscriptionPurchasesUpdated(_ purchases: [ApphudNonSubscriptionPurchase])
+    @objc optional func ApphudNonRenewingPurchasesUpdated(_ purchases: [ApphudNonRenewingPurchase])
     
     /**
         Called when user ID has been changed. Use this if you implement integrations with Analytics services.
@@ -259,16 +259,16 @@ final public class Apphud: NSObject {
     }
    
     /**
-     Returns an array of all non subscription purchases (consumables, nonconsumables or nonrenewing subscriptions) that this user has ever purchased. Purchases are cached on device.
+     Returns an array of all standard in-app purchases (consumables, nonconsumables or nonrenewing subscriptions) that this user has ever purchased. Purchases are cached on device. This array is sorted by purchase date.
      */
-    @objc public static func nonSubscriptionPurchases() -> [ApphudNonSubscriptionPurchase]? {
+    @objc public static func nonRenewingPurchases() -> [ApphudNonRenewingPurchase]? {
         return ApphudInternal.shared.currentUser?.purchases
     }
     
     /**
-     Returns `true` if current user has purchased non subscription purchase with given product identifier. Returns `false` if this product never purchased or refunded. Includes consumables, nonconsumables or nonrenewing subscriptions.
+     Returns `true` if current user has purchased standard in-app purchase with given product identifier. Returns `false` if this product never purchased or refunded. Includes consumables, nonconsumables or non-renewing subscriptions.
      */
-    @objc public static func isNonSubscriptionPurchased(productIdentifier : String) -> Bool {
+    @objc public static func isNonRenewingPurchaseActive(productIdentifier : String) -> Bool {
         return ApphudInternal.shared.currentUser?.purchases.first(where: {$0.productId == productIdentifier})?.isActive() ?? false
     }
     
@@ -282,7 +282,7 @@ final public class Apphud: NSObject {
         * To migrate existing subsribers to Apphud. If you want your current subscribers to be tracked in Apphud, call this method once at the first launch.   
      - parameter callback: Required. Returns array of subscription (or subscriptions in case you more than one subscription group). Returns nil if user never purchased a subscription.
      */     
-    @objc public static func restorePurchases(callback: @escaping ([ApphudSubscription]?, [ApphudNonSubscriptionPurchase]?, Error?) -> Void) {
+    @objc public static func restorePurchases(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {
         ApphudInternal.shared.restorePurchases(callback: callback)
     }
     

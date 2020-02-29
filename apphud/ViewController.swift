@@ -41,11 +41,14 @@ class ViewController: UITableViewController{
     @objc func restore(){
         Apphud.restorePurchases { subscriptions, purchases, error in 
             
-            let isA = Apphud.isNonSubscriptionPurchased(productIdentifier: "NonConsumable")
-            let isB = Apphud.isNonSubscriptionPurchased(productIdentifier: "Consumable")
-            let isC = Apphud.isNonSubscriptionPurchased(productIdentifier: "NonRenewingSubscription")
+            #warning("REMOVE")
+            let isA = Apphud.isNonRenewingPurchaseActive(productIdentifier: "NonConsumable")
+            let isB = Apphud.isNonRenewingPurchaseActive(productIdentifier: "Consumable")
+            let isC = Apphud.isNonRenewingPurchaseActive(productIdentifier: "NonRenewingSubscription")
             
-            let purchases = Apphud.nonSubscriptionPurchases()
+            let purchases = Apphud.nonRenewingPurchases()
+            
+            print("NonConsumable: \(isA), Consumable: \(isB), NonRenewingSubscription: \(isC), purchases: \(String(describing: purchases?.count))")
             
             self.reload()
         }

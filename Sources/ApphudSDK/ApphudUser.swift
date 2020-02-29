@@ -19,7 +19,7 @@ internal struct ApphudUser {
      An array of subscriptions that user has ever purchased.
      */
     var subscriptions : [ApphudSubscription]
-    var purchases : [ApphudNonSubscriptionPurchase]
+    var purchases : [ApphudNonRenewingPurchase]
     
     var currencyCode: String?
     var countryCode: String?
@@ -36,13 +36,13 @@ internal struct ApphudUser {
         }
         
         var subs = [ApphudSubscription]()
-        var inapps = [ApphudNonSubscriptionPurchase]()
+        var inapps = [ApphudNonRenewingPurchase]()
         
         if let subscriptionsDictsArray = dictionary["subscriptions"] as? [[String : Any]]{
             for subdict in subscriptionsDictsArray {
                 if let subscription = ApphudSubscription(dictionary: subdict) {
                     subs.append(subscription)
-                } else if let purchase = ApphudNonSubscriptionPurchase(dictionary: subdict) {
+                } else if let purchase = ApphudNonRenewingPurchase(dictionary: subdict) {
                     inapps.append(purchase)
                 }
             }

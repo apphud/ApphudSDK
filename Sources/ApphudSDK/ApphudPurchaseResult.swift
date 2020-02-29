@@ -22,25 +22,25 @@ public class ApphudPurchaseResult: NSObject {
     @objc public let subscription: ApphudSubscription?
     
     /**
-        Non consumable, consumable purchase or nonrenewing subscription
+     Standard in-app purchase (non-consumable, consumable or non-renewing subscription)
      */
-    @objc public let nonSubscriptionPurchase: ApphudNonSubscriptionPurchase?
+    @objc public let nonRenewingPurchase: ApphudNonRenewingPurchase?
     
     /**
-     Transaction from StoreKit. May be nil in some cases.
+     Transaction from StoreKit
      */
     @objc public let transaction: SKPaymentTransaction?
     
     /**
-     Error from StoreKit
+     Error from StoreKit or from HTTP Session
      */
     let error: Error?
     
     // MARK:- Private methods
     
-    init(_ subscription: ApphudSubscription?, _ purchase: ApphudNonSubscriptionPurchase?, _ transaction: SKPaymentTransaction?, _ error: Error?) {
+    init(_ subscription: ApphudSubscription?, _ purchase: ApphudNonRenewingPurchase?, _ transaction: SKPaymentTransaction?, _ error: Error?) {
         self.subscription = subscription
-        self.nonSubscriptionPurchase = purchase
+        self.nonRenewingPurchase = purchase
         self.transaction = transaction
         self.error = error
     }

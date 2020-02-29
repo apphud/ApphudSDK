@@ -8,7 +8,7 @@
 
 import Foundation
 
-public class ApphudNonSubscriptionPurchase : NSObject {
+public class ApphudNonRenewingPurchase : NSObject {
     
     /**
      Product identifier of this subscription

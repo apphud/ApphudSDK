@@ -12,7 +12,7 @@ import StoreKit
 
 let sdk_version = "0.9.0"
 
-internal typealias HasPurchasesChanges = (hasSubscriptionChanges: Bool, hasNonSubscriptionChanges: Bool)
+internal typealias HasPurchasesChanges = (hasSubscriptionChanges: Bool, hasNonRenewingChanges: Bool)
 
 @available(iOS 11.2, *)
 final class ApphudInternal {
@@ -43,7 +43,7 @@ final class ApphudInternal {
         
     private var submitReceiptCallback : ((Error?) -> Void)?
     
-    private var restorePurchasesCallback : (([ApphudSubscription]?, [ApphudNonSubscriptionPurchase]?, Error?) -> Void)?
+    private var restorePurchasesCallback : (([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void)?
     
     private var allowInitialize = true
     
@@ -263,8 +263,8 @@ final class ApphudInternal {
                 if hasChanges.hasSubscriptionChanges {
                     self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions)
                 }
-                if hasChanges.hasNonSubscriptionChanges {
-                    self.delegate?.apphudNonSubscriptionPurchasesUpdated?(self.currentUser!.purchases)
+                if hasChanges.hasNonRenewingChanges {
+                    self.delegate?.ApphudNonRenewingPurchasesUpdated?(self.currentUser!.purchases)
                 }
                 if UserDefaults.standard.bool(forKey: self.requiresReceiptSubmissionKey) {
                     self.submitReceiptRestore(allowsReceiptRefresh: false)
@@ -361,7 +361,7 @@ final class ApphudInternal {
     
     //MARK:- Main Purchase and Submit Receipt methods
     
-    internal func restorePurchases(callback: @escaping ([ApphudSubscription]?, [ApphudNonSubscriptionPurchase]?, Error?) -> Void) {
+    internal func restorePurchases(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {
         self.restorePurchasesCallback = callback
         self.submitReceiptRestore(allowsReceiptRefresh: true)
     }
@@ -451,8 +451,8 @@ final class ApphudInternal {
                     if hasChanges.hasSubscriptionChanges {
                         self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions)
                     }
-                    if hasChanges.hasNonSubscriptionChanges {
-                        self.delegate?.apphudNonSubscriptionPurchasesUpdated?(self.currentUser!.purchases)
+                    if hasChanges.hasNonRenewingChanges {
+                        self.delegate?.ApphudNonRenewingPurchasesUpdated?(self.currentUser!.purchases)
                     }
                 }
             }
