@@ -14,6 +14,7 @@ import StoreKit
  
  Using class instead of struct in order to support Objective-C
 */ 
+
 public class ApphudPurchaseResult: NSObject {
     
     /**
@@ -27,7 +28,7 @@ public class ApphudPurchaseResult: NSObject {
     @objc public let nonRenewingPurchase: ApphudNonRenewingPurchase?
     
     /**
-     Transaction from StoreKit
+     Transaction from StoreKit. May be nil, if no transaction made. For example, if payments are not allowed on this device.
      */
     @objc public let transaction: SKPaymentTransaction?
     

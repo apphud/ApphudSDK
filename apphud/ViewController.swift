@@ -26,6 +26,17 @@ class ViewController: UITableViewController{
         
         reload()
         navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Restore transactions", style: .done, target: self, action: #selector(restore))        
+        
+        if Apphud.products() == nil {
+            Apphud.productsDidFetchCallback { (products) in
+                print("products loaded and callback called!")
+                self.products = products
+                self.reload()
+            }
+        } else {
+            print("products already loaded and callback not called!")
+            self.products = Apphud.products()!        
+        }
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -40,16 +51,6 @@ class ViewController: UITableViewController{
     
     @objc func restore(){
         Apphud.restorePurchases { subscriptions, purchases, error in 
-            
-            #warning("REMOVE")
-            let isA = Apphud.isNonRenewingPurchaseActive(productIdentifier: "NonConsumable")
-            let isB = Apphud.isNonRenewingPurchaseActive(productIdentifier: "Consumable")
-            let isC = Apphud.isNonRenewingPurchaseActive(productIdentifier: "NonRenewingSubscription")
-            
-            let purchases = Apphud.nonRenewingPurchases()
-            
-            print("NonConsumable: \(isA), Consumable: \(isB), NonRenewingSubscription: \(isC), purchases: \(String(describing: purchases?.count))")
-            
             self.reload()
         }
     }
@@ -165,7 +166,7 @@ extension ViewController : ApphudDelegate {
     
     func apphudDidFetchStoreKitProducts(_ products: [SKProduct]) {
         print("apphudDidFetchStoreKitProducts")
-        self.products = products
+     //   self.products = products
         self.reload()
     }
     

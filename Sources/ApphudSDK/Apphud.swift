@@ -51,7 +51,7 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
     /**
         Returns array of `SKProduct` objects after they are fetched from StoreKit. Note that you have to add all product identifiers in Apphud.
      
-        You can use this delegate method or observe for `Apphud.didFetchProductsNotification()` notification. 
+        You can use `productsDidFetchCallback` callback or observe for `didFetchProductsNotification()` or implement `apphudDidFetchStoreKitProducts` delegate method. Use whatever you like most. 
      */
     @objc optional func apphudDidFetchStoreKitProducts(_ products: [SKProduct])
 }
@@ -172,10 +172,19 @@ final public class Apphud: NSObject {
     /**
      This notification is sent when SKProducts are fetched from StoreKit. Note that you have to add all product identifiers in Apphud.
      
-     You can observe for this notification or implement `apphudDidFetchStoreKitProducts` delegate method.
+     You can use `productsDidFetchCallback` callback or observe for `didFetchProductsNotification()` or implement `apphudDidFetchStoreKitProducts` delegate method. Use whatever you like most.
      */
     @objc public static func didFetchProductsNotification() -> Notification.Name {
         return Notification.Name("ApphudDidFetchProductsNotification")
+    }
+    
+    /**
+    This callback is called when SKProducts are fetched from StoreKit. Note that you have to add all product identifiers in Apphud.
+    
+    You can use `productsDidFetchCallback` callback or observe for `didFetchProductsNotification()` or implement `apphudDidFetchStoreKitProducts` delegate method. Use whatever you like most.
+    */
+    @objc public static func productsDidFetchCallback(_ callback: @escaping ([SKProduct]) -> Void) {
+        ApphudStoreKitWrapper.shared.customProductsFetchedBlock = callback
     }
     
     /**
@@ -202,15 +211,27 @@ final public class Apphud: NSObject {
     /**
      Purchases product and automatically submits App Store Receipt to Apphud.
      
-     __Note__: This method automatically sends in-app purchase receipt to Apphud, so you don't need to call `submitReceipt` method.    
+     __Note__:  You are not required to purchase product using Apphud SDK methods. You can purchase subscription or any in-app purchase using your own code. App Store receipt will be sent to Apphud anyway.
      
      - parameter product: Required. This is an `SKProduct` object that user wants to purchase.
-     - parameter callback: Optional. Returns `ApphudSubscription` object if succeeded and an optional error otherwise.
+     - parameter callback: Optional. Returns `ApphudPurchaseResult` object if succeeded and an optional error otherwise.
      */
     @objc public static func purchase(_ product: SKProduct, callback: ((ApphudPurchaseResult) -> Void)?){
         ApphudInternal.shared.purchase(product: product, callback: callback)
     }
 
+    /**
+    Purchases product and automatically submits App Store Receipt to Apphud. This method doesn't wait until Apphud validates App Store receipt and immediately returns transaction object. This method may be useful if you don't care about receipt validation in callback. 
+    
+     __Note__:  You are not required to purchase product using Apphud SDK methods. You can purchase subscription or any in-app purchase using your own code. App Store receipt will be sent to Apphud anyway.
+     
+    - parameter product: Required. This is an `SKProduct` object that user wants to purchase.
+    - parameter callback: Optional. Returns optional `SKPaymentTransaction` object and an optional error.
+    */
+    @objc public static func purchaseWithoutValidation(_ product: SKProduct,  callback: ((SKPaymentTransaction, Error?) -> Void)?){
+        ApphudInternal.shared.purchaseWithoutValidation(product: product, callback: callback)
+    }
+    
     /**
         Purchases subscription (promotional) offer and automatically submits App Store Receipt to Apphud. 
      
@@ -218,7 +239,7 @@ final public class Apphud: NSObject {
      
         - parameter product: Required. This is an `SKProduct` object that user wants to purchase.
         - parameter discountID: Required. This is a `SKProductDiscount` Identifier String object that you would like to apply.
-        - parameter callback: Optional. Returns `ApphudSubscription` object if succeeded and an optional error otherwise.
+        - parameter callback: Optional. Returns `ApphudPurchaseResult` object if succeeded and an optional error otherwise.
      */
     @available(iOS 12.2, *)
     @objc public static func purchasePromo(_ product: SKProduct, discountID: String, _ callback: ((ApphudPurchaseResult) -> Void)?){

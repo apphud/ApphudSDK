@@ -10,6 +10,7 @@ import Foundation
 import StoreKit
 
 internal typealias ApphudStoreKitProductsCallback = ([SKProduct]) -> Void
+internal typealias ApphudTransactionCallback = (SKPaymentTransaction, Error?) -> Void
 
 @available(iOS 11.2, *)
 internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SKRequestDelegate{
@@ -18,9 +19,12 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     internal var products = [SKProduct]()
     
     fileprivate let fetcher = ApphudProductsFetcher()
+    fileprivate let receiptSubmitProductFetcher = ApphudProductsFetcher()
     
-    private var paymentCallback : ((SKPaymentTransaction) -> Void)?
+    private var paymentCallback : ApphudTransactionCallback?
     private var purchasingProductID : String?
+    
+    internal var customProductsFetchedBlock : ApphudStoreKitProductsCallback?
     
     func setupObserver(){
         SKPaymentQueue.default().add(self)
@@ -37,34 +41,31 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
             self.products.append(contentsOf: products)
             callback(products)
             NotificationCenter.default.post(name: Apphud.didFetchProductsNotification(), object: self.products)
-            ApphudInternal.shared.delegate?.apphudDidFetchStoreKitProducts?(products)
+            ApphudInternal.shared.delegate?.apphudDidFetchStoreKitProducts?(self.products)
+            self.customProductsFetchedBlock?(self.products)
+            self.customProductsFetchedBlock = nil
         }
     }
     
-    func purchase(product: SKProduct, callback: @escaping (SKPaymentTransaction) -> Void){
+    func fetchReceiptSubmitProduct(productId: String, callback: @escaping (SKProduct?) -> Void) {
+        receiptSubmitProductFetcher.fetchStoreKitProducts(identifiers: Set([productId])) { (products) in
+            callback(products.first)
+        }
+    }
+    
+    func purchase(product: SKProduct, callback: @escaping ApphudTransactionCallback){
         let payment = SKMutablePayment(product: product)
         purchase(payment: payment, callback: callback)
     }
     
     @available(iOS 12.2, *)
-    func purchase(product: SKProduct, discount: SKPaymentDiscount, callback: @escaping (SKPaymentTransaction) -> Void){
+    func purchase(product: SKProduct, discount: SKPaymentDiscount, callback: @escaping ApphudTransactionCallback){
         let payment = SKMutablePayment(product: product)
         payment.paymentDiscount = discount
         purchase(payment: payment, callback: callback)
     }
     
-    func purchase(payment : SKMutablePayment, callback: @escaping (SKPaymentTransaction) -> Void){
-        
-        guard SKPaymentQueue.canMakePayments() else {
-            return
-        }
-        
-        guard SKPaymentQueue.default().transactions.last?.transactionState != .purchasing else {
-            return
-        } 
-        
-        if self.purchasingProductID != nil {return}
-        
+    func purchase(payment : SKMutablePayment, callback: @escaping ApphudTransactionCallback){
         payment.applicationUsername = ""
         self.paymentCallback = callback
         self.purchasingProductID = payment.productIdentifier
@@ -99,7 +100,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         if transaction.payment.productIdentifier == self.purchasingProductID {
             self.purchasingProductID = nil
             if self.paymentCallback != nil {
-                self.paymentCallback?(transaction)
+                self.paymentCallback?(transaction, nil)
             } else {
                 // Finish transaction because Apphud SDK started it.
                 SKPaymentQueue.default().finishTransaction(transaction)
@@ -108,7 +109,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         } else {
             // we didn't start this transaction, just submit receipt
             if transaction.transactionState == .purchased {
-                ApphudInternal.shared.submitReceiptAutomaticPurchaseTracking()
+                ApphudInternal.shared.submitReceiptAutomaticPurchaseTracking(transaction: transaction)
             }
         }
     }
