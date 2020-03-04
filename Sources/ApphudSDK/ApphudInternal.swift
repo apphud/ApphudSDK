@@ -816,6 +816,8 @@ final class ApphudInternal {
                 params["appsflyer_data"] = data
             } else if provider == .adjust {
                 params["adjust_data"] = data
+            } else if provider == .appleSearchAds {
+                params["search_ads_data"] = data
             }
             
             self.httpClient.startRequest(path: "customers/attribution", params: params, method: .post) { (result, response, error, code) in

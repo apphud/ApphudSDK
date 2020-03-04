@@ -21,7 +21,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         #warning("REMOVE")
         ApphudHttpClient.shared.domain_url_string = "https://api.bitcolio.com"
         Apphud.enableDebugLogs()
-        Apphud.start(apiKey: "app_useF6LdRZxjjMD8ZJ6ESWSLkAY3Jho")
+        Apphud.start(apiKey: "MDn9JRkSZzLMHtsFzWJXrscF7tZnis")
         registerForNotifications()
         
         return true
