@@ -24,5 +24,7 @@ public class ApphudUtils : NSObject {
     private(set) var isLoggingEnabled = false
     
     internal var optOutOfIDFACollection = false
+    
+    internal var finishTransactions = false
 }
 

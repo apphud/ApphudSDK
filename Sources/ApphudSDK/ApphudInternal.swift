@@ -534,6 +534,7 @@ final class ApphudInternal {
             }
         } else {
             callback?(purchaseResult(productId: product.productIdentifier, transaction: transaction, error: error))
+            SKPaymentQueue.default().finishTransaction(transaction)
         }
     }
     

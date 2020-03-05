@@ -443,6 +443,20 @@ final public class Apphud: NSObject {
     }
     
     /**
+     Automatically finishes all payment transactions. By default, Apphud SDK only finishes transactions, that were started by Apphud DSK, i.e. by calling  any`Apphud.purchase..()` methods.
+     This is also useful when debugging and changing sandbox Apple ID many times. Should be called before Apphud SDK initialization.
+     
+     If called, Apphud SDK finishes all payment transactions that are intercepted by our transaction observer. If you are using your own purchase flow, make sure you finish all transactions that should be finished otherwise use this method. This method doesn't need to be called (calling this method will take no effect) if you are purchasing in-app purchases through Apphud SDK.
+     
+     For more information read "Finish the transaction" paragraph here: https://developer.apple.com/library/archive/technotes/tn2387/_index.html
+     
+     _Note_: Only call this method if you know what you are doing.
+     */
+    @objc public static func setFinishAllTransactions(){
+        ApphudUtils.shared.finishTransactions = true
+    }
+    
+    /**
         This method must be called before SDK initialization. Apphud will send all subscription events of current user to your test analytics, if test api keys are set in integrations dashboard.
      */
     @objc public static func setIntegrationsTestMode(){

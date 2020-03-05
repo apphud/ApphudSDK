@@ -88,13 +88,17 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
                      Will not finish transaction, because we didn't start it. Developer should finish transaction manually.
                      */
                     ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: true)
+                    if ApphudUtils.shared.finishTransactions {
+                        // force finish transaction
+                        SKPaymentQueue.default().finishTransaction(trx)
+                    }
                     break
                 default:
                     break
                 }
             }
         }
-    }    
+    }
     
     private func handleTransactionIfStarted(_ transaction : SKPaymentTransaction) {
         if transaction.payment.productIdentifier == self.purchasingProductID {
@@ -102,14 +106,16 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
             if self.paymentCallback != nil {
                 self.paymentCallback?(transaction, nil)
             } else {
-                // Finish transaction because Apphud SDK started it.
                 SKPaymentQueue.default().finishTransaction(transaction)
             }
             self.paymentCallback = nil
         } else {
-            // we didn't start this transaction, just submit receipt
             if transaction.transactionState == .purchased {
                 ApphudInternal.shared.submitReceiptAutomaticPurchaseTracking(transaction: transaction)
+            }
+            if ApphudUtils.shared.finishTransactions {
+                // force finish transaction
+                SKPaymentQueue.default().finishTransaction(transaction)
             }
         }
     }
