@@ -49,10 +49,13 @@ final class ApphudInternal {
     
     internal func initialize(apiKey: String, userID : String?, deviceIdentifier : String? = nil){
         
-        apphudLog("Started Apphud SDK (\(sdk_version))", forceDisplay: true)
-        
-        if !allowInitialize {return}
+        guard allowInitialize == true else {
+            apphudLog("Abort initializing, because Apphud SDK already initialized.", forceDisplay: true)
+            return
+        }
         allowInitialize = false
+        
+        apphudLog("Started Apphud SDK (\(sdk_version))", forceDisplay: true)
         
         ApphudStoreKitWrapper.shared.setupObserver()
         
@@ -97,12 +100,11 @@ final class ApphudInternal {
     private func continueToRegisteringUser(){
         createOrGetUser { success in
             
-            self.allowInitialize = !success
+            self.setupObservers()
             
             if success {
                 apphudLog("User successfully registered")
                 self.performAllUserRegisteredBlocks()                
-                self.setupObservers()
                 self.checkForUnreadNotifications()
             } else {                
                 self.userRegisteredCallbacks.removeAll()
@@ -128,20 +130,36 @@ final class ApphudInternal {
     }
     
     private func continueToFetchStoreKitProducts(){
-        
         guard self.productsGroupsMap?.keys.count ?? 0 > 0 else {
             return
         }
-            
-        ApphudStoreKitWrapper.shared.fetchProducts(identifiers: Set(self.productsGroupsMap!.keys)) { (skproducts) in
-            self.updateUserCurrencyIfNeeded(priceLocale: skproducts.first?.priceLocale)
-            if skproducts.count > 0 {
-                self.continueToUpdateProductsPrices(products: skproducts)
-            }
+        ApphudStoreKitWrapper.shared.fetchProducts(identifiers: Set(self.productsGroupsMap!.keys)) { skproducts in
+            self.continueToUpdateProductPrices()
         }
     }
     
-    private func continueToUpdateProductsPrices(products : [SKProduct]){
+    private func continueToUpdateProductPrices(){
+        let products = ApphudStoreKitWrapper.shared.products
+        if products.count > 0 {
+            self.updateUserCurrencyIfNeeded(priceLocale: products.first?.priceLocale)
+            self.continueToUpdateProductsPrices(products: products)
+        }
+    }
+    
+    internal func refreshStoreKitProductsWithCallback(callback: (([SKProduct]) -> Void)?) {        
+        
+        ApphudStoreKitWrapper.shared.customProductsFetchedBlock = callback
+        
+        if self.currentUser == nil {
+            continueToRegisteringUser()
+        } else if let productIDs = self.productsGroupsMap?.keys, productIDs.count > 0 {
+            continueToFetchStoreKitProducts()
+        } else {
+            continueToFetchProducts()
+        }
+    }
+    
+    private func continueToUpdateProductsPrices(products: [SKProduct]){
         self.submitProducts(products: products, callback: nil)
     }
     
@@ -158,19 +176,11 @@ final class ApphudInternal {
         
         ApphudRulesManager.shared.handlePendingAPSInfo()
         
-        if Date().timeIntervalSince(lastCheckDate) >  minCheckInterval{
+        if self.currentUser == nil {
+            self.continueToRegisteringUser()
+        } else if Date().timeIntervalSince(lastCheckDate) > minCheckInterval {
             self.checkForUnreadNotifications()
             self.refreshCurrentUser()
-        }
-        
-        if self.productsGroupsMap == nil {
-            self.continueToFetchProducts()
-        } else if ApphudStoreKitWrapper.shared.products.count == 0 {
-            self.continueToFetchStoreKitProducts()
-        }
-        
-        if UserDefaults.standard.bool(forKey: self.requiresReceiptSubmissionKey) {
-            self.submitReceiptRestore(allowsReceiptRefresh: false)
         }
     }
     
@@ -274,7 +284,7 @@ final class ApphudInternal {
                     self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions)
                 }
                 if hasChanges.hasNonRenewingChanges {
-                    self.delegate?.ApphudNonRenewingPurchasesUpdated?(self.currentUser!.purchases)
+                    self.delegate?.apphudNonRenewingPurchasesUpdated?(self.currentUser!.purchases)
                 }
                 if UserDefaults.standard.bool(forKey: self.requiresReceiptSubmissionKey) {
                     self.submitReceiptRestore(allowsReceiptRefresh: false)
@@ -484,7 +494,7 @@ final class ApphudInternal {
                     self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions)
                 }
                 if hasChanges.hasNonRenewingChanges {
-                    self.delegate?.ApphudNonRenewingPurchasesUpdated?(self.currentUser!.purchases)
+                    self.delegate?.apphudNonRenewingPurchasesUpdated?(self.currentUser!.purchases)
                 }
             }
         }

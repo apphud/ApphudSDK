@@ -18,22 +18,25 @@ import StoreKit
 public class ApphudPurchaseResult: NSObject {
     
     /**
-     Autorenewable subscription
+     Autorenewable subscription object. May be nil if error occurred or if non renewing product purchased instead.
      */
     @objc public let subscription: ApphudSubscription?
     
     /**
-     Standard in-app purchase (non-consumable, consumable or non-renewing subscription)
+     Standard in-app purchase (non-consumable, consumable or non-renewing subscription) object. May be nil if error occurred or if auto-renewable subscription purchased instead.
      */
     @objc public let nonRenewingPurchase: ApphudNonRenewingPurchase?
     
     /**
-     Transaction from StoreKit. May be nil, if no transaction made. For example, if payments are not allowed on this device.
+     Transaction from StoreKit. May be nil, if no transaction made. For example, if couldn't sign promo offer or couldn't get App Store receipt.
      */
     @objc public let transaction: SKPaymentTransaction?
     
     /**
-     Error from StoreKit or from HTTP Session
+     This error can be of three types. Check for error class.
+     - `SKError` from StoreKit with `SKErrorDomain` codes. This is a system error when purchasing transaction.
+     - `NSError` from HTTP Client with `NSURLErrorDomain` codes. This is a network/server issue when uploading receipt to Apphud.
+     - Custom `ApphudError` without codes. For example, if couldn't sign promo offer or couldn't get App Store receipt.
      */
     let error: Error?
     

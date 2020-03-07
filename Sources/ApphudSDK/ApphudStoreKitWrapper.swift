@@ -159,4 +159,11 @@ private class ApphudProductsFetcher : NSObject, SKProductsRequestDelegate{
             self.callback = nil            
         }
     }
+    
+    func request(_ request: SKRequest, didFailWithError error: Error) {
+        DispatchQueue.main.async {
+            self.callback?([])
+            self.callback = nil            
+        }
+    }
 }

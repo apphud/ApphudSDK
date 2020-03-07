@@ -20,16 +20,14 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
     /**
         Returns array of subscriptions that user ever purchased. Empty array means user never purchased a subscription. If you have just one subscription group in your app, you will always receive just one subscription in an array.
      
-        This method is called when any subscription in an array has been changed (for example, status changed from `trial` to `expired`).
-     
-        In most cases you don't need this method because you already have completion blocks in `purchase`, `purchasePromo` and `submitReceipt` methods. However this method may be useful to detect whether subscription was purchased in Apphud's puchase screen.
+        This method is called when subscription is purchased or updated (for example, status changed from `trial` to `expired` or `isAutorenewEnabled` changed to `false`). SDK also checks for subscription updates when app becomes active.
      */
     @objc optional func apphudSubscriptionsUpdated(_ subscriptions: [ApphudSubscription])
     
     /**
-        Called when any of non subscription purchases changed its state. As for now, the only possible state change is getting refunded.
+        Called when any of non renewing purchases changes. Called when purchase is made or has been refunded.
      */
-    @objc optional func ApphudNonRenewingPurchasesUpdated(_ purchases: [ApphudNonRenewingPurchase])
+    @objc optional func apphudNonRenewingPurchasesUpdated(_ purchases: [ApphudNonRenewingPurchase])
     
     /**
         Called when user ID has been changed. Use this if you implement integrations with Analytics services.
@@ -189,9 +187,18 @@ final public class Apphud: NSObject {
     }
     
     /**
+    Refreshes SKProducts from the App Store. You have to add all product identifiers in Apphud. 
+     
+     __Note__: You shouldn't call this method at app launch, because Apphud SDK automatically fetches products during initialization. Only use this method as a fallback.
+     */
+    @objc public static func refreshStoreKitProducts(_ callback: (([SKProduct]) -> Void)?) {
+        ApphudInternal.shared.refreshStoreKitProductsWithCallback(callback: callback)
+    }
+    
+    /**
      Returns array of `SKProduct` objects that you added in Apphud. 
      
-     Note that this method will return `nil` if products are not yet fetched. You should observe for `Apphud.didFetchProductsNotification()` notification or implement  `apphudDidFetchStoreKitProducts` delegate method.
+     Note that this method will return `nil` if products are not yet fetched. You should observe for `Apphud.didFetchProductsNotification()` notification or implement  `apphudDidFetchStoreKitProducts` delegate method or set `productsDidFetchCallback` block.
      */
     @objc public static func products() -> [SKProduct]? {
         guard ApphudStoreKitWrapper.shared.products.count > 0 else {
@@ -203,7 +210,7 @@ final public class Apphud: NSObject {
     /**
      Returns `SKProduct` object by product identifier. Note that you have to add this product identifier in Apphud.
      
-     Will retun `nil` if product is not yet fetched from StoreKit.
+     Will return `nil` if product is not yet fetched from StoreKit.
      */
     @objc public static func product(productIdentifier : String) -> SKProduct? {
         return ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == productIdentifier})
@@ -214,15 +221,15 @@ final public class Apphud: NSObject {
      
      __Note__:  You are not required to purchase product using Apphud SDK methods. You can purchase subscription or any in-app purchase using your own code. App Store receipt will be sent to Apphud anyway.
      
-     - parameter product: Required. This is an `SKProduct` object that user wants to purchase.
-     - parameter callback: Optional. Returns `ApphudPurchaseResult` object if succeeded and an optional error otherwise.
+     - parameter product: Required. This is an `SKProduct` object that user wants to purchase. 
+     - parameter callback: Optional. Returns `ApphudPurchaseResult` object.
      */
     @objc public static func purchase(_ product: SKProduct, callback: ((ApphudPurchaseResult) -> Void)?){
         ApphudInternal.shared.purchase(product: product, callback: callback)
     }
 
     /**
-    Purchases product and automatically submits App Store Receipt to Apphud. This method doesn't wait until Apphud validates App Store receipt and immediately returns transaction object. This method may be useful if you don't care about receipt validation in callback. 
+    Purchases product and automatically submits App Store Receipt to Apphud. This method doesn't wait until Apphud validates receipt from Apple and immediately returns transaction object. This method may be useful if you don't care about receipt validation in callback. 
     
      __Note__:  You are not required to purchase product using Apphud SDK methods. You can purchase subscription or any in-app purchase using your own code. App Store receipt will be sent to Apphud anyway.
      
@@ -240,7 +247,7 @@ final public class Apphud: NSObject {
      
         - parameter product: Required. This is an `SKProduct` object that user wants to purchase.
         - parameter discountID: Required. This is a `SKProductDiscount` Identifier String object that you would like to apply.
-        - parameter callback: Optional. Returns `ApphudPurchaseResult` object if succeeded and an optional error otherwise.
+        - parameter callback: Optional. Returns `ApphudPurchaseResult` object.
      */
     @available(iOS 12.2, *)
     @objc public static func purchasePromo(_ product: SKProduct, discountID: String, _ callback: ((ApphudPurchaseResult) -> Void)?){
@@ -281,14 +288,16 @@ final public class Apphud: NSObject {
     }
    
     /**
-     Returns an array of all standard in-app purchases (consumables, nonconsumables or nonrenewing subscriptions) that this user has ever purchased. Purchases are cached on device. This array is sorted by purchase date.
+     Returns an array of all standard in-app purchases (consumables, nonconsumables or nonrenewing subscriptions) that this user has ever purchased. Purchases are cached on device. This array is sorted by purchase date. Apphud only tracks consumables if they were purchased after integrating Apphud SDK.
      */
     @objc public static func nonRenewingPurchases() -> [ApphudNonRenewingPurchase]? {
         return ApphudInternal.shared.currentUser?.purchases
     }
     
     /**
-     Returns `true` if current user has purchased standard in-app purchase with given product identifier. Returns `false` if this product never purchased or refunded. Includes consumables, nonconsumables or non-renewing subscriptions.
+     Returns `true` if current user has purchased standard in-app purchase with given product identifier. Returns `false` if this product is refunded or never purchased. Includes consumables, nonconsumables or non-renewing subscriptions. Apphud only tracks consumables if they were purchased after integrating Apphud SDK.
+     
+     __Note__: Purchases are sorted by purchase date, so it returns Bool value for the most recent purchase by given product identifier.
      */
     @objc public static func isNonRenewingPurchaseActive(productIdentifier : String) -> Bool {
         return ApphudInternal.shared.currentUser?.purchases.first(where: {$0.productId == productIdentifier})?.isActive() ?? false
@@ -302,33 +311,33 @@ final public class Apphud: NSObject {
      You should use this method in 2 cases:
         * Upon tap on `Restore Purchases` button in your UI.
         * To migrate existing subsribers to Apphud. If you want your current subscribers to be tracked in Apphud, call this method once at the first launch.   
-     - parameter callback: Required. Returns array of subscription (or subscriptions in case you more than one subscription group). Returns nil if user never purchased a subscription.
+     - parameter callback: Required. Returns array of subscription (or subscriptions in case you have more than one subscription group), array of standard in-app purchases and an error. All of three parameters are optional.
      */     
     @objc public static func restorePurchases(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {
         ApphudInternal.shared.restorePurchases(callback: callback)
     }
     
     /**
-     If you already have a live app with paying users and you want Apphud to track their subscriptions, you should import their App Store receipts into Apphud. Call this method at launch of your app for your paying users. This method should be used only to migrate existing paying users that are not yet tracked by Apphud.
+     If you already have a live app with paying users and you want Apphud to track their purchases, you should import their App Store receipts into Apphud. Call this method at launch of your app for your paying users. This method should be used only to migrate existing paying users that are not yet tracked by Apphud.
      
      Example:
      
         ````
         // hasPurchases - is your own boolean value indicating that current user is paying user.
         if hasPurchases {
-            Apphud.migrateSubscriptionsIfNeeded {_ in}
+            Apphud.migratePurchasesIfNeeded { _, _, _ in}
         }
         ````
      
     __Note__: You can remove this method after a some period of time, i.e. when you are sure that all paying users are already synced with Apphud.
      */
-    @objc public static func migrateSubscriptionsIfNeeded(callback: @escaping ([ApphudSubscription]?) -> Void) {
+    @objc public static func migratePurchasesIfNeeded(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {
         if apphudShouldMigrate() {
             ApphudInternal.shared.restorePurchases { (subscriptions, purchases, error) in
                 if error == nil {
                     apphudDidMigrate()
                 }
-                callback(subscriptions)
+                callback(subscriptions, purchases, error)
             }
         } 
     }
@@ -443,14 +452,14 @@ final public class Apphud: NSObject {
     }
     
     /**
-     Automatically finishes all payment transactions. By default, Apphud SDK only finishes transactions, that were started by Apphud DSK, i.e. by calling  any`Apphud.purchase..()` methods.
-     This is also useful when debugging and changing sandbox Apple ID many times. Should be called before Apphud SDK initialization.
+     Automatically finishes all pending transactions. By default, Apphud SDK only finishes transactions, that were started by Apphud SDK, i.e. by calling  any of `Apphud.purchase..()` methods.
+    
+     However, when you debug in-app purchases and/or change Apple ID too often, some transactions may stay in the queue (for example, if you broke execution until transaction is finished). And these transactions will try to finish at every next app launch. In this case you may see a system alert prompting to enter your Apple ID password. To fix this annoying issue, you can add this method.
      
-     If called, Apphud SDK finishes all payment transactions that are intercepted by our transaction observer. If you are using your own purchase flow, make sure you finish all transactions that should be finished otherwise use this method. This method doesn't need to be called (calling this method will take no effect) if you are purchasing in-app purchases through Apphud SDK.
-     
+     You may also use this method in production if you don't care about handling pending transactions, for example, downloading Apple hosted content.
      For more information read "Finish the transaction" paragraph here: https://developer.apple.com/library/archive/technotes/tn2387/_index.html
      
-     _Note_: Only call this method if you know what you are doing.
+     __Note__: Only use this method if you know what you are doing. Must be called before Apphud SDK initialization.
      */
     @objc public static func setFinishAllTransactions(){
         ApphudUtils.shared.finishTransactions = true
