@@ -26,6 +26,26 @@ class ViewController: UITableViewController{
         
         reload()
         navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Restore transactions", style: .done, target: self, action: #selector(restore))        
+        
+        if Apphud.products() == nil {
+            Apphud.productsDidFetchCallback { (products) in
+                print("products loaded and callback called!")
+                self.products = products
+                self.reload()
+            }
+        } else {
+            print("products already loaded and callback not called!")
+            self.products = Apphud.products()!        
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { 
+            Apphud.refreshStoreKitProducts { products in
+                print("storekit products are refreshed! \(products.count)")
+                self.products = products
+                self.reload()
+            }
+        }
+        
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -39,7 +59,9 @@ class ViewController: UITableViewController{
     }
     
     @objc func restore(){
-        Apphud.restoreSubscriptions { subscriptions, error in self.reload()}
+        Apphud.restorePurchases { subscriptions, purchases, error in 
+            self.reload()
+        }
     }
     
     @objc func reload(){
@@ -73,22 +95,25 @@ class ViewController: UITableViewController{
         let cell = tableView.dequeueReusableCell(withIdentifier: "productCell", for: indexPath)
         let product = products[indexPath.item]                        
         
-        var text = product.fullSubscriptionInfoString() ?? ""
-        
-        if self.promoOffersEligibility[product.productIdentifier] != nil {
-            text = "\(text)\nEligible for promo: \(self.promoOffersEligibility[product.productIdentifier]!)"
+        if var text = product.fullSubscriptionInfoString() {
+            if self.promoOffersEligibility[product.productIdentifier] != nil {
+                text = "\(text)\nEligible for promo: \(self.promoOffersEligibility[product.productIdentifier]!)"
+            }
+            if self.introductoryEligibility[product.productIdentifier] != nil {
+                text = "\(text)\nEligible for introductory: \(self.introductoryEligibility[product.productIdentifier]!)"
+            } 
+            cell.textLabel?.text = text
+        } else {
+            cell.textLabel?.text = product.localizedPrice()
         }
-        if self.introductoryEligibility[product.productIdentifier] != nil {
-            text = "\(text)\nEligible for introductory: \(self.introductoryEligibility[product.productIdentifier]!)"
-        } 
-        
-        cell.textLabel?.text = text
         
         if let subscription = Apphud.subscriptions()?.first(where: {$0.productId == product.productIdentifier}) {
             
             cell.detailTextLabel?.text = subscription.expiresDate.description(with: Locale.current) + "\nState: \(subscription.status.toStringDuplicate())\nIntroductory used:\(subscription.isIntroductoryActivated)".uppercased()
+        } else if let purchase = Apphud.nonRenewingPurchases()?.first(where: {$0.productId == product.productIdentifier}) {
+            cell.detailTextLabel?.text = "\(purchase.productId). Last Purchased at: \(purchase.purchasedAt)"
         } else {
-            cell.detailTextLabel?.text = "Not active"
+            cell.detailTextLabel?.text = "\(product.productIdentifier): not active"
         }
         
         return cell            
@@ -133,13 +158,13 @@ class ViewController: UITableViewController{
     
     @available(iOS 12.2, *)
     func purchaseProduct(product: SKProduct, promoID: String){
-        Apphud.purchasePromo(product, discountID: promoID) { (subsription, error) in
+        Apphud.purchasePromo(product, discountID: promoID) { (result) in
             self.reload()
         } 
     }
     
     func purchaseProduct(product : SKProduct) {
-        Apphud.purchase(product) { (subs, error) in
+        Apphud.purchase(product) { (result) in
             self.reload()            
         }
     }
@@ -153,13 +178,17 @@ extension ViewController : ApphudDelegate {
     
     func apphudDidFetchStoreKitProducts(_ products: [SKProduct]) {
         print("apphudDidFetchStoreKitProducts")
-        self.products = products
+     //   self.products = products
         self.reload()
     }
     
     func apphudSubscriptionsUpdated(_ subscriptions: [ApphudSubscription]) {
         self.reload()
         print("apphudSubscriptionsUpdated")
+    }
+    
+    func apphudNonRenewingPurchasesUpdated(_ purchases: [ApphudNonRenewingPurchase]) {
+        print("non renewing purchases updated")
     }
 }
 

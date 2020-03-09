@@ -8,7 +8,7 @@
 
 import Foundation
 
-typealias ApphudBoolDictionaryCallback = (Bool, [String : Any]?, Error?) -> Void
+typealias ApphudHTTPResponseCallback = (Bool, [String : Any]?, Error?, Int) -> Void
 typealias ApphudStringCallback = (String?, Error?) -> Void
 /**
  This is Apphud's internal class.
@@ -44,7 +44,7 @@ public class ApphudHttpClient {
         return URLSession.init(configuration: config)
     }()
     
-    internal func startRequest(path: String, apiVersion: ApphudApiVersion = .v1, params: [String : Any]?, method: ApphudHttpMethod, callback: ApphudBoolDictionaryCallback?) {
+    internal func startRequest(path: String, apiVersion: ApphudApiVersion = .v1, params: [String : Any]?, method: ApphudHttpMethod, callback: ApphudHTTPResponseCallback?) {
         if let request = makeRequest(path: path, apiVersion: apiVersion, params: params, method: method) {
             start(request: request, callback: callback)
         }
@@ -145,7 +145,7 @@ public class ApphudHttpClient {
         task.resume()
     }
     
-    private func start(request: URLRequest, callback: ApphudBoolDictionaryCallback?){
+    private func start(request: URLRequest, callback: ApphudHTTPResponseCallback?){
         let task = session.dataTask(with: request) { (data, response, error) in
             
             var dictionary: [String : Any]?
@@ -172,15 +172,15 @@ public class ApphudHttpClient {
                             apphudLog("Request \(method) \(request.url?.absoluteString ?? "") success with response: \n\(string)")
                         }
                         
-                        callback?(true, dictionary, nil)
+                        callback?(true, dictionary, nil, code)
                         return
                     }
                     apphudLog("Request \(method) \(request.url?.absoluteString ?? "") failed with code \(code), error: \(error?.localizedDescription ?? "") response: \(dictionary ?? [:])", forceDisplay: true)
+                    callback?(false, nil, error, code)
+                } else {
+                    callback?(false, nil, error, 0)
                 }
-                
-                callback?(false, nil, error)
-            }
-            
+            }            
         }
         task.resume()
     }

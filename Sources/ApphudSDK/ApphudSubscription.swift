@@ -138,7 +138,7 @@ public class ApphudSubscription : NSObject{
     }
     
     /// Helper method to parse date string into Date object
-    private static func dateFrom(_ object : Any?) -> Date? {
+    internal static func dateFrom(_ object : Any?) -> Date? {
         guard let date_string = object as? String else { return nil }
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withFractionalSeconds, .withInternetDateTime, .withColonSeparatorInTimeZone, .withColonSeparatorInTime]

@@ -10,7 +10,9 @@ import Foundation
 import AdSupport
 import StoreKit
 
-let sdk_version = "0.8.5"
+let sdk_version = "0.9.0"
+
+internal typealias HasPurchasesChanges = (hasSubscriptionChanges: Bool, hasNonRenewingChanges: Bool)
 
 @available(iOS 11.2, *)
 final class ApphudInternal {
@@ -41,16 +43,19 @@ final class ApphudInternal {
         
     private var submitReceiptCallback : ((Error?) -> Void)?
     
-    private var restoreSubscriptionCallback : (([ApphudSubscription]?, Error?) -> Void)?
+    private var restorePurchasesCallback : (([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void)?
     
     private var allowInitialize = true
     
     internal func initialize(apiKey: String, userID : String?, deviceIdentifier : String? = nil){
         
-        apphudLog("Started Apphud SDK (\(sdk_version))", forceDisplay: true)
-        
-        if !allowInitialize {return}
+        guard allowInitialize == true else {
+            apphudLog("Abort initializing, because Apphud SDK already initialized.", forceDisplay: true)
+            return
+        }
         allowInitialize = false
+        
+        apphudLog("Started Apphud SDK (\(sdk_version))", forceDisplay: true)
         
         ApphudStoreKitWrapper.shared.setupObserver()
         
@@ -95,12 +100,11 @@ final class ApphudInternal {
     private func continueToRegisteringUser(){
         createOrGetUser { success in
             
-            self.allowInitialize = !success
+            self.setupObservers()
             
             if success {
                 apphudLog("User successfully registered")
                 self.performAllUserRegisteredBlocks()                
-                self.setupObservers()
                 self.checkForUnreadNotifications()
             } else {                
                 self.userRegisteredCallbacks.removeAll()
@@ -126,20 +130,36 @@ final class ApphudInternal {
     }
     
     private func continueToFetchStoreKitProducts(){
-        
         guard self.productsGroupsMap?.keys.count ?? 0 > 0 else {
             return
         }
-            
-        ApphudStoreKitWrapper.shared.fetchProducts(identifiers: Set(self.productsGroupsMap!.keys)) { (skproducts) in
-            self.updateUserCurrencyIfNeeded(priceLocale: skproducts.first?.priceLocale)
-            if skproducts.count > 0 {
-                self.continueToUpdateProductsPrices(products: skproducts)
-            }
+        ApphudStoreKitWrapper.shared.fetchProducts(identifiers: Set(self.productsGroupsMap!.keys)) { skproducts in
+            self.continueToUpdateProductPrices()
         }
     }
     
-    private func continueToUpdateProductsPrices(products : [SKProduct]){
+    private func continueToUpdateProductPrices(){
+        let products = ApphudStoreKitWrapper.shared.products
+        if products.count > 0 {
+            self.updateUserCurrencyIfNeeded(priceLocale: products.first?.priceLocale)
+            self.continueToUpdateProductsPrices(products: products)
+        }
+    }
+    
+    internal func refreshStoreKitProductsWithCallback(callback: (([SKProduct]) -> Void)?) {        
+        
+        ApphudStoreKitWrapper.shared.customProductsFetchedBlock = callback
+        
+        if self.currentUser == nil {
+            continueToRegisteringUser()
+        } else if let productIDs = self.productsGroupsMap?.keys, productIDs.count > 0 {
+            continueToFetchStoreKitProducts()
+        } else {
+            continueToFetchProducts()
+        }
+    }
+    
+    private func continueToUpdateProductsPrices(products: [SKProduct]){
         self.submitProducts(products: products, callback: nil)
     }
     
@@ -156,26 +176,30 @@ final class ApphudInternal {
         
         ApphudRulesManager.shared.handlePendingAPSInfo()
         
-        if Date().timeIntervalSince(lastCheckDate) >  minCheckInterval{
+        if self.currentUser == nil {
+            self.continueToRegisteringUser()
+        } else if Date().timeIntervalSince(lastCheckDate) > minCheckInterval {
             self.checkForUnreadNotifications()
             self.refreshCurrentUser()
         }
     }
     
-    @discardableResult private func parseUser(_ dict : [String : Any]?) -> Bool{
+    @discardableResult private func parseUser(_ dict : [String : Any]?) -> HasPurchasesChanges {
         
         guard let dataDict = dict?["data"] as? [String : Any] else {
-            return false
+            return (false, false)
         }
         guard let userDict = dataDict["results"] as? [String : Any] else {
-            return false
+            return (false, false)
         }
         
         let oldStates = self.currentUser?.subscriptionsStates()
+        let oldPurchasesStates = self.currentUser?.purchasesStates()
         
         self.currentUser = ApphudUser(dictionary: userDict)
         
         let newStates = self.currentUser?.subscriptionsStates()
+        let newPurchasesStates = self.currentUser?.purchasesStates()
         
         ApphudUser.toCache(userDict)
         
@@ -184,11 +208,9 @@ final class ApphudInternal {
         /**
          If user previously didn't have subscriptions or subscriptions states don't match, or subscription product identifiers don't match
          */
-        if oldStates != newStates && self.currentUser?.subscriptions != nil {
-            return true
-        } else {
-            return false
-        }
+        let hasSubscriptionChanges = (oldStates != newStates && self.currentUser?.subscriptions != nil)
+        let hasPurchasesChanges = (oldPurchasesStates != newPurchasesStates && self.currentUser?.purchases != nil)
+        return (hasSubscriptionChanges, hasPurchasesChanges)
     }
     
     private func checkUserID(tellDelegate : Bool){
@@ -251,18 +273,18 @@ final class ApphudInternal {
     
     private func createOrGetUser(callback: @escaping (Bool) -> Void) {
         
-        self.updateUser(fields: ["user_id" : self.currentUserID]) { (result, response, error) in
+        self.updateUser(fields: ["user_id" : self.currentUserID]) { (result, response, error, code) in
             
-            var hasSubscriptionChanges = false
-            if result {
-                hasSubscriptionChanges = self.parseUser(response)
-            }
+            let hasChanges = self.parseUser(response)
             
             let finalResult = result && self.currentUser != nil
             
             if finalResult {
-                if hasSubscriptionChanges {
+                if hasChanges.hasSubscriptionChanges {
                     self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions)
+                }
+                if hasChanges.hasNonRenewingChanges {
+                    self.delegate?.apphudNonRenewingPurchasesUpdated?(self.currentUser!.purchases)
                 }
                 if UserDefaults.standard.bool(forKey: self.requiresReceiptSubmissionKey) {
                     self.submitReceiptRestore(allowsReceiptRefresh: false)
@@ -290,7 +312,7 @@ final class ApphudInternal {
         
         params.merge(currentDeviceParameters()) { (current, new) in current}
         
-        updateUser(fields: params) { (result, response, error) in
+        updateUser(fields: params) { (result, response, error, code) in
             if result {
                 self.parseUser(response)
             }
@@ -299,7 +321,7 @@ final class ApphudInternal {
     
     internal func updateUserID(userID : String) {    
         let exist = performWhenUserRegistered { 
-            self.updateUser(fields: ["user_id" : userID]) { (result, response, error) in
+            self.updateUser(fields: ["user_id" : userID]) { (result, response, error, code) in
                 if result {
                     self.parseUser(response)
                 }
@@ -310,7 +332,7 @@ final class ApphudInternal {
         }
     }
     
-    private func updateUser(fields: [String : Any], callback: @escaping ApphudBoolDictionaryCallback){
+    private func updateUser(fields: [String : Any], callback: @escaping ApphudHTTPResponseCallback){
         var params = currentDeviceParameters() as [String : Any]
         params.merge(fields) { (current, new) in current}
         params["device_id"] = self.currentDeviceID
@@ -327,7 +349,7 @@ final class ApphudInternal {
     
     private func getProducts(callback: @escaping (([String : String]?) -> Void)) {
         
-        httpClient.startRequest(path: "products", params: nil, method: .get) { (result, response, error) in
+        httpClient.startRequest(path: "products", params: nil, method: .get) { (result, response, error, code) in
             if result, let dataDict = response?["data"] as? [String : Any],
                 let productsArray = dataDict["results"] as? [[String : Any]] {  
                 
@@ -345,7 +367,7 @@ final class ApphudInternal {
         }
     }
     
-    private func submitProducts(products: [SKProduct], callback: ApphudBoolDictionaryCallback?) {
+    private func submitProducts(products: [SKProduct], callback: ApphudHTTPResponseCallback?) {
         var array = [[String : Any]]()
         for product in products {
             let productParams : [String : Any] = product.submittableParameters()            
@@ -359,18 +381,18 @@ final class ApphudInternal {
     
     //MARK:- Main Purchase and Submit Receipt methods
     
-    internal func restoreSubscriptions(callback: @escaping ([ApphudSubscription]?, Error?) -> Void) {
-        self.restoreSubscriptionCallback = callback
+    internal func restorePurchases(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {
+        self.restorePurchasesCallback = callback
         self.submitReceiptRestore(allowsReceiptRefresh: true)
     }
     
-    internal func submitReceiptAutomaticPurchaseTracking() {
+    internal func submitReceiptAutomaticPurchaseTracking(transaction: SKPaymentTransaction) {
         
         if isSubmittingReceipt {return}
         
         performWhenUserRegistered {
             guard let receiptString = receiptDataString() else { return }
-            self.submitReceipt(receiptString: receiptString, notifyDelegate: true, callback: nil)
+            self.submitReceipt(product: nil, transaction: transaction, receiptString: receiptString, notifyDelegate: true, callback: nil)
         }
     }
     
@@ -381,16 +403,16 @@ final class ApphudInternal {
                 ApphudStoreKitWrapper.shared.refreshReceipt()
             } else {
                 apphudLog("App Store receipt is missing on device and couldn't be refreshed.", forceDisplay: true)
-                self.restoreSubscriptionCallback?(nil, nil)
-                self.restoreSubscriptionCallback = nil
+                self.restorePurchasesCallback?(nil, nil, nil)
+                self.restorePurchasesCallback = nil
             }
             return 
         }
         
         let exist = performWhenUserRegistered { 
-            self.submitReceipt(receiptString: receiptString, notifyDelegate: true) { error in
-                self.restoreSubscriptionCallback?(self.currentUser?.subscriptions, error)
-                self.restoreSubscriptionCallback = nil
+            self.submitReceipt(product: nil, transaction: nil, receiptString: receiptString, notifyDelegate: true) { error in
+                self.restorePurchasesCallback?(self.currentUser?.subscriptions, self.currentUser?.purchases, error)
+                self.restorePurchasesCallback = nil
             }
         }
         if !exist {
@@ -398,24 +420,25 @@ final class ApphudInternal {
         }
     }
     
-    internal func submitReceipt(productId : String, callback : ((ApphudSubscription?, Error?) -> Void)?) {
+    internal func submitReceipt(product : SKProduct, transaction: SKPaymentTransaction?, callback : ((ApphudPurchaseResult) -> Void)?) {
         guard let receiptString = receiptDataString() else { 
             ApphudStoreKitWrapper.shared.refreshReceipt()
-            callback?(nil, ApphudError.error(message: "Receipt not found on device, refreshing."))
+            callback?(ApphudPurchaseResult(nil, nil, nil, ApphudError.error(message: "Receipt not found on device, refreshing.")))
             return 
         }
         
         let exist = performWhenUserRegistered { 
-            self.submitReceipt(receiptString: receiptString, notifyDelegate: true) { error in                
-                callback?(self.subscription(productId: productId), error)
+            self.submitReceipt(product:product, transaction: transaction, receiptString: receiptString, notifyDelegate: true) { error in                
+                let result = self.purchaseResult(productId: product.productIdentifier, transaction: transaction, error: error)
+                callback?(result)
             }            
         }
         if !exist {
-            apphudLog("Tried to make submitReceipt: \(productId) request when user is not yet registered, addind to schedule..")
+            apphudLog("Tried to make submitReceipt: \(product.productIdentifier) request when user is not yet registered, addind to schedule..")
         }
     }
     
-    private func submitReceipt(receiptString : String, notifyDelegate : Bool, callback : ((Error?) -> Void)?) {
+    private func submitReceipt(product: SKProduct?, transaction: SKPaymentTransaction?, receiptString : String, notifyDelegate : Bool, callback : ((Error?) -> Void)?) {
         
         if callback != nil {
             self.submitReceiptCallback = callback
@@ -430,99 +453,112 @@ final class ApphudInternal {
         let environment = "production"
         #endif
         
-        let params : [String : String] = ["device_id" : self.currentDeviceID,
+        var params : [String : Any] = ["device_id" : self.currentDeviceID,
                                           "receipt_data" : receiptString,
                                           "environment" : environment]
         
-        UserDefaults.standard.set(true, forKey: requiresReceiptSubmissionKey)
+        if let transactionID = transaction?.transactionIdentifier {
+            params["transaction_id"] = transactionID
+        }
+        if let product = product {
+            params["product_info"] = product.submittableParameters()
+        } else if let productID = transaction?.payment.productIdentifier, let product = ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == productID}) {
+            params["product_info"] = product.submittableParameters()
+        }
         
-        httpClient.startRequest(path: "subscriptions", params: params, method: .post) { (result, response, error) in        
+        UserDefaults.standard.set(true, forKey: requiresReceiptSubmissionKey)
+                
+        httpClient.startRequest(path: "subscriptions", params: params, method: .post) { (result, response, error, code) in        
             
-            self.isSubmittingReceipt = false
-            
-            if result {
-                UserDefaults.standard.set(false, forKey: self.requiresReceiptSubmissionKey)
-                UserDefaults.standard.synchronize()
-                if self.parseUser(response) {
-                    // do not call delegate method only purchase, use callback instead
-                    if notifyDelegate {
-                        self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions)
-                    }
+            if code == 422 || code > 499 {
+                // make one time retry
+                self.httpClient.startRequest(path: "subscriptions", params: params, method: .post) { (result2, response2, error2, code2) in
+                    self.isSubmittingReceipt = false
+                    self.handleSubmitReceiptCallback(result: result2, response: response2, error: error2, notifyDelegate: notifyDelegate)
                 }
+            } else {
+                self.isSubmittingReceipt = false
+                self.handleSubmitReceiptCallback(result: result, response: response, error: error, notifyDelegate: notifyDelegate)
             }
-            
-            self.submitReceiptCallback?(error)
-            self.submitReceiptCallback = nil
         }
     }
     
-    internal func purchase(product: SKProduct, callback: ((ApphudSubscription?, Error?) -> Void)?){
-        ApphudStoreKitWrapper.shared.purchase(product: product) { transaction in
-            self.handleTransaction(product: product, transaction: transaction) { (subscription, transaction, error) in
-                callback?(subscription, error)
+    internal func handleSubmitReceiptCallback(result: Bool, response: [String : Any]?, error: Error?, notifyDelegate: Bool) {
+        
+        if result {
+            UserDefaults.standard.set(false, forKey: self.requiresReceiptSubmissionKey)
+            UserDefaults.standard.synchronize()
+            let hasChanges = self.parseUser(response)
+            if notifyDelegate {
+                if hasChanges.hasSubscriptionChanges {
+                    self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions)
+                }
+                if hasChanges.hasNonRenewingChanges {
+                    self.delegate?.apphudNonRenewingPurchasesUpdated?(self.currentUser!.purchases)
+                }
+            }
+        }
+        
+        self.submitReceiptCallback?(error)
+        self.submitReceiptCallback = nil
+    }
+    
+    internal func purchase(product: SKProduct, callback: ((ApphudPurchaseResult) -> Void)?){
+        ApphudStoreKitWrapper.shared.purchase(product: product) { transaction, error in
+            self.handleTransaction(product: product, transaction: transaction, error: error) { (result) in
+                callback?(result)
             }
         }
     }    
     
-    internal func purchase(product: SKProduct, callback: ((ApphudSubscription?, SKPaymentTransaction?, Error?) -> Void)?){
-        ApphudStoreKitWrapper.shared.purchase(product: product) { transaction in
-            self.handleTransaction(product: product, transaction: transaction) { (subscription, transaction, error) in
-                callback?(subscription, transaction, error)
-            }
+    internal func purchaseWithoutValidation(product: SKProduct, callback: ApphudTransactionCallback?){
+        ApphudStoreKitWrapper.shared.purchase(product: product) { transaction, error in
+            self.handleTransaction(product: product, transaction: transaction, error: error, callback: nil)
+            callback?(transaction, error)
         }
     }
     
     @available(iOS 12.2, *)
-    internal func purchasePromo(product: SKProduct, discountID: String, callback: ((ApphudSubscription?, Error?) -> Void)?){
-        self.signPromoOffer(productID: product.productIdentifier, discountID: discountID) { (paymentDiscount, error) in
-            if let paymentDiscount = paymentDiscount {  
-                self.purchasePromo(product: product, discount: paymentDiscount) { (subscription, transaction, error) in
-                    callback?(subscription, error)
-                }
-            } else {
-                callback?(nil, ApphudError.error(message: "Could not sign offer id: \(discountID), product id: \(product.productIdentifier)"))
-            }
-        }
-    }
-    
-    @available(iOS 12.2, *)
-    internal func purchasePromo(product: SKProduct, discountID: String, callback: ((ApphudSubscription?, SKPaymentTransaction?, Error?) -> Void)?){
+    internal func purchasePromo(product: SKProduct, discountID: String, callback: ((ApphudPurchaseResult) -> Void)?){
         self.signPromoOffer(productID: product.productIdentifier, discountID: discountID) { (paymentDiscount, error) in
             if let paymentDiscount = paymentDiscount {                
                 self.purchasePromo(product: product, discount: paymentDiscount, callback: callback)
             } else {
-                callback?(nil, nil, ApphudError.error(message: "Could not sign offer id: \(discountID), product id: \(product.productIdentifier)"))
+                callback?(ApphudPurchaseResult(nil, nil, nil, ApphudError.error(message: "Could not sign offer id: \(discountID), product id: \(product.productIdentifier)")))
             }
         }
     }
     
     @available(iOS 12.2, *)
-    internal func purchasePromo(product: SKProduct, discount: SKPaymentDiscount, callback: ((ApphudSubscription?, SKPaymentTransaction?, Error?) -> Void)?){
-        ApphudStoreKitWrapper.shared.purchase(product: product, discount: discount) { transaction in
-            self.handleTransaction(product: product, transaction: transaction, callback: callback)
+    internal func purchasePromo(product: SKProduct, discount: SKPaymentDiscount, callback: ((ApphudPurchaseResult) -> Void)?){
+        ApphudStoreKitWrapper.shared.purchase(product: product, discount: discount) { transaction, error in
+            self.handleTransaction(product: product, transaction: transaction, error: error, callback: callback)
         }
     }
     
-    private func handleTransaction(product: SKProduct, transaction: SKPaymentTransaction, callback: ((ApphudSubscription?, SKPaymentTransaction?, Error?) -> Void)?){
+    private func handleTransaction(product: SKProduct, transaction: SKPaymentTransaction, error: Error?, callback: ((ApphudPurchaseResult) -> Void)?){
         if transaction.transactionState == .purchased {
-            self.submitReceipt(productId: product.productIdentifier) { (subscription, error) in
+            self.submitReceipt(product: product, transaction: transaction) { (result) in
                 SKPaymentQueue.default().finishTransaction(transaction)
-                callback?(subscription, transaction, error)
+                callback?(result)
             }
         } else {
-            callback?(subscription(productId: product.productIdentifier), transaction, transaction.error)
+            callback?(purchaseResult(productId: product.productIdentifier, transaction: transaction, error: error))
+            SKPaymentQueue.default().finishTransaction(transaction)
         }
     }
     
-    private func subscription(productId: String) -> ApphudSubscription? {
+    private func purchaseResult(productId: String, transaction: SKPaymentTransaction?, error: Error?) -> ApphudPurchaseResult {
+
+        // 1. try to find in app purchase by product id
+        let purchase = currentUser?.purchases.first(where: {$0.productId == productId})
         
         // 1. try to find subscription by product id
-        var subscription = Apphud.subscriptions()?.first(where: {$0.productId == productId})
-        
+        var subscription = currentUser?.subscriptions.first(where: {$0.productId == productId})
         // 2. try to find subscription by SKProduct's subscriptionGroupIdentifier
-        if subscription == nil, #available(iOS 12.2, *){
+        if purchase == nil, subscription == nil, #available(iOS 12.2, *){
             let targetProduct = ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == productId})
-            for sub in Apphud.subscriptions() ?? [] {
+            for sub in currentUser?.subscriptions ?? [] {
                 if let product = ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == sub.productId}),
                 targetProduct?.subscriptionGroupIdentifier == product.subscriptionGroupIdentifier {
                     subscription = sub
@@ -533,16 +569,16 @@ final class ApphudInternal {
         
         // 3. Try to find subscription by groupID provided in Apphud project settings
         if subscription == nil, let groupID = self.productsGroupsMap?[productId] {
-            subscription = Apphud.subscriptions()?.first(where: { self.productsGroupsMap?[$0.productId] == groupID})
+            subscription = currentUser?.subscriptions.first(where: { self.productsGroupsMap?[$0.productId] == groupID})
         }
         
-        return subscription
+        return ApphudPurchaseResult(subscription, purchase, transaction, error ?? transaction?.error)
     }
     
     @available(iOS 12.2, *)
     internal func signPromoOffer(productID: String, discountID: String, callback: ((SKPaymentDiscount?, Error?) -> Void)?){
         let params : [String : Any] = ["product_id" : productID, "offer_id" : discountID, ]
-        httpClient.startRequest(path: "sign_offer", params: params, method: .post) { (result, dict, error) in
+        httpClient.startRequest(path: "sign_offer", params: params, method: .post) { (result, dict, error, code) in
             if result, let responseDict = dict, let dataDict = responseDict["data"] as? [String : Any], let resultsDict = dataDict["results"] as? [String : Any]{
                 
                 let signatureData = resultsDict["data"] as? [String : Any]
@@ -578,7 +614,7 @@ final class ApphudInternal {
             if self.currentUser?.subscriptions.count ?? 0 == 0 && !UserDefaults.standard.bool(forKey: didSendReceiptForPromoEligibility){
                 if let receiptString = receiptDataString() {
                     apphudLog("Restoring subscriptions for promo eligibility check")
-                    self.submitReceipt(receiptString: receiptString, notifyDelegate: true, callback: { error in
+                    self.submitReceipt(product: nil, transaction:nil, receiptString: receiptString, notifyDelegate: true, callback: { error in
                         UserDefaults.standard.set(true, forKey: didSendReceiptForPromoEligibility)
                         self._checkPromoEligibilitiesForRegisteredUser(products: products, callback: callback)
                     })
@@ -648,7 +684,7 @@ final class ApphudInternal {
             if self.currentUser?.subscriptions.count ?? 0 == 0 && !UserDefaults.standard.bool(forKey: didSendReceiptForIntroEligibility){
                 if let receiptString = receiptDataString() {
                     apphudLog("Restoring subscriptions for intro eligibility check")
-                    self.submitReceipt(receiptString: receiptString, notifyDelegate: true, callback: { error in
+                    self.submitReceipt(product: nil, transaction: nil, receiptString: receiptString, notifyDelegate: true, callback: { error in
                         UserDefaults.standard.set(true, forKey: didSendReceiptForIntroEligibility)
                         self._checkIntroEligibilitiesForRegisteredUser(products: products, callback: callback)
                     })
@@ -712,7 +748,7 @@ final class ApphudInternal {
         performWhenUserRegistered {
             let tokenString = token.map { String(format: "%02.2hhx", $0) }.joined()
             let params : [String : String] = ["device_id" : self.currentDeviceID, "push_token" : tokenString]
-            self.httpClient.startRequest(path: "customers/push_token", params: params, method: .put) { (result, response, error) in
+            self.httpClient.startRequest(path: "customers/push_token", params: params, method: .put) { (result, response, error, code) in
                 callback?(result)
             }             
         }
@@ -724,7 +760,7 @@ final class ApphudInternal {
         
         let result = performWhenUserRegistered {
             let final_params : [String : AnyHashable] = ["device_id" : self.currentDeviceID].merging(params, uniquingKeysWith: {(current,_) in current})
-            self.httpClient.startRequest(path: "events", apiVersion: .v2, params: final_params, method: .post) { (result, response, error) in
+            self.httpClient.startRequest(path: "events", apiVersion: .v2, params: final_params, method: .post) { (result, response, error, code) in
                 callback()
             }
         }
@@ -739,7 +775,7 @@ final class ApphudInternal {
         let result = performWhenUserRegistered {
             let params = ["device_id": self.currentDeviceID] as [String : String]
             
-            self.httpClient.startRequest(path: "rules/\(ruleID)", apiVersion: .v2, params: params, method: .get) { (result, response, error) in
+            self.httpClient.startRequest(path: "rules/\(ruleID)", apiVersion: .v2, params: params, method: .get) { (result, response, error, code) in
                 if result, let dataDict = response?["data"] as? [String : Any],
                     let ruleDict = dataDict["results"] as? [String : Any] {
                     callback(ApphudRule(dictionary: ruleDict))
@@ -756,7 +792,7 @@ final class ApphudInternal {
     internal func checkForUnreadNotifications(){
         performWhenUserRegistered {
             let params = ["device_id": self.currentDeviceID] as [String : String]
-            self.httpClient.startRequest(path: "notifications", apiVersion: .v2, params: params, method: .get, callback: { (result, response, error) in
+            self.httpClient.startRequest(path: "notifications", apiVersion: .v2, params: params, method: .get, callback: { (result, response, error, code) in
                 
                 if result, let dataDict = response?["data"] as? [String : Any], let notifArray = dataDict["results"] as? [[String : Any]], let notifDict = notifArray.first, var ruleDict = notifDict["rule"] as? [String : Any] {
                     let properties = notifDict["properties"] as? [String : Any]
@@ -771,7 +807,7 @@ final class ApphudInternal {
     internal func readAllNotifications(for ruleID: String){
         performWhenUserRegistered {
             let params = ["device_id": self.currentDeviceID, "rule_id": ruleID] as [String : String]
-            self.httpClient.startRequest(path: "notifications/read", apiVersion: .v2, params: params, method: .post, callback: { (result, response, error) in
+            self.httpClient.startRequest(path: "notifications/read", apiVersion: .v2, params: params, method: .post, callback: { (result, response, error, code) in
             })
         }
     }
@@ -791,9 +827,11 @@ final class ApphudInternal {
                 params["appsflyer_data"] = data
             } else if provider == .adjust {
                 params["adjust_data"] = data
+            } else if provider == .appleSearchAds {
+                params["search_ads_data"] = data
             }
             
-            self.httpClient.startRequest(path: "customers/attribution", params: params, method: .post) { (result, response, error) in
+            self.httpClient.startRequest(path: "customers/attribution", params: params, method: .post) { (result, response, error, code) in
                 callback?(result)
             } 
         }
