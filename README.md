@@ -128,7 +128,7 @@ Apphud.purchase(product) { result in
 }
 ```
 
-This method will return an `ApphudPurchaseResult` class, which contains subscription model, which contains all relevant info about your subscription, including expiration date. It also contains `transaction` object, `error` and `nonRenewingPurchase` object in case user purchased standard in-app purchase. See `ApphudPurchaseResult.swift` and `ApphudSubscription.swift` files for details.
+This method will return an ApphudPurchaseResult object, which contains subscription model with all info about your subscription. ApphudPurchaseResult may also contain transaction, error and nonRenewingPurchase objects in case user purchased non-renewing purchase. See ApphudPurchaseResult.swift and ApphudSubscription.swift files for details.
 
 ### Check Subscription Status
 
