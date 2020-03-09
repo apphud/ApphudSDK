@@ -2,7 +2,7 @@
 
 ## Apphud SDK
 
-Apphud SDK is a lightweight open-source Swift library to manage auto-renewable subscriptions in your iOS app. No backend required.
+Apphud SDK is a lightweight open-source Swift library to manage auto-renewable subscriptions and other in-app purchases in your iOS app. No backend required.
 
 Visit our website for details: https://apphud.com
 
@@ -13,6 +13,8 @@ Visit our website for details: https://apphud.com
 🧾 App Store receipts validation.<br/>Apphud validates and periodically refreshes App Store receipts to give you real-time data.
 
 🕗 View subscription details and transactions history.<br/>Get expiration date, autorenew status in our SDK.
+
+🕗 View non-renewing purchase details and transactions history.
 
 🔍 Determine for trial, introductory and promotional offer eligibility using our SDK. 
 
@@ -44,7 +46,7 @@ Apphud SDK requires minimum iOS 11.2, Xcode 10 and Swift 4.2.
 
 ## Installation
 
-Apphud SDK can be installed via CocoaPods or manually.
+Apphud SDK can be installed via CocoaPods, Swift Package Manager or manually.
 
 ##### Install via CocoaPods
 
@@ -60,6 +62,13 @@ And then run in the Terminal:
 
 ```ruby
 pod install
+```
+##### Install via SPM (Swift Package Manager)
+
+Add dependecy with the following URL:
+
+```
+https://github.com/apphud/ApphudSDK
 ```
 
 #### Manual Installation
@@ -114,12 +123,12 @@ When products are fetched from the App Store you will also receive a notificatio
 To make a purchase:
 
 ```swift
-Apphud.purchase(product) { (subscription, error) in
+Apphud.purchase(product) { result in
    // handle result
 }
 ```
 
-This method will return a subscription model, which contains all relevant info about your subscription, including expiration date. See `ApphudSubscription.swift` file for details.
+This method will return an `ApphudPurchaseResult` class, which contains subscription model, which contains all relevant info about your subscription, including expiration date. It also contains `transaction` object, `error` and `nonRenewingPurchase` object in case user purchased standard in-app purchase. See `ApphudPurchaseResult.swift` and `ApphudSubscription.swift` files for details.
 
 ### Check Subscription Status
 
@@ -138,13 +147,31 @@ Apphud.subscription()
 ```
 
  See `ApphudSubscription.swift` file for details.
+ 
+ ### Check Non-renewing Purchase Status
+
+```swift
+let active = Apphud.isNonRenewingPurchaseActive(productIdentifier: "productID")
+```
+
+Prints `true` if the user has purchased in-app purchase and it's not refunded. Returns `false` if never purchased or refunded. 
+ 
+ ### Get Non-renewing Purchase Details
+
+To get non-renewing purchases, which contain purchase date, product identifier and cancellation date, use the following method: 
+
+```swift
+Apphud.nonRenewingPurchases()
+```
+
+Will return array of all non-renewing in-app purchases, user has ever purchased. In-app purchases are sorted by purchase date.
 
 ### Restore Purchases
 
 If your app doesn't have a login system, which identifies a premium user by his credentials, then you need a restore mechanism. If you already have a restore purchases mechanism by calling `SKPaymentQueue.default().restoreCompletedTransactions()`, then you have nothing to worry about – Apphud SDK will automatically intercept and send latest App Store Receipt to Apphud servers when your restoration is completed. However, better to call our restore method from SDK:
 
 ```swift
-Apphud.restoreSubscriptions{ subscriptions, error in 
+Apphud.restorePurchases{ subscriptions, purchases, error in 
    // handle here
 }
 ```
@@ -153,12 +180,12 @@ Basically it just sends App Store Receipt to Apphud and returns subscriptions in
 
 ## Migrate Existing Subscribers
 
-If you already have a live app with paying users and you want Apphud to track their subscriptions, you should import their App Store receipts into Apphud. Apphud SDK doesn't automatically submit App Store receipts of your existing subscribers. Run this code at launch of your app:
+If you already have a live app with paying users and you want Apphud to track their subscriptions or non-renewing purchases, you should import their App Store receipts into Apphud. Apphud SDK doesn't automatically submit App Store receipts of your existing paying users. Run this code at launch of your app:
 
 ```swift
 // hasPurchases - is your own boolean value indicating that current user is paying user.
 if hasPurchases {
-    Apphud.migrateSubscriptionsIfNeeded {_ in}
+    Apphud.migratePurchasesIfNeeded {_, _, _ in}
 }
 ```
 
