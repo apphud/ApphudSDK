@@ -38,7 +38,7 @@ public class ApphudPurchaseResult: NSObject {
      - `NSError` from HTTP Client with `NSURLErrorDomain` codes. This is a network/server issue when uploading receipt to Apphud.
      - Custom `ApphudError` without codes. For example, if couldn't sign promo offer or couldn't get App Store receipt.
      */
-    let error: Error?
+    public let error: Error?
     
     // MARK:- Private methods
     
