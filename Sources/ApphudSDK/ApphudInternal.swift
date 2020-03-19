@@ -10,7 +10,7 @@ import Foundation
 import AdSupport
 import StoreKit
 
-let sdk_version = "0.9.0"
+let sdk_version = "0.9.1"
 
 internal typealias HasPurchasesChanges = (hasSubscriptionChanges: Bool, hasNonRenewingChanges: Bool)
 
@@ -103,7 +103,7 @@ final class ApphudInternal {
             self.setupObservers()
             
             if success {
-                apphudLog("User successfully registered")
+                apphudLog("User successfully registered with id: \(self.currentUserID)", forceDisplay: true)
                 self.performAllUserRegisteredBlocks()                
                 self.checkForUnreadNotifications()
             } else {                

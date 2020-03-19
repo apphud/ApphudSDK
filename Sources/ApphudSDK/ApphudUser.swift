@@ -85,7 +85,7 @@ internal struct ApphudUser {
             try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true, attributes: nil)
             try data?.write(to: fileURL)
         } catch {
-            apphudLog("failed to write to cache apphud user json, error: \(error.localizedDescription)")
+            apphudLog("failed to write to cache apphud user json, error: \(error.localizedDescription)", forceDisplay: true)
         }
     }
     
@@ -105,7 +105,7 @@ internal struct ApphudUser {
                 }
             }
         } catch {
-            apphudLog("failed to read from cache apphud user json, error: \(error.localizedDescription)")
+            apphudLog("failed to read from cache apphud user json, error: \(error.localizedDescription)", forceDisplay: true)
         }
         return nil
     }

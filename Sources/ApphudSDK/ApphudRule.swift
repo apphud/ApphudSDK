@@ -14,11 +14,13 @@ public class ApphudRule: NSObject {
      Rule name that is visible in Apphud Rules dashboard
      */
     @objc public let rule_name: String 
+    
     /**
      Screen name that is visible in Apphud Screens dashboard
      */
     @objc public let screen_name: String
     
+    // Private
     internal let id: String
     internal let screen_id: String
 

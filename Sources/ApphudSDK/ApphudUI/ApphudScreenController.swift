@@ -105,7 +105,6 @@ class ApphudScreenController: UIViewController{
     //MARK:- Private
     
     deinit {
-//        apphudLog("Deinit ApphudScreenController(\(screenID))")
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(failedByTimeOut), object: nil)
         NotificationCenter.default.removeObserver(self)
     }
@@ -347,8 +346,6 @@ class ApphudScreenController: UIViewController{
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(failedByTimeOut), object: nil)
         
         webView.alpha = 1
-        let date = Date().timeIntervalSince(start)
-        apphudLog("screen final load time: \(date)")
         
         if didAppear {
             handleDidAppearAndDidLoadScreen()

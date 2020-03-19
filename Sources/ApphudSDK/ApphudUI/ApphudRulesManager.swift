@@ -37,7 +37,7 @@ internal class ApphudRulesManager {
             self.handlePendingAPSInfo()
         } else {
             // do nothing, because ApphudInternal will call once app is active
-            apphudLog("Got APS info, but app is not yet active, waiting for app to be active, then will handle push notification.")
+            apphudLog("Got APS info, but app is not yet active, waiting for app to be active, then will handle push notification.", forceDisplay: true)
         }
         
         return true    
@@ -75,7 +75,7 @@ internal class ApphudRulesManager {
         guard self.pendingController == nil else { return }
         guard rule.screen_id.count > 0 else { return }
         guard ApphudInternal.shared.uiDelegate?.apphudShouldPerformRule?(rule: rule) ?? true else { 
-            apphudLog("apphudShouldPerformRule returned false for rule \(rule.rule_name), exiting")
+            apphudLog("apphudShouldPerformRule returned false for rule \(rule.rule_name), exiting", forceDisplay: true)
             return 
         }
         
@@ -89,7 +89,7 @@ internal class ApphudRulesManager {
         if ApphudInternal.shared.uiDelegate?.apphudShouldShowScreen?(screenName: rule.screen_name) ?? true {
              showPendingScreen()
         } else {
-            apphudLog("apphudShouldShowScreen returned false for screen \(rule.screen_name), exiting")
+            apphudLog("apphudShouldShowScreen returned false for screen \(rule.screen_name), exiting", forceDisplay: true)
         }
     }
     
@@ -105,5 +105,13 @@ internal class ApphudRulesManager {
         }
         let parent = ApphudInternal.shared.uiDelegate?.apphudParentViewController?(controller: pendingController!) ?? apphudVisibleViewController()
         parent?.present(pendingController!, animated: true, completion: nil)
+    }
+    
+    internal func pendingRule() -> ApphudRule? {
+        if let nc = self.pendingController as? ApphudNavigationController, let screenController = nc.viewControllers.first as? ApphudScreenController {
+            return screenController.rule
+        } else {
+            return nil
+        }
     }
 }

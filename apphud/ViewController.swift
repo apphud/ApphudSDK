@@ -25,7 +25,7 @@ class ViewController: UITableViewController{
         Apphud.setUIDelegate(self)
         
         reload()
-        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Restore transactions", style: .done, target: self, action: #selector(restore))        
+        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Restore transactions", style: .done, target: self, action: #selector(restore))
         
         if Apphud.products() == nil {
             Apphud.productsDidFetchCallback { (products) in
@@ -38,14 +38,14 @@ class ViewController: UITableViewController{
             self.products = Apphud.products()!        
         }
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { 
-            Apphud.refreshStoreKitProducts { products in
-                print("storekit products are refreshed! \(products.count)")
-                self.products = products
-                self.reload()
-            }
-        }
-        
+//        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { 
+//            Apphud.refreshStoreKitProducts { products in
+//                print("storekit products are refreshed! \(products.count)")
+//                self.products = products
+//                self.reload()
+//            }
+//        }
+//        
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -112,6 +112,7 @@ class ViewController: UITableViewController{
             cell.detailTextLabel?.text = subscription.expiresDate.description(with: Locale.current) + "\nState: \(subscription.status.toStringDuplicate())\nIntroductory used:\(subscription.isIntroductoryActivated)".uppercased()
         } else if let purchase = Apphud.nonRenewingPurchases()?.first(where: {$0.productId == product.productIdentifier}) {
             cell.detailTextLabel?.text = "\(purchase.productId). Last Purchased at: \(purchase.purchasedAt)"
+            print("purchase: \(purchase.productId) is active: \(purchase.isActive())")
         } else {
             cell.detailTextLabel?.text = "\(product.productIdentifier): not active"
         }
@@ -194,8 +195,12 @@ extension ViewController : ApphudDelegate {
 
 extension ViewController : ApphudUIDelegate {
     
+    func apphudShouldPerformRule(rule: ApphudRule) -> Bool {
+        return true
+    }
+    
     func apphudShouldShowScreen(screenName: String) -> Bool {
-        return canShowApphudScreen
+        return true
     }
     
     func apphudScreenPresentationStyle(controller: UIViewController) -> UIModalPresentationStyle {

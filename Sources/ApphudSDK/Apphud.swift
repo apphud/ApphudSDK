@@ -62,7 +62,7 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
     @objc optional func apphudShouldPerformRule(rule: ApphudRule) -> Bool
     
     /**
-        You can return `false` to this delegate method if you don't want to delay Apphud Screen presentation.
+        You can return `false` to this delegate method if you want to delay Apphud Screen presentation.
      
         Controller will be kept in memory until you present it via `Apphud.showPendingScreen()` method. If you don't want to show screen at all, you should check `apphudShouldPerformRule` delegate method.
      */
@@ -349,6 +349,20 @@ final public class Apphud: NSObject {
      */
     @objc public static func showPendingScreen() {
         return ApphudRulesManager.shared.showPendingScreen()
+    }
+    
+    /**
+        Screen view controller that is pending for presentation. This is the screen that is triggered by your pending Rule. You can use `showPendingScreen` method or present this controller manually.
+     */
+    @objc public static func pendingScreenController() -> UIViewController? {
+        return ApphudRulesManager.shared.pendingController
+    }
+    
+    /**
+        Rule with a screen that was delayed for presentation.
+     */
+    @objc public static func pendingRule() -> ApphudRule? {
+        return ApphudRulesManager.shared.pendingRule()
     }
     
     //MARK:- Push Notifications
