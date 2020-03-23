@@ -10,7 +10,7 @@ import Foundation
 import AdSupport
 import StoreKit
 
-let sdk_version = "0.9.1"
+let sdk_version = "0.9.2"
 
 internal typealias HasPurchasesChanges = (hasSubscriptionChanges: Bool, hasNonRenewingChanges: Bool)
 
@@ -818,17 +818,20 @@ final class ApphudInternal {
             
             var params : [String : Any] = ["device_id" : self.currentDeviceID]
             
-            if provider == .appsFlyer {
-                guard identifer != nil else { 
-                    callback?(false)
-                    return 
-                }   
-                params["appsflyer_id"] = identifer
-                params["appsflyer_data"] = data
-            } else if provider == .adjust {
-                params["adjust_data"] = data
-            } else if provider == .appleSearchAds {
-                params["search_ads_data"] = data
+            switch provider {
+                case .appsFlyer:
+                    guard identifer != nil else { 
+                        callback?(false)
+                        return 
+                    }   
+                    params["appsflyer_id"] = identifer
+                    params["appsflyer_data"] = data
+                case .adjust:
+                    params["adjust_data"] = data
+                case .appleSearchAds:
+                    params["search_ads_data"] = data
+                case .facebook:
+                    params["fb_device"] = true
             }
             
             self.httpClient.startRequest(path: "customers/attribution", params: params, method: .post) { (result, response, error, code) in

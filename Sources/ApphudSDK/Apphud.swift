@@ -110,6 +110,7 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
     case appsFlyer
     case adjust
     case appleSearchAds
+    case facebook
     /**
      Branch is implemented and doesn't require any additional code from Apphud SDK 
      More details: https://docs.apphud.com/integrations/attribution/branch
