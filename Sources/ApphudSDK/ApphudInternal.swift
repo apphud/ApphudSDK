@@ -57,6 +57,10 @@ final class ApphudInternal {
         
         apphudLog("Started Apphud SDK (\(sdk_version))", forceDisplay: true)
         
+        if let aClass = NSClassFromString("ApphudObjcExtensions") {
+            aClass.initialize()                
+        }
+        
         ApphudStoreKitWrapper.shared.setupObserver()
         
         var deviceID = ApphudKeychain.loadDeviceID() 
@@ -832,6 +836,11 @@ final class ApphudInternal {
                     params["search_ads_data"] = data
                 case .facebook:
                     params["fb_device"] = true
+                    if ApphudUtils.shared.optOutOfIDFACollection || identifierForAdvertising() == nil {
+                        if let anonID = UserDefaults.standard.string(forKey: "ApphudFbAnonID") {
+                            params["fb_anon_id"] = anonID
+                        }
+                    }
             }
             
             self.httpClient.startRequest(path: "customers/attribution", params: params, method: .post) { (result, response, error, code) in
