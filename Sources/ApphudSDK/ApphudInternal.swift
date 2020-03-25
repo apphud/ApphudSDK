@@ -831,8 +831,7 @@ final class ApphudInternal {
                 case .appleSearchAds:
                     params["search_ads_data"] = data
                 case .facebook:
-                    var hash : [String : String] = [:]                    
-                    
+                    var hash : [String : AnyHashable] = ["fb_device" : true]                    
                     if ApphudUtils.shared.optOutOfIDFACollection || identifierForAdvertising() == nil {
                         if let aClass = NSClassFromString("ApphudObjcExtensions") {
                             aClass.initialize()
