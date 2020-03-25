@@ -831,15 +831,18 @@ final class ApphudInternal {
                 case .appleSearchAds:
                     params["search_ads_data"] = data
                 case .facebook:
-                    params["fb_device"] = true
+                    var hash : [String : String] = [:]                    
+                    
                     if ApphudUtils.shared.optOutOfIDFACollection || identifierForAdvertising() == nil {
                         if let aClass = NSClassFromString("ApphudObjcExtensions") {
                             aClass.initialize()
                         }
                         if let anonID = UserDefaults.standard.string(forKey: "ApphudFbAnonID") {
-                            params["fb_anon_id"] = anonID
+                            hash["anon_id"] = anonID
+                            UserDefaults.standard.removeObject(forKey: "ApphudFbAnonID")
                         }
                     }
+                    params["facebook_data"] = hash
             }
             
             self.httpClient.startRequest(path: "customers/attribution", params: params, method: .post) { (result, response, error, code) in
