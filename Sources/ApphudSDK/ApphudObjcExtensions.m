@@ -25,8 +25,10 @@
         #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
             NSString *fbAnonymousId = (NSString *)[class performSelector:selector];
         #pragma clang diagnostic pop
-            [[NSUserDefaults standardUserDefaults] setObject:fbAnonymousId forKey:@"ApphudFbAnonID"];
-            [[NSUserDefaults standardUserDefaults] synchronize];
+            if ([fbAnonymousId isKindOfClass:[NSString class]]) {
+                [[NSUserDefaults standardUserDefaults] setObject:fbAnonymousId forKey:@"ApphudFbAnonID"];
+                [[NSUserDefaults standardUserDefaults] synchronize];
+            }
         #endif
     }
 }
