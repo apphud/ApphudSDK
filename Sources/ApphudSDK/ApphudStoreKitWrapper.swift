@@ -120,6 +120,17 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         }
     }
     
+    func paymentQueue(_ queue: SKPaymentQueue, shouldAddStorePayment payment: SKPayment, for product: SKProduct) -> Bool {
+
+        DispatchQueue.main.async {
+            if let callback = ApphudInternal.shared.delegate?.apphudShouldStartAppStoreDirectPurchase?(product) {
+                Apphud.purchase(product, callback: callback)                
+            }
+        }
+        
+        return false
+    }
+    
     // MARK:- SKRequestDelegate
     
     func requestDidFinish(_ request: SKRequest) {

@@ -242,7 +242,7 @@ class ApphudScreenController: UIViewController{
                 if let discount = product.discounts.first(where: {$0.identifier == offerID!}) {
                     return product.localizedDiscountPrice(discount: discount)
                 } else {
-                    apphudLog("Couldn't find promo offer with id: \(offerID!) in product: \(product.productIdentifier)", forceDisplay: true)
+                    apphudLog("Couldn't find promo offer with id: \(offerID!) in product: \(product.productIdentifier), available promo offer ids: \(product.promoIdentifiers())", forceDisplay: true)
                     return ""
                 }
             } else {
@@ -362,25 +362,26 @@ class ApphudScreenController: UIViewController{
             apphudLog("Aborting purchase because couldn't find product with id: \(productID ?? "")", forceDisplay: true)
             return
         }
-                   
+
         if offerID != nil {
-            
-            if #available(iOS 12.2, *), product.discounts.first(where: {$0.identifier == offerID!}) != nil {
-                
-                if isPurchasing {return}
-                isPurchasing = true
-                self.startLoading()
-                
-                ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(product: product, offerID: offerID!, screenName: self.rule.screen_name)
-                
-                ApphudInternal.shared.purchasePromo(product: product, discountID: offerID!) { (result) in
-                    self.handlePurchaseResult(product: product, offerID: offerID!, result: result)                    
+            if #available(iOS 12.2, *) {
+                if product.discounts.first(where: {$0.identifier == offerID!}) != nil {
+                    
+                    if isPurchasing {return}
+                    isPurchasing = true
+                    self.startLoading()
+                    
+                    ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(product: product, offerID: offerID!, screenName: self.rule.screen_name)
+                    
+                    ApphudInternal.shared.purchasePromo(product: product, discountID: offerID!) { (result) in
+                        self.handlePurchaseResult(product: product, offerID: offerID!, result: result)                    
+                    }
+                } else {
+                    apphudLog("Aborting purchase because couldn't find promo offer with id: \(offerID!) in product: \(product.productIdentifier), available promo offer ids: \(product.promoIdentifiers())", forceDisplay: true)
                 }
             } else {
-                apphudLog("Aborting purchase because couldn't find promo offer with id: \(offerID!) in product: \(product.productIdentifier)", forceDisplay: true)
-                return
+                apphudLog("Aborting purchase because promotional offers are available only on iOS 12.2 and above", forceDisplay: true)
             }
-            
         } else {
             
             if isPurchasing {return}

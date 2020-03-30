@@ -13,6 +13,7 @@
 		9469E2F223AA1C1C002A5946 /* ApphudScreenController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9469E2EF23AA1C1B002A5946 /* ApphudScreenController.swift */; };
 		9469E2F323AA1C1C002A5946 /* ApphudNavigationController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9469E2F023AA1C1B002A5946 /* ApphudNavigationController.swift */; };
 		9469E2F423AA1C1C002A5946 /* ApphudRulesManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9469E2F123AA1C1B002A5946 /* ApphudRulesManager.swift */; };
+		947B101D242A7BC000FA8EFA /* ApphudObjcExtensions.m in Sources */ = {isa = PBXBuildFile; fileRef = 947B101B242A7BC000FA8EFA /* ApphudObjcExtensions.m */; };
 		94A9CE012402BAA900F3C5E3 /* ApphudPurchaseResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94A9CE002402BAA900F3C5E3 /* ApphudPurchaseResult.swift */; };
 		94A9CE022402C38200F3C5E3 /* ApphudNonRenewingPurchase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94A9CDFE2402992400F3C5E3 /* ApphudNonRenewingPurchase.swift */; };
 		94AE4E9122A0FAC800564F85 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94AE4E9022A0FAC800564F85 /* AppDelegate.swift */; };
@@ -54,6 +55,8 @@
 		9469E2EF23AA1C1B002A5946 /* ApphudScreenController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudScreenController.swift; sourceTree = "<group>"; };
 		9469E2F023AA1C1B002A5946 /* ApphudNavigationController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudNavigationController.swift; sourceTree = "<group>"; };
 		9469E2F123AA1C1B002A5946 /* ApphudRulesManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudRulesManager.swift; sourceTree = "<group>"; };
+		947B101B242A7BC000FA8EFA /* ApphudObjcExtensions.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ApphudObjcExtensions.m; sourceTree = "<group>"; };
+		947B101C242A7BC000FA8EFA /* ApphudObjcExtensions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ApphudObjcExtensions.h; sourceTree = "<group>"; };
 		94A9CDFE2402992400F3C5E3 /* ApphudNonRenewingPurchase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApphudNonRenewingPurchase.swift; sourceTree = "<group>"; };
 		94A9CE002402BAA900F3C5E3 /* ApphudPurchaseResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApphudPurchaseResult.swift; sourceTree = "<group>"; };
 		94AE4E8D22A0FAC800564F85 /* ApphudDemoApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ApphudDemoApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -148,6 +151,8 @@
 				95E94700239D20D000CC306C /* ApphudInternal.swift */,
 				95E94701239D20D000CC306C /* ApphudUser.swift */,
 				95E94703239D20D000CC306C /* ApphudRule.swift */,
+				947B101C242A7BC000FA8EFA /* ApphudObjcExtensions.h */,
+				947B101B242A7BC000FA8EFA /* ApphudObjcExtensions.m */,
 				95E94704239D20D000CC306C /* ApphudScreen.swift */,
 				94A9CE002402BAA900F3C5E3 /* ApphudPurchaseResult.swift */,
 				95E94705239D20D000CC306C /* ApphudSubscription.swift */,
@@ -193,6 +198,7 @@
 				TargetAttributes = {
 					94AE4E8C22A0FAC800564F85 = {
 						CreatedOnToolsVersion = 10.2;
+						LastSwiftMigration = 1130;
 						SystemCapabilities = {
 							com.apple.Push = {
 								enabled = 1;
@@ -240,6 +246,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				95E94713239D20D000CC306C /* ApphudScreen.swift in Sources */,
+				947B101D242A7BC000FA8EFA /* ApphudObjcExtensions.m in Sources */,
 				95E94716239D20D000CC306C /* Apphud.swift in Sources */,
 				9469E2F323AA1C1C002A5946 /* ApphudNavigationController.swift in Sources */,
 				94AE4E9322A0FAC800564F85 /* ViewController.swift in Sources */,
@@ -405,6 +412,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = apphud/apphud.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 4F9FP2XDZ3;
@@ -417,6 +425,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.apphud.subscriptionstest;
 				PRODUCT_NAME = ApphudDemoApp;
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 4.2;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -426,6 +435,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = apphud/apphud.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 4F9FP2XDZ3;

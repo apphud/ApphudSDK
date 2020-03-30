@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'ApphudSDK'
-  s.version          = '0.9.1'
+  s.version          = '0.9.2'
   s.summary          = 'Track and control iOS auto-renewable subscriptions.' 
   s.description      = 'Track, control and analyze iOS auto-renewable subscriptions with Apphud.'
   s.homepage         = 'https://github.com/apphud/ApphudSDK'
@@ -10,6 +10,6 @@ Pod::Spec.new do |s|
   s.frameworks = 'StoreKit'
   s.ios.deployment_target = '11.2'
   s.swift_version = '4.2'
-  s.source_files = 'Sources/**/*.swift'
+  s.source_files = 'Sources/**/*.{swift,h,m}'
 
 end

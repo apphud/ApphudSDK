@@ -52,6 +52,11 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
         You can use `productsDidFetchCallback` callback or observe for `didFetchProductsNotification()` or implement `apphudDidFetchStoreKitProducts` delegate method. Use whatever you like most. 
      */
     @objc optional func apphudDidFetchStoreKitProducts(_ products: [SKProduct])
+    
+    /**
+     Implements mechanism of purchasing In-App Purchase initiated directly from the App Store page. Return your callback block in this delegate method, it will be called when purchase is finished.
+     */
+    @objc optional func apphudShouldStartAppStoreDirectPurchase(_ product: SKProduct) -> ((ApphudPurchaseResult) -> Void)
 }
 
 @objc public protocol ApphudUIDelegate {
@@ -110,6 +115,7 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
     case appsFlyer
     case adjust
     case appleSearchAds
+    case facebook
     /**
      Branch is implemented and doesn't require any additional code from Apphud SDK 
      More details: https://docs.apphud.com/integrations/attribution/branch

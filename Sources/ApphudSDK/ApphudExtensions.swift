@@ -215,6 +215,17 @@ extension SKProduct {
         return ["unit" : unit, "units_count" : unit_count, "periods_count" : periods_count, "mode" : mode, "price" : discount.price.floatValue, "offer_id" : discount.identifier ?? ""]                
     }
     
+    @available(iOS 12.2, *)
+    func promoIdentifiers() -> [String] {
+        var array = [String]()
+        for discount in discounts {
+            if let id = discount.identifier {
+                array.append(id)
+            }
+        }
+        return array
+    }
+    
     private func introParameters() -> [String : Any]? {
         
         if let intro = introductoryPrice {
