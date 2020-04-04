@@ -192,7 +192,7 @@ extension ViewController : ApphudDelegate {
         print("non renewing purchases updated")
     }
     
-    func apphudShouldStartAppStoreDirectPurchase(_ product: SKProduct) -> ((ApphudPurchaseResult) -> Void) {
+    func apphudShouldStartAppStoreDirectPurchase(_ product: SKProduct) -> ((ApphudPurchaseResult) -> Void)? {
         let callback : ((ApphudPurchaseResult) -> Void) = { result in 
             // handle ApphudPurchaseResult
             self.reload()

@@ -54,9 +54,11 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
     @objc optional func apphudDidFetchStoreKitProducts(_ products: [SKProduct])
     
     /**
-     Implements mechanism of purchasing In-App Purchase initiated directly from the App Store page. Return your callback block in this delegate method, it will be called when purchase is finished.
+     Implements mechanism of purchasing In-App Purchase initiated directly from the App Store page.
+     
+     You must return a callback block which will be called when a payment is finished. If you don't implement this method or return `nil` then a payment will not start; you can also save the product and return `nil` to initiate a payment later by yourself. Read Apple documentation for details: https://developer.apple.com/documentation/storekit/in-app_purchase/promoting_in-app_purchases
      */
-    @objc optional func apphudShouldStartAppStoreDirectPurchase(_ product: SKProduct) -> ((ApphudPurchaseResult) -> Void)
+    @objc optional func apphudShouldStartAppStoreDirectPurchase(_ product: SKProduct) -> ((ApphudPurchaseResult) -> Void)?
 }
 
 @objc public protocol ApphudUIDelegate {
