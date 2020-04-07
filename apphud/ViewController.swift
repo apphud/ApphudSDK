@@ -104,7 +104,7 @@ class ViewController: UITableViewController{
             } 
             cell.textLabel?.text = text
         } else {
-            cell.textLabel?.text = product.localizedPrice()
+            cell.textLabel?.text = product.apphudLocalizedPrice()
         }
         
         if let subscription = Apphud.subscriptions()?.first(where: {$0.productId == product.productIdentifier}) {

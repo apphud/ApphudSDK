@@ -488,10 +488,10 @@ final public class Apphud: NSObject {
     }
     
     /**
-        This method must be called before SDK initialization. Apphud will send all subscription events of current user to your test analytics, if test api keys are set in integrations dashboard.
+        Returns `true` if current build is running on sumulator or Debug/TestFlight modes. Returns `false` if current build is App Store build.
      */
-    @objc public static func setIntegrationsTestMode(){
-        ApphudInternal.shared.isIntegrationsTestMode = true
+    @objc public static func isSandbox() -> Bool{
+        return apphudIsSandbox()
     }
     
     /**
