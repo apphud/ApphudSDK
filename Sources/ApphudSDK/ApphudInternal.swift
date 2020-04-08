@@ -828,14 +828,14 @@ final class ApphudInternal {
                 case .appleSearchAds:
                     params["search_ads_data"] = data
                 case .facebook:
-                    let hash : [String : AnyHashable] = ["fb_device" : true]                    
+                    var hash : [String : AnyHashable] = ["fb_device" : true]                    
                     
                     if ApphudUtils.shared.optOutOfIDFACollection || apphudIdentifierForAdvertising() == nil {
                         if let aClass = NSClassFromString("ApphudObjcExtensions") {
                             aClass.initialize()
                         }
                         if let anonID = UserDefaults.standard.string(forKey: "ApphudFbAnonID"), anonID.count > 0 {
-                            // hash["anon_id"] = anonID // disable for now
+                            hash["anon_id"] = anonID
                             UserDefaults.standard.removeObject(forKey: "ApphudFbAnonID")
                         }
                     }

@@ -17,8 +17,8 @@
 #if TARGET_OS_TV
     return;
 #else
-    Class class = NSClassFromString(@"FBSDKBasicUtility");
-    SEL selector = NSSelectorFromString(@"retrievePersistedAnonymousID");
+    Class class = NSClassFromString(@"FBSDKAppEvents");
+    SEL selector = NSSelectorFromString(@"anonymousID");
     
     if (class != nil && [class respondsToSelector:selector]) {
         #pragma clang diagnostic push
