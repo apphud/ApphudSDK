@@ -828,7 +828,7 @@ final class ApphudInternal {
                 case .appleSearchAds:
                     params["search_ads_data"] = data
                 case .facebook:
-                    var hash : [String : AnyHashable] = ["fb_device" : true]                    
+                    var hash : [AnyHashable : Any] = ["fb_device" : true]                    
                     
                     if ApphudUtils.shared.optOutOfIDFACollection || apphudIdentifierForAdvertising() == nil {
                         if let aClass = NSClassFromString("ApphudObjcExtensions") {
@@ -839,6 +839,7 @@ final class ApphudInternal {
                             UserDefaults.standard.removeObject(forKey: "ApphudFbAnonID")
                         }
                     }
+                    hash.merge(data, uniquingKeysWith: {old, new in new})
                     params["facebook_data"] = hash
             }
             
