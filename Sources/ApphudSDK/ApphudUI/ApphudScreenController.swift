@@ -240,9 +240,9 @@ class ApphudScreenController: UIViewController{
         if offerID != nil {
             if #available(iOS 12.2, *) {
                 if let discount = product.discounts.first(where: {$0.identifier == offerID!}) {
-                    return product.localizedDiscountPrice(discount: discount)
+                    return product.apphudLocalizedDiscountPrice(discount: discount)
                 } else {
-                    apphudLog("Couldn't find promo offer with id: \(offerID!) in product: \(product.productIdentifier), available promo offer ids: \(product.promoIdentifiers())", forceDisplay: true)
+                    apphudLog("Couldn't find promo offer with id: \(offerID!) in product: \(product.productIdentifier), available promo offer ids: \(product.apphudPromoIdentifiers())", forceDisplay: true)
                     return ""
                 }
             } else {
@@ -250,7 +250,7 @@ class ApphudScreenController: UIViewController{
                 return ""
             }            
         } else {
-            return product.localizedPrice()
+            return product.apphudLocalizedPrice()
         }
     }
     
@@ -377,7 +377,7 @@ class ApphudScreenController: UIViewController{
                         self.handlePurchaseResult(product: product, offerID: offerID!, result: result)                    
                     }
                 } else {
-                    apphudLog("Aborting purchase because couldn't find promo offer with id: \(offerID!) in product: \(product.productIdentifier), available promo offer ids: \(product.promoIdentifiers())", forceDisplay: true)
+                    apphudLog("Aborting purchase because couldn't find promo offer with id: \(offerID!) in product: \(product.productIdentifier), available promo offer ids: \(product.apphudPromoIdentifiers())", forceDisplay: true)
                 }
             } else {
                 apphudLog("Aborting purchase because promotional offers are available only on iOS 12.2 and above", forceDisplay: true)

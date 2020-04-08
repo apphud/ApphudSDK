@@ -10,7 +10,7 @@ import Foundation
 import AdSupport
 import StoreKit
 
-let sdk_version = "0.9.4"
+let sdk_version = "0.9.5"
 
 internal typealias HasPurchasesChanges = (hasSubscriptionChanges: Bool, hasNonRenewingChanges: Bool)
 
@@ -22,10 +22,7 @@ final class ApphudInternal {
     static let shared = ApphudInternal()
     var delegate : ApphudDelegate?
     var uiDelegate : ApphudUIDelegate?
-    var currentUser : ApphudUser?
-    
-    var isIntegrationsTestMode = false
-    
+    var currentUser : ApphudUser?    
     var currentDeviceID : String = ""
     var currentUserID : String = ""
     fileprivate var isSubmittingReceipt : Bool = false
@@ -92,7 +89,7 @@ final class ApphudInternal {
             ApphudKeychain.saveUserID(userID: self.currentUserID)
         }
         
-        self.productsGroupsMap = fromUserDefaultsCache(key: "productsGroupsMap")
+        self.productsGroupsMap = apphudFromUserDefaultsCache(key: "productsGroupsMap")
         
         continueToRegisteringUser()
     }
@@ -122,7 +119,7 @@ final class ApphudInternal {
             if productsGroupsMap?.keys.count ?? 0 > 0 {
                 self.productsGroupsMap = productsGroupsMap
                 apphudLog("Products groups fetched: \(self.productsGroupsMap as AnyObject)")
-                toUserDefaultsCache(dictionary: self.productsGroupsMap!, key: "productsGroupsMap")                
+                apphudToUserDefaultsCache(dictionary: self.productsGroupsMap!, key: "productsGroupsMap")                
             }
             // continue to fetch storekit products anyway
             self.continueToFetchStoreKitProducts()
@@ -310,7 +307,7 @@ final class ApphudInternal {
                                           "currency_code" : currencyCode,
                                           "user_id" : self.currentUserID]       
         
-        params.merge(currentDeviceParameters()) { (current, new) in current}
+        params.merge(apphudCurrentDeviceParameters()) { (current, new) in current}
         
         updateUser(fields: params) { (result, response, error, code) in
             if result {
@@ -333,10 +330,10 @@ final class ApphudInternal {
     }
     
     private func updateUser(fields: [String : Any], callback: @escaping ApphudHTTPResponseCallback){
-        var params = currentDeviceParameters() as [String : Any]
+        var params = apphudCurrentDeviceParameters() as [String : Any]
         params.merge(fields) { (current, new) in current}
         params["device_id"] = self.currentDeviceID
-        params["is_debug"] = self.isIntegrationsTestMode
+        params["is_debug"] = apphudIsSandbox()
         // do not automatically pass currentUserID here,because we have separate method updateUserID
         httpClient.startRequest(path: "customers", params: params, method: .post, callback: callback)
     }
@@ -370,7 +367,7 @@ final class ApphudInternal {
     private func submitProducts(products: [SKProduct], callback: ApphudHTTPResponseCallback?) {
         var array = [[String : Any]]()
         for product in products {
-            let productParams : [String : Any] = product.submittableParameters()            
+            let productParams : [String : Any] = product.apphudSubmittableParameters()            
             array.append(productParams)
         }
         
@@ -391,13 +388,13 @@ final class ApphudInternal {
         if isSubmittingReceipt {return}
         
         performWhenUserRegistered {
-            guard let receiptString = receiptDataString() else { return }
+            guard let receiptString = apphudReceiptDataString() else { return }
             self.submitReceipt(product: nil, transaction: transaction, receiptString: receiptString, notifyDelegate: true, callback: nil)
         }
     }
     
     internal func submitReceiptRestore(allowsReceiptRefresh : Bool) {
-        guard let receiptString = receiptDataString() else {
+        guard let receiptString = apphudReceiptDataString() else {
             if allowsReceiptRefresh {
                 apphudLog("App Store receipt is missing on device, will refresh first then retry")
                 ApphudStoreKitWrapper.shared.refreshReceipt()
@@ -421,7 +418,7 @@ final class ApphudInternal {
     }
     
     internal func submitReceipt(product : SKProduct, transaction: SKPaymentTransaction?, callback : ((ApphudPurchaseResult) -> Void)?) {
-        guard let receiptString = receiptDataString() else { 
+        guard let receiptString = apphudReceiptDataString() else { 
             ApphudStoreKitWrapper.shared.refreshReceipt()
             callback?(ApphudPurchaseResult(nil, nil, nil, ApphudError.error(message: "Receipt not found on device, refreshing.")))
             return 
@@ -461,9 +458,9 @@ final class ApphudInternal {
             params["transaction_id"] = transactionID
         }
         if let product = product {
-            params["product_info"] = product.submittableParameters()
+            params["product_info"] = product.apphudSubmittableParameters()
         } else if let productID = transaction?.payment.productIdentifier, let product = ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == productID}) {
-            params["product_info"] = product.submittableParameters()
+            params["product_info"] = product.apphudSubmittableParameters()
         }
         
         UserDefaults.standard.set(true, forKey: requiresReceiptSubmissionKey)
@@ -612,7 +609,7 @@ final class ApphudInternal {
             
             // not found subscriptions, try to restore and try again
             if self.currentUser?.subscriptions.count ?? 0 == 0 && !UserDefaults.standard.bool(forKey: didSendReceiptForPromoEligibility){
-                if let receiptString = receiptDataString() {
+                if let receiptString = apphudReceiptDataString() {
                     apphudLog("Restoring subscriptions for promo eligibility check")
                     self.submitReceipt(product: nil, transaction:nil, receiptString: receiptString, notifyDelegate: true, callback: { error in
                         UserDefaults.standard.set(true, forKey: didSendReceiptForPromoEligibility)
@@ -682,7 +679,7 @@ final class ApphudInternal {
             let didSendReceiptForIntroEligibility = "ReceiptForIntroSent"
             
             if self.currentUser?.subscriptions.count ?? 0 == 0 && !UserDefaults.standard.bool(forKey: didSendReceiptForIntroEligibility){
-                if let receiptString = receiptDataString() {
+                if let receiptString = apphudReceiptDataString() {
                     apphudLog("Restoring subscriptions for intro eligibility check")
                     self.submitReceipt(product: nil, transaction: nil, receiptString: receiptString, notifyDelegate: true, callback: { error in
                         UserDefaults.standard.set(true, forKey: didSendReceiptForIntroEligibility)
@@ -831,17 +828,18 @@ final class ApphudInternal {
                 case .appleSearchAds:
                     params["search_ads_data"] = data
                 case .facebook:
-                    let hash : [String : AnyHashable] = ["fb_device" : true]                    
+                    var hash : [AnyHashable : Any] = ["fb_device" : true]                    
                     
-                    if ApphudUtils.shared.optOutOfIDFACollection || identifierForAdvertising() == nil {
+                    if ApphudUtils.shared.optOutOfIDFACollection || apphudIdentifierForAdvertising() == nil {
                         if let aClass = NSClassFromString("ApphudObjcExtensions") {
                             aClass.initialize()
                         }
                         if let anonID = UserDefaults.standard.string(forKey: "ApphudFbAnonID"), anonID.count > 0 {
-                            // hash["anon_id"] = anonID // disable for now
+                            hash["anon_id"] = anonID
                             UserDefaults.standard.removeObject(forKey: "ApphudFbAnonID")
                         }
                     }
+                    hash.merge(data, uniquingKeysWith: {old, new in new})
                     params["facebook_data"] = hash
             }
             

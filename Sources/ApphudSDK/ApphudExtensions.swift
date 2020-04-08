@@ -40,6 +40,26 @@ internal func apphudVisibleViewController() -> UIViewController? {
     return currentVC
 }
 
+internal func apphudIsSandbox() -> Bool {
+    if apphudIsSimulator() {
+        return true
+    } else {
+        if let url = Bundle.main.appStoreReceiptURL, url.lastPathComponent == "sandboxReceipt" {
+            return true
+        } else {
+            return false
+        }
+    }
+}
+
+private func apphudIsSimulator() -> Bool {
+    #if arch(i386) || arch(x86_64)
+        return true
+        #else
+        return false
+    #endif
+}
+
 internal func apphudDidMigrate(){
     UserDefaults.standard.set(true, forKey: "ApphudSubscriptionsMigrated")
     UserDefaults.standard.synchronize()    
@@ -49,16 +69,16 @@ internal func apphudShouldMigrate() -> Bool {
     return !UserDefaults.standard.bool(forKey: "ApphudSubscriptionsMigrated")
 }
 
-internal func toUserDefaultsCache(dictionary: [String : String], key: String){
+internal func apphudToUserDefaultsCache(dictionary: [String : String], key: String){
     UserDefaults.standard.set(dictionary, forKey: key)
     UserDefaults.standard.synchronize()
 }
 
-internal func fromUserDefaultsCache(key: String) -> [String : String]? {
+internal func apphudFromUserDefaultsCache(key: String) -> [String : String]? {
     return UserDefaults.standard.object(forKey: key) as? [String : String]
 }
 
-internal func currentDeviceParameters() -> [String : String]{
+internal func apphudCurrentDeviceParameters() -> [String : String]{
     
     let family : String
     if UIDevice.current.userInterfaceIdiom == .phone {
@@ -87,14 +107,14 @@ internal func currentDeviceParameters() -> [String : String]{
         params["idfv"] = idfv
     }
     
-    if !ApphudUtils.shared.optOutOfIDFACollection, let idfa = identifierForAdvertising(){
+    if !ApphudUtils.shared.optOutOfIDFACollection, let idfa = apphudIdentifierForAdvertising(){
         params["idfa"] = idfa
     }
     
     return params
 }
 
-internal func identifierForAdvertising() -> String? {
+internal func apphudIdentifierForAdvertising() -> String? {
     // Check whether advertising tracking is enabled
     guard ASIdentifierManager.shared().isAdvertisingTrackingEnabled else {
         return nil
@@ -118,7 +138,7 @@ extension UIDevice {
 }
 
 
-internal func receiptDataString() -> String? {
+internal func apphudReceiptDataString() -> String? {
     guard let appStoreReceiptURL = Bundle.main.appStoreReceiptURL else {
         return nil
     }
@@ -135,7 +155,7 @@ internal func receiptDataString() -> String? {
 @available(iOS 11.2, *)
 extension SKProduct {
     
-    func submittableParameters() -> [String : Any] {
+    func apphudSubmittableParameters() -> [String : Any] {
         
         var params : [String : Any] = [
             "product_id" : productIdentifier,
@@ -150,20 +170,20 @@ extension SKProduct {
             params["currency_code"] = currencyCode
         }
         
-        if let introData = introParameters() {
+        if let introData = apphudIntroParameters() {
             params.merge(introData, uniquingKeysWith: {$1})
         }
         
         if subscriptionPeriod != nil && subscriptionPeriod!.numberOfUnits > 0 {
             let units_count = subscriptionPeriod!.numberOfUnits
-            params["unit"] = unitStringFrom(periodUnit: subscriptionPeriod!.unit)
+            params["unit"] = apphudUnitStringFrom(periodUnit: subscriptionPeriod!.unit)
             params["units_count"] = units_count
         }
         
         if #available(iOS 12.2, *) {
             var discount_params = [[String : Any]]()
             for discount in discounts {
-                let promo_params = promoParameters(discount: discount)
+                let promo_params = apphudPromoParameters(discount: discount)
                 discount_params.append(promo_params)
             }
             if discount_params.count > 0 {
@@ -174,7 +194,7 @@ extension SKProduct {
         return params
     }
     
-    private func unitStringFrom(periodUnit : SKProduct.PeriodUnit) -> String {
+    private func apphudUnitStringFrom(periodUnit : SKProduct.PeriodUnit) -> String {
         var unit = ""
         switch periodUnit {
         case .day:
@@ -192,7 +212,7 @@ extension SKProduct {
     }
     
     @available(iOS 12.2, *)
-    private func promoParameters(discount : SKProductDiscount) -> [String : Any] {
+    private func apphudPromoParameters(discount : SKProductDiscount) -> [String : Any] {
         
         let periods_count = discount.numberOfPeriods
         
@@ -210,13 +230,13 @@ extension SKProduct {
             break
         }
         
-        let unit = unitStringFrom(periodUnit: discount.subscriptionPeriod.unit)
+        let unit = apphudUnitStringFrom(periodUnit: discount.subscriptionPeriod.unit)
         
         return ["unit" : unit, "units_count" : unit_count, "periods_count" : periods_count, "mode" : mode, "price" : discount.price.floatValue, "offer_id" : discount.identifier ?? ""]                
     }
     
     @available(iOS 12.2, *)
-    func promoIdentifiers() -> [String] {
+    func apphudPromoIdentifiers() -> [String] {
         var array = [String]()
         for discount in discounts {
             if let id = discount.identifier {
@@ -226,7 +246,7 @@ extension SKProduct {
         return array
     }
     
-    private func introParameters() -> [String : Any]? {
+    private func apphudIntroParameters() -> [String : Any]? {
         
         if let intro = introductoryPrice {
             let intro_periods_count = intro.numberOfPeriods
@@ -245,7 +265,7 @@ extension SKProduct {
                 break
             }
             
-            let intro_unit = unitStringFrom(periodUnit: intro.subscriptionPeriod.unit)
+            let intro_unit = apphudUnitStringFrom(periodUnit: intro.subscriptionPeriod.unit)
             
             if let aMode = mode{
                 return ["intro_unit" : intro_unit, "intro_units_count" : intro_unit_count, "intro_periods_count" : intro_periods_count, "intro_mode" : aMode, "intro_price" : intro.price.floatValue]                
@@ -258,12 +278,12 @@ extension SKProduct {
     
     //MARK:- Screen extension methods
     
-    func regularUnitString() -> String {
+    func apphudRegularUnitString() -> String {
         
         guard let subscriptionPeriod = subscriptionPeriod else {
             return ""
         }
-        let unit = unitStringFrom(periodUnit: subscriptionPeriod.unit) 
+        let unit = apphudUnitStringFrom(periodUnit: subscriptionPeriod.unit) 
         let unit_count = subscriptionPeriod.numberOfUnits
         
         if unit_count > 1 {
@@ -273,9 +293,9 @@ extension SKProduct {
         }
     }
     
-    func discountDurationString(discount: SKProductDiscount) -> String{
+    func apphudDiscountDurationString(discount: SKProductDiscount) -> String{
         let periods_count = discount.numberOfPeriods
-        let unit = unitStringFrom(periodUnit: discount.subscriptionPeriod.unit) 
+        let unit = apphudUnitStringFrom(periodUnit: discount.subscriptionPeriod.unit) 
         let unit_count = discount.subscriptionPeriod.numberOfUnits        
         let totalUnits = periods_count * unit_count
         
@@ -286,8 +306,8 @@ extension SKProduct {
         }
     }
     
-    func discountUnitString(discount: SKProductDiscount) -> String{
-        let unit = unitStringFrom(periodUnit: discount.subscriptionPeriod.unit) 
+    func apphudDiscountUnitString(discount: SKProductDiscount) -> String{
+        let unit = apphudUnitStringFrom(periodUnit: discount.subscriptionPeriod.unit) 
         let unit_count = discount.subscriptionPeriod.numberOfUnits
         
         if unit_count > 1 {
@@ -297,7 +317,7 @@ extension SKProduct {
         }
     }
     
-    func localizedPrice() -> String {
+    func apphudLocalizedPrice() -> String {
         let numberFormatter = NumberFormatter()
         numberFormatter.numberStyle = .currency
         numberFormatter.locale = priceLocale
@@ -305,7 +325,7 @@ extension SKProduct {
         return priceString ?? ""
     }
     
-    func localizedDiscountPrice(discount: SKProductDiscount) -> String {
+    func apphudLocalizedDiscountPrice(discount: SKProductDiscount) -> String {
         let numberFormatter = NumberFormatter()
         numberFormatter.numberStyle = .currency
         numberFormatter.locale = priceLocale
