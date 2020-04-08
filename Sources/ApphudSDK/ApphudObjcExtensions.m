@@ -17,8 +17,14 @@
 #if TARGET_OS_TV
     return;
 #else
-    Class class = NSClassFromString(@"FBSDKAppEvents");
+    
     SEL selector = NSSelectorFromString(@"anonymousID");
+    
+    Class class = NSClassFromString(@"FBSDKAppEvents");
+    
+    if (class == nil || ![class respondsToSelector:selector]) {
+        class = NSClassFromString(@"FBSDKBasicUtility");
+    }
     
     if (class != nil && [class respondsToSelector:selector]) {
         #pragma clang diagnostic push
