@@ -7,4 +7,4 @@ let package = Package(name: "ApphudSDK",
                                           targets: ["ApphudSDK"])],
                       targets: [.target(name: "ApphudSDK",
                                         path: "Sources")],
-                      swiftLanguageVersions: [.v4_2])
+                      swiftLanguageVersions: [.v5])

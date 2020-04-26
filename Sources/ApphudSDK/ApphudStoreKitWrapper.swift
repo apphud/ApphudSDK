@@ -173,6 +173,7 @@ private class ApphudProductsFetcher : NSObject, SKProductsRequestDelegate{
     
     func request(_ request: SKRequest, didFailWithError error: Error) {
         DispatchQueue.main.async {
+            apphudLog("Failed to load SKProducts from App Store, error: \(error)", forceDisplay: true)
             self.callback?([])
             self.callback = nil            
         }

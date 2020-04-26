@@ -10,7 +10,7 @@ import Foundation
 import AdSupport
 import StoreKit
 
-let sdk_version = "0.9.6"
+let sdk_version = "0.9.7"
 
 internal typealias HasPurchasesChanges = (hasSubscriptionChanges: Bool, hasNonRenewingChanges: Bool)
 
@@ -831,12 +831,8 @@ final class ApphudInternal {
                     var hash : [AnyHashable : Any] = ["fb_device" : true]                    
                     
                     if ApphudUtils.shared.optOutOfIDFACollection || apphudIdentifierForAdvertising() == nil {
-                        if let aClass = NSClassFromString("ApphudObjcExtensions") {
-                            aClass.initialize()
-                        }
-                        if let anonID = UserDefaults.standard.string(forKey: "ApphudFbAnonID"), anonID.count > 0 {
+                        if let anonID = apphudGetFBAnonID() {
                             hash["anon_id"] = anonID
-                            UserDefaults.standard.removeObject(forKey: "ApphudFbAnonID")
                         }
                     }
                     hash.merge(data, uniquingKeysWith: {old, new in new})
@@ -849,7 +845,3 @@ final class ApphudInternal {
         }
     }
 }
-
-/*
-    p print(String(data: try! JSONSerialization.data(withJSONObject: response, options: .prettyPrinted), encoding: .utf8 )!)
- */
