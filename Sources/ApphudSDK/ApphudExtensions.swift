@@ -137,6 +137,32 @@ extension UIDevice {
     }
 }
 
+internal func apphudGetFBAnonID() -> String? {
+    
+    let klass: AnyClass? = NSClassFromString("FBSDKAppEvents")
+    let managerClass = klass as AnyObject as? NSObjectProtocol
+    
+    let sel = NSSelectorFromString("anonymousID")
+    if managerClass?.responds(to: sel) ?? false {
+        let value = managerClass?.perform(sel)
+        if let string = value?.takeUnretainedValue() as? String, string.count > 0 {
+            return string
+        }
+    }
+    
+    let klassOld: AnyClass? = NSClassFromString("FBSDKBasicUtility")
+    let managerClassOld = klassOld as AnyObject as? NSObjectProtocol
+    
+    let selOld = NSSelectorFromString("anonymousID")
+    if managerClassOld?.responds(to: selOld) ?? false {
+        let value = managerClassOld?.perform(selOld)
+        if let string = value?.takeUnretainedValue() as? String, string.count > 0 {
+            return string
+        }
+    }
+    
+    return nil
+}
 
 internal func apphudReceiptDataString() -> String? {
     guard let appStoreReceiptURL = Bundle.main.appStoreReceiptURL else {
