@@ -44,6 +44,12 @@ public class ApphudHttpClient {
         return URLSession.init(configuration: config)
     }()
     
+    internal func requestInstance(url : URL) -> URLRequest? {
+        var request = URLRequest(url: url, cachePolicy: URLRequest.CachePolicy.useProtocolCachePolicy, timeoutInterval: 20)
+        request.setValue(apiKey, forHTTPHeaderField: "APPHUD-API-KEY")
+        return request
+    }
+    
     internal func startRequest(path: String, apiVersion: ApphudApiVersion = .v1, params: [String : Any]?, method: ApphudHttpMethod, callback: ApphudHTTPResponseCallback?) {
         if let request = makeRequest(path: path, apiVersion: apiVersion, params: params, method: method) {
             start(request: request, callback: callback)
@@ -77,11 +83,10 @@ public class ApphudHttpClient {
         let deviceID : String = ApphudInternal.shared.currentDeviceID
         let urlString = "\(domain_url_string)/preview_screen/\(screenID)?api_key=\(apiKey)&locale=\(Locale.current.identifier)&device_id=\(deviceID)&v=2"
         
-        let url = URL(string: urlString)
-        if url != nil {
-            let request = URLRequest(url: url!, cachePolicy: URLRequest.CachePolicy.useProtocolCachePolicy, timeoutInterval: 20)
-            return request
+        if let url = URL(string: urlString) {
+            return requestInstance(url: url)
         }
+
         return nil
     }
     
@@ -110,11 +115,10 @@ public class ApphudHttpClient {
                 return nil
             }
             
-            request = URLRequest(url: finalURL, cachePolicy: URLRequest.CachePolicy.useProtocolCachePolicy, timeoutInterval: 20)
+            request = requestInstance(url: finalURL)
             request?.httpMethod = method.rawValue
             request?.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
             request?.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Accept")
-            
             if method != .get {
                 var finalParams : [String : Any] = ["api_key" : apiKey]
                 if params != nil {
