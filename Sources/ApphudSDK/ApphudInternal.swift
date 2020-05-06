@@ -44,6 +44,9 @@ final class ApphudInternal {
     
     private var allowInitialize = true
     
+    private var didSubmitAppsFlyerAttribution = false
+    private var didSubmitFacebookAttribution = false
+    
     internal func initialize(apiKey: String, userID : String?, deviceIdentifier : String? = nil){
         
         guard allowInitialize == true else {
@@ -463,9 +466,15 @@ final class ApphudInternal {
             params["product_info"] = product.apphudSubmittableParameters()
         }
         
+        let didPurchase = transaction?.transactionState == .purchased
+        
         UserDefaults.standard.set(true, forKey: requiresReceiptSubmissionKey)
                 
         httpClient.startRequest(path: "subscriptions", params: params, method: .post) { (result, response, error, code) in        
+            
+            if didPurchase {
+                self.sendAppsFlyerAndFacebookIDsIfNeeded()
+            }
             
             if code == 422 || code > 499 {
                 // make one time retry
@@ -810,7 +819,7 @@ final class ApphudInternal {
     }
     
     //MARK:- Attribution
-    internal func addAttribution(data: [AnyHashable : Any], from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ((Bool) -> Void)?){
+    internal func addAttribution(data: [AnyHashable : Any]?, from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ((Bool) -> Void)?){
         performWhenUserRegistered {
             
             var params : [String : Any] = ["device_id" : self.currentDeviceID]
@@ -822,26 +831,43 @@ final class ApphudInternal {
                         return 
                     }   
                     params["appsflyer_id"] = identifer
-                    params["appsflyer_data"] = data
+                    if data != nil {
+                        params["appsflyer_data"] = data
+                    }
+                    self.didSubmitAppsFlyerAttribution = true
                 case .adjust:
-                    params["adjust_data"] = data
+                    if data != nil {
+                        params["adjust_data"] = data
+                    }
                 case .appleSearchAds:
-                    params["search_ads_data"] = data
+                    if data != nil {
+                        params["search_ads_data"] = data
+                    }
                 case .facebook:
                     var hash : [AnyHashable : Any] = ["fb_device" : true]                    
                     
-                    if ApphudUtils.shared.optOutOfIDFACollection || apphudIdentifierForAdvertising() == nil {
-                        if let anonID = apphudGetFBAnonID() {
-                            hash["anon_id"] = anonID
-                        }
+                    if apphudNeedsToCollectFBAnonID(), let anonID = apphudGetFBAnonID() {
+                        hash["anon_id"] = anonID
                     }
-                    hash.merge(data, uniquingKeysWith: {old, new in new})
+                    if data != nil {
+                        hash.merge(data!, uniquingKeysWith: {old, new in new})
+                    }
                     params["facebook_data"] = hash
+                    self.didSubmitFacebookAttribution = true
             }
             
             self.httpClient.startRequest(path: "customers/attribution", params: params, method: .post) { (result, response, error, code) in
                 callback?(result)
             } 
         }
+    }
+    
+    internal func sendAppsFlyerAndFacebookIDsIfNeeded() {
+        if !didSubmitAppsFlyerAttribution, let appsFlyerID = apphudGetAppsFlyerID() {
+            addAttribution(data: nil, from: .appsFlyer, identifer: appsFlyerID, callback: nil)
+        }
+        if !didSubmitFacebookAttribution {
+            addAttribution(data: [:], from: .facebook, callback: nil)
+        } 
     }
 }

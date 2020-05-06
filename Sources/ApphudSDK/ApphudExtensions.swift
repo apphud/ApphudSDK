@@ -138,10 +138,10 @@ extension UIDevice {
 }
 
 internal func apphudGetAppsFlyerID() -> String? {
-    
+
     let klass: AnyClass? = NSClassFromString("AppsFlyerTracker")
     let managerClass = klass as AnyObject as? NSObjectProtocol
-    
+
     let sel = NSSelectorFromString("sharedTracker")
     if managerClass?.responds(to: sel) ?? false {
         let value = managerClass?.perform(sel)
@@ -157,6 +157,10 @@ internal func apphudGetAppsFlyerID() -> String? {
     }
     
     return nil
+}
+
+internal func apphudNeedsToCollectFBAnonID() -> Bool {
+    return (ApphudUtils.shared.optOutOfIDFACollection || apphudIdentifierForAdvertising() == nil)
 }
 
 internal func apphudGetFBAnonID() -> String? {
