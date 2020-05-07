@@ -10,7 +10,7 @@ import Foundation
 import AdSupport
 import StoreKit
 
-let sdk_version = "0.9.9"
+let sdk_version = "0.10"
 
 internal typealias HasPurchasesChanges = (hasSubscriptionChanges: Bool, hasNonRenewingChanges: Bool)
 
@@ -18,6 +18,8 @@ internal typealias HasPurchasesChanges = (hasSubscriptionChanges: Bool, hasNonRe
 final class ApphudInternal {
     
     fileprivate let requiresReceiptSubmissionKey = "requiresReceiptSubmissionKey"
+    fileprivate let didSubmitAppsFlyerAttributionKey = "didSubmitAppsFlyerAttributionKey"
+    fileprivate let didSubmitFacebookAttributionKey = "didSubmitFacebookAttributionKey"
     
     static let shared = ApphudInternal()
     var delegate : ApphudDelegate?
@@ -44,8 +46,23 @@ final class ApphudInternal {
     
     private var allowInitialize = true
     
-    private var didSubmitAppsFlyerAttribution = false
-    private var didSubmitFacebookAttribution = false
+    private var didSubmitAppsFlyerAttribution : Bool {
+        get {
+            UserDefaults.standard.bool(forKey: didSubmitAppsFlyerAttributionKey)
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: didSubmitAppsFlyerAttributionKey)
+        }
+    }
+    
+    private var didSubmitFacebookAttribution: Bool {
+        get {
+            UserDefaults.standard.bool(forKey: didSubmitFacebookAttributionKey)
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: didSubmitFacebookAttributionKey)
+        }
+    }
     
     internal func initialize(apiKey: String, userID : String?, deviceIdentifier : String? = nil){
         
