@@ -53,9 +53,9 @@ internal func apphudIsSandbox() -> Bool {
 }
 
 private func apphudIsSimulator() -> Bool {
-    #if arch(i386) || arch(x86_64)
+    #if targetEnvironment(simulator)
         return true
-        #else
+    #else
         return false
     #endif
 }
