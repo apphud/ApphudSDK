@@ -119,7 +119,8 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
             }
         }
     }
-    
+
+    #if os(iOS) && !targetEnvironment(macCatalyst)
     func paymentQueue(_ queue: SKPaymentQueue, shouldAddStorePayment payment: SKPayment, for product: SKProduct) -> Bool {
 
         DispatchQueue.main.async {
@@ -130,6 +131,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         
         return false
     }
+    #endif
     
     // MARK:- SKRequestDelegate
     
