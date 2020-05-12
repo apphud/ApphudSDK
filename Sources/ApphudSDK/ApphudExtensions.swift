@@ -137,6 +137,36 @@ extension UIDevice {
     }
 }
 
+internal func apphudGetAppsFlyerID() -> String? {
+
+    let klass: AnyClass? = NSClassFromString("AppsFlyerTracker")
+    let managerClass = klass as AnyObject as? NSObjectProtocol
+
+    let sel = NSSelectorFromString("sharedTracker")
+    if managerClass?.responds(to: sel) ?? false {
+        let value = managerClass?.perform(sel)
+        if let tracker = value?.takeUnretainedValue() as? NSObject {
+            let selID = NSSelectorFromString("getAppsFlyerUID")
+            if tracker.responds(to: selID) {
+                let value = tracker.perform(selID)
+                if let string = value?.takeUnretainedValue() as? String, string.count > 0 {
+                    return string
+                }
+            }
+        }
+    }
+    
+    return nil
+}
+
+internal func apphudNeedsToCollectFBAnonID() -> Bool {
+    return (ApphudUtils.shared.optOutOfIDFACollection || apphudIdentifierForAdvertising() == nil)
+}
+
+internal func apphudIsFBSDKIntegrated() -> Bool {
+    return NSClassFromString("FBSDKAppEvents") != nil || NSClassFromString("FBSDKBasicUtility") != nil
+}
+
 internal func apphudGetFBAnonID() -> String? {
     
     let klass: AnyClass? = NSClassFromString("FBSDKAppEvents")
