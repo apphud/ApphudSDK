@@ -163,6 +163,10 @@ internal func apphudNeedsToCollectFBAnonID() -> Bool {
     return (ApphudUtils.shared.optOutOfIDFACollection || apphudIdentifierForAdvertising() == nil)
 }
 
+internal func apphudIsFBSDKIntegrated() -> Bool {
+    return NSClassFromString("FBSDKAppEvents") != nil || NSClassFromString("FBSDKBasicUtility") != nil
+}
+
 internal func apphudGetFBAnonID() -> String? {
     
     let klass: AnyClass? = NSClassFromString("FBSDKAppEvents")

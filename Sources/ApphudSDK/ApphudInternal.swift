@@ -883,7 +883,7 @@ final class ApphudInternal {
         if !didSubmitAppsFlyerAttribution, let appsFlyerID = apphudGetAppsFlyerID() {
             addAttribution(data: nil, from: .appsFlyer, identifer: appsFlyerID, callback: nil)
         }
-        if !didSubmitFacebookAttribution {
+        if !didSubmitFacebookAttribution && apphudIsFBSDKIntegrated() {
             addAttribution(data: [:], from: .facebook, callback: nil)
         } 
     }

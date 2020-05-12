@@ -17,8 +17,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        
-        Apphud.start(apiKey: "YOUR_TOKEN")
+        ApphudHttpClient.shared.domain_url_string = "https://api.appfist.com"
+        Apphud.start(apiKey: "MDn9JRkSZzLMHtsFzWJXrscF7tZnis")
         registerForNotifications()
         
         return true
