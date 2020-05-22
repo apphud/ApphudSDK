@@ -10,16 +10,17 @@ import Foundation
 import AdSupport
 import StoreKit
 
-let sdk_version = "0.10"
+let sdk_version = "0.11"
 
 internal typealias HasPurchasesChanges = (hasSubscriptionChanges: Bool, hasNonRenewingChanges: Bool)
 
 @available(iOS 11.2, *)
-final class ApphudInternal {
+final class ApphudInternal: NSObject {
     
     fileprivate let requiresReceiptSubmissionKey = "requiresReceiptSubmissionKey"
     fileprivate let didSubmitAppsFlyerAttributionKey = "didSubmitAppsFlyerAttributionKey"
     fileprivate let didSubmitFacebookAttributionKey = "didSubmitFacebookAttributionKey"
+    fileprivate let didSubmitAdjustAttributionKey = "didSubmitAdjustAttributionKey"
     
     static let shared = ApphudInternal()
     var delegate : ApphudDelegate?
@@ -46,6 +47,18 @@ final class ApphudInternal {
     
     private var allowInitialize = true
     
+    private var userRegisterRetriesCount: Int = 0
+    private let maxNumberOfUserRegisterRetries: Int = 10
+    
+    private var isRegisteringUser = false {
+        didSet(newValue) {
+            if newValue == true {
+                NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(continueToRegisteringUser), object: nil)
+            }
+        }
+    }
+    private var isSendingAppsFlyer = false    
+    
     private var didSubmitAppsFlyerAttribution : Bool {
         get {
             UserDefaults.standard.bool(forKey: didSubmitAppsFlyerAttributionKey)
@@ -61,6 +74,15 @@ final class ApphudInternal {
         }
         set {
             UserDefaults.standard.set(newValue, forKey: didSubmitFacebookAttributionKey)
+        }
+    }
+    
+    private var didSubmitAdjustAttribution: Bool {
+        get {
+            UserDefaults.standard.bool(forKey: didSubmitAdjustAttributionKey)
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: didSubmitAdjustAttributionKey)
         }
     }
     
@@ -114,21 +136,36 @@ final class ApphudInternal {
         continueToRegisteringUser()
     }
 
-    private func continueToRegisteringUser(){
+    @objc private func continueToRegisteringUser(){
+        guard !isRegisteringUser else {return}
+        isRegisteringUser = true
+        
         createOrGetUser { success in
             
+            self.isRegisteringUser = false
             self.setupObservers()
             
             if success {
                 apphudLog("User successfully registered with id: \(self.currentUserID)", forceDisplay: true)
                 self.performAllUserRegisteredBlocks()                
                 self.checkForUnreadNotifications()
-            } else {                
-                self.userRegisteredCallbacks.removeAll()
+            } else {
+                self.scheduleUserRegistering()
             }
             // try to continue anyway, because maybe already has cached data, try to fetch storekit products
             self.continueToFetchProducts()
         }
+    }
+    
+    private func scheduleUserRegistering() {
+        guard userRegisterRetriesCount < maxNumberOfUserRegisterRetries else {
+            apphudLog("Reached max number of user register retries \(userRegisterRetriesCount). Exiting..", forceDisplay: true)
+            return
+        }
+        userRegisterRetriesCount += 1
+        let delay: TimeInterval = TimeInterval(userRegisterRetriesCount * 5)
+        perform(#selector(continueToRegisteringUser), with: nil, afterDelay: delay)
+        apphudLog("Scheduled user register retry in \(delay) seconds.", forceDisplay: true)
     }
     
     private func continueToFetchProducts(){
@@ -177,7 +214,9 @@ final class ApphudInternal {
     }
     
     private func continueToUpdateProductsPrices(products: [SKProduct]){
-        self.submitProducts(products: products, callback: nil)
+        self.submitProducts(products: products) { (result, response, error, code) in
+            self.sendAdjustAttributionIfNeeded()
+        }
     }
     
     private func setupObservers(){
@@ -191,13 +230,17 @@ final class ApphudInternal {
         
         let minCheckInterval :Double = 30
         
-        ApphudRulesManager.shared.handlePendingAPSInfo()
+        performWhenUserRegistered {
+            ApphudRulesManager.shared.handlePendingAPSInfo()
+        }
         
-        if self.currentUser == nil {
-            self.continueToRegisteringUser()
-        } else if Date().timeIntervalSince(lastCheckDate) > minCheckInterval {
-            self.checkForUnreadNotifications()
-            self.refreshCurrentUser()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { 
+            if self.currentUser == nil {
+                self.continueToRegisteringUser()
+            } else if Date().timeIntervalSince(self.lastCheckDate) > minCheckInterval {
+                self.checkForUnreadNotifications()
+                self.refreshCurrentUser()
+            }
         }
     }
     
@@ -309,7 +352,7 @@ final class ApphudInternal {
             }
             
             if error != nil {
-                apphudLog("Failed to register or get user, error:\(error!.localizedDescription)")
+                apphudLog("Failed to register or get user, error:\(error!.localizedDescription)", forceDisplay: true)
             }
             
             callback(finalResult)
@@ -490,7 +533,7 @@ final class ApphudInternal {
         httpClient.startRequest(path: "subscriptions", params: params, method: .post) { (result, response, error, code) in        
             
             if didPurchase {
-                self.sendAppsFlyerAndFacebookIDsIfNeeded()
+                self.forceSendAttributionDataIfNeeded()
             }
             
             if code == 422 || code > 499 {
@@ -846,16 +889,23 @@ final class ApphudInternal {
                     guard identifer != nil else { 
                         callback?(false)
                         return 
-                    }   
+                    }
+                    guard !self.isSendingAppsFlyer else {
+                        apphudLog("Can't send appsflyer attribution, because already sending", forceDisplay: true)
+                        callback?(false)
+                        return
+                    }
                     params["appsflyer_id"] = identifer
                     if data != nil {
                         params["appsflyer_data"] = data
                     }
                     self.didSubmitAppsFlyerAttribution = true
+                    self.isSendingAppsFlyer = true
                 case .adjust:
                     if data != nil {
                         params["adjust_data"] = data
                     }
+                    self.didSubmitAdjustAttribution = true
                 case .appleSearchAds:
                     if data != nil {
                         params["search_ads_data"] = data
@@ -875,16 +925,33 @@ final class ApphudInternal {
             
             self.httpClient.startRequest(path: "customers/attribution", params: params, method: .post) { (result, response, error, code) in
                 callback?(result)
+                if provider == .adjust {
+                    UserDefaults.standard.set((result ? nil : data), forKey: "adjust_data_cache")
+                }
+                if provider == .appsFlyer {
+                    DispatchQueue.main.asyncAfter(deadline: .now()+5.0) { 
+                        self.isSendingAppsFlyer = false
+                    }
+                }
             } 
         }
     }
     
-    internal func sendAppsFlyerAndFacebookIDsIfNeeded() {
+    internal func forceSendAttributionDataIfNeeded() {
         if !didSubmitAppsFlyerAttribution, let appsFlyerID = apphudGetAppsFlyerID() {
             addAttribution(data: nil, from: .appsFlyer, identifer: appsFlyerID, callback: nil)
+        }
+        if !didSubmitAdjustAttribution, let adid = apphudGetAdjustID() {
+            addAttribution(data: ["adid" : adid], from: .adjust, callback: nil)
         }
         if !didSubmitFacebookAttribution && apphudIsFBSDKIntegrated() {
             addAttribution(data: [:], from: .facebook, callback: nil)
         } 
+    }
+    
+    internal func sendAdjustAttributionIfNeeded() {
+        if let data = UserDefaults.standard.object(forKey: "adjust_data_cache") as? [AnyHashable : Any] {
+            addAttribution(data: data, from: .adjust, callback: nil)
+        }
     }
 }

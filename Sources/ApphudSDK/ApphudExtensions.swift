@@ -159,6 +159,22 @@ internal func apphudGetAppsFlyerID() -> String? {
     return nil
 }
 
+internal func apphudGetAdjustID() -> String? {
+
+    let klass: AnyClass? = NSClassFromString("Adjust")
+    let managerClass = klass as AnyObject as? NSObjectProtocol
+    
+    let sel = NSSelectorFromString("adid")
+    if managerClass?.responds(to: sel) ?? false {
+        let value = managerClass?.perform(sel)
+        if let string = value?.takeUnretainedValue() as? String, string.count > 0 {
+            return string
+        }
+    }
+    
+    return nil
+}
+
 internal func apphudNeedsToCollectFBAnonID() -> Bool {
     return (ApphudUtils.shared.optOutOfIDFACollection || apphudIdentifierForAdvertising() == nil)
 }
