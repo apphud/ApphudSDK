@@ -403,7 +403,7 @@ final public class Apphud: NSObject {
      - parameter identifier: Optional. Identifier that matches Apphud and Attrubution provider. Required for AppsFlyer. 
      - parameter callback: Optional. Returns true if successfully sent.
      */
-    @objc public static func addAttribution(data: [AnyHashable : Any], from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ApphudBoolCallback?){
+    @objc public static func addAttribution(data: [AnyHashable : Any]?, from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ApphudBoolCallback?){
         ApphudInternal.shared.addAttribution(data: data, from: provider, identifer: identifer, callback: callback)
     }
     
