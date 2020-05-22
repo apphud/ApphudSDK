@@ -214,7 +214,9 @@ final class ApphudInternal: NSObject {
     }
     
     private func continueToUpdateProductsPrices(products: [SKProduct]){
-        self.submitProducts(products: products, callback: nil)
+        self.submitProducts(products: products) { (result, response, error, code) in
+            self.sendAdjustAttributionIfNeeded()
+        }
     }
     
     private func setupObservers(){
@@ -923,6 +925,9 @@ final class ApphudInternal: NSObject {
             
             self.httpClient.startRequest(path: "customers/attribution", params: params, method: .post) { (result, response, error, code) in
                 callback?(result)
+                if provider == .adjust {
+                    UserDefaults.standard.set((result ? nil : data), forKey: "adjust_data_cache")
+                }
                 if provider == .appsFlyer {
                     DispatchQueue.main.asyncAfter(deadline: .now()+5.0) { 
                         self.isSendingAppsFlyer = false
@@ -942,5 +947,11 @@ final class ApphudInternal: NSObject {
         if !didSubmitFacebookAttribution && apphudIsFBSDKIntegrated() {
             addAttribution(data: [:], from: .facebook, callback: nil)
         } 
+    }
+    
+    internal func sendAdjustAttributionIfNeeded() {
+        if let data = UserDefaults.standard.object(forKey: "adjust_data_cache") as? [AnyHashable : Any] {
+            addAttribution(data: data, from: .adjust, callback: nil)
+        }
     }
 }
