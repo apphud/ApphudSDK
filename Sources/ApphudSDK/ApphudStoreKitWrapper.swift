@@ -169,13 +169,16 @@ private class ApphudProductsFetcher : NSObject, SKProductsRequestDelegate{
     public func productsRequest(_ request: SKProductsRequest, didReceive response: SKProductsResponse) {
         DispatchQueue.main.async {
             self.callback?(response.products)
+            if response.invalidProductIdentifiers.count > 0 {
+                apphudLog("Failed to load SKProducts from the App Store, because product identifiers are invalid:\n \(response.invalidProductIdentifiers)", forceDisplay: true)
+            }
             self.callback = nil            
         }
     }
     
     func request(_ request: SKRequest, didFailWithError error: Error) {
         DispatchQueue.main.async {
-            apphudLog("Failed to load SKProducts from App Store, error: \(error)", forceDisplay: true)
+            apphudLog("Failed to load SKProducts from the App Store, error: \(error)", forceDisplay: true)
             self.callback?([])
             self.callback = nil            
         }
