@@ -67,7 +67,7 @@ public class ApphudSubscription : NSObject{
     /**
      Date when user has purchased the subscription.
      */
-    @objc let startedAt : Date?
+    @objc public let startedAt : Date?
     
     /**
      Canceled date of subscription, i.e. refund date. Nil if subscription is not refunded.

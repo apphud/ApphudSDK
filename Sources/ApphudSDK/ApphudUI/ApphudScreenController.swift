@@ -90,7 +90,9 @@ class ApphudScreenController: UIViewController{
                 self.originalHTML = html
                 self.extractMacrosesUsingRegexp()
             } else {
-                let apphud_error = ApphudError.error(message: "html is nil for rule id: \(self.rule.id), screen id: \(self.screenID), error:\( error?.localizedDescription ?? "")")
+                                
+                let apphud_error = ApphudError(message: "html is nil for rule id: \(self.rule.id), screen id: \(self.screenID), error:\( error?.localizedDescription ?? "")")
+                
                 self.failed(apphud_error)
             }
         }        
@@ -143,7 +145,7 @@ class ApphudScreenController: UIViewController{
     }
     
     @objc private func failedByTimeOut(){
-        failed(ApphudError.error(message: "Timeout error"))
+        failed(ApphudError(message: "Timeout error"))
     }
     
     @objc private func failed(_ error: Error){

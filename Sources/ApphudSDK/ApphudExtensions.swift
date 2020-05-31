@@ -22,16 +22,6 @@ internal func apphudLog(_ text : String, forceDisplay: Bool = false) {
     }
 }
 
-enum ApphudError: LocalizedError {
-    case error(message: String)
-    var errorDescription: String? {
-        switch self {
-        case let .error(message):
-            return message
-        }
-    }
-}
-
 internal func apphudVisibleViewController() -> UIViewController? {
     var currentVC = UIApplication.shared.keyWindow?.rootViewController
     while let presentedVC = currentVC?.presentedViewController {

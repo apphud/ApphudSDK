@@ -20,6 +20,7 @@
 		94AE4E9622A0FAC800564F85 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 94AE4E9422A0FAC800564F85 /* Main.storyboard */; };
 		94AE4E9822A0FACA00564F85 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 94AE4E9722A0FACA00564F85 /* Assets.xcassets */; };
 		94AE4E9B22A0FACA00564F85 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 94AE4E9922A0FACA00564F85 /* LaunchScreen.storyboard */; };
+		94FEB1DE248387BC0049F897 /* ApphudError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94FEB1DD248387BC0049F897 /* ApphudError.swift */; };
 		95E9470C239D20D000CC306C /* ApphudKeychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95E946FD239D20D000CC306C /* ApphudKeychain.swift */; };
 		95E9470E239D20D000CC306C /* ApphudHttpClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95E946FF239D20D000CC306C /* ApphudHttpClient.swift */; };
 		95E9470F239D20D000CC306C /* ApphudInternal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95E94700239D20D000CC306C /* ApphudInternal.swift */; };
@@ -63,6 +64,7 @@
 		94AE4E9722A0FACA00564F85 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		94AE4E9A22A0FACA00564F85 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		94AE4E9C22A0FACA00564F85 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		94FEB1DD248387BC0049F897 /* ApphudError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApphudError.swift; sourceTree = "<group>"; };
 		95E946FD239D20D000CC306C /* ApphudKeychain.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudKeychain.swift; sourceTree = "<group>"; };
 		95E946FF239D20D000CC306C /* ApphudHttpClient.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudHttpClient.swift; sourceTree = "<group>"; };
 		95E94700239D20D000CC306C /* ApphudInternal.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudInternal.swift; sourceTree = "<group>"; };
@@ -156,6 +158,7 @@
 				95E94708239D20D000CC306C /* ApphudStoreKitWrapper.swift */,
 				95E94709239D20D000CC306C /* ApphudUtils.swift */,
 				95E9470B239D20D000CC306C /* ApphudExtensions.swift */,
+				94FEB1DD248387BC0049F897 /* ApphudError.swift */,
 			);
 			path = ApphudSDK;
 			sourceTree = "<group>";
@@ -244,6 +247,7 @@
 				95E94716239D20D000CC306C /* Apphud.swift in Sources */,
 				9469E2F323AA1C1C002A5946 /* ApphudNavigationController.swift in Sources */,
 				94AE4E9322A0FAC800564F85 /* ViewController.swift in Sources */,
+				94FEB1DE248387BC0049F897 /* ApphudError.swift in Sources */,
 				95E94714239D20D000CC306C /* ApphudSubscription.swift in Sources */,
 				9469E2F423AA1C1C002A5946 /* ApphudRulesManager.swift in Sources */,
 				94A9CE012402BAA900F3C5E3 /* ApphudPurchaseResult.swift in Sources */,
@@ -408,8 +412,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = apphud/apphud.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 4F9FP2XDZ3;
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_TEAM = "";
 				INFOPLIST_FILE = apphud/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 11.2;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -431,8 +435,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = apphud/apphud.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 4F9FP2XDZ3;
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_TEAM = "";
 				INFOPLIST_FILE = apphud/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 11.2;
 				LD_RUNPATH_SEARCH_PATHS = (

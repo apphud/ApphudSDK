@@ -10,7 +10,7 @@ import Foundation
 import AdSupport
 import StoreKit
 
-let sdk_version = "0.11"
+let sdk_version = "0.12"
 
 internal typealias HasPurchasesChanges = (hasSubscriptionChanges: Bool, hasNonRenewingChanges: Bool)
 
@@ -483,7 +483,7 @@ final class ApphudInternal: NSObject {
     internal func submitReceipt(product : SKProduct, transaction: SKPaymentTransaction?, callback : ((ApphudPurchaseResult) -> Void)?) {
         guard let receiptString = apphudReceiptDataString() else { 
             ApphudStoreKitWrapper.shared.refreshReceipt()
-            callback?(ApphudPurchaseResult(nil, nil, nil, ApphudError.error(message: "Receipt not found on device, refreshing.")))
+            callback?(ApphudPurchaseResult(nil, nil, nil, ApphudError(message: "Receipt not found on device, refreshing.")))
             return 
         }
         
@@ -590,7 +590,7 @@ final class ApphudInternal: NSObject {
             if let paymentDiscount = paymentDiscount {                
                 self.purchasePromo(product: product, discount: paymentDiscount, callback: callback)
             } else {
-                callback?(ApphudPurchaseResult(nil, nil, nil, ApphudError.error(message: "Could not sign offer id: \(discountID), product id: \(product.productIdentifier)")))
+                callback?(ApphudPurchaseResult(nil, nil, nil, ApphudError(message: "Could not sign offer id: \(discountID), product id: \(product.productIdentifier)")))
             }
         }
     }
@@ -660,7 +660,7 @@ final class ApphudInternal: NSObject {
                 }
             }
             
-            let error = ApphudError.error(message: "Could not sign promo offer id: \(discountID), product id: \(productID)")
+            let error = ApphudError(message: "Could not sign promo offer id: \(discountID), product id: \(productID)")
             callback?(nil, error)
         }
     }
