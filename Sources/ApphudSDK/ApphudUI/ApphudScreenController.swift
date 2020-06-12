@@ -142,6 +142,7 @@ class ApphudScreenController: UIViewController{
         self.preloadSurveyAnswerPages()
         self.handleScreenPresented()
         self.handleReadNotificationsOnce()
+        ApphudInternal.shared.uiDelegate?.apphudScreenDidAppear?(screenName: rule.screen_name)
     }
     
     @objc private func failedByTimeOut(){
@@ -412,6 +413,8 @@ class ApphudScreenController: UIViewController{
         
         let presentedVC = (self.navigationController ?? self)
 
+        ApphudInternal.shared.uiDelegate?.apphudScreenWillDismiss?(screenName: rule.screen_name, error: error)
+        
         if let nc = navigationController, nc.viewControllers.count > 1 && supportBackNavigation {
             nc.popViewController(animated: true)
         } else {

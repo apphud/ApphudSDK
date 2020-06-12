@@ -106,6 +106,10 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
     */
     @objc optional func apphudDidFailPurchase(product: SKProduct, offerID: String?, errorCode: SKError.Code, screenName: String)
     
+    @objc optional func apphudScreenDidAppear(screenName: String)
+    
+    @objc optional func apphudScreenWillDismiss(screenName: String, error: Error?)
+    
     /**
      Notifies that Apphud Screen did dismiss
     */
