@@ -58,6 +58,7 @@ class ApphudScreenController: UIViewController{
     private var originalHTML: String?
     private var macrosesMap = [[String : String]]()
     private var didAppear = false
+    private var didLoadScreen = false
     private var handledDidAppearAndDidLoadScreen = false
     
     private lazy var loadingIndicator: UIActivityIndicatorView = {
@@ -126,7 +127,7 @@ class ApphudScreenController: UIViewController{
         if error != nil {
             apphudLog("Closing screen due to fatal error: \(error!) rule ID: \(self.rule.id) screen ID: \(self.screenID)", forceDisplay: true)
             dismiss()
-        } else if self.webView.tag == 1 {
+        } else if didLoadScreen {
             handleDidAppearAndDidLoadScreen()
         }
     }
@@ -347,6 +348,8 @@ class ApphudScreenController: UIViewController{
     
     func handleScreenDidLoad(){
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(failedByTimeOut), object: nil)
+        
+        didLoadScreen = true
         
         webView.alpha = 1
         
