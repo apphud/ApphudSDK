@@ -379,8 +379,23 @@ final class ApphudInternal: NSObject {
         }
     }
     
-    internal func updateUserID(userID : String) {    
-        let exist = performWhenUserRegistered { 
+    internal func updateUserID(userID : String) {
+        
+        guard self.currentUserID != userID else {
+            apphudLog("Will not update User ID to \(userID), because current value is the same")
+            return
+        }
+        
+        self.currentUserID = userID
+        ApphudKeychain.saveUserID(userID: userID)
+        
+        let exist = performWhenUserRegistered {
+            
+            guard self.currentUser?.user_id != userID else {
+                apphudLog("Will not update User ID to \(userID), because current value is the same")
+                return
+            }
+            
             self.updateUser(fields: ["user_id" : userID]) { (result, response, error, code) in
                 if result {
                     self.parseUser(response)
@@ -507,11 +522,7 @@ final class ApphudInternal: NSObject {
         if isSubmittingReceipt {return}
         isSubmittingReceipt = true
         
-        #if DEBUG
-        let environment = "sandbox"
-        #else 
-        let environment = "production"
-        #endif
+        let environment = Apphud.isSandbox() ? "sandbox" : "production"
         
         var params : [String : Any] = ["device_id" : self.currentDeviceID,
                                           "receipt_data" : receiptString,
