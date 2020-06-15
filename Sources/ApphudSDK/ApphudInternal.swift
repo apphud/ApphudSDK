@@ -140,7 +140,7 @@ final class ApphudInternal: NSObject {
         guard !isRegisteringUser else {return}
         isRegisteringUser = true
         
-        createOrGetUser { success in
+        createOrGetUser(shouldUpdateUserID: true) { success in
             
             self.isRegisteringUser = false
             self.setupObservers()
@@ -331,9 +331,11 @@ final class ApphudInternal: NSObject {
     
     // MARK: API Requests
     
-    private func createOrGetUser(callback: @escaping (Bool) -> Void) {
+    private func createOrGetUser(shouldUpdateUserID: Bool, callback: @escaping (Bool) -> Void) {
         
-        self.updateUser(fields: ["user_id" : self.currentUserID]) { (result, response, error, code) in
+        let fields = shouldUpdateUserID ? ["user_id" : self.currentUserID] : [:]
+        
+        self.updateUser(fields: fields) { (result, response, error, code) in
             
             let hasChanges = self.parseUser(response)
             
@@ -367,8 +369,7 @@ final class ApphudInternal: NSObject {
         if countryCode == self.currentUser?.countryCode && currencyCode == self.currentUser?.currencyCode {return}
 
         var params : [String : String] = ["country_code" : countryCode,
-                                          "currency_code" : currencyCode,
-                                          "user_id" : self.currentUserID]       
+                                          "currency_code" : currencyCode]       
         
         params.merge(apphudCurrentDeviceParameters()) { (current, new) in current}
         
@@ -386,15 +387,7 @@ final class ApphudInternal: NSObject {
             return
         }
         
-        self.currentUserID = userID
-        ApphudKeychain.saveUserID(userID: userID)
-        
         let exist = performWhenUserRegistered {
-            
-            guard self.currentUser?.user_id != userID else {
-                apphudLog("Will not update User ID to \(userID), because current value is the same")
-                return
-            }
             
             self.updateUser(fields: ["user_id" : userID]) { (result, response, error, code) in
                 if result {
@@ -417,9 +410,9 @@ final class ApphudInternal: NSObject {
     }
     
     private func refreshCurrentUser(){
-        createOrGetUser { _ in 
+        createOrGetUser(shouldUpdateUserID: false) { _ in
             self.lastCheckDate = Date()
-        }         
+        }
     }
     
     private func getProducts(callback: @escaping (([String : String]?) -> Void)) {
