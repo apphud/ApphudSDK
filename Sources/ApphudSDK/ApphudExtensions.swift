@@ -127,6 +127,19 @@ extension UIDevice {
     }
 }
 
+internal func apphudIsAppsFlyerSDKIntegrated() -> Bool {
+
+    let klass: AnyClass? = NSClassFromString("AppsFlyerTracker")
+    let managerClass = klass as AnyObject as? NSObjectProtocol
+
+    let sel = NSSelectorFromString("sharedTracker")
+    if managerClass?.responds(to: sel) ?? false {
+        return true
+    }
+    
+    return false
+}
+
 internal func apphudGetAppsFlyerID() -> String? {
 
     let klass: AnyClass? = NSClassFromString("AppsFlyerTracker")
@@ -147,6 +160,19 @@ internal func apphudGetAppsFlyerID() -> String? {
     }
     
     return nil
+}
+
+internal func apphudIsAdjustSDKIntegrated() -> Bool {
+
+    let klass: AnyClass? = NSClassFromString("Adjust")
+    let managerClass = klass as AnyObject as? NSObjectProtocol
+    
+    let sel = NSSelectorFromString("adid")
+    if managerClass?.responds(to: sel) ?? false {
+        return true
+    }
+    
+    return false
 }
 
 internal func apphudGetAdjustID() -> String? {

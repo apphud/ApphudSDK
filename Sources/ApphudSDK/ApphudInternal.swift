@@ -134,7 +134,7 @@ final class ApphudInternal: NSObject {
         
         self.productsGroupsMap = apphudFromUserDefaultsCache(key: "productsGroupsMap")
         
-        continueToRegisteringUser()
+        continueToRegisteringUser()        
     }
 
     @objc private func continueToRegisteringUser(){
@@ -184,7 +184,8 @@ final class ApphudInternal: NSObject {
         })
     }
     
-    private func continueToFetchStoreKitProducts(){
+    private func continueToFetchStoreKitProducts() {
+                
         guard self.productsGroupsMap?.keys.count ?? 0 > 0 else {
             return
         }
@@ -216,7 +217,6 @@ final class ApphudInternal: NSObject {
     
     private func continueToUpdateProductsPrices(products: [SKProduct]){
         self.submitProducts(products: products) { (result, response, error, code) in
-            self.sendAdjustAttributionIfNeeded()
         }
     }
     
@@ -530,16 +530,12 @@ final class ApphudInternal: NSObject {
         } else if let productID = transaction?.payment.productIdentifier, let product = ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == productID}) {
             params["product_info"] = product.apphudSubmittableParameters()
         }
-        
-        let didPurchase = transaction?.transactionState == .purchased
-        
+                
         UserDefaults.standard.set(true, forKey: requiresReceiptSubmissionKey)
                 
         httpClient.startRequest(path: "subscriptions", params: params, method: .post) { (result, response, error, code) in        
             
-            if didPurchase {
-                self.forceSendAttributionDataIfNeeded()
-            }
+            self.forceSendAttributionDataIfNeeded()
             
             if code == 422 || code > 499 {
                 // make one time retry
@@ -904,7 +900,6 @@ final class ApphudInternal: NSObject {
                     if data != nil {
                         params["appsflyer_data"] = data
                     }
-                    self.didSubmitAppsFlyerAttribution = true
                     self.isSendingAppsFlyer = true
                 case .adjust:
                     guard !self.isSendingAdjust else {
@@ -915,7 +910,6 @@ final class ApphudInternal: NSObject {
                     if data != nil {
                         params["adjust_data"] = data
                     }
-                    self.didSubmitAdjustAttribution = true
                     self.isSendingAdjust = true
                 case .appleSearchAds:
                     if data != nil {
@@ -931,41 +925,91 @@ final class ApphudInternal: NSObject {
                         hash.merge(data!, uniquingKeysWith: {old, new in new})
                     }
                     params["facebook_data"] = hash
-                    self.didSubmitFacebookAttribution = true
             }
             
             self.httpClient.startRequest(path: "customers/attribution", params: params, method: .post) { (result, response, error, code) in
+                
+                switch provider {
+                    case .adjust:
+                        UserDefaults.standard.set((result ? nil : data), forKey: "adjust_data_cache")
+                        DispatchQueue.main.asyncAfter(deadline: .now()+1.0) { 
+                            self.isSendingAdjust = false
+                        }
+                        if result {
+                            self.didSubmitAdjustAttribution = true
+                        }
+                    case .appsFlyer:
+                        DispatchQueue.main.asyncAfter(deadline: .now()+5.0) { 
+                            self.isSendingAppsFlyer = false
+                        }
+                        if result {
+                            self.didSubmitAppsFlyerAttribution = true
+                        }
+                    case .facebook:
+                        if result {
+                            self.didSubmitFacebookAttribution = true
+                        }
+                    default:
+                        break
+                }
+                
                 callback?(result)
-                if provider == .adjust {
-                    UserDefaults.standard.set((result ? nil : data), forKey: "adjust_data_cache")
-                    DispatchQueue.main.asyncAfter(deadline: .now()+1.0) { 
-                        self.isSendingAdjust = false
-                    }
-                }
-                if provider == .appsFlyer {
-                    DispatchQueue.main.asyncAfter(deadline: .now()+5.0) { 
-                        self.isSendingAppsFlyer = false
-                    }
-                }
             } 
         }
     }
     
-    internal func forceSendAttributionDataIfNeeded() {
-        if !didSubmitAppsFlyerAttribution, let appsFlyerID = apphudGetAppsFlyerID() {
-            addAttribution(data: nil, from: .appsFlyer, identifer: appsFlyerID, callback: nil)
-        }
-        if !didSubmitAdjustAttribution, let adid = apphudGetAdjustID() {
-            addAttribution(data: ["adid" : adid], from: .adjust, callback: nil)
-        }
-        if !didSubmitFacebookAttribution && apphudIsFBSDKIntegrated() {
-            addAttribution(data: [:], from: .facebook, callback: nil)
-        } 
+    @objc internal func forceSendAttributionDataIfNeeded() {
+        automaticallySubmitAppsFlyerAttributionIfNeeded()
+        automaticallySubmitAdjustAttributionIfNeeded()
+        automaticallySubmitFacebookAttributionIfNeeded()
     }
     
-    internal func sendAdjustAttributionIfNeeded() {
-        if let data = UserDefaults.standard.object(forKey: "adjust_data_cache") as? [AnyHashable : Any] {
-            addAttribution(data: data, from: .adjust, callback: nil)
+    @objc internal func automaticallySubmitAppsFlyerAttributionIfNeeded() {
+        
+        guard !didSubmitAppsFlyerAttribution && apphudIsAppsFlyerSDKIntegrated() else {
+            return
         }
+        
+        if let appsFlyerID = apphudGetAppsFlyerID() {
+            apphudLog("AppsFlyer SDK is integrated, but attribution still not submitted. Will force submit", forceDisplay: true)
+            addAttribution(data: nil, from: .appsFlyer, identifer: appsFlyerID, callback: nil)
+        } else {
+            apphudLog("Couldn't automatically resubmit AppsFlyer attribution, exiting.", forceDisplay: true)
+        }
+    }
+    
+    @objc internal func automaticallySubmitAdjustAttributionIfNeeded() {   
+        
+        guard !didSubmitAdjustAttribution && apphudIsAdjustSDKIntegrated() else {
+            return
+        }
+        
+        apphudLog("Adjust SDK is integrated, but attribution still not submitted. Will force submit", forceDisplay: true)
+        
+        var data: [AnyHashable : Any]? = nil
+        if let cached_data = UserDefaults.standard.object(forKey: "adjust_data_cache") as? [AnyHashable : Any] {
+            data = cached_data
+        } else if let adid = apphudGetAdjustID() {
+            data = ["adid" : adid]
+        }
+        
+        if data != nil {
+            addAttribution(data: data!, from: .adjust, callback: { result in 
+                if !result {
+                    self.perform(#selector(self.automaticallySubmitAdjustAttributionIfNeeded), with: nil, afterDelay: 7.0)
+                    apphudLog("Adjust attribution still not submitted, will retry in 7 seconds")
+                }
+            })
+        } else {
+            apphudLog("Couldn't automatically resubmit Adjust attribution, exiting.", forceDisplay: true)
+        }
+    }
+    
+    @objc internal func automaticallySubmitFacebookAttributionIfNeeded() {
+        guard !didSubmitFacebookAttribution && apphudIsFBSDKIntegrated() else {
+            return
+        }
+        
+        addAttribution(data: [:], from: .facebook, callback: nil)
     }
 }
