@@ -106,6 +106,10 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
     */
     @objc optional func apphudDidFailPurchase(product: SKProduct, offerID: String?, errorCode: SKError.Code, screenName: String)
     
+    @objc optional func apphudScreenDidAppear(screenName: String)
+    
+    @objc optional func apphudScreenWillDismiss(screenName: String, error: Error?)
+    
     /**
      Notifies that Apphud Screen did dismiss
     */
@@ -474,14 +478,17 @@ final public class Apphud: NSObject {
     }
     
     /**
-     Automatically finishes all pending transactions. By default, Apphud SDK only finishes transactions, that were started by Apphud SDK, i.e. by calling  any of `Apphud.purchase..()` methods.
+     Automatically finishes all completed (failed, purchased or restored) transactions.
+     
+     You should call it only if you purchase products using Apphud SDK, i.e. by using `Apphud.purchase(product)` method. Do not call this method in observer (analytics) mode.
+     
+     By default, Apphud SDK only finishes transactions, that were started by Apphud SDK, i.e. by calling  any of `Apphud.purchase..()` methods.
     
-     However, when you debug in-app purchases and/or change Apple ID too often, some transactions may stay in the queue (for example, if you broke execution until transaction is finished). And these transactions will try to finish at every next app launch. In this case you may see a system alert prompting to enter your Apple ID password. To fix this annoying issue, you can add this method.
+     However, in rare cases transactions may stay in the queue (for example, if you broke execution until transaction is finished). And these transactions will try to finish at every next app launch or resume. In this case you may see a system alert prompting to enter your Apple ID password or even new purchase flow will not start. To fix this issue, you can add this method.
      
      You may also use this method in production if you don't care about handling pending transactions, for example, downloading Apple hosted content.
-     For more information read "Finish the transaction" paragraph here: https://developer.apple.com/library/archive/technotes/tn2387/_index.html
      
-     __Note__: Only use this method if you know what you are doing. Must be called before Apphud SDK initialization.
+     __Note__: Must be called before Apphud SDK initialization.
      */
     @objc public static func setFinishAllTransactions(){
         ApphudUtils.shared.finishTransactions = true

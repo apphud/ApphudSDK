@@ -58,6 +58,7 @@ class ApphudScreenController: UIViewController{
     private var originalHTML: String?
     private var macrosesMap = [[String : String]]()
     private var didAppear = false
+    private var didLoadScreen = false
     private var handledDidAppearAndDidLoadScreen = false
     
     private lazy var loadingIndicator: UIActivityIndicatorView = {
@@ -126,7 +127,7 @@ class ApphudScreenController: UIViewController{
         if error != nil {
             apphudLog("Closing screen due to fatal error: \(error!) rule ID: \(self.rule.id) screen ID: \(self.screenID)", forceDisplay: true)
             dismiss()
-        } else if self.webView.tag == 1 {
+        } else if didLoadScreen {
             handleDidAppearAndDidLoadScreen()
         }
     }
@@ -142,6 +143,7 @@ class ApphudScreenController: UIViewController{
         self.preloadSurveyAnswerPages()
         self.handleScreenPresented()
         self.handleReadNotificationsOnce()
+        ApphudInternal.shared.uiDelegate?.apphudScreenDidAppear?(screenName: rule.screen_name)
     }
     
     @objc private func failedByTimeOut(){
@@ -347,6 +349,8 @@ class ApphudScreenController: UIViewController{
     func handleScreenDidLoad(){
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(failedByTimeOut), object: nil)
         
+        didLoadScreen = true
+        
         webView.alpha = 1
         
         if didAppear {
@@ -412,6 +416,8 @@ class ApphudScreenController: UIViewController{
         
         let presentedVC = (self.navigationController ?? self)
 
+        ApphudInternal.shared.uiDelegate?.apphudScreenWillDismiss?(screenName: rule.screen_name, error: error)
+        
         if let nc = navigationController, nc.viewControllers.count > 1 && supportBackNavigation {
             nc.popViewController(animated: true)
         } else {
