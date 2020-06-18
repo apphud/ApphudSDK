@@ -57,7 +57,8 @@ final class ApphudInternal: NSObject {
             }
         }
     }
-    private var isSendingAppsFlyer = false    
+    private var isSendingAppsFlyer = false
+    private var isSendingAdjust = false
     
     private var didSubmitAppsFlyerAttribution : Bool {
         get {
@@ -895,7 +896,7 @@ final class ApphudInternal: NSObject {
                         return 
                     }
                     guard !self.isSendingAppsFlyer else {
-                        apphudLog("Can't send appsflyer attribution, because already sending", forceDisplay: true)
+                        apphudLog("Already submitting AppsFlyer attribution, skipping", forceDisplay: true)
                         callback?(false)
                         return
                     }
@@ -906,10 +907,16 @@ final class ApphudInternal: NSObject {
                     self.didSubmitAppsFlyerAttribution = true
                     self.isSendingAppsFlyer = true
                 case .adjust:
+                    guard !self.isSendingAdjust else {
+                        apphudLog("Already submitting Adjust attribution, skipping", forceDisplay: true)
+                        callback?(false)
+                        return
+                    }
                     if data != nil {
                         params["adjust_data"] = data
                     }
                     self.didSubmitAdjustAttribution = true
+                    self.isSendingAdjust = true
                 case .appleSearchAds:
                     if data != nil {
                         params["search_ads_data"] = data
@@ -931,6 +938,9 @@ final class ApphudInternal: NSObject {
                 callback?(result)
                 if provider == .adjust {
                     UserDefaults.standard.set((result ? nil : data), forKey: "adjust_data_cache")
+                    DispatchQueue.main.asyncAfter(deadline: .now()+1.0) { 
+                        self.isSendingAdjust = false
+                    }
                 }
                 if provider == .appsFlyer {
                     DispatchQueue.main.asyncAfter(deadline: .now()+5.0) { 
