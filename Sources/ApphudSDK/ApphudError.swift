@@ -1,21 +1,21 @@
 //
 //  ApphudError.swift
-//  apphud
+//  Apphud, Inc
 //
-//  Created by Renat on 31.05.2020.
-//  Copyright © 2020 softeam. All rights reserved.
+//  Created by ren6 on 31.05.2020.
+//  Copyright © 2020 Apphud Inc. All rights reserved.
 //
 
 import UIKit
 
 public class ApphudError: NSError {
-    
+
     private let codeDomain = "com.apphud.error"
-    
+
     init(message: String) {
-        super.init(domain: codeDomain, code: 0, userInfo: [NSLocalizedDescriptionKey : message])
+        super.init(domain: codeDomain, code: 0, userInfo: [NSLocalizedDescriptionKey: message])
     }
-    
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }

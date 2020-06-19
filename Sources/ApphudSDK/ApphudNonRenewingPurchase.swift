@@ -1,34 +1,34 @@
 //
 //  ApphudPurchase.swift
-//  apphud
+//  Apphud, Inc
 //
-//  Created by Renat on 23.02.2020.
-//  Copyright © 2020 softeam. All rights reserved.
+//  Created by ren6 on 23.02.2020.
+//  Copyright © 2020 Apphud Inc. All rights reserved.
 //
 
 import Foundation
 
-public class ApphudNonRenewingPurchase : NSObject {
-    
+public class ApphudNonRenewingPurchase: NSObject {
+
     /**
      Product identifier of this subscription
      */
-    @objc public let productId : String
-    
+    @objc public let productId: String
+
     /**
      Date when user bought regular in-app purchase.
      */
-    @objc public let purchasedAt : Date
-    
+    @objc public let purchasedAt: Date
+
     /**
      Canceled date of in-app purchase, i.e. refund date. Nil if in-app purchase is not refunded.
      */
-    @objc public let canceledAt : Date?
-    
-    // MARK:- Private methods
-    
+    @objc public let canceledAt: Date?
+
+    // MARK: - Private methods
+
     /// Subscription private initializer
-    init?(dictionary : [String : Any]) {
+    init?(dictionary: [String: Any]) {
         guard dictionary["kind"] as? String == "nonrenewable" else {return nil}
         canceledAt = ApphudSubscription.dateFrom(dictionary["cancelled_at"])
         productId = dictionary["product_id"] as? String ?? ""

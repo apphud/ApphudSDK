@@ -1,9 +1,9 @@
 //
 //  ApphudKeychain.swift
-//  Apphud
+//  Apphud, Inc
 //
 //  Created by ren6 on 30/05/2019.
-//  Copyright © 2019 Softeam Inc. All rights reserved.
+//  Copyright © 2019 Apphud Inc. All rights reserved.
 //
 
 import UIKit
@@ -12,8 +12,8 @@ import Security
 // Constant Identifiers
 let userAccount = "ApphudUser"
 let accessGroup = "SecuritySerivice"
-let deviceIdKey : NSString = "ApphudDeviceID"
-let userIdKey : NSString = "ApphudUserID"
+let deviceIdKey: NSString = "ApphudDeviceID"
+let userIdKey: NSString = "ApphudUserID"
 
 // Arguments for the keychain queries
 let kSecClassValue = NSString(format: kSecClass)
@@ -26,52 +26,52 @@ let kSecReturnDataValue = NSString(format: kSecReturnData)
 let kSecMatchLimitOneValue = NSString(format: kSecMatchLimitOne)
 
 internal class ApphudKeychain: NSObject {
-    
-    internal class func generateUUID() -> String{
+
+    internal class func generateUUID() -> String {
         let uuid = NSUUID.init().uuidString
         return uuid
     }
-    
+
     internal class func loadDeviceID() -> String? {
         return self.load(deviceIdKey)
     }
-    
-    internal class func saveDeviceID(deviceID : String) {
+
+    internal class func saveDeviceID(deviceID: String) {
         self.save(deviceIdKey, data: deviceID)
     }
-    
+
     internal class func loadUserID() -> String? {
         return self.load(userIdKey)
     }
-    
-    internal class func saveUserID(userID : String) {
+
+    internal class func saveUserID(userID: String) {
         self.save(userIdKey, data: userID)
-    }    
-    
+    }
+
     private class func save(_ service: NSString, data: String) {
         if let dataFromString = data.data(using: .utf8, allowLossyConversion: false) {
-            
-            let keychainQuery : NSMutableDictionary = [
-                kSecClassValue : kSecClassGenericPasswordValue,
-                kSecAttrServiceValue : service,
-                kSecAttrAccountValue : userAccount,
-                kSecValueDataValue : dataFromString,
-                NSString(format: kSecAttrAccessible)  : NSString(format: kSecAttrAccessibleAfterFirstUnlock),
+
+            let keychainQuery: NSMutableDictionary = [
+                kSecClassValue: kSecClassGenericPasswordValue,
+                kSecAttrServiceValue: service,
+                kSecAttrAccountValue: userAccount,
+                kSecValueDataValue: dataFromString,
+                NSString(format: kSecAttrAccessible): NSString(format: kSecAttrAccessibleAfterFirstUnlock)
             ]
-            
+
             SecItemDelete(keychainQuery as CFDictionary)
             SecItemAdd(keychainQuery as CFDictionary, nil)
-        }        
+        }
     }
-    
+
     private class func load(_ service: NSString) -> String? {
         let keychainQuery: NSMutableDictionary = NSMutableDictionary(objects: [kSecClassGenericPasswordValue, service, userAccount, kCFBooleanTrue!, kSecMatchLimitOneValue], forKeys: [kSecClassValue, kSecAttrServiceValue, kSecAttrAccountValue, kSecReturnDataValue, kSecMatchLimitValue])
-        
-        var dataTypeRef :AnyObject?
-        
+
+        var dataTypeRef: AnyObject?
+
         let status: OSStatus = SecItemCopyMatching(keychainQuery, &dataTypeRef)
-        var contentsOfKeychain: String? = nil
-        
+        var contentsOfKeychain: String?
+
         if status == errSecSuccess {
             if let retrievedData = dataTypeRef as? Data {
                 contentsOfKeychain = String(data: retrievedData, encoding: .utf8)
