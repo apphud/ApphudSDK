@@ -110,7 +110,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
             }
             self.paymentCallback = nil
         } else {
-            if transaction.transactionState == .purchased {
+            if transaction.transactionState == .purchased || transaction.failedWithUnknownReason {
                 ApphudInternal.shared.submitReceiptAutomaticPurchaseTracking(transaction: transaction)
             }
             if ApphudUtils.shared.finishTransactions {
@@ -182,5 +182,11 @@ private class ApphudProductsFetcher: NSObject, SKProductsRequestDelegate {
             self.callback?([])
             self.callback = nil
         }
+    }
+}
+
+extension SKPaymentTransaction {
+    var failedWithUnknownReason: Bool {
+        transactionState == .failed && (error is SKError) && (error as? SKError)?.code == SKError.Code.unknown
     }
 }
