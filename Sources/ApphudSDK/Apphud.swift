@@ -10,7 +10,7 @@ import UIKit
 import StoreKit
 import UserNotifications
 
-internal let apphud_sdk_version = "0.14.1"
+internal let apphud_sdk_version = "0.14.2"
 
 public typealias ApphudEligibilityCallback = (([String: Bool]) -> Void)
 public typealias ApphudBoolCallback = ((Bool) -> Void)
@@ -145,6 +145,17 @@ final public class Apphud: NSObject {
      */
     @objc public static func start(apiKey: String, userID: String? = nil) {
         ApphudInternal.shared.initialize(apiKey: apiKey, userID: userID)
+    }
+
+    /**
+    Initializes Apphud SDK with Device ID parameter. Not recommended for use unless you know what you are doing.
+
+    - parameter apiKey: Required. Your api key.
+    - parameter userID: Optional. You can provide your own unique user identifier. If nil passed then UUID will be generated instead.
+    - parameter deviceID: Optional. You can provide your own unique device identifier. If nil passed then UUID will be generated instead.
+    */
+    @objc public static func startManually(apiKey: String, userID: String? = nil, deviceID: String? = nil) {
+        ApphudInternal.shared.initialize(apiKey: apiKey, userID: userID, deviceIdentifier: deviceID)
     }
 
     /**
@@ -511,13 +522,4 @@ final public class Apphud: NSObject {
     @objc public static func disableIDFACollection() {
         ApphudUtils.shared.optOutOfIDFACollection = true
     }
-
-    /**
-    Not yet available for public use.
-    */
-    #if DEBUG
-    @objc public static func start(apiKey: String, userID: String? = nil, deviceID: String? = nil) {
-        ApphudInternal.shared.initialize(apiKey: apiKey, userID: userID, deviceIdentifier: deviceID)
-    }
-    #endif
 }
