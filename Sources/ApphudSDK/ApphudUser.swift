@@ -76,11 +76,13 @@ internal struct ApphudUser {
         return array
     }
 
+    static let userDataFileName = "ApphudUser.data"
+
     static func toCache(_ dictionary: [String: Any]) {
 
         let data = try? NSKeyedArchiver.archivedData(withRootObject: dictionary, requiringSecureCoding: false)
-        let folderURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        let fileURL = folderURL.appendingPathComponent("ApphudUser.data")
+        guard let folderURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {return}
+        let fileURL = folderURL.appendingPathComponent(userDataFileName)
         do {
             try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true, attributes: nil)
             try data?.write(to: fileURL)
@@ -92,7 +94,7 @@ internal struct ApphudUser {
     static func fromCache(directory: FileManager.SearchPathDirectory) -> ApphudUser? {
         do {
             if let documentsURL = FileManager.default.urls(for: directory, in: .userDomainMask).first {
-                let fileURL = documentsURL.appendingPathComponent("ApphudUser.data")
+                let fileURL = documentsURL.appendingPathComponent(userDataFileName)
 
                 if !FileManager.default.fileExists(atPath: fileURL.path) {
                     return nil
@@ -115,6 +117,27 @@ internal struct ApphudUser {
             return user
         } else {
             return fromCache(directory: .cachesDirectory)
+        }
+    }
+
+    static func clearCache() {
+        guard let folderURLAppSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {return}
+        guard let folderURLCaches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {return}
+        let fileURLOne = folderURLAppSupport.appendingPathComponent(userDataFileName)
+        let fileURLTwo = folderURLCaches.appendingPathComponent(userDataFileName)
+        if FileManager.default.fileExists(atPath: fileURLOne.path) {
+            do {
+                try FileManager.default.removeItem(at: fileURLOne)
+            } catch {
+                apphudLog("failed to clear apphud cache, error: \(error.localizedDescription)", forceDisplay: true)
+            }
+        }
+        if FileManager.default.fileExists(atPath: fileURLTwo.path) {
+            do {
+                try FileManager.default.removeItem(at: fileURLTwo)
+            } catch {
+                apphudLog("failed to clear apphud cache, error: \(error.localizedDescription)", forceDisplay: true)
+            }
         }
     }
 }

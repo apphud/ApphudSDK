@@ -81,7 +81,7 @@ final class ApphudInternal: NSObject {
 
     // MARK: - Initialization
 
-    internal func initialize(apiKey: String, userID: String?, deviceIdentifier: String? = nil) {
+    internal func initialize(apiKey: String, inputUserID: String?, inputDeviceID: String? = nil) {
 
         guard allowInitialize == true else {
             apphudLog("Abort initializing, because Apphud SDK already initialized.", forceDisplay: true)
@@ -95,8 +95,8 @@ final class ApphudInternal: NSObject {
 
         var deviceID = ApphudKeychain.loadDeviceID()
 
-        if deviceIdentifier != nil {
-            deviceID = deviceIdentifier
+        if inputDeviceID?.count ?? 0 > 0 {
+            deviceID = inputDeviceID
         }
 
         if deviceID == nil {
@@ -112,8 +112,8 @@ final class ApphudInternal: NSObject {
         self.currentUser = ApphudUser.fromCache()
         let userIDFromKeychain = ApphudKeychain.loadUserID()
 
-        if userID != nil {
-            self.currentUserID = userID!
+        if inputUserID?.count ?? 0 > 0 {
+            self.currentUserID = inputUserID!
         } else if let existingUserID = self.currentUser?.user_id {
             self.currentUserID = existingUserID
         } else if userIDFromKeychain != nil {
@@ -129,6 +129,11 @@ final class ApphudInternal: NSObject {
         self.productsGroupsMap = apphudFromUserDefaultsCache(key: "productsGroupsMap")
 
         continueToRegisteringUser()
+    }
+
+    internal func resetUser() {
+        ApphudUser.clearCache()
+        ApphudKeychain.resetValues()
     }
 
     @objc internal func continueToRegisteringUser() {

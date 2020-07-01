@@ -15,6 +15,9 @@ let accessGroup = "SecuritySerivice"
 let deviceIdKey: NSString = "ApphudDeviceID"
 let userIdKey: NSString = "ApphudUserID"
 
+let defaultsDeviceIdKey = "com.apphud.device_id"
+let defaultsUserIdKey = "com.apphud.user_id"
+
 // Arguments for the keychain queries
 let kSecClassValue = NSString(format: kSecClass)
 let kSecAttrAccountValue = NSString(format: kSecAttrAccount)
@@ -25,7 +28,7 @@ let kSecMatchLimitValue = NSString(format: kSecMatchLimit)
 let kSecReturnDataValue = NSString(format: kSecReturnData)
 let kSecMatchLimitOneValue = NSString(format: kSecMatchLimitOne)
 
-internal class ApphudKeychain: NSObject {
+public class ApphudKeychain: NSObject {
 
     internal class func generateUUID() -> String {
         let uuid = NSUUID.init().uuidString
@@ -33,25 +36,50 @@ internal class ApphudKeychain: NSObject {
     }
 
     internal class func loadDeviceID() -> String? {
+        if let deviceID = UserDefaults.standard.value(forKey: defaultsDeviceIdKey) as? String, deviceID.count > 0 {
+            return deviceID
+        }
         return self.load(deviceIdKey)
     }
 
-    internal class func saveDeviceID(deviceID: String) {
-        self.save(deviceIdKey, data: deviceID)
-    }
-
     internal class func loadUserID() -> String? {
+        if let userID = UserDefaults.standard.value(forKey: defaultsUserIdKey) as? String, userID.count > 0 {
+            return userID
+        }
         return self.load(userIdKey)
     }
 
-    internal class func saveUserID(userID: String) {
+    internal class func resetValues() {
+        saveUserID(userID: "")
+        saveDeviceID(deviceID: "")
+    }
+
+    #if DEBUG
+    public class func saveUserID(userID: String) {
+        UserDefaults.standard.set(userID, forKey: defaultsUserIdKey)
         self.save(userIdKey, data: userID)
     }
+
+    public class func saveDeviceID(deviceID: String) {
+        UserDefaults.standard.set(deviceID, forKey: defaultsDeviceIdKey)
+        self.save(deviceIdKey, data: deviceID)
+    }
+    #else
+    internal class func saveUserID(userID: String) {
+        UserDefaults.standard.set(userID, forKey: defaultsUserIdKey)
+        self.save(userIdKey, data: userID)
+    }
+
+    internal class func saveDeviceID(deviceID: String) {
+        UserDefaults.standard.set(deviceID, forKey: defaultsDeviceIdKey)
+        self.save(deviceIdKey, data: deviceID)
+    }
+    #endif
 
     private class func save(_ service: NSString, data: String) {
         if let dataFromString = data.data(using: .utf8, allowLossyConversion: false) {
 
-            let keychainQuery: NSMutableDictionary = [
+            let keychainQuery: NSDictionary = [
                 kSecClassValue: kSecClassGenericPasswordValue,
                 kSecAttrServiceValue: service,
                 kSecAttrAccountValue: userAccount,
@@ -65,18 +93,14 @@ internal class ApphudKeychain: NSObject {
     }
 
     private class func load(_ service: NSString) -> String? {
-        let keychainQuery = NSMutableDictionary(objects:
-            [kSecClassGenericPasswordValue,
-             service,
-             userAccount,
-             kCFBooleanTrue!,
-             kSecMatchLimitOneValue],
-                                                forKeys:
-            [kSecClassValue,
-             kSecAttrServiceValue,
-             kSecAttrAccountValue,
-             kSecReturnDataValue,
-             kSecMatchLimitValue])
+
+        let keychainQuery: NSDictionary = [
+            kSecClassValue: kSecClassGenericPasswordValue,
+            kSecAttrServiceValue: service,
+            kSecAttrAccountValue: userAccount,
+            kSecReturnDataValue: kCFBooleanTrue!,
+            kSecMatchLimitValue: kSecMatchLimitOneValue
+        ]
 
         var dataTypeRef: AnyObject?
 
@@ -88,6 +112,9 @@ internal class ApphudKeychain: NSObject {
                 contentsOfKeychain = String(data: retrievedData, encoding: .utf8)
             }
         }
+
+        guard contentsOfKeychain?.count ?? 0 > 0 else {return nil}
+
         return contentsOfKeychain
     }
 }

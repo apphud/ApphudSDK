@@ -144,7 +144,7 @@ final public class Apphud: NSObject {
      - parameter userID: Optional. You can provide your own unique user identifier. If nil passed then UUID will be generated instead.
      */
     @objc public static func start(apiKey: String, userID: String? = nil) {
-        ApphudInternal.shared.initialize(apiKey: apiKey, userID: userID)
+        ApphudInternal.shared.initialize(apiKey: apiKey, inputUserID: userID)
     }
 
     /**
@@ -155,7 +155,7 @@ final public class Apphud: NSObject {
     - parameter deviceID: Optional. You can provide your own unique device identifier. If nil passed then UUID will be generated instead.
     */
     @objc public static func startManually(apiKey: String, userID: String? = nil, deviceID: String? = nil) {
-        ApphudInternal.shared.initialize(apiKey: apiKey, userID: userID, deviceIdentifier: deviceID)
+        ApphudInternal.shared.initialize(apiKey: apiKey, inputUserID: userID, inputDeviceID: deviceID)
     }
 
     /**

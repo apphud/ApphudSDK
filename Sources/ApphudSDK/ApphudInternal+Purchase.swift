@@ -169,12 +169,12 @@ extension ApphudInternal {
     private func handleTransaction(product: SKProduct, transaction: SKPaymentTransaction, error: Error?, callback: ((ApphudPurchaseResult) -> Void)?) {
         if transaction.transactionState == .purchased || transaction.failedWithUnknownReason {
             self.submitReceipt(product: product, transaction: transaction) { (result) in
-                SKPaymentQueue.default().finishTransaction(transaction)
+                ApphudStoreKitWrapper.shared.finishTransaction(transaction)
                 callback?(result)
             }
         } else {
             callback?(purchaseResult(productId: product.productIdentifier, transaction: transaction, error: error))
-            SKPaymentQueue.default().finishTransaction(transaction)
+            ApphudStoreKitWrapper.shared.finishTransaction(transaction)
         }
     }
 
