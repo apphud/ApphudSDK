@@ -65,7 +65,18 @@ internal class ApphudKeychain: NSObject {
     }
 
     private class func load(_ service: NSString) -> String? {
-        let keychainQuery: NSMutableDictionary = NSMutableDictionary(objects: [kSecClassGenericPasswordValue, service, userAccount, kCFBooleanTrue!, kSecMatchLimitOneValue], forKeys: [kSecClassValue, kSecAttrServiceValue, kSecAttrAccountValue, kSecReturnDataValue, kSecMatchLimitValue])
+        let keychainQuery = NSMutableDictionary(objects:
+            [kSecClassGenericPasswordValue,
+             service,
+             userAccount,
+             kCFBooleanTrue!,
+             kSecMatchLimitOneValue],
+                                                forKeys:
+            [kSecClassValue,
+             kSecAttrServiceValue,
+             kSecAttrAccountValue,
+             kSecReturnDataValue,
+             kSecMatchLimitValue])
 
         var dataTypeRef: AnyObject?
 

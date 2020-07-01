@@ -14,9 +14,7 @@ internal class ApphudNavigationController: UINavigationController {
     private var pendingScreens = [ApphudScreenController]()
 
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
-        get {
-            return .portrait
-        }
+        return .portrait
     }
 
     override var childForStatusBarStyle: UIViewController? {

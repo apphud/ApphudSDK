@@ -81,7 +81,6 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
                 switch trx.transactionState {
                 case .purchased, .failed:
                     self.handleTransactionIfStarted(trx)
-                    break
                 case .restored:
                     /*
                      Always handle restored transactions by sending App Store Receipt to Apphud.
@@ -92,7 +91,6 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
                         // force finish transaction
                         SKPaymentQueue.default().finishTransaction(trx)
                     }
-                    break
                 default:
                     break
                 }

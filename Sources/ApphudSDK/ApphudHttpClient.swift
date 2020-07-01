@@ -23,16 +23,16 @@ public class ApphudHttpClient {
     }
 
     enum ApphudApiVersion: String {
-        case v1 = "v1"
-        case v2 = "v2"
+        case APIV1 = "v1"
+        case APIV2 = "v2"
     }
 
     #if DEBUG
     public static let shared = ApphudHttpClient()
-    public var domain_url_string = "https://api.apphud.com"
+    public var domainUrlString = "https://api.apphud.com"
     #else
     internal static let shared = ApphudHttpClient()
-    internal var domain_url_string = "https://api.apphud.com"
+    internal var domainUrlString = "https://api.apphud.com"
     #endif
 
     internal var apiKey: String = ""
@@ -50,7 +50,7 @@ public class ApphudHttpClient {
         return request
     }
 
-    internal func startRequest(path: String, apiVersion: ApphudApiVersion = .v1, params: [String: Any]?, method: ApphudHttpMethod, callback: ApphudHTTPResponseCallback?) {
+    internal func startRequest(path: String, apiVersion: ApphudApiVersion = .APIV1, params: [String: Any]?, method: ApphudHttpMethod, callback: ApphudHTTPResponseCallback?) {
         if let request = makeRequest(path: path, apiVersion: apiVersion, params: params, method: method) {
             start(request: request, callback: callback)
         }
@@ -64,7 +64,7 @@ public class ApphudHttpClient {
 
             let task = session.dataTask(with: request) { (data, response, error) in
                 var string: String?
-                if data != nil, let http_response = response as? HTTPURLResponse, http_response.statusCode < 299 {
+                if data != nil, let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode < 299 {
                     string = String(data: data!, encoding: .utf8)
                 }
                 DispatchQueue.main.async {
@@ -81,7 +81,7 @@ public class ApphudHttpClient {
     internal func makeScreenRequest(screenID: String) -> URLRequest? {
 
         let deviceID: String = ApphudInternal.shared.currentDeviceID
-        let urlString = "\(domain_url_string)/preview_screen/\(screenID)?api_key=\(apiKey)&locale=\(Locale.current.identifier)&device_id=\(deviceID)&v=2"
+        let urlString = "\(domainUrlString)/preview_screen/\(screenID)?api_key=\(apiKey)&locale=\(Locale.current.identifier)&device_id=\(deviceID)&v=2"
 
         if let url = URL(string: urlString) {
             return requestInstance(url: url)
@@ -95,7 +95,7 @@ public class ApphudHttpClient {
         do {
             var url: URL?
 
-            let urlString = "\(domain_url_string)/\(apiVersion.rawValue)/\(path)"
+            let urlString = "\(domainUrlString)/\(apiVersion.rawValue)/\(path)"
 
             if method == .get {
                 var components = URLComponents(string: urlString)
