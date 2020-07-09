@@ -52,6 +52,7 @@ final class ApphudInternal: NSObject {
     internal let didSubmitAppsFlyerAttributionKey = "didSubmitAppsFlyerAttributionKey"
     internal let didSubmitFacebookAttributionKey = "didSubmitFacebookAttributionKey"
     internal let didSubmitAdjustAttributionKey = "didSubmitAdjustAttributionKey"
+    internal let didSubmitProductPricesKey = "didSubmitProductPricesKey"
     internal var isSendingAppsFlyer = false
     internal var isSendingAdjust = false
     internal var didSubmitAppsFlyerAttribution: Bool {
@@ -76,6 +77,14 @@ final class ApphudInternal: NSObject {
         }
         set {
             UserDefaults.standard.set(newValue, forKey: didSubmitAdjustAttributionKey)
+        }
+    }
+    internal var didSubmitProductPrices: Bool {
+        get {
+            UserDefaults.standard.bool(forKey: didSubmitProductPricesKey)
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: didSubmitProductPricesKey)
         }
     }
 

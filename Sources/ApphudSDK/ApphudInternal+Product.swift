@@ -32,15 +32,17 @@ extension ApphudInternal {
             return
         }
         ApphudStoreKitWrapper.shared.fetchProducts(identifiers: Set(self.productsGroupsMap!.keys)) { _ in
-            self.continueToUpdateProductPrices()
+            self.continueToUpdateProductPricesIfNeeded()
         }
     }
 
-    private func continueToUpdateProductPrices() {
+    private func continueToUpdateProductPricesIfNeeded() {
+        guard !didSubmitProductPrices else {return}
         let products = ApphudStoreKitWrapper.shared.products
         if products.count > 0 {
             self.updateUserCurrencyIfNeeded(priceLocale: products.first?.priceLocale)
             self.continueToUpdateProductsPrices(products: products)
+            didSubmitProductPrices = true
         }
     }
 
