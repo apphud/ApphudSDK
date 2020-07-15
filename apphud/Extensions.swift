@@ -12,9 +12,9 @@ import StoreKit
 
 extension SKProduct {
 
-    func unitStringFrom(un: SKProduct.PeriodUnit) -> String {
+    func unitStringFrom(unitValue: SKProduct.PeriodUnit) -> String {
         var unit = ""
-        switch un {
+        switch unitValue {
         case .day:
             unit = "day"
         case .week:
@@ -39,21 +39,21 @@ extension SKProduct {
 
     func discountDescription(discount: SKProductDiscount) -> String {
 
-        let periods_count = discount.numberOfPeriods
+        let periodsCount = discount.numberOfPeriods
 
-        let unit = unitStringFrom(un: discount.subscriptionPeriod.unit)
+        let unit = unitStringFrom(unitValue: discount.subscriptionPeriod.unit)
 
-        let unit_count = discount.subscriptionPeriod.numberOfUnits
+        let unitCount = discount.subscriptionPeriod.numberOfUnits
 
         let priceString = localizedPriceFrom(price: discount.price)
 
         var string = ""
         if discount.paymentMode == .payAsYouGo {
-            string = "PAY AS YOU GO: \(priceString) every \(unit_count) \(unit) and pay it \(periods_count) times"
+            string = "PAY AS YOU GO: \(priceString) every \(unitCount) \(unit) and pay it \(periodsCount) times"
         } else if discount.paymentMode == .payUpFront {
-            string = "INTRO PAY UP FRONT: \(priceString) per \(unit_count) \(unit) for  \(periods_count) times"
+            string = "INTRO PAY UP FRONT: \(priceString) per \(unitCount) \(unit) for  \(periodsCount) times"
         } else if discount.paymentMode == .freeTrial {
-            string = "FREE TRIAL: \(priceString) per \(unit_count) \(unit) for  \(periods_count) times"
+            string = "FREE TRIAL: \(priceString) per \(unitCount) \(unit) for  \(periodsCount) times"
         }
         return string
     }
@@ -62,7 +62,7 @@ extension SKProduct {
 
         guard subscriptionPeriod != nil else {return nil}
 
-        let unit = unitStringFrom(un: subscriptionPeriod!.unit)
+        let unit = unitStringFrom(unitValue: subscriptionPeriod!.unit)
 
         let priceString = localizedPriceFrom(price: price)
 
@@ -75,8 +75,9 @@ extension SKProduct {
         if #available(iOS 12.2, *) {
             if discounts.count > 0 {
                 string = "\(string)\n\nHas following promotional offers:\n"
+
                 for discount in discounts {
-                    string = "\(string)PROMO OFFER \(discount.identifier ?? ""): \(discountDescription(discount: discount))\n"
+                    string = "\(string)PROMO \(discount.identifier ?? ""): \(discountDescription(discount: discount))\n"
                 }
             }
         }

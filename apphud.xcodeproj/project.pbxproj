@@ -20,6 +20,13 @@
 		94AE4E9622A0FAC800564F85 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 94AE4E9422A0FAC800564F85 /* Main.storyboard */; };
 		94AE4E9822A0FACA00564F85 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 94AE4E9722A0FACA00564F85 /* Assets.xcassets */; };
 		94AE4E9B22A0FACA00564F85 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 94AE4E9922A0FACA00564F85 /* LaunchScreen.storyboard */; };
+		94C26B6224AC6A4C0091CA82 /* ApphudInternal+Attribution.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94C26B6124AC6A4C0091CA82 /* ApphudInternal+Attribution.swift */; };
+		94C26B6424AC6AF60091CA82 /* ApphudInternal+Purchase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94C26B6324AC6AF60091CA82 /* ApphudInternal+Purchase.swift */; };
+		94C26B6624AC6FDC0091CA82 /* ApphudInternal+Eligibility.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94C26B6524AC6FDC0091CA82 /* ApphudInternal+Eligibility.swift */; };
+		94C26B6824AC70880091CA82 /* ApphudInternal+UserUpdate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94C26B6724AC70880091CA82 /* ApphudInternal+UserUpdate.swift */; };
+		94F4E06924AC764F00176DCB /* ApphudScreenController+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94F4E06824AC764F00176DCB /* ApphudScreenController+Extensions.swift */; };
+		94F4E06B24AC77E900176DCB /* ApphudScreenController+Macros.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94F4E06A24AC77E900176DCB /* ApphudScreenController+Macros.swift */; };
+		94F4E06D24AC78B000176DCB /* ApphudInternal+Product.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94F4E06C24AC78B000176DCB /* ApphudInternal+Product.swift */; };
 		94FEB1DE248387BC0049F897 /* ApphudError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94FEB1DD248387BC0049F897 /* ApphudError.swift */; };
 		95E9470C239D20D000CC306C /* ApphudKeychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95E946FD239D20D000CC306C /* ApphudKeychain.swift */; };
 		95E9470E239D20D000CC306C /* ApphudHttpClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95E946FF239D20D000CC306C /* ApphudHttpClient.swift */; };
@@ -64,6 +71,13 @@
 		94AE4E9722A0FACA00564F85 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		94AE4E9A22A0FACA00564F85 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		94AE4E9C22A0FACA00564F85 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		94C26B6124AC6A4C0091CA82 /* ApphudInternal+Attribution.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ApphudInternal+Attribution.swift"; sourceTree = "<group>"; };
+		94C26B6324AC6AF60091CA82 /* ApphudInternal+Purchase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ApphudInternal+Purchase.swift"; sourceTree = "<group>"; };
+		94C26B6524AC6FDC0091CA82 /* ApphudInternal+Eligibility.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ApphudInternal+Eligibility.swift"; sourceTree = "<group>"; };
+		94C26B6724AC70880091CA82 /* ApphudInternal+UserUpdate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ApphudInternal+UserUpdate.swift"; sourceTree = "<group>"; };
+		94F4E06824AC764F00176DCB /* ApphudScreenController+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ApphudScreenController+Extensions.swift"; sourceTree = "<group>"; };
+		94F4E06A24AC77E900176DCB /* ApphudScreenController+Macros.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ApphudScreenController+Macros.swift"; sourceTree = "<group>"; };
+		94F4E06C24AC78B000176DCB /* ApphudInternal+Product.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ApphudInternal+Product.swift"; sourceTree = "<group>"; };
 		94FEB1DD248387BC0049F897 /* ApphudError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApphudError.swift; sourceTree = "<group>"; };
 		95E946FD239D20D000CC306C /* ApphudKeychain.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudKeychain.swift; sourceTree = "<group>"; };
 		95E946FF239D20D000CC306C /* ApphudHttpClient.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudHttpClient.swift; sourceTree = "<group>"; };
@@ -93,6 +107,8 @@
 			isa = PBXGroup;
 			children = (
 				9469E2EF23AA1C1B002A5946 /* ApphudScreenController.swift */,
+				94F4E06824AC764F00176DCB /* ApphudScreenController+Extensions.swift */,
+				94F4E06A24AC77E900176DCB /* ApphudScreenController+Macros.swift */,
 				9469E2F023AA1C1B002A5946 /* ApphudNavigationController.swift */,
 				9469E2F123AA1C1B002A5946 /* ApphudRulesManager.swift */,
 			);
@@ -148,6 +164,11 @@
 				95E946FD239D20D000CC306C /* ApphudKeychain.swift */,
 				95E946FF239D20D000CC306C /* ApphudHttpClient.swift */,
 				95E94700239D20D000CC306C /* ApphudInternal.swift */,
+				94C26B6124AC6A4C0091CA82 /* ApphudInternal+Attribution.swift */,
+				94C26B6324AC6AF60091CA82 /* ApphudInternal+Purchase.swift */,
+				94C26B6524AC6FDC0091CA82 /* ApphudInternal+Eligibility.swift */,
+				94F4E06C24AC78B000176DCB /* ApphudInternal+Product.swift */,
+				94C26B6724AC70880091CA82 /* ApphudInternal+UserUpdate.swift */,
 				95E94701239D20D000CC306C /* ApphudUser.swift */,
 				95E94703239D20D000CC306C /* ApphudRule.swift */,
 				95E94704239D20D000CC306C /* ApphudScreen.swift */,
@@ -243,6 +264,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				94C26B6224AC6A4C0091CA82 /* ApphudInternal+Attribution.swift in Sources */,
 				95E94713239D20D000CC306C /* ApphudScreen.swift in Sources */,
 				95E94716239D20D000CC306C /* Apphud.swift in Sources */,
 				9469E2F323AA1C1C002A5946 /* ApphudNavigationController.swift in Sources */,
@@ -252,16 +274,22 @@
 				9469E2F423AA1C1C002A5946 /* ApphudRulesManager.swift in Sources */,
 				94A9CE012402BAA900F3C5E3 /* ApphudPurchaseResult.swift in Sources */,
 				95E9470C239D20D000CC306C /* ApphudKeychain.swift in Sources */,
+				94C26B6624AC6FDC0091CA82 /* ApphudInternal+Eligibility.swift in Sources */,
+				94C26B6824AC70880091CA82 /* ApphudInternal+UserUpdate.swift in Sources */,
 				95E9470E239D20D000CC306C /* ApphudHttpClient.swift in Sources */,
+				94C26B6424AC6AF60091CA82 /* ApphudInternal+Purchase.swift in Sources */,
 				95E9471A239D20D000CC306C /* ApphudExtensions.swift in Sources */,
+				94F4E06D24AC78B000176DCB /* ApphudInternal+Product.swift in Sources */,
 				9469E2F223AA1C1C002A5946 /* ApphudScreenController.swift in Sources */,
 				95E94712239D20D000CC306C /* ApphudRule.swift in Sources */,
 				95E94717239D20D000CC306C /* ApphudStoreKitWrapper.swift in Sources */,
+				94F4E06924AC764F00176DCB /* ApphudScreenController+Extensions.swift in Sources */,
 				95E94710239D20D000CC306C /* ApphudUser.swift in Sources */,
 				9433E00E231FCF5E00D22785 /* Extensions.swift in Sources */,
 				94A9CE022402C38200F3C5E3 /* ApphudNonRenewingPurchase.swift in Sources */,
 				94AE4E9122A0FAC800564F85 /* AppDelegate.swift in Sources */,
 				95E9470F239D20D000CC306C /* ApphudInternal.swift in Sources */,
+				94F4E06B24AC77E900176DCB /* ApphudScreenController+Macros.swift in Sources */,
 				95E94718239D20D000CC306C /* ApphudUtils.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

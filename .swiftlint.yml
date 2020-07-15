@@ -1,0 +1,6 @@
+excluded: 
+  - Carthage
+  - Pods
+line_length: 300
+disabled_rules:
+  identifier_name

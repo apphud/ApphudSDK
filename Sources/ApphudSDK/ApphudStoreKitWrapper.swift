@@ -12,6 +12,9 @@ import StoreKit
 internal typealias ApphudStoreKitProductsCallback = ([SKProduct]) -> Void
 internal typealias ApphudTransactionCallback = (SKPaymentTransaction, Error?) -> Void
 
+public let ApphudWillFinishTransactionNotification = Notification.Name(rawValue: "ApphudWillFinishTransactionNotification")
+public let ApphudDidFinishTransactionNotification = Notification.Name(rawValue: "ApphudDidFinishTransactionNotification")
+
 @available(iOS 11.2, *)
 internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SKRequestDelegate {
     static var shared = ApphudStoreKitWrapper()
@@ -23,7 +26,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     private var paymentCallback: ApphudTransactionCallback?
     private var purchasingProductID: String?
-
+    private weak var purchasingPayment: SKPayment?
     internal var customProductsFetchedBlock: ApphudStoreKitProductsCallback?
 
     func setupObserver() {
@@ -67,57 +70,67 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     func purchase(payment: SKMutablePayment, callback: @escaping ApphudTransactionCallback) {
         payment.applicationUsername = ""
-        self.paymentCallback = callback
-        self.purchasingProductID = payment.productIdentifier
+        paymentCallback = callback
+        purchasingProductID = payment.productIdentifier
+        purchasingPayment = payment
+        apphudLog("Starting payment for \(payment.productIdentifier), transactions in queue: \(SKPaymentQueue.default().transactions)")
         SKPaymentQueue.default().add(payment)
     }
 
     // MARK: - SKPaymentTransactionObserver
 
     func paymentQueue(_ queue: SKPaymentQueue, updatedTransactions transactions: [SKPaymentTransaction]) {
-        DispatchQueue.main.async {
-            for trx in transactions {
-
-                switch trx.transactionState {
-                case .purchased, .failed:
-                    self.handleTransactionIfStarted(trx)
-                    break
-                case .restored:
-                    /*
-                     Always handle restored transactions by sending App Store Receipt to Apphud.
-                     Will not finish transaction, because we didn't start it. Developer should finish transaction manually.
-                     */
-                    ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: true)
-                    if ApphudUtils.shared.finishTransactions {
-                        // force finish transaction
-                        SKPaymentQueue.default().finishTransaction(trx)
-                    }
-                    break
-                default:
-                    break
+        for trx in transactions {
+            switch trx.transactionState {
+            case .purchased, .failed:
+                handleTransactionIfStarted(trx)
+            case .restored:
+                /*
+                 Always handle restored transactions by sending App Store Receipt to Apphud.
+                 Will not finish transaction, because we didn't start it. Developer should finish transaction manually.
+                 */
+                ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: true)
+                if ApphudUtils.shared.finishTransactions {
+                    // force finish transaction
+                    finishTransaction(trx)
                 }
+            default:
+                break
             }
         }
     }
 
     private func handleTransactionIfStarted(_ transaction: SKPaymentTransaction) {
+
+        if transaction.payment == purchasingPayment {
+            apphudLog("handle transaction started by Apphud SDK method", forceDisplay: false)
+        }
+
         if transaction.payment.productIdentifier == self.purchasingProductID {
             self.purchasingProductID = nil
             if self.paymentCallback != nil {
                 self.paymentCallback?(transaction, nil)
             } else {
-                SKPaymentQueue.default().finishTransaction(transaction)
+                finishTransaction(transaction)
             }
             self.paymentCallback = nil
+            self.purchasingPayment = nil
         } else {
             if transaction.transactionState == .purchased || transaction.failedWithUnknownReason {
                 ApphudInternal.shared.submitReceiptAutomaticPurchaseTracking(transaction: transaction)
             }
             if ApphudUtils.shared.finishTransactions {
                 // force finish transaction
-                SKPaymentQueue.default().finishTransaction(transaction)
+                finishTransaction(transaction)
             }
         }
+    }
+
+    internal func finishTransaction(_ transaction: SKPaymentTransaction) {
+        apphudLog("Finish Transaction: \(transaction.payment.productIdentifier), state: \(transaction.transactionState.rawValue), id: \(transaction.transactionIdentifier ?? "")")
+        NotificationCenter.default.post(name: ApphudWillFinishTransactionNotification, object: transaction)
+        SKPaymentQueue.default().finishTransaction(transaction)
+        NotificationCenter.default.post(name: ApphudDidFinishTransactionNotification, object: transaction)
     }
 
     #if os(iOS) && !targetEnvironment(macCatalyst)
