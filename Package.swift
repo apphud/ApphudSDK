@@ -6,5 +6,5 @@ let package = Package(name: "ApphudSDK",
                       products: [.library(name: "ApphudSDK",
                                           targets: ["ApphudSDK"])],
                       targets: [.target(name: "ApphudSDK",
-                                        path: "Sources")],
+                                        path: "ApphudSDK")],
                       swiftLanguageVersions: [.v5])

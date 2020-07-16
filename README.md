@@ -42,7 +42,7 @@ Visit our website for details: https://apphud.com
 
 ## SDK Requirements
 
-Apphud SDK requires minimum iOS 11.2, Xcode 10 and Swift 4.2. 
+Apphud SDK requires minimum iOS 11.2, Xcode 10 and Swift 5.0. 
 
 ## Installation
 
