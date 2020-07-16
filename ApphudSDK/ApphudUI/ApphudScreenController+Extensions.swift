@@ -165,9 +165,6 @@ extension ApphudScreenController {
             errorCode = .unknown
         }
 
-        let failed = result.transaction?.transactionState == .failed
-        let unknownErrorCode = errorCode == .unknown
-
         let hasSubscriptionWithAutorenewEnabled: Bool
         if let subscription = result.subscription {
             hasSubscriptionWithAutorenewEnabled = subscription.isActive() && subscription.isAutorenewEnabled
