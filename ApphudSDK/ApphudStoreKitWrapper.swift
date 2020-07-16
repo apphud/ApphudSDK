@@ -57,6 +57,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     }
 
     func purchase(product: SKProduct, callback: @escaping ApphudTransactionCallback) {
+        ApphudUtils.shared.finishTransactions = true
         let payment = SKMutablePayment(product: product)
         purchase(payment: payment, callback: callback)
     }
@@ -69,6 +70,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     }
 
     func purchase(payment: SKMutablePayment, callback: @escaping ApphudTransactionCallback) {
+        finishCompletedTransactions(for: payment.productIdentifier)
         payment.applicationUsername = ""
         paymentCallback = callback
         purchasingProductID = payment.productIdentifier
@@ -124,6 +126,10 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
                 finishTransaction(transaction)
             }
         }
+    }
+
+    private func finishCompletedTransactions(for productIdentifier: String) {
+        SKPaymentQueue.default().transactions.filter { $0.payment.productIdentifier == productIdentifier && $0.finishable }.forEach { transaction in finishTransaction(transaction) }
     }
 
     internal func finishTransaction(_ transaction: SKPaymentTransaction) {
@@ -201,5 +207,16 @@ private class ApphudProductsFetcher: NSObject, SKProductsRequestDelegate {
 extension SKPaymentTransaction {
     var failedWithUnknownReason: Bool {
         transactionState == .failed && (error is SKError) && (error as? SKError)?.code == SKError.Code.unknown
+    }
+
+    var finishable: Bool {
+        switch transactionState {
+        case .purchasing:
+            return false
+        case .deferred, .failed, .purchased, .restored:
+            return true
+        @unknown default:
+            return false
+        }
     }
 }
