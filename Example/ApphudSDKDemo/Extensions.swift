@@ -9,6 +9,7 @@
 import Foundation
 import UIKit
 import StoreKit
+import ApphudSDK
 
 extension SKProduct {
 
@@ -33,6 +34,8 @@ extension SKProduct {
         let numberFormatter = NumberFormatter()
         numberFormatter.numberStyle = .currency
         numberFormatter.locale = priceLocale
+        numberFormatter.currencyCode = priceLocale.currencyCode
+        numberFormatter.currencySymbol = priceLocale.currencySymbol
         let priceString = numberFormatter.string(from: price)
         return priceString ?? ""
     }

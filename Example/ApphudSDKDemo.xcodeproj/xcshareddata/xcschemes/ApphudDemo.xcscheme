@@ -16,8 +16,8 @@
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "94AE4E8C22A0FAC800564F85"
                BuildableName = "ApphudDemoApp.app"
-               BlueprintName = "apphud"
-               ReferencedContainer = "container:apphud.xcodeproj">
+               BlueprintName = "ApphudSDKDemo"
+               ReferencedContainer = "container:ApphudSDKDemo.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -32,8 +32,8 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "94AE4E8C22A0FAC800564F85"
             BuildableName = "ApphudDemoApp.app"
-            BlueprintName = "apphud"
-            ReferencedContainer = "container:apphud.xcodeproj">
+            BlueprintName = "ApphudSDKDemo"
+            ReferencedContainer = "container:ApphudSDKDemo.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
       <Testables>
@@ -55,8 +55,8 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "94AE4E8C22A0FAC800564F85"
             BuildableName = "ApphudDemoApp.app"
-            BlueprintName = "apphud"
-            ReferencedContainer = "container:apphud.xcodeproj">
+            BlueprintName = "ApphudSDKDemo"
+            ReferencedContainer = "container:ApphudSDKDemo.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -72,8 +72,8 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "94AE4E8C22A0FAC800564F85"
             BuildableName = "ApphudDemoApp.app"
-            BlueprintName = "apphud"
-            ReferencedContainer = "container:apphud.xcodeproj">
+            BlueprintName = "ApphudSDKDemo"
+            ReferencedContainer = "container:ApphudSDKDemo.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

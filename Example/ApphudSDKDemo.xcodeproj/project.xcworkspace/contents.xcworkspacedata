@@ -2,6 +2,6 @@
 <Workspace
    version = "1.0">
    <FileRef
-      location = "self:apphud.xcodeproj">
+      location = "self:/Users/renat/Desktop/Projects/ApphudSDK/Example/ApphudSDKDemo.xcodeproj">
    </FileRef>
 </Workspace>

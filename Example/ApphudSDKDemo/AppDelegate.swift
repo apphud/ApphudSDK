@@ -8,6 +8,7 @@
 
 import UIKit
 import UserNotifications
+import ApphudSDK
 
 public typealias BoolCallback = (Bool) -> Void
 

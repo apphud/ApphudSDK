@@ -8,54 +8,32 @@
 
 import UIKit
 import StoreKit
+import ApphudSDK
+
+let cellID = "cell"
 
 class ViewController: UITableViewController {
 
     var products = [SKProduct]()
 
-    var introductoryEligibility = [String: Bool]()
-    var promoOffersEligibility = [String: Bool]()
-    var canShowApphudScreen = true
-
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        // In this example we set delegate to ViewController to reload tableview when changes come
         Apphud.setDelegate(self)
         Apphud.setUIDelegate(self)
 
         reload()
-        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Restore transactions", style: .done, target: self, action: #selector(restore))
+
+        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Restore", style: .done, target: self, action: #selector(restore))
 
         if Apphud.products() == nil {
             Apphud.productsDidFetchCallback { (products) in
-                print("products loaded and callback called!")
                 self.products = products
                 self.reload()
             }
         } else {
-            print("products already loaded and callback not called!")
             self.products = Apphud.products()!
         }
-
-//        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { 
-//            Apphud.refreshStoreKitProducts { products in
-//                print("storekit products are refreshed! \(products.count)")
-//                self.products = products
-//                self.reload()
-//            }
-//        }
-//        
-    }
-
-    override func viewWillAppear(_ animated: Bool) {
-        print("will appear")
-        super.viewWillAppear(animated)
-    }
-
-    override func viewDidAppear(_ animated: Bool) {
-        print("did appear")
-        super.viewDidAppear(animated)
     }
 
     @objc func restore() {
@@ -65,51 +43,34 @@ class ViewController: UITableViewController {
     }
 
     @objc func reload() {
-        Apphud.checkEligibilitiesForIntroductoryOffers(products: products) { (response) in
-            self.introductoryEligibility = response
-            if #available(iOS 12.2, *) {
-                Apphud.checkEligibilitiesForPromotionalOffers(products: self.products) { (response) in
-                    self.promoOffersEligibility = response
-                    self.tableView.reloadData()
-                }
-            } else {
-                self.tableView.reloadData()
-            }
-        }
-
         tableView.reloadData()
     }
 
     // MARK: - TableView Delegate methods
 
     override func numberOfSections(in tableView: UITableView) -> Int {
-        return 1
+        1
     }
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return products.count
+        products.count
     }
 
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
 
-        let cell = tableView.dequeueReusableCell(withIdentifier: "productCell", for: indexPath)
+        let cell = tableView.dequeueReusableCell(withIdentifier: cellID, for: indexPath)
         let product = products[indexPath.item]
 
-        if var text = product.fullSubscriptionInfoString() {
-            if self.promoOffersEligibility[product.productIdentifier] != nil {
-                text = "\(text)\nEligible for promo: \(self.promoOffersEligibility[product.productIdentifier]!)"
-            }
-            if self.introductoryEligibility[product.productIdentifier] != nil {
-                text = "\(text)\nEligible for introductory: \(self.introductoryEligibility[product.productIdentifier]!)"
-            }
+        if let text = product.fullSubscriptionInfoString() {
             cell.textLabel?.text = text
         } else {
-            cell.textLabel?.text = product.apphudLocalizedPrice()
+            cell.textLabel?.text = product.localizedPriceFrom(price: product.price)
         }
 
         if let subscription = Apphud.subscriptions()?.first(where: {$0.productId == product.productIdentifier}) {
 
             cell.detailTextLabel?.text = subscription.expiresDate.description(with: Locale.current) + "\nState: \(subscription.status.toStringDuplicate())\nIntroductory used:\(subscription.isIntroductoryActivated)".uppercased()
+
         } else if let purchase = Apphud.nonRenewingPurchases()?.first(where: {$0.productId == product.productIdentifier}) {
             cell.detailTextLabel?.text = "\(purchase.productId). Last Purchased at: \(purchase.purchasedAt)"
             print("purchase: \(purchase.productId) is active: \(purchase.isActive())")
@@ -212,11 +173,10 @@ extension ViewController: ApphudUIDelegate {
     }
 
     func apphudScreenPresentationStyle(controller: UIViewController) -> UIModalPresentationStyle {
-
         if UIDevice.current.userInterfaceIdiom == .pad {
             return .pageSheet
         } else {
-            return .pageSheet
+            return .fullScreen
         }
     }
 
