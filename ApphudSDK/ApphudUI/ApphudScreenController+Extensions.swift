@@ -158,18 +158,31 @@ extension ApphudScreenController {
 
     internal func handlePurchaseResult(product: SKProduct, offerID: String? = nil, result: ApphudPurchaseResult) {
 
-        var errorCode: SKError.Code = .unknown
-
+        let errorCode: SKError.Code
         if let skError = result.transaction?.error as? SKError {
             errorCode = skError.code
+        } else {
+            errorCode = .unknown
         }
 
-        let isActive = result.subscription?.isActive() ?? false
-        let productIDChanged = result.subscription?.productId != product.productIdentifier
+        let failed = result.transaction?.transactionState == .failed
+        let unknownErrorCode = errorCode == .unknown
 
-        let shouldSubmitPurchaseEvent = error == nil || (isActive && !(errorCode == .paymentCancelled) && (offerID != nil || productIDChanged))
+        let hasSubscriptionWithAutorenewEnabled: Bool
+        if let subscription = result.subscription {
+            hasSubscriptionWithAutorenewEnabled = subscription.isActive() && subscription.isAutorenewEnabled
+        } else {
+            hasSubscriptionWithAutorenewEnabled = false
+        }
 
-        if shouldSubmitPurchaseEvent {
+        let purchaseSucceeded: Bool
+        if result.transaction?.transactionState == .purchased {
+            purchaseSucceeded = true
+        } else {
+            purchaseSucceeded = (result.transaction?.failedWithUnknownReason ?? false) && hasSubscriptionWithAutorenewEnabled
+        }
+
+        if purchaseSucceeded {
 
             var params: [String: AnyHashable] = ["rule_id": self.rule.id, "name": "$purchase", "screen_id": self.screenID]
 

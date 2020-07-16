@@ -64,6 +64,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     @available(iOS 12.2, *)
     func purchase(product: SKProduct, discount: SKPaymentDiscount, callback: @escaping ApphudTransactionCallback) {
+        ApphudUtils.shared.finishTransactions = true
         let payment = SKMutablePayment(product: product)
         payment.paymentDiscount = discount
         purchase(payment: payment, callback: callback)
