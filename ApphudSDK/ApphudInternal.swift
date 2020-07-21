@@ -30,7 +30,6 @@ final class ApphudInternal: NSObject {
     internal var productsGroupsMap: [String: String]?
     internal var submitReceiptCallback: ((Error?) -> Void)?
     internal var restorePurchasesCallback: (([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void)?
-    internal let requiresReceiptSubmissionKey = "requiresReceiptSubmissionKey"
     internal var isSubmittingReceipt: Bool = false
 
     // MARK: - User registering properties
@@ -49,6 +48,14 @@ final class ApphudInternal: NSObject {
     }
 
     // MARK: - Attribution properties
+    internal var requiresReceiptSubmission: Bool {
+        get {
+            UserDefaults.standard.bool(forKey: "requiresReceiptSubmissionKey")
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: "requiresReceiptSubmissionKey")
+        }
+    }
     internal let didSubmitAppsFlyerAttributionKey = "didSubmitAppsFlyerAttributionKey"
     internal let didSubmitFacebookAttributionKey = "didSubmitFacebookAttributionKey"
     internal let didSubmitAdjustAttributionKey = "didSubmitAdjustAttributionKey"

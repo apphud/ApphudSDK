@@ -28,6 +28,10 @@ extension ApphudInternal {
         }
     }
 
+    internal func submitReceipt() {
+        submitReceiptRestore(allowsReceiptRefresh: false)
+    }
+
     internal func submitReceiptRestore(allowsReceiptRefresh: Bool) {
         guard let receiptString = apphudReceiptDataString() else {
             if allowsReceiptRefresh {
@@ -94,7 +98,9 @@ extension ApphudInternal {
             params["product_info"] = product.apphudSubmittableParameters()
         }
 
-        UserDefaults.standard.set(true, forKey: requiresReceiptSubmissionKey)
+        self.requiresReceiptSubmission = true
+
+        apphudLog("Uploading App Store Receipt...")
 
         httpClient.startRequest(path: "subscriptions", params: params, method: .post) { (result, response, error, code) in
 
@@ -116,8 +122,7 @@ extension ApphudInternal {
     internal func handleSubmitReceiptCallback(result: Bool, response: [String: Any]?, error: Error?, notifyDelegate: Bool) {
 
         if result {
-            UserDefaults.standard.set(false, forKey: self.requiresReceiptSubmissionKey)
-            UserDefaults.standard.synchronize()
+            self.requiresReceiptSubmission = false
             let hasChanges = self.parseUser(response)
             if notifyDelegate {
                 if hasChanges.hasSubscriptionChanges {
@@ -126,6 +131,11 @@ extension ApphudInternal {
                 if hasChanges.hasNonRenewingChanges {
                     self.delegate?.apphudNonRenewingPurchasesUpdated?(self.currentUser!.purchases)
                 }
+            }
+        } else {
+            apphudLog("Failed to upload App Store Receipt, will retry in 5 seconds.", forceDisplay: true)
+            DispatchQueue.main.asyncAfter(deadline: .now()+5.0) {
+                self.submitReceipt()
             }
         }
 

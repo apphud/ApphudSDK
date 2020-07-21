@@ -67,8 +67,8 @@ extension ApphudInternal {
                 if hasChanges.hasNonRenewingChanges {
                     self.delegate?.apphudNonRenewingPurchasesUpdated?(self.currentUser!.purchases)
                 }
-                if UserDefaults.standard.bool(forKey: self.requiresReceiptSubmissionKey) {
-                    self.submitReceiptRestore(allowsReceiptRefresh: false)
+                if self.requiresReceiptSubmission {
+                    self.submitReceipt()
                 }
             }
 
