@@ -11,19 +11,33 @@ import StoreKit
 
 extension ApphudInternal {
 
-    internal func continueToFetchProducts() {
+    @objc internal func continueToFetchProducts() {
         self.getProducts(callback: { (productsGroupsMap) in
             // perform even if productsGroupsMap is nil or empty
             self.performAllProductGroupsFetchedCallbacks()
 
             if productsGroupsMap?.keys.count ?? 0 > 0 {
                 self.productsGroupsMap = productsGroupsMap
-                apphudLog("Products groups fetched: \(self.productsGroupsMap as AnyObject)")
                 apphudToUserDefaultsCache(dictionary: self.productsGroupsMap!, key: "productsGroupsMap")
             }
-            // continue to fetch storekit products anyway
-            self.continueToFetchStoreKitProducts()
+
+            if self.productsGroupsMap?.keys.count ?? 0 > 0 {
+                self.continueToFetchStoreKitProducts()
+            } else {
+                self.scheduleProductsFetchRetry()
+            }
         })
+    }
+
+    fileprivate func scheduleProductsFetchRetry() {
+        guard productsFetchRetriesCount < maxNumberOfProductsFetchRetries else {
+            apphudLog("Reached max number of product fetch retries \(productsFetchRetriesCount). Exiting..", forceDisplay: true)
+            return
+        }
+        productsFetchRetriesCount += 1
+        let delay: TimeInterval = TimeInterval(productsFetchRetriesCount * 5)
+        perform(#selector(continueToFetchProducts), with: nil, afterDelay: delay)
+        apphudLog("No Product Identifiers found in Apphud. Probably you forgot to add products in Apphud Settings? Scheduled products fetch retry in \(delay) seconds.", forceDisplay: true)
     }
 
     internal func continueToFetchStoreKitProducts() {
@@ -47,8 +61,7 @@ extension ApphudInternal {
     }
 
     private func continueToUpdateProductsPrices(products: [SKProduct]) {
-        self.submitProducts(products: products) { (_, _, _, _) in
-        }
+        self.submitProducts(products: products) { (_, _, _, _) in }
     }
 
     internal func refreshStoreKitProductsWithCallback(callback: (([SKProduct]) -> Void)?) {

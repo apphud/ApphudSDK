@@ -28,7 +28,7 @@ extension ApphudInternal {
         }
     }
 
-    internal func submitReceipt() {
+    @objc internal func submitAppStoreReceipt() {
         submitReceiptRestore(allowsReceiptRefresh: false)
     }
 
@@ -103,19 +103,9 @@ extension ApphudInternal {
         apphudLog("Uploading App Store Receipt...")
 
         httpClient.startRequest(path: "subscriptions", params: params, method: .post) { (result, response, error, code) in
-
             self.forceSendAttributionDataIfNeeded()
-
-            if code == 422 || code > 499 {
-                // make one time retry
-                self.httpClient.startRequest(path: "subscriptions", params: params, method: .post) { (result2, response2, error2, _) in
-                    self.isSubmittingReceipt = false
-                    self.handleSubmitReceiptCallback(result: result2, response: response2, error: error2, notifyDelegate: notifyDelegate)
-                }
-            } else {
-                self.isSubmittingReceipt = false
-                self.handleSubmitReceiptCallback(result: result, response: response, error: error, notifyDelegate: notifyDelegate)
-            }
+            self.isSubmittingReceipt = false
+            self.handleSubmitReceiptCallback(result: result, response: response, error: error, notifyDelegate: notifyDelegate)
         }
     }
 
@@ -133,10 +123,10 @@ extension ApphudInternal {
                 }
             }
         } else {
-            apphudLog("Failed to upload App Store Receipt, will retry in 5 seconds.", forceDisplay: true)
-            DispatchQueue.main.asyncAfter(deadline: .now()+5.0) {
-                self.submitReceipt()
-            }
+            submitReceiptRetriesCount += 1
+            let delay: TimeInterval = TimeInterval(submitReceiptRetriesCount * 5)
+            perform(#selector(submitAppStoreReceipt), with: nil, afterDelay: delay)
+            apphudLog("Failed to upload App Store Receipt, will retry in \(delay) seconds.", forceDisplay: true)
         }
 
         self.submitReceiptCallback?(error)

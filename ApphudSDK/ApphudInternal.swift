@@ -26,8 +26,13 @@ final class ApphudInternal: NSObject {
     private var addedObservers = false
 
     // MARK: - Receipt and products properties
+    internal var productsFetchRetriesCount: Int = 0
+    internal let maxNumberOfProductsFetchRetries: Int = 10
+
     internal var productGroupsFetchedCallbacks = [ApphudVoidCallback]()
     internal var productsGroupsMap: [String: String]?
+
+    internal var submitReceiptRetriesCount: Int = 0
     internal var submitReceiptCallback: ((Error?) -> Void)?
     internal var restorePurchasesCallback: (([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void)?
     internal var isSubmittingReceipt: Bool = false

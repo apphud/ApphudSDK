@@ -68,7 +68,7 @@ extension ApphudInternal {
                     self.delegate?.apphudNonRenewingPurchasesUpdated?(self.currentUser!.purchases)
                 }
                 if self.requiresReceiptSubmission {
-                    self.submitReceipt()
+                    self.submitAppStoreReceipt()
                 }
             }
 
