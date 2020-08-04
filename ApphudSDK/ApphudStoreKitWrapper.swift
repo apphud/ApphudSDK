@@ -29,14 +29,16 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     private weak var purchasingPayment: SKPayment?
     internal var customProductsFetchedBlock: ApphudStoreKitProductsCallback?
 
+    private var refreshRequest: SKReceiptRefreshRequest?
+
     func setupObserver() {
         SKPaymentQueue.default().add(self)
     }
 
     func refreshReceipt() {
-        let request = SKReceiptRefreshRequest()
-        request.delegate = self
-        request.start()
+        refreshRequest = SKReceiptRefreshRequest()
+        refreshRequest?.delegate = self
+        refreshRequest?.start()
     }
 
     func fetchProducts(identifiers: Set<String>, callback: @escaping ApphudStoreKitProductsCallback) {
@@ -159,6 +161,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         if request is SKReceiptRefreshRequest {
             DispatchQueue.main.async {
                 ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: false)
+                self.refreshRequest = nil
             }
         }
     }
@@ -169,6 +172,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     func request(_ request: SKRequest, didFailWithError error: Error) {
         if request is SKReceiptRefreshRequest {
             ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: false)
+            refreshRequest = nil
         }
     }
 }
@@ -179,11 +183,13 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 private class ApphudProductsFetcher: NSObject, SKProductsRequestDelegate {
     private var callback: ApphudStoreKitProductsCallback?
 
+    private var productsRequest: SKProductsRequest?
+
     func fetchStoreKitProducts(identifiers: Set<String>, callback : @escaping ApphudStoreKitProductsCallback) {
         self.callback = callback
-        let request = SKProductsRequest(productIdentifiers: identifiers)
-        request.delegate = self
-        request.start()
+        productsRequest = SKProductsRequest(productIdentifiers: identifiers)
+        productsRequest?.delegate = self
+        productsRequest?.start()
     }
 
     public func productsRequest(_ request: SKProductsRequest, didReceive response: SKProductsResponse) {
@@ -193,6 +199,7 @@ private class ApphudProductsFetcher: NSObject, SKProductsRequestDelegate {
                 apphudLog("Failed to load SKProducts from the App Store, because product identifiers are invalid:\n \(response.invalidProductIdentifiers)", forceDisplay: true)
             }
             self.callback = nil
+            self.productsRequest = nil
         }
     }
 
@@ -201,6 +208,7 @@ private class ApphudProductsFetcher: NSObject, SKProductsRequestDelegate {
             apphudLog("Failed to load SKProducts from the App Store, error: \(error)", forceDisplay: true)
             self.callback?([])
             self.callback = nil
+            self.productsRequest = nil
         }
     }
 }
