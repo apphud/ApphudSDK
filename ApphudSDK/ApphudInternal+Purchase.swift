@@ -59,7 +59,7 @@ extension ApphudInternal {
     internal func submitReceipt(product: SKProduct, transaction: SKPaymentTransaction?, callback: ((ApphudPurchaseResult) -> Void)?) {
         guard let receiptString = apphudReceiptDataString() else {
             ApphudStoreKitWrapper.shared.refreshReceipt()
-            callback?(ApphudPurchaseResult(nil, nil, nil, ApphudError(message: "Receipt not found on device, refreshing.")))
+            callback?(ApphudPurchaseResult(nil, nil, transaction, ApphudError(message: "Receipt not found on device, refreshing.")))
             return
         }
 
