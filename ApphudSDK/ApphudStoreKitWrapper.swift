@@ -85,22 +85,24 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     // MARK: - SKPaymentTransactionObserver
 
     func paymentQueue(_ queue: SKPaymentQueue, updatedTransactions transactions: [SKPaymentTransaction]) {
-        for trx in transactions {
-            switch trx.transactionState {
-            case .purchased, .failed:
-                handleTransactionIfStarted(trx)
-            case .restored:
-                /*
-                 Always handle restored transactions by sending App Store Receipt to Apphud.
-                 Will not finish transaction, because we didn't start it. Developer should finish transaction manually.
-                 */
-                ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: true)
-                if ApphudUtils.shared.finishTransactions {
-                    // force finish transaction
-                    finishTransaction(trx)
+        DispatchQueue.main.async {
+            for trx in transactions {
+                switch trx.transactionState {
+                case .purchased, .failed:
+                    self.handleTransactionIfStarted(trx)
+                case .restored:
+                    /*
+                     Always handle restored transactions by sending App Store Receipt to Apphud.
+                     Will not finish transaction, because we didn't start it. Developer should finish transaction manually.
+                     */
+                    ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: true)
+                    if ApphudUtils.shared.finishTransactions {
+                        // force finish transaction
+                        self.finishTransaction(trx)
+                    }
+                default:
+                    break
                 }
-            default:
-                break
             }
         }
     }
