@@ -87,10 +87,7 @@ extension ApphudInternal {
 
         if countryCode == self.currentUser?.countryCode && currencyCode == self.currentUser?.currencyCode {return}
 
-        var params: [String: String] = ["country_code": countryCode,
-                                          "currency_code": currencyCode]
-
-        params.merge(apphudCurrentDeviceParameters()) { (current, _) in current}
+        let params: [String: String] = ["country_code": countryCode, "currency_code": currencyCode]
 
         updateUser(fields: params) { (result, response, _, _) in
             if result {
@@ -120,6 +117,7 @@ extension ApphudInternal {
     }
 
     private func updateUser(fields: [String: Any], callback: @escaping ApphudHTTPResponseCallback) {
+        setNeedsToUpdateUser = false
         var params = apphudCurrentDeviceParameters() as [String: Any]
         params.merge(fields) { (current, _) in current}
         params["device_id"] = self.currentDeviceID
@@ -128,7 +126,7 @@ extension ApphudInternal {
         httpClient.startRequest(path: "customers", params: params, method: .post, callback: callback)
     }
 
-    internal func refreshCurrentUser() {
+    @objc internal func updateCurrentUser() {
         createOrGetUser(shouldUpdateUserID: false) { _ in
             self.lastCheckDate = Date()
         }
