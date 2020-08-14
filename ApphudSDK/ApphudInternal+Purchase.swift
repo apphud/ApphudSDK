@@ -57,7 +57,7 @@ extension ApphudInternal {
     }
 
     internal func submitReceipt(product: SKProduct, transaction: SKPaymentTransaction?, callback: ((ApphudPurchaseResult) -> Void)?) {
-        
+
         let block: (String) -> Void = { receiptStr in
             let exist = self.performWhenUserRegistered {
                 self.submitReceipt(product: product, transaction: transaction, receiptString: receiptStr, notifyDelegate: true) { error in
