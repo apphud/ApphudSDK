@@ -169,7 +169,7 @@ extension ApphudInternal {
             return
         }
 
-        apphudLog("Set Property: \(key), value: \(value ?? "nil"), type: \(typeString)", forceDisplay: true)
+        apphudLog("Set Property: \(key), value: \(value ?? "nil"), type: \(typeString)", forceDisplay: false)
 
         let property = ApphudUserProperty(key: key, value: value, increment: increment, setOnce: setOnce, type: typeString)
         pendingUserProperties.removeAll { prop -> Bool in property.key == prop.key }
@@ -190,12 +190,12 @@ extension ApphudInternal {
             }
         }
         params["properties"] = properties
-
         httpClient.startRequest(path: "customers/properties", params: params, method: .post) { (result, response, error, code) in
             if result {
-                apphudLog("User Properties updated.")
+                self.pendingUserProperties.removeAll()
+                apphudLog("User Properties successfully updated.")
             } else {
-                apphudLog("User Properties Update failed: \(error?.localizedDescription ?? "")")
+                apphudLog("User Properties update failed: \(error?.localizedDescription ?? "") with code: \(code)")
             }
         }
     }

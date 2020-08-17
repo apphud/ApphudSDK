@@ -14,17 +14,27 @@ struct ApphudUserProperty {
     let setOnce: Bool
     let type: String
     func toJSON() -> [String: Any?]? {
-        if increment {
-            if value != nil {
-                return [key: value, "increment": increment, "set_once": setOnce, "kind": type]
-            }
-        } else {
-            if value != nil {
-                return [key: value, "set_once": setOnce, "kind": type]
-            } else {
-                return [key: value, "set_once": setOnce]
-            }
+
+        if increment && value == nil {return nil}
+
+        var modifiedValue = value
+
+        if value is Float, let doubleValue = value as? Double {
+            modifiedValue = Decimal(doubleValue)
+        } else if value is Double, let doubleValue = value as? Double {
+            modifiedValue = Decimal(doubleValue)
         }
-        return nil
+
+        var jsonParams: [String: Any?] = ["name": key, "value": modifiedValue, "set_once": setOnce]
+
+        if value != nil {
+            jsonParams["kind"] = type
+        }
+
+        if increment {
+            jsonParams["increment"] = increment
+        }
+
+        return jsonParams
     }
 }
