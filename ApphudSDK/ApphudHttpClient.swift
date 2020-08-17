@@ -130,7 +130,11 @@ public class ApphudHttpClient {
 
         }
 
-        apphudLog("Start \(method) request \(request?.url?.absoluteString ?? "") params: \(params ?? [:])")
+        do {
+            let string = String(data: try JSONSerialization.data(withJSONObject: params ?? [:], options: .prettyPrinted), encoding: .utf8)
+            apphudLog("Start \(method) request \(request?.url?.absoluteString ?? "") params: \(string ?? "")")
+        } catch {
+        }
 
         return request
     }

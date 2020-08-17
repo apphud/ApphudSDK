@@ -10,7 +10,7 @@ import UIKit
 import StoreKit
 import UserNotifications
 
-internal let apphud_sdk_version = "0.17"
+internal let apphud_sdk_version = "0.18"
 
 public typealias ApphudEligibilityCallback = (([String: Bool]) -> Void)
 public typealias ApphudBoolCallback = ((Bool) -> Void)
@@ -365,6 +365,16 @@ final public class Apphud: NSObject {
                 callback(subscriptions, purchases, error)
             }
         }
+    }
+
+    // MARK: - User Properties
+
+    @objc public static func setUserProperty(key: String, value: Any?, setOnce: Bool = false) {
+        ApphudInternal.shared.setUserProperty(key: key, value: value, setOnce: setOnce, increment: false)
+    }
+
+    @objc public static func incrementUserProperty(key: String, value: Any) {
+        ApphudInternal.shared.setUserProperty(key: key, value: value, setOnce: false, increment: true)
     }
 
     // MARK: - Rules & Screens Methods
