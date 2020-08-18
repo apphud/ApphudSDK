@@ -169,6 +169,12 @@ extension ApphudInternal {
             return
         }
 
+        if increment && !(typeString == "integer" || typeString == "float") {
+            let givenType = type(of: value)
+            apphudLog("Invalid increment property type: (\(givenType)). Must be one of: [Int, Float, Double]", forceDisplay: true)
+            return
+        }
+
         apphudLog("Set Property: \(key), value: \(value ?? "nil"), type: \(typeString)", forceDisplay: false)
 
         let property = ApphudUserProperty(key: key, value: value, increment: increment, setOnce: setOnce, type: typeString)

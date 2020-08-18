@@ -7,6 +7,11 @@
 
 import UIKit
 
+public let ApphudUserPropertyKeyEmail = "$email"
+public let ApphudUserPropertyKeyName = "$name"
+public let ApphudUserPropertyKeyAge = "$age"
+public let ApphudUserPropertyKeyGender = "$gender"
+
 struct ApphudUserProperty {
     let key: String
     let value: Any?

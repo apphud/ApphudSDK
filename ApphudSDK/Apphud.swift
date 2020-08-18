@@ -369,12 +369,38 @@ final public class Apphud: NSObject {
 
     // MARK: - User Properties
 
+    /**
+
+     Sets custom user properties.
+
+     __Note__: You can use several built-in keys with their value types:
+
+     `ApphudUserPropertyKeyEmail`: String,
+
+     `ApphudUserPropertyKeyName`: `String`,
+
+     `ApphudUserPropertyKeyAge`: `Int`,
+
+     `ApphudUserPropertyKeyGender`: `String`.
+
+     Example:
+
+     ````
+     Apphud.setUserProperty(key: ApphudUserPropertyKeyEmail, value: "user@example.com", setOnce: true)
+     ````
+
+     - parameter key: Required. Use your custom string key or some of built-in keys.
+     - parameter value: Required/Optional. You can use only the following types: `Int`, `Float`, `Double`, `Bool`, `String`, `nil` in Swift. `NSNumber`, `NSString`, `NSNull` in Objective-C. Passing value as `nil` removes given property from Apphud.
+     - parameter setOnce: Optional. Pass `true` to make this property non-updatable. Passing value as `nil` will still remove this property from Apphud.
+
+     */
+
     @objc public static func setUserProperty(key: String, value: Any?, setOnce: Bool = false) {
         ApphudInternal.shared.setUserProperty(key: key, value: value, setOnce: setOnce, increment: false)
     }
 
-    @objc public static func incrementUserProperty(key: String, value: Any) {
-        ApphudInternal.shared.setUserProperty(key: key, value: value, setOnce: false, increment: true)
+    @objc public static func incrementUserProperty(key: String, by: Any) {
+        ApphudInternal.shared.setUserProperty(key: key, value: by, setOnce: false, increment: true)
     }
 
     // MARK: - Rules & Screens Methods
