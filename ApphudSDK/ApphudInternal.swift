@@ -7,7 +7,6 @@
 //
 
 import Foundation
-import AdSupport
 import StoreKit
 
 internal typealias HasPurchasesChanges = (hasSubscriptionChanges: Bool, hasNonRenewingChanges: Bool)
@@ -41,13 +40,33 @@ final class ApphudInternal: NSObject {
     internal var currentUser: ApphudUser?
     internal var currentDeviceID: String = ""
     internal var currentUserID: String = ""
+    internal var setNeedsToUpdateUser: Bool = false {
+        didSet {
+            if setNeedsToUpdateUser {
+                self.perform(#selector(updateCurrentUser), with: nil, afterDelay: 2.0)
+            } else {
+                NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(updateCurrentUser), object: nil)
+            }
+        }
+    }
     internal var lastCheckDate = Date()
     internal var userRegisterRetriesCount: Int = 0
     internal let maxNumberOfUserRegisterRetries: Int = 10
     internal var isRegisteringUser = false {
-        didSet(newValue) {
-            if newValue == true {
+        didSet {
+            if isRegisteringUser {
                 NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(continueToRegisteringUser), object: nil)
+            }
+        }
+    }
+
+    // MARK: - Advertising Identifier
+
+    internal var advertisingIdentifier: String? {
+        didSet {
+            if advertisingIdentifier != nil {
+                apphudLog("Received IDFA (\(advertisingIdentifier ?? ""), will submit soon.")
+                setNeedsToUpdateUser = true
             }
         }
     }
@@ -67,6 +86,7 @@ final class ApphudInternal: NSObject {
     internal let didSubmitProductPricesKey = "didSubmitProductPricesKey"
     internal var isSendingAppsFlyer = false
     internal var isSendingAdjust = false
+
     internal var didSubmitAppsFlyerAttribution: Bool {
         get {
             UserDefaults.standard.bool(forKey: didSubmitAppsFlyerAttributionKey)
@@ -149,7 +169,9 @@ final class ApphudInternal: NSObject {
 
         self.productsGroupsMap = apphudFromUserDefaultsCache(key: "productsGroupsMap")
 
-        continueToRegisteringUser()
+        DispatchQueue.main.async {
+            self.continueToRegisteringUser()
+        }
     }
 
     internal func resetUser() {
@@ -211,7 +233,7 @@ final class ApphudInternal: NSObject {
                 self.continueToRegisteringUser()
             } else if Date().timeIntervalSince(self.lastCheckDate) > minCheckInterval {
                 self.checkForUnreadNotifications()
-                self.refreshCurrentUser()
+                self.updateCurrentUser()
             }
         }
     }

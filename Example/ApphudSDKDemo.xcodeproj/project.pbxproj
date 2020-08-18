@@ -383,7 +383,7 @@
 				CODE_SIGN_ENTITLEMENTS = ApphudSDKDemo/ApphudDemoApp.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_STYLE = Manual;
 				DEVELOPMENT_TEAM = "";
 				INFOPLIST_FILE = "$(SRCROOT)/ApphudSDKDemo/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 11.2;
@@ -391,7 +391,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.apphud.demo;
+				PRODUCT_BUNDLE_IDENTIFIER = com.apphud.testapp;
 				PRODUCT_NAME = ApphudDemoApp;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				"PROVISIONING_PROFILE_SPECIFIER[sdk=macosx*]" = "";
@@ -411,7 +411,7 @@
 				CODE_SIGN_ENTITLEMENTS = ApphudSDKDemo/ApphudDemoApp.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_STYLE = Manual;
 				DEVELOPMENT_TEAM = "";
 				INFOPLIST_FILE = "$(SRCROOT)/ApphudSDKDemo/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 11.2;
@@ -419,7 +419,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.apphud.demo;
+				PRODUCT_BUNDLE_IDENTIFIER = com.apphud.testapp;
 				PRODUCT_NAME = ApphudDemoApp;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				"PROVISIONING_PROFILE_SPECIFIER[sdk=macosx*]" = "";

@@ -24,6 +24,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     fileprivate let fetcher = ApphudProductsFetcher()
     fileprivate let receiptSubmitProductFetcher = ApphudProductsFetcher()
 
+    private var refreshReceiptCallback: (() -> Void)?
     private var paymentCallback: ApphudTransactionCallback?
     private var purchasingProductID: String?
     private weak var purchasingPayment: SKPayment?
@@ -35,7 +36,8 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         SKPaymentQueue.default().add(self)
     }
 
-    func refreshReceipt() {
+    func refreshReceipt(_ callback: (() -> Void)?) {
+        refreshReceiptCallback = callback
         refreshRequest = SKReceiptRefreshRequest()
         refreshRequest?.delegate = self
         refreshRequest?.start()
@@ -162,7 +164,12 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     func requestDidFinish(_ request: SKRequest) {
         if request is SKReceiptRefreshRequest {
             DispatchQueue.main.async {
-                ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: false)
+                if self.refreshReceiptCallback != nil {
+                    self.refreshReceiptCallback?()
+                    self.refreshReceiptCallback = nil
+                } else {
+                    ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: false)
+                }
                 self.refreshRequest = nil
             }
         }
@@ -173,8 +180,15 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
      */
     func request(_ request: SKRequest, didFailWithError error: Error) {
         if request is SKReceiptRefreshRequest {
-            ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: false)
-            refreshRequest = nil
+            DispatchQueue.main.async {
+                if self.refreshReceiptCallback != nil {
+                    self.refreshReceiptCallback?()
+                    self.refreshReceiptCallback = nil
+                } else {
+                    ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: false)
+                }
+                self.refreshRequest = nil
+            }
         }
     }
 }

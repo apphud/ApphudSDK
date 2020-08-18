@@ -36,7 +36,7 @@ extension ApphudInternal {
         guard let receiptString = apphudReceiptDataString() else {
             if allowsReceiptRefresh {
                 apphudLog("App Store receipt is missing on device, will refresh first then retry")
-                ApphudStoreKitWrapper.shared.refreshReceipt()
+                ApphudStoreKitWrapper.shared.refreshReceipt(nil)
             } else {
                 apphudLog("App Store receipt is missing on device and couldn't be refreshed.", forceDisplay: true)
                 self.restorePurchasesCallback?(nil, nil, nil)
@@ -57,20 +57,31 @@ extension ApphudInternal {
     }
 
     internal func submitReceipt(product: SKProduct, transaction: SKPaymentTransaction?, callback: ((ApphudPurchaseResult) -> Void)?) {
-        guard let receiptString = apphudReceiptDataString() else {
-            ApphudStoreKitWrapper.shared.refreshReceipt()
-            callback?(ApphudPurchaseResult(nil, nil, transaction, ApphudError(message: "Receipt not found on device, refreshing.")))
-            return
-        }
 
-        let exist = performWhenUserRegistered {
-            self.submitReceipt(product: product, transaction: transaction, receiptString: receiptString, notifyDelegate: true) { error in
-                let result = self.purchaseResult(productId: product.productIdentifier, transaction: transaction, error: error)
-                callback?(result)
+        let block: (String) -> Void = { receiptStr in
+            let exist = self.performWhenUserRegistered {
+                self.submitReceipt(product: product, transaction: transaction, receiptString: receiptStr, notifyDelegate: true) { error in
+                    let result = self.purchaseResult(productId: product.productIdentifier, transaction: transaction, error: error)
+                    callback?(result)
+                }
+            }
+            if !exist {
+                apphudLog("Tried to make submitReceipt: \(product.productIdentifier) request when user is not yet registered, addind to schedule..")
             }
         }
-        if !exist {
-            apphudLog("Tried to make submitReceipt: \(product.productIdentifier) request when user is not yet registered, addind to schedule..")
+
+        if let receiptString = apphudReceiptDataString() {
+            block(receiptString)
+        } else {
+            apphudLog("Receipt not found on device, refreshing.", forceDisplay: true)
+            ApphudStoreKitWrapper.shared.refreshReceipt {
+                if let receipt = apphudReceiptDataString() {
+                    block(receipt)
+                } else {
+                    apphudLog("Failed to get App Store receipt", forceDisplay: true)
+                    callback?(ApphudPurchaseResult(nil, nil, transaction, ApphudError(message: "Failed to get App Store receipt")))
+                }
+            }
         }
     }
 

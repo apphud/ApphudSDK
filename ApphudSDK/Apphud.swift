@@ -414,6 +414,13 @@ final public class Apphud: NSObject {
     // MARK: - Attribution
 
     /**
+     Submit Advertising Identifier (IDFA) to Apphud. This is used to properly match user with attribution platforms (AppsFlyer, Facebook, etc.)
+     */
+    @objc public static func setAdvertisingIdentifier(_ idfa: String) {
+        ApphudInternal.shared.advertisingIdentifier = idfa
+    }
+
+    /**
      Submit attribution data to Apphud from your attribution network provider.
      - parameter data: Required. Attribution dictionary.
      - parameter provider: Required. Attribution provider name. Available values: .appsFlyer. Will be added more soon.
@@ -512,14 +519,5 @@ final public class Apphud: NSObject {
      */
     @objc public static func isSandbox() -> Bool {
         return apphudIsSandbox()
-    }
-
-    /**
-     Opt out of IDFA collection. Currently we collect IDFA to match users between Apphud and attribution platforms (AppsFlyer, Branch). If you don't use and not planning to use such services, you can call this method.
-     
-     __Note__: This method must be called before Apphud SDK initialization.
-     */
-    @objc public static func disableIDFACollection() {
-        ApphudUtils.shared.optOutOfIDFACollection = true
     }
 }
