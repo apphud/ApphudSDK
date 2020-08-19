@@ -371,35 +371,54 @@ final public class Apphud: NSObject {
 
     /**
 
-     Sets custom user properties.
+     Set custom user property. Value must be one of: `Int`, `Float`, `Double`, `Bool`, `String`, `NSNumber`, `NSString`, `NSNull`, `nil`.
+
+     Example:
+     ````
+     // use built-in property key
+     Apphud.setUserProperty(key: .email, value: "user4@example.com", setOnce: true)
+     // use custom property key
+     Apphud.setUserProperty(key: .init("custom_test_property_1"), value: 0.5)
+     ````
 
      __Note__: You can use several built-in keys with their value types:
 
-     `ApphudUserPropertyKeyEmail`: String,
+     `.email`: User email. Value must be String.
 
-     `ApphudUserPropertyKeyName`: `String`,
+     `.name`: User name. Value must be String.
 
-     `ApphudUserPropertyKeyAge`: `Int`,
+     `.phone`: User phone number. Value must be String.
 
-     `ApphudUserPropertyKeyGender`: `String`.
+     `.age`: User age. Value must be Int.
 
-     Example:
+     `.gender`: User gender. Value must be one of: "male", "female", "other".
 
-     ````
-     Apphud.setUserProperty(key: ApphudUserPropertyKeyEmail, value: "user@example.com", setOnce: true)
-     ````
+     `.cohort`: User install cohort. Value must be String.
 
-     - parameter key: Required. Use your custom string key or some of built-in keys.
-     - parameter value: Required/Optional. You can use only the following types: `Int`, `Float`, `Double`, `Bool`, `String`, `nil` in Swift. `NSNumber`, `NSString`, `NSNull` in Objective-C. Passing value as `nil` removes given property from Apphud.
-     - parameter setOnce: Optional. Pass `true` to make this property non-updatable. Passing value as `nil` will still remove this property from Apphud.
+     - parameter key: Required. Initialize class with custom string or using built-in keys. See example above.
+     - parameter value: Required/Optional. Pass `nil` or `NSNull` to remove given property from Apphud.
+     - parameter setOnce: Optional. Pass `true` to make this property non-updatable.
 
      */
 
-    @objc public static func setUserProperty(key: String, value: Any?, setOnce: Bool = false) {
+    @objc public static func setUserProperty(key: ApphudUserPropertyKey, value: Any?, setOnce: Bool = false) {
         ApphudInternal.shared.setUserProperty(key: key, value: value, setOnce: setOnce, increment: false)
     }
 
-    @objc public static func incrementUserProperty(key: String, by: Any) {
+    /**
+
+    Increment custom user property. Value must be one of: `Int`, `Float`, `Double` or `NSNumber`.
+
+    Example:
+    ````
+    Apphud.incrementUserProperty(key: .init("progress"), by: 0.5)
+    ````
+
+    - parameter key: Required. Use your custom string key or some of built-in keys.
+    - parameter by: Required/Optional. You can pass negative value to decrement.
+
+    */
+    @objc public static func incrementUserProperty(key: ApphudUserPropertyKey, by: Any) {
         ApphudInternal.shared.setUserProperty(key: key, value: by, setOnce: false, increment: true)
     }
 

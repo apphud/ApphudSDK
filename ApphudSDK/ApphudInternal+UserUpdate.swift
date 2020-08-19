@@ -138,7 +138,7 @@ extension ApphudInternal {
     private func getType(value: Any?) -> String? {
         var type: String?
 
-        if value == nil {
+        if value == nil || value is NSNull {
             return "nil"
         } else if value is String || value is NSString {
             type = "string"
@@ -161,7 +161,7 @@ extension ApphudInternal {
         return type
     }
 
-    internal func setUserProperty(key: String, value: Any?, setOnce: Bool, increment: Bool = false) {
+    internal func setUserProperty(key: ApphudUserPropertyKey, value: Any?, setOnce: Bool, increment: Bool = false) {
 
         guard let typeString = getType(value: value) else {
             let givenType = type(of: value)
@@ -175,9 +175,7 @@ extension ApphudInternal {
             return
         }
 
-        apphudLog("Set Property: \(key), value: \(value ?? "nil"), type: \(typeString)", forceDisplay: false)
-
-        let property = ApphudUserProperty(key: key, value: value, increment: increment, setOnce: setOnce, type: typeString)
+        let property = ApphudUserProperty(key: key.key, value: value, increment: increment, setOnce: setOnce, type: typeString)
         pendingUserProperties.removeAll { prop -> Bool in property.key == prop.key }
         pendingUserProperties.append(property)
         setNeedsToUpdateUserProperties = true

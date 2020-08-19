@@ -21,8 +21,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
         Apphud.setFinishAllTransactions()
         Apphud.start(apiKey: "YOUR_TOKEN")
-        registerForNotifications()
 
+        Apphud.setUserProperty(key: .email, value: "user@example.com", setOnce: true)
+        Apphud.setUserProperty(key: .init("custom_prop_1"), value: 0.5)
+        Apphud.incrementUserProperty(key: .init("coins_count"), by: 2)
+
+        registerForNotifications()
         return true
     }
 
