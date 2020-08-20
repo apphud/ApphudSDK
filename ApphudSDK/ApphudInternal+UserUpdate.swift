@@ -165,7 +165,7 @@ extension ApphudInternal {
 
         guard let typeString = getType(value: value) else {
             let givenType = type(of: value)
-            apphudLog("Invalid property type: (\(givenType)). Must be one of: [Int, Float, Double, Bool, String]", forceDisplay: true)
+            apphudLog("Invalid property type: (\(givenType)). Must be one of: [Int, Float, Double, Bool, String, NSNull, nil]", forceDisplay: true)
             return
         }
 
