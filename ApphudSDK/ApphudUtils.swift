@@ -32,7 +32,7 @@ public class ApphudUtils: NSObject {
 
     internal static let shared = ApphudUtils()
     private(set) var logLevel: ApphudLogLevel = .off
-    internal var finishTransactions = false
+    internal var purchaseMode = true
 }
 
 internal func apphudLog(_ text: String, forceDisplay: Bool = false) {

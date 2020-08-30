@@ -132,7 +132,7 @@ final class ApphudInternal: NSObject {
 
     // MARK: - Initialization
 
-    internal func initialize(apiKey: String, inputUserID: String?, inputDeviceID: String? = nil) {
+    internal func initialize(apiKey: String, inputUserID: String?, inputDeviceID: String? = nil, observerMode: Bool) {
 
         guard allowInitialize == true else {
             apphudLog("Abort initializing, because Apphud SDK already initialized.", forceDisplay: true)
@@ -141,6 +141,8 @@ final class ApphudInternal: NSObject {
         allowInitialize = false
 
         apphudLog("Started Apphud SDK (\(apphud_sdk_version))", forceDisplay: true)
+
+        ApphudUtils.shared.purchaseMode = !observerMode
 
         ApphudStoreKitWrapper.shared.setupObserver()
 

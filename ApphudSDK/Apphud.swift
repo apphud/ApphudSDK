@@ -143,8 +143,8 @@ final public class Apphud: NSObject {
      - parameter apiKey: Required. Your api key.
      - parameter userID: Optional. You can provide your own unique user identifier. If nil passed then UUID will be generated instead.
      */
-    @objc public static func start(apiKey: String, userID: String? = nil) {
-        ApphudInternal.shared.initialize(apiKey: apiKey, inputUserID: userID)
+    @objc public static func start(apiKey: String, userID: String? = nil, observerMode: Bool = false) {
+        ApphudInternal.shared.initialize(apiKey: apiKey, inputUserID: userID, observerMode: observerMode)
     }
 
     /**
@@ -154,8 +154,8 @@ final public class Apphud: NSObject {
     - parameter userID: Optional. You can provide your own unique user identifier. If nil passed then UUID will be generated instead.
     - parameter deviceID: Optional. You can provide your own unique device identifier. If nil passed then UUID will be generated instead.
     */
-    @objc public static func startManually(apiKey: String, userID: String? = nil, deviceID: String? = nil) {
-        ApphudInternal.shared.initialize(apiKey: apiKey, inputUserID: userID, inputDeviceID: deviceID)
+    @objc public static func startManually(apiKey: String, userID: String? = nil, deviceID: String? = nil, observerMode: Bool = false) {
+        ApphudInternal.shared.initialize(apiKey: apiKey, inputUserID: userID, inputDeviceID: deviceID, observerMode: observerMode)
     }
 
     /**
@@ -333,9 +333,6 @@ final public class Apphud: NSObject {
      
      __Note__: Even if callback returns some subscription, it doesn't mean that subscription is active. You should check `subscription.isActive()` value.
      
-     You should use this method in 2 cases:
-        * Upon tap on `Restore Purchases` button in your UI.
-        * To migrate existing subsribers to Apphud. If you want your current subscribers to be tracked in Apphud, call this method once at the first launch.   
      - parameter callback: Required. Returns array of subscription (or subscriptions in case you have more than one subscription group), array of standard in-app purchases and an error. All of three parameters are optional.
      */     
     @objc public static func restorePurchases(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {
@@ -553,7 +550,7 @@ final public class Apphud: NSObject {
     }
 
     /**
-     Automatically finishes all completed (failed, purchased or restored) transactions.
+     __DEPRECATED__ .Automatically finishes all completed (failed, purchased or restored) transactions.
      
      You should call it only if you purchase products using Apphud SDK, i.e. by using `Apphud.purchase(product)` method. Do not call this method in observer (analytics) mode.
      
@@ -565,8 +562,10 @@ final public class Apphud: NSObject {
      
      __Note__: Must be called before Apphud SDK initialization.
      */
+
+    @available(*, deprecated, message: "You can safely remove this method as it's no longer needed.")
     @objc public static func setFinishAllTransactions() {
-        ApphudUtils.shared.finishTransactions = true
+        ApphudUtils.shared.purchaseMode = true
     }
 
     /**
