@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import UIKit
 
 extension ApphudInternal {
 
@@ -129,6 +130,77 @@ extension ApphudInternal {
     @objc internal func updateCurrentUser() {
         createOrGetUser(shouldUpdateUserID: false) { _ in
             self.lastCheckDate = Date()
+        }
+    }
+
+    // MARK: - User Properties
+
+    private func getType(value: Any?) -> String? {
+        var type: String?
+
+        if value == nil || value is NSNull {
+            return "nil"
+        } else if value is String || value is NSString {
+            type = "string"
+        } else if let number = value as? NSNumber {
+            if CFGetTypeID(number) == CFBooleanGetTypeID() {
+                type = "boolean"
+            } else if CFNumberIsFloatType(number) {
+                type = "float"
+            }
+        }
+        if type == nil {
+            if value is Int {
+                type = "integer"
+            } else if value is Float || value is Double {
+                type = "float"
+            } else if value is Bool {
+                type = "boolean"
+            }
+        }
+        return type
+    }
+
+    internal func setUserProperty(key: ApphudUserPropertyKey, value: Any?, setOnce: Bool, increment: Bool = false) {
+
+        guard let typeString = getType(value: value) else {
+            let givenType = type(of: value)
+            apphudLog("Invalid property type: (\(givenType)). Must be one of: [Int, Float, Double, Bool, String, NSNull, nil]", forceDisplay: true)
+            return
+        }
+
+        if increment && !(typeString == "integer" || typeString == "float") {
+            let givenType = type(of: value)
+            apphudLog("Invalid increment property type: (\(givenType)). Must be one of: [Int, Float, Double]", forceDisplay: true)
+            return
+        }
+
+        let property = ApphudUserProperty(key: key.key, value: value, increment: increment, setOnce: setOnce, type: typeString)
+        pendingUserProperties.removeAll { prop -> Bool in property.key == prop.key }
+        pendingUserProperties.append(property)
+        setNeedsToUpdateUserProperties = true
+    }
+
+    @objc internal func updateUserProperties() {
+        setNeedsToUpdateUserProperties = false
+        guard pendingUserProperties.count > 0 else {return}
+        var params = [String: Any]()
+        params["device_id"] = self.currentDeviceID
+
+        var properties = [[String: Any?]]()
+        pendingUserProperties.forEach { property in
+            if let json = property.toJSON() {
+                properties.append(json)
+            }
+        }
+        params["properties"] = properties
+        httpClient.startRequest(path: "customers/properties", params: params, method: .post) { (result, response, error, code) in
+            if result {
+                self.pendingUserProperties.removeAll()
+                apphudLog("User Properties successfully updated.")
+            } else {
+                apphudLog("User Properties update failed: \(error?.localizedDescription ?? "") with code: \(code)")
+            }
         }
     }
 }

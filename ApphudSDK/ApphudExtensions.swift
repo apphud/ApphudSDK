@@ -11,16 +11,6 @@ import StoreKit
 
 typealias ApphudVoidCallback = (() -> Void)
 
-internal func apphudLog(_ text: String, forceDisplay: Bool = false) {
-    if ApphudUtils.shared.isLoggingEnabled || forceDisplay {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .none
-        formatter.timeStyle = .medium
-        let time = formatter.string(from: Date())
-        print("[\(time)] [Apphud] \(text)")
-    }
-}
-
 internal func apphudVisibleViewController() -> UIViewController? {
     var currentVC = UIApplication.shared.keyWindow?.rootViewController
     while let presentedVC = currentVC?.presentedViewController {

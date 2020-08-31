@@ -60,7 +60,7 @@ public class ApphudHttpClient {
 
         if let request = makeScreenRequest(screenID: screenID) {
 
-            apphudLog("started loading screen html data:\(request)", forceDisplay: true)
+            apphudLog("started loading screen html data:\(request)", logLevel: .all)
 
             let task = session.dataTask(with: request) { (data, response, error) in
                 var string: String?
@@ -130,7 +130,17 @@ public class ApphudHttpClient {
 
         }
 
-        apphudLog("Start \(method) request \(request?.url?.absoluteString ?? "") params: \(params ?? [:])")
+        do {
+            let string = String(data: try JSONSerialization.data(withJSONObject: params ?? [:], options: .prettyPrinted), encoding: .utf8)
+
+            if ApphudUtils.shared.logLevel == .all {
+                apphudLog("Start \(method) request \(request?.url?.absoluteString ?? "") params: \(string ?? "")", logLevel: .all)
+            } else {
+                apphudLog("Start \(method) request \(request?.url?.absoluteString ?? "")")
+            }
+
+        } catch {
+        }
 
         return request
     }
@@ -172,13 +182,26 @@ public class ApphudHttpClient {
                         if let dictionary = dictionary,
                             let json = try? JSONSerialization.data(withJSONObject: dictionary, options: .prettyPrinted),
                             let string = String(data: json, encoding: .utf8) {
-                            apphudLog("Request \(method) \(request.url?.absoluteString ?? "") success with response: \n\(string)")
+
+                            if ApphudUtils.shared.logLevel == .all {
+                                apphudLog("Request \(method) \(request.url?.absoluteString ?? "") success with response: \n\(string)", logLevel: .all)
+                            } else {
+                                apphudLog("Request \(method) \(request.url?.absoluteString ?? "") success")
+                            }
+
                         }
 
                         callback?(true, dictionary, nil, code)
                         return
                     }
-                    apphudLog("Request \(method) \(request.url?.absoluteString ?? "") failed with code \(code), error: \(error?.localizedDescription ?? "") response: \(dictionary ?? [:])", forceDisplay: true)
+
+                    if ApphudUtils.shared.logLevel == .all {
+                        apphudLog("Request \(method) \(request.url?.absoluteString ?? "") failed with code \(code), error: \(error?.localizedDescription ?? "") response: \(dictionary ?? [:])", logLevel: .all)
+                    } else {
+                        apphudLog("Request \(method) \(request.url?.absoluteString ?? "") failed with code \(code), error: \(error?.localizedDescription ?? "")")
+                    }
+
+
                     callback?(false, nil, error, code)
                 } else {
                     callback?(false, nil, error, 0)

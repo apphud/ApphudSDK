@@ -49,6 +49,16 @@ final class ApphudInternal: NSObject {
             }
         }
     }
+    internal var setNeedsToUpdateUserProperties: Bool = false {
+        didSet {
+            if setNeedsToUpdateUserProperties {
+                self.perform(#selector(updateUserProperties), with: nil, afterDelay: 1.0)
+            } else {
+                NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(updateUserProperties), object: nil)
+            }
+        }
+    }
+    internal var pendingUserProperties = [ApphudUserProperty]()
     internal var lastCheckDate = Date()
     internal var userRegisterRetriesCount: Int = 0
     internal let maxNumberOfUserRegisterRetries: Int = 10
@@ -122,7 +132,7 @@ final class ApphudInternal: NSObject {
 
     // MARK: - Initialization
 
-    internal func initialize(apiKey: String, inputUserID: String?, inputDeviceID: String? = nil) {
+    internal func initialize(apiKey: String, inputUserID: String?, inputDeviceID: String? = nil, observerMode: Bool) {
 
         guard allowInitialize == true else {
             apphudLog("Abort initializing, because Apphud SDK already initialized.", forceDisplay: true)
@@ -131,6 +141,8 @@ final class ApphudInternal: NSObject {
         allowInitialize = false
 
         apphudLog("Started Apphud SDK (\(apphud_sdk_version))", forceDisplay: true)
+
+        ApphudUtils.shared.storeKitObserverMode = observerMode
 
         ApphudStoreKitWrapper.shared.setupObserver()
 

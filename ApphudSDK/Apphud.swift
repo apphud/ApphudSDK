@@ -10,7 +10,7 @@ import UIKit
 import StoreKit
 import UserNotifications
 
-internal let apphud_sdk_version = "0.17"
+internal let apphud_sdk_version = "0.18.1"
 
 public typealias ApphudEligibilityCallback = (([String: Bool]) -> Void)
 public typealias ApphudBoolCallback = ((Bool) -> Void)
@@ -142,9 +142,10 @@ final public class Apphud: NSObject {
      
      - parameter apiKey: Required. Your api key.
      - parameter userID: Optional. You can provide your own unique user identifier. If nil passed then UUID will be generated instead.
+     - parameter observerMode: Optional. Sets SDK to Observer (Analytics) mode. If you purchase products by your own code, then pass `true`. If you purchase products using `Apphud.purchase(product)` method, then pass `false`. Default value is `false`.
      */
-    @objc public static func start(apiKey: String, userID: String? = nil) {
-        ApphudInternal.shared.initialize(apiKey: apiKey, inputUserID: userID)
+    @objc public static func start(apiKey: String, userID: String? = nil, observerMode: Bool = false) {
+        ApphudInternal.shared.initialize(apiKey: apiKey, inputUserID: userID, observerMode: observerMode)
     }
 
     /**
@@ -153,9 +154,10 @@ final public class Apphud: NSObject {
     - parameter apiKey: Required. Your api key.
     - parameter userID: Optional. You can provide your own unique user identifier. If nil passed then UUID will be generated instead.
     - parameter deviceID: Optional. You can provide your own unique device identifier. If nil passed then UUID will be generated instead.
+    - parameter observerMode: Optional. Sets SDK to Observer (Analytics) mode. If you purchase products by your own code, then pass `true`. If you purchase products using `Apphud.purchase(product)` method, then pass `false`. Default value is `false`.
     */
-    @objc public static func startManually(apiKey: String, userID: String? = nil, deviceID: String? = nil) {
-        ApphudInternal.shared.initialize(apiKey: apiKey, inputUserID: userID, inputDeviceID: deviceID)
+    @objc public static func startManually(apiKey: String, userID: String? = nil, deviceID: String? = nil, observerMode: Bool = false) {
+        ApphudInternal.shared.initialize(apiKey: apiKey, inputUserID: userID, inputDeviceID: deviceID, observerMode: observerMode)
     }
 
     /**
@@ -333,9 +335,6 @@ final public class Apphud: NSObject {
      
      __Note__: Even if callback returns some subscription, it doesn't mean that subscription is active. You should check `subscription.isActive()` value.
      
-     You should use this method in 2 cases:
-        * Upon tap on `Restore Purchases` button in your UI.
-        * To migrate existing subsribers to Apphud. If you want your current subscribers to be tracked in Apphud, call this method once at the first launch.   
      - parameter callback: Required. Returns array of subscription (or subscriptions in case you have more than one subscription group), array of standard in-app purchases and an error. All of three parameters are optional.
      */     
     @objc public static func restorePurchases(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {
@@ -365,6 +364,61 @@ final public class Apphud: NSObject {
                 callback(subscriptions, purchases, error)
             }
         }
+    }
+
+    // MARK: - User Properties
+
+    /**
+
+     Set custom user property. Value must be one of: `Int`, `Float`, `Double`, `Bool`, `String`, `NSNumber`, `NSString`, `NSNull`, `nil`.
+
+     Example:
+     ````
+     // use built-in property key
+     Apphud.setUserProperty(key: .email, value: "user4@example.com", setOnce: true)
+     // use custom property key
+     Apphud.setUserProperty(key: .init("custom_test_property_1"), value: 0.5)
+     ````
+
+     __Note__: You can use several built-in keys with their value types:
+
+     `.email`: User email. Value must be String.
+
+     `.name`: User name. Value must be String.
+
+     `.phone`: User phone number. Value must be String.
+
+     `.age`: User age. Value must be Int.
+
+     `.gender`: User gender. Value must be one of: "male", "female", "other".
+
+     `.cohort`: User install cohort. Value must be String.
+
+     - parameter key: Required. Initialize class with custom string or using built-in keys. See example above.
+     - parameter value: Required/Optional. Pass `nil` or `NSNull` to remove given property from Apphud.
+     - parameter setOnce: Optional. Pass `true` to make this property non-updatable.
+
+     */
+
+    @objc public static func setUserProperty(key: ApphudUserPropertyKey, value: Any?, setOnce: Bool = false) {
+        ApphudInternal.shared.setUserProperty(key: key, value: value, setOnce: setOnce, increment: false)
+    }
+
+    /**
+
+    Increment custom user property. Value must be one of: `Int`, `Float`, `Double` or `NSNumber`.
+
+    Example:
+    ````
+    Apphud.incrementUserProperty(key: .init("progress"), by: 0.5)
+    ````
+
+    - parameter key: Required. Use your custom string key or some of built-in keys.
+    - parameter by: Required/Optional. You can pass negative value to decrement.
+
+    */
+    @objc public static func incrementUserProperty(key: ApphudUserPropertyKey, by: Any) {
+        ApphudInternal.shared.setUserProperty(key: key, value: by, setOnce: false, increment: true)
     }
 
     // MARK: - Rules & Screens Methods
@@ -498,7 +552,7 @@ final public class Apphud: NSObject {
     }
 
     /**
-     Automatically finishes all completed (failed, purchased or restored) transactions.
+     __DEPRECATED__ .Automatically finishes all completed (failed, purchased or restored) transactions.
      
      You should call it only if you purchase products using Apphud SDK, i.e. by using `Apphud.purchase(product)` method. Do not call this method in observer (analytics) mode.
      
@@ -510,8 +564,10 @@ final public class Apphud: NSObject {
      
      __Note__: Must be called before Apphud SDK initialization.
      */
+
+    @available(*, deprecated, message: "You can safely remove this method as it's no longer needed.")
     @objc public static func setFinishAllTransactions() {
-        ApphudUtils.shared.finishTransactions = true
+        ApphudUtils.shared.storeKitObserverMode = false
     }
 
     /**
