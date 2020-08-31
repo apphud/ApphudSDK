@@ -142,7 +142,7 @@ final class ApphudInternal: NSObject {
 
         apphudLog("Started Apphud SDK (\(apphud_sdk_version))", forceDisplay: true)
 
-        ApphudUtils.shared.purchaseMode = !observerMode
+        ApphudUtils.shared.storeKitObserverMode = observerMode
 
         ApphudStoreKitWrapper.shared.setupObserver()
 

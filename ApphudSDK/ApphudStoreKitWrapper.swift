@@ -61,14 +61,14 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     }
 
     func purchase(product: SKProduct, callback: @escaping ApphudTransactionCallback) {
-        ApphudUtils.shared.purchaseMode = true
+        ApphudUtils.shared.storeKitObserverMode = false
         let payment = SKMutablePayment(product: product)
         purchase(payment: payment, callback: callback)
     }
 
     @available(iOS 12.2, *)
     func purchase(product: SKProduct, discount: SKPaymentDiscount, callback: @escaping ApphudTransactionCallback) {
-        ApphudUtils.shared.purchaseMode = true
+        ApphudUtils.shared.storeKitObserverMode = false
         let payment = SKMutablePayment(product: product)
         payment.paymentDiscount = discount
         purchase(payment: payment, callback: callback)
@@ -91,9 +91,9 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
             for trx in transactions {
                 switch trx.transactionState {
                 case .purchasing:
-                    if self.purchasingProductID == nil && ApphudUtils.shared.purchaseMode == true {
-                        apphudLog("Seems like Observer Mode is OFF however purchase is not being made through Apphud SDK. Please make sure you set ObserverMode to FALSE when initialising Apphud SDK. As for now, force enabling observer mode..", logLevel: .off)
-                        ApphudUtils.shared.purchaseMode = false
+                    if self.purchasingProductID == nil && ApphudUtils.shared.storeKitObserverMode == false {
+                        apphudLog("Seems like Observer Mode is False however purchase is not being made through Apphud SDK. Please make sure you set ObserverMode to True when initialising Apphud SDK. As for now, force enabling observer mode..", logLevel: .off)
+                        ApphudUtils.shared.storeKitObserverMode = true
                     }
                 case .purchased, .failed:
                     self.handleTransactionIfStarted(trx)
@@ -103,7 +103,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
                      Will not finish transaction, because we didn't start it. Developer should finish transaction manually.
                      */
                     ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: true)
-                    if ApphudUtils.shared.purchaseMode {
+                    if !ApphudUtils.shared.storeKitObserverMode {
                         // force finish transaction
                         self.finishTransaction(trx)
                     }
@@ -133,7 +133,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
             if transaction.transactionState == .purchased || transaction.failedWithUnknownReason {
                 ApphudInternal.shared.submitReceiptAutomaticPurchaseTracking(transaction: transaction)
             }
-            if ApphudUtils.shared.purchaseMode {
+            if !ApphudUtils.shared.storeKitObserverMode {
                 // force finish transaction
                 finishTransaction(transaction)
             }

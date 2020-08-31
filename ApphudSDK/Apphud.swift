@@ -10,7 +10,7 @@ import UIKit
 import StoreKit
 import UserNotifications
 
-internal let apphud_sdk_version = "0.18"
+internal let apphud_sdk_version = "0.18.1"
 
 public typealias ApphudEligibilityCallback = (([String: Bool]) -> Void)
 public typealias ApphudBoolCallback = ((Bool) -> Void)
@@ -142,6 +142,7 @@ final public class Apphud: NSObject {
      
      - parameter apiKey: Required. Your api key.
      - parameter userID: Optional. You can provide your own unique user identifier. If nil passed then UUID will be generated instead.
+     - parameter observerMode: Optional. Sets SDK to Observer (Analytics) mode. If you purchase products by your own code, then pass `true`. If you purchase products using `Apphud.purchase(product)` method, then pass `false`. Default value is `false`.
      */
     @objc public static func start(apiKey: String, userID: String? = nil, observerMode: Bool = false) {
         ApphudInternal.shared.initialize(apiKey: apiKey, inputUserID: userID, observerMode: observerMode)
@@ -153,6 +154,7 @@ final public class Apphud: NSObject {
     - parameter apiKey: Required. Your api key.
     - parameter userID: Optional. You can provide your own unique user identifier. If nil passed then UUID will be generated instead.
     - parameter deviceID: Optional. You can provide your own unique device identifier. If nil passed then UUID will be generated instead.
+    - parameter observerMode: Optional. Sets SDK to Observer (Analytics) mode. If you purchase products by your own code, then pass `true`. If you purchase products using `Apphud.purchase(product)` method, then pass `false`. Default value is `false`.
     */
     @objc public static func startManually(apiKey: String, userID: String? = nil, deviceID: String? = nil, observerMode: Bool = false) {
         ApphudInternal.shared.initialize(apiKey: apiKey, inputUserID: userID, inputDeviceID: deviceID, observerMode: observerMode)
@@ -565,7 +567,7 @@ final public class Apphud: NSObject {
 
     @available(*, deprecated, message: "You can safely remove this method as it's no longer needed.")
     @objc public static func setFinishAllTransactions() {
-        ApphudUtils.shared.purchaseMode = true
+        ApphudUtils.shared.storeKitObserverMode = false
     }
 
     /**
