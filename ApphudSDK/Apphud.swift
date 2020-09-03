@@ -142,7 +142,7 @@ final public class Apphud: NSObject {
      
      - parameter apiKey: Required. Your api key.
      - parameter userID: Optional. You can provide your own unique user identifier. If nil passed then UUID will be generated instead.
-     - parameter observerMode: Optional. Sets SDK to Observer (Analytics) mode. If you purchase products by your own code, then pass `true`. If you purchase products using `Apphud.purchase(product)` method, then pass `false`. Default value is `false`.
+     - parameter observerMode: Optional. Sets SDK to Observer (Analytics) mode. If you purchase products by your own code, then pass `true`. If you purchase products using `Apphud.purchase(product)` method, then pass `false`. Default value is `false`. If you were previously calling `Apphud.setFinishTransactions()`, then you can safely remove that method and pass here `observerMode as false`.
      */
     @objc public static func start(apiKey: String, userID: String? = nil, observerMode: Bool = false) {
         ApphudInternal.shared.initialize(apiKey: apiKey, inputUserID: userID, observerMode: observerMode)
