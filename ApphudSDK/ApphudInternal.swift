@@ -21,8 +21,8 @@ final class ApphudInternal: NSObject {
 
     // MARK: - Private properties
     private var userRegisteredCallbacks = [ApphudVoidCallback]()
-    private var allowInitialize = true
     private var addedObservers = false
+    private var allowIdentifyUser = true
 
     // MARK: - Receipt and products properties
     internal var productsFetchRetriesCount: Int = 0
@@ -134,17 +134,25 @@ final class ApphudInternal: NSObject {
 
     internal func initialize(apiKey: String, inputUserID: String?, inputDeviceID: String? = nil, observerMode: Bool) {
 
-        guard allowInitialize == true else {
-            apphudLog("Abort initializing, because Apphud SDK already initialized.", forceDisplay: true)
+        if httpClient == nil {
+            ApphudStoreKitWrapper.shared.setupObserver()
+            httpClient = ApphudHttpClient.shared
+            httpClient.apiKey = apiKey
+            apphudLog("Started Apphud SDK (\(apphud_sdk_version))", forceDisplay: true)
+        }
+
+        guard allowIdentifyUser == true else {
+            apphudLog("Abort initializing, because Apphud SDK already initialized. You can only call `Apphud.start()` once per app lifecycle. Or if `Apphud.logout()` was called previously.", forceDisplay: true)
             return
         }
-        allowInitialize = false
+        allowIdentifyUser = false
 
-        apphudLog("Started Apphud SDK (\(apphud_sdk_version))", forceDisplay: true)
+        identify(inputUserID: inputUserID, inputDeviceID: inputDeviceID, observerMode: observerMode)
+    }
+
+    internal func identify(inputUserID: String?, inputDeviceID: String? = nil, observerMode: Bool) {
 
         ApphudUtils.shared.storeKitObserverMode = observerMode
-
-        ApphudStoreKitWrapper.shared.setupObserver()
 
         var deviceID = ApphudKeychain.loadDeviceID()
 
@@ -152,15 +160,14 @@ final class ApphudInternal: NSObject {
             deviceID = inputDeviceID
         }
 
+        let generatedUUID: String = ApphudKeychain.generateUUID()
+
         if deviceID == nil {
-            deviceID = ApphudKeychain.generateUUID()
+            deviceID = generatedUUID
             ApphudKeychain.saveDeviceID(deviceID: deviceID!)
         }
 
         self.currentDeviceID = deviceID!
-
-        self.httpClient = ApphudHttpClient.shared
-        self.httpClient.apiKey = apiKey
 
         self.currentUser = ApphudUser.fromCache()
         let userIDFromKeychain = ApphudKeychain.loadUserID()
@@ -172,7 +179,7 @@ final class ApphudInternal: NSObject {
         } else if userIDFromKeychain != nil {
             self.currentUserID = userIDFromKeychain!
         } else {
-            self.currentUserID = ApphudKeychain.generateUUID()
+            self.currentUserID = generatedUUID
         }
 
         if self.currentUserID != userIDFromKeychain {
@@ -186,9 +193,11 @@ final class ApphudInternal: NSObject {
         }
     }
 
-    internal func resetUser() {
+    internal func logout() {
         ApphudUser.clearCache()
         ApphudKeychain.resetValues()
+        allowIdentifyUser = true
+        apphudLog("User logged out. Apphud SDK is uninitialized.", logLevel: .all)
     }
 
     @objc internal func continueToRegisteringUser() {

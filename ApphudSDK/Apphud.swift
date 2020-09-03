@@ -10,7 +10,7 @@ import UIKit
 import StoreKit
 import UserNotifications
 
-internal let apphud_sdk_version = "0.18.1"
+internal let apphud_sdk_version = "0.18.2"
 
 public typealias ApphudEligibilityCallback = (([String: Bool]) -> Void)
 public typealias ApphudBoolCallback = ((Bool) -> Void)
@@ -149,7 +149,7 @@ final public class Apphud: NSObject {
     }
 
     /**
-    Initializes Apphud SDK with Device ID parameter. Not recommended for use unless you know what you are doing.
+    Initializes Apphud SDK with User ID & Device ID pair. Not recommended for use unless you know what you are doing.
 
     - parameter apiKey: Required. Your api key.
     - parameter userID: Optional. You can provide your own unique user identifier. If nil passed then UUID will be generated instead.
@@ -175,6 +175,24 @@ final public class Apphud: NSObject {
      */
     @objc public static func userID() -> String {
         return ApphudInternal.shared.currentUserID
+    }
+
+    /**
+     Returns current device ID. You should use it only if you want to implement custom logout/login flow by saving User ID & Device ID pair for each app user.
+     */
+    @objc public static func deviceID() -> String {
+        return ApphudInternal.shared.currentDeviceID
+    }
+
+    /**
+     Logs out current user, clears all saved data and resets SDK to uninitialized state. You will need to call `Apphud.start()` or `Apphud.startManually()` again to initilize SDK with a new user.
+
+     This might be useful if you have your custom logout/login flow and you want to take control of each logged-in user's subscription status.
+
+     __Note__: If previous user had active subscription, the new logged-in user can still restore purchases on this device and both users will be merged under the previous paid one, because Apple ID is tied to a device.
+     */
+    @objc public static func logout() {
+        ApphudInternal.shared.logout()
     }
 
     /**
