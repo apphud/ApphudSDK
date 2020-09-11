@@ -10,7 +10,7 @@ import UIKit
 import StoreKit
 import UserNotifications
 
-internal let apphud_sdk_version = "0.18.2"
+internal let apphud_sdk_version = "0.18.3"
 
 public typealias ApphudEligibilityCallback = (([String: Bool]) -> Void)
 public typealias ApphudBoolCallback = ((Bool) -> Void)
@@ -489,7 +489,19 @@ final public class Apphud: NSObject {
      Submit Advertising Identifier (IDFA) to Apphud. This is used to properly match user with attribution platforms (AppsFlyer, Facebook, etc.)
      */
     @objc public static func setAdvertisingIdentifier(_ idfa: String) {
-        ApphudInternal.shared.advertisingIdentifier = idfa
+        /*
+         Temporarily disabled. IDFA is now being collected automatically again, until the next year. You can still disable automatic collection with the `disableIDFACollection` method.
+         */
+//        ApphudInternal.shared.advertisingIdentifier = idfa
+    }
+
+    /**
+     Opt out of IDFA collection. Currently we collect IDFA to match users between Apphud and attribution platforms (AppsFlyer, Branch). If you don't use and not planning to use such services, you can call this method.
+
+     __Note__: This method must be called before Apphud SDK initialization.
+     */
+    @objc public static func disableIDFACollection() {
+        ApphudUtils.shared.optOutOfIDFACollection = true
     }
 
     /**

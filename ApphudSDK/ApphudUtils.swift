@@ -33,6 +33,7 @@ public class ApphudUtils: NSObject {
     internal static let shared = ApphudUtils()
     private(set) var logLevel: ApphudLogLevel = .off
     internal var storeKitObserverMode = false
+    internal var optOutOfIDFACollection = false
 }
 
 internal func apphudLog(_ text: String, forceDisplay: Bool = false) {
