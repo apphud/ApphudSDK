@@ -96,13 +96,12 @@ internal func apphudCurrentDeviceParameters() -> [String: String] {
 }
 
 internal func apphudIdentifierForAdvertising() -> String? {
-    // Check whether advertising tracking is enabled
-    guard ASIdentifierManager.shared().isAdvertisingTrackingEnabled else {
+    let idfa = ASIdentifierManager.shared().advertisingIdentifier.uuidString
+    if idfa == "00000000-0000-0000-0000-000000000000" {
         return nil
+    } else {
+        return idfa
     }
-
-    // Get and return IDFA
-    return ASIdentifierManager.shared().advertisingIdentifier.uuidString
 }
 
 extension UIDevice {

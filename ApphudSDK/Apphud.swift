@@ -10,7 +10,7 @@ import UIKit
 import StoreKit
 import UserNotifications
 
-internal let apphud_sdk_version = "0.18.3"
+internal let apphud_sdk_version = "0.18.4"
 
 public typealias ApphudEligibilityCallback = (([String: Bool]) -> Void)
 public typealias ApphudBoolCallback = ((Bool) -> Void)
