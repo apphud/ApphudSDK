@@ -10,7 +10,7 @@ import UIKit
 import StoreKit
 import UserNotifications
 
-internal let apphud_sdk_version = "0.18.4"
+internal let apphud_sdk_version = "0.18.5"
 
 public typealias ApphudEligibilityCallback = (([String: Bool]) -> Void)
 public typealias ApphudBoolCallback = ((Bool) -> Void)
@@ -119,6 +119,7 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
 }
 
 /// List of available attribution providers
+/// has to make Int in order to support Objective-C
 @objc public enum ApphudAttributionProvider: Int {
     case appsFlyer
     case adjust
@@ -130,6 +131,18 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
      
      case branch
      */
+    func toString() -> String {
+        switch self {
+        case .appsFlyer:
+            return "AppsFlyer"
+        case .adjust:
+            return "Adjust"
+        case .facebook:
+            return "Facebook"
+        case .appleSearchAds:
+            return "Apple Search Ads"
+        }
+    }
 }
 
 // MARK: - Initialization

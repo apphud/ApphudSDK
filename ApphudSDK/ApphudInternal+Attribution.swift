@@ -84,12 +84,19 @@ extension ApphudInternal {
                     break
                 }
 
+                if result {
+                    apphudLog("Did send \(provider.toString()) attribution data to Apphud!")
+                } else {
+                    apphudLog("Failed to send \(provider.toString()) attribution data to Apphud!")
+                }
+
                 callback?(result)
             }
         }
     }
 
     @objc internal func forceSendAttributionDataIfNeeded() {
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(forceSendAttributionDataIfNeeded), object: nil)
         automaticallySubmitAppsFlyerAttributionIfNeeded()
         automaticallySubmitAdjustAttributionIfNeeded()
         automaticallySubmitFacebookAttributionIfNeeded()

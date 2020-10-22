@@ -213,6 +213,7 @@ final class ApphudInternal: NSObject {
                 apphudLog("User successfully registered with id: \(self.currentUserID)", forceDisplay: true)
                 self.performAllUserRegisteredBlocks()
                 self.checkForUnreadNotifications()
+                self.perform(#selector(self.forceSendAttributionDataIfNeeded), with: nil, afterDelay: 10.0)
             } else {
                 self.scheduleUserRegistering()
             }

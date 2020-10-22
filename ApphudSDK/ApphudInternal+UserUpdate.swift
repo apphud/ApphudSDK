@@ -85,7 +85,8 @@ extension ApphudInternal {
         guard let priceLocale = priceLocale else { return }
         guard let countryCode = priceLocale.regionCode else { return }
         guard let currencyCode = priceLocale.currencyCode else { return }
-
+        guard self.currentUser != nil else { return }
+        
         if countryCode == self.currentUser?.countryCode && currencyCode == self.currentUser?.currencyCode {return}
 
         let params: [String: String] = ["country_code": countryCode, "currency_code": currencyCode]
