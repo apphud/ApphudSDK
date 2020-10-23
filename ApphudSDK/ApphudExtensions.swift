@@ -129,7 +129,6 @@ internal func apphudIsAppsFlyerSDKIntegrated() -> Bool {
         }
     }
 
-
     let klass: AnyClass? = NSClassFromString("AppsFlyerTracker")
     let managerClass = klass as AnyObject as? NSObjectProtocol
 
@@ -217,6 +216,28 @@ internal func apphudNeedsToCollectFBAnonID() -> Bool {
 
 internal func apphudIsFBSDKIntegrated() -> Bool {
     return NSClassFromString("FBSDKAppEvents") != nil || NSClassFromString("FBSDKBasicUtility") != nil
+}
+
+internal func apphudGetFBExtInfo() -> String? {
+
+    let klass: AnyClass? = NSClassFromString("FBSDKAppEventsDeviceInfo")
+    let managerClass = klass as AnyObject as? NSObjectProtocol
+
+    let sel = NSSelectorFromString("sharedDeviceInfo")
+    if managerClass?.responds(to: sel) ?? false {
+        let value = managerClass?.perform(sel)
+        if let shared = value?.takeUnretainedValue() as? NSObject {
+            let selInfo = NSSelectorFromString("encodedDeviceInfo")
+            if shared.responds(to: selInfo) {
+                let value = shared.perform(selInfo)
+                if let encodedString = value?.takeUnretainedValue() as? String, encodedString.count > 0 {
+                    return encodedString
+                }
+            }
+        }
+    }
+
+    return nil
 }
 
 internal func apphudGetFBAnonID() -> String? {

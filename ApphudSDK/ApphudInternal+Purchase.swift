@@ -113,7 +113,7 @@ extension ApphudInternal {
 
         apphudLog("Uploading App Store Receipt...")
 
-        httpClient.startRequest(path: "subscriptions", params: params, method: .post) { (result, response, error, code) in
+        httpClient.startRequest(path: "subscriptions", params: params, method: .post) { (result, response, error, _) in
             self.forceSendAttributionDataIfNeeded()
             self.isSubmittingReceipt = false
             self.handleSubmitReceiptCallback(result: result, response: response, error: error, notifyDelegate: notifyDelegate)

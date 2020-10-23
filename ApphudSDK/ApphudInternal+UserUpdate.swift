@@ -86,7 +86,7 @@ extension ApphudInternal {
         guard let countryCode = priceLocale.regionCode else { return }
         guard let currencyCode = priceLocale.currencyCode else { return }
         guard self.currentUser != nil else { return }
-        
+
         if countryCode == self.currentUser?.countryCode && currencyCode == self.currentUser?.currencyCode {return}
 
         let params: [String: String] = ["country_code": countryCode, "currency_code": currencyCode]
@@ -195,7 +195,7 @@ extension ApphudInternal {
             }
         }
         params["properties"] = properties
-        httpClient.startRequest(path: "customers/properties", params: params, method: .post) { (result, response, error, code) in
+        httpClient.startRequest(path: "customers/properties", params: params, method: .post) { (result, _, error, code) in
             if result {
                 self.pendingUserProperties.removeAll()
                 apphudLog("User Properties successfully updated.")

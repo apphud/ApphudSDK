@@ -52,6 +52,9 @@ extension ApphudInternal {
                 if apphudNeedsToCollectFBAnonID(), let anonID = apphudGetFBAnonID() {
                     hash["anon_id"] = anonID
                 }
+                if let extInfo = apphudGetFBExtInfo() {
+                    hash["extinfo"] = extInfo
+                }
                 if data != nil {
                     hash.merge(data!, uniquingKeysWith: {_, new in new})
                 }

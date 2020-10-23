@@ -291,7 +291,7 @@ class ApphudScreenController: UIViewController {
             self.startLoading()
 
             ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(product: product, offerID: nil, screenName: self.rule.screen_name)
-            
+
             ApphudInternal.shared.purchase(product: product) { (result) in
                 self.handlePurchaseResult(product: product, result: result)
             }

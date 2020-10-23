@@ -201,7 +201,6 @@ public class ApphudHttpClient {
                         apphudLog("Request \(method) \(request.url?.absoluteString ?? "") failed with code \(code), error: \(error?.localizedDescription ?? "")")
                     }
 
-
                     callback?(false, nil, error, code)
                 } else {
                     callback?(false, nil, error, 0)
