@@ -32,7 +32,7 @@ final class ApphudInternal: NSObject {
     internal var productsGroupsMap: [String: String]?
 
     internal var submitReceiptRetriesCount: Int = 0
-    internal var submitReceiptCallback: ((Error?) -> Void)?
+    internal var submitReceiptCallbacks = [ApphudErrorCallback?]()
     internal var restorePurchasesCallback: (([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void)?
     internal var isSubmittingReceipt: Bool = false
 

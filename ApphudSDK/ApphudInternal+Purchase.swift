@@ -85,10 +85,14 @@ extension ApphudInternal {
         }
     }
 
-    internal func submitReceipt(product: SKProduct?, transaction: SKPaymentTransaction?, receiptString: String, notifyDelegate: Bool, callback: ((Error?) -> Void)?) {
+    internal func submitReceipt(product: SKProduct?, transaction: SKPaymentTransaction?, receiptString: String, notifyDelegate: Bool, shouldAppendCallback: Bool = false, callback: ApphudErrorCallback?) {
 
         if callback != nil {
-            self.submitReceiptCallback = callback
+            if shouldAppendCallback {
+                self.submitReceiptCallbacks.append(callback)
+            } else {
+                self.submitReceiptCallbacks = [callback]
+            }
         }
 
         if isSubmittingReceipt {return}
@@ -140,8 +144,8 @@ extension ApphudInternal {
             apphudLog("Failed to upload App Store Receipt, will retry in \(delay) seconds.", forceDisplay: true)
         }
 
-        self.submitReceiptCallback?(error)
-        self.submitReceiptCallback = nil
+        self.submitReceiptCallbacks.forEach { callback in callback?(error)}
+        self.submitReceiptCallbacks.removeAll()
     }
 
     internal func purchase(product: SKProduct, callback: ((ApphudPurchaseResult) -> Void)?) {

@@ -11,6 +11,7 @@ import StoreKit
 import AdSupport
 
 typealias ApphudVoidCallback = (() -> Void)
+typealias ApphudErrorCallback = ((Error?) -> Void)
 
 internal func apphudVisibleViewController() -> UIViewController? {
     var currentVC = UIApplication.shared.keyWindow?.rootViewController
