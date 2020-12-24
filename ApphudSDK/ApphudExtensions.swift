@@ -43,7 +43,6 @@ private func apphudIsSimulator() -> Bool {
 
 internal func apphudDidMigrate() {
     UserDefaults.standard.set(true, forKey: "ApphudSubscriptionsMigrated")
-    UserDefaults.standard.synchronize()
 }
 
 internal func apphudShouldMigrate() -> Bool {
@@ -52,7 +51,6 @@ internal func apphudShouldMigrate() -> Bool {
 
 internal func apphudToUserDefaultsCache(dictionary: [String: String], key: String) {
     UserDefaults.standard.set(dictionary, forKey: key)
-    UserDefaults.standard.synchronize()
 }
 
 internal func apphudFromUserDefaultsCache(key: String) -> [String: String]? {
