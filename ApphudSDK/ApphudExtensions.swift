@@ -274,7 +274,7 @@ internal func apphudReceiptDataString() -> String? {
     }
     var receiptData: Data?
     do {
-        receiptData = try Data(contentsOf: appStoreReceiptURL)
+        receiptData = try Data(contentsOf: appStoreReceiptURL, options: .alwaysMapped)
     } catch {}
 
     let string = receiptData?.base64EncodedString()
