@@ -204,6 +204,9 @@ final class ApphudInternal: NSObject {
         guard !isRegisteringUser else {return}
         isRegisteringUser = true
 
+        // try to continue anyway, because maybe already has cached data, try to fetch storekit products
+        self.continueToFetchProducts()
+        
         createOrGetUser(shouldUpdateUserID: true) { success in
 
             self.isRegisteringUser = false
@@ -217,8 +220,6 @@ final class ApphudInternal: NSObject {
             } else {
                 self.scheduleUserRegistering()
             }
-            // try to continue anyway, because maybe already has cached data, try to fetch storekit products
-            self.continueToFetchProducts()
         }
     }
 

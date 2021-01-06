@@ -46,22 +46,18 @@ extension ApphudInternal {
             return
         }
         ApphudStoreKitWrapper.shared.fetchProducts(identifiers: Set(self.productsGroupsMap!.keys)) { _ in
-            self.continueToUpdateProductPricesIfNeeded()
+            self.continueToUpdateCurrencyIfNeeded()
         }
     }
 
-    private func continueToUpdateProductPricesIfNeeded() {
-        guard !didSubmitProductPrices else {return}
-        let products = ApphudStoreKitWrapper.shared.products
-        if products.count > 0 {
-            self.updateUserCurrencyIfNeeded(priceLocale: products.first?.priceLocale)
-            self.continueToUpdateProductsPrices(products: products)
-            didSubmitProductPrices = true
+    private func continueToUpdateCurrencyIfNeeded() {
+        guard let locale = ApphudStoreKitWrapper.shared.products.first?.priceLocale else {
+            return
         }
-    }
-
-    private func continueToUpdateProductsPrices(products: [SKProduct]) {
-        self.submitProducts(products: products) { (_, _, _, _) in }
+        
+        self.performWhenUserRegistered {
+            self.updateUserCurrencyIfNeeded(priceLocale: locale)
+        }
     }
 
     internal func refreshStoreKitProductsWithCallback(callback: (([SKProduct]) -> Void)?) {
@@ -95,17 +91,5 @@ extension ApphudInternal {
                 callback(nil)
             }
         }
-    }
-
-    private func submitProducts(products: [SKProduct], callback: ApphudHTTPResponseCallback?) {
-        var array = [[String: Any]]()
-        for product in products {
-            let productParams: [String: Any] = product.apphudSubmittableParameters()
-            array.append(productParams)
-        }
-
-        let params = ["products": array] as [String: Any]
-
-        httpClient.startRequest(path: "products", params: params, method: .put, callback: callback)
     }
 }
