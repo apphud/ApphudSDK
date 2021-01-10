@@ -61,6 +61,12 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
      You must return a callback block which will be called when a payment is finished. If you don't implement this method or return `nil` then a payment will not start; you can also save the product and return `nil` to initiate a payment later by yourself. Read Apple documentation for details: https://developer.apple.com/documentation/storekit/in-app_purchase/promoting_in-app_purchases
      */
     @objc optional func apphudShouldStartAppStoreDirectPurchase(_ product: SKProduct) -> ((ApphudPurchaseResult) -> Void)?
+    
+    /**
+        Specify a list of product identifiers to fetch from the App Store.
+        This is optional method. If you don't implement this method, then product identifiers will be fetched from Apphud.
+     */
+    @objc optional func apphudProductIdentifiers() -> [String]
 }
 
 @objc public protocol ApphudUIDelegate {
