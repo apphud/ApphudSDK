@@ -136,6 +136,18 @@ class ViewController: UITableViewController {
             self.reload()
         }
     }
+    
+    func purchaseWithoutValidation(product: SKProduct) {
+        Apphud.purchaseWithoutValidation(product) { result in
+            if result.error != nil {
+                print("Purchase error: \(result.error?.localizedDescription ?? "")")
+            } else {
+                print("Purchase result: \(result.transaction?.transactionState.rawValue), trx_id: \(result.transaction?.transactionIdentifier)")
+            }
+
+            self.reload()
+        }
+    }
 }
 
 extension ViewController: ApphudDelegate {

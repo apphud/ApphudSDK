@@ -295,12 +295,12 @@ final public class Apphud: NSObject {
     /**
     Purchases product and automatically submits App Store Receipt to Apphud. This method doesn't wait until Apphud validates receipt from Apple and immediately returns transaction object. This method may be useful if you don't care about receipt validation in callback. 
     
-     __Note__:  You are not required to purchase product using Apphud SDK methods. You can purchase subscription or any in-app purchase using your own code. App Store receipt will be sent to Apphud anyway.
+     __Note__: When using this method properties `subscription` and `nonRenewingPurchase` in `ApphudPurchaseResult` will always be `nil` !
      
     - parameter product: Required. This is an `SKProduct` object that user wants to purchase.
-    - parameter callback: Optional. Returns optional `SKPaymentTransaction` object and an optional error.
+    - parameter callback: Optional. Returns `ApphudPurchaseResult` object.
     */
-    @objc public static func purchaseWithoutValidation(_ product: SKProduct, callback: ((SKPaymentTransaction, Error?) -> Void)?) {
+    @objc public static func purchaseWithoutValidation(_ product: SKProduct, callback: ((ApphudPurchaseResult) -> Void)?) {
         ApphudInternal.shared.purchaseWithoutValidation(product: product, callback: callback)
     }
 

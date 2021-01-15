@@ -156,10 +156,10 @@ extension ApphudInternal {
         }
     }
 
-    internal func purchaseWithoutValidation(product: SKProduct, callback: ApphudTransactionCallback?) {
+    internal func purchaseWithoutValidation(product: SKProduct, callback: ((ApphudPurchaseResult) -> Void)?) {
         ApphudStoreKitWrapper.shared.purchase(product: product) { transaction, error in
             self.handleTransaction(product: product, transaction: transaction, error: error, callback: nil)
-            callback?(transaction, error)
+            callback?(ApphudPurchaseResult(nil, nil, transaction, error))
         }
     }
 

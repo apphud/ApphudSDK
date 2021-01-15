@@ -18,12 +18,12 @@ import StoreKit
 public class ApphudPurchaseResult: NSObject {
 
     /**
-     Autorenewable subscription object. May be nil if error occurred or if non renewing product purchased instead.
+     Autorenewable subscription object. May be nil if error occurred or if non renewing product purchased instead. Nil if `purchaseWithoutValidation` method called.
      */
     @objc public let subscription: ApphudSubscription?
 
     /**
-     Standard in-app purchase (non-consumable, consumable or non-renewing subscription) object. May be nil if error occurred or if auto-renewable subscription purchased instead.
+     Standard in-app purchase (non-consumable, consumable or non-renewing subscription) object. May be nil if error occurred or if auto-renewable subscription purchased instead. Nil if `purchaseWithoutValidation` method called.
      */
     @objc public let nonRenewingPurchase: ApphudNonRenewingPurchase?
 
