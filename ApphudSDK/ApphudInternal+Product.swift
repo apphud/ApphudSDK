@@ -38,6 +38,9 @@ extension ApphudInternal {
     }
 
     fileprivate func scheduleProductsFetchRetry() {
+        guard httpClient.canRetry else {
+            return
+        }
         guard productsFetchRetriesCount < maxNumberOfProductsFetchRetries else {
             apphudLog("Reached max number of product fetch retries \(productsFetchRetriesCount). Exiting..", forceDisplay: true)
             return

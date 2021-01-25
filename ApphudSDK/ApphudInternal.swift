@@ -224,6 +224,9 @@ final class ApphudInternal: NSObject {
     }
 
     private func scheduleUserRegistering() {
+        guard httpClient.canRetry else {
+            return
+        }
         guard userRegisterRetriesCount < maxNumberOfUserRegisterRetries else {
             apphudLog("Reached max number of user register retries \(userRegisterRetriesCount). Exiting..", forceDisplay: true)
             return

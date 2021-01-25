@@ -138,14 +138,21 @@ extension ApphudInternal {
                 }
             }
         } else {
-            submitReceiptRetriesCount += 1
-            let delay: TimeInterval = TimeInterval(submitReceiptRetriesCount * 5)
-            perform(#selector(submitAppStoreReceipt), with: nil, afterDelay: delay)
-            apphudLog("Failed to upload App Store Receipt, will retry in \(delay) seconds.", forceDisplay: true)
+            scheduleSubmitReceiptRetry()
         }
 
         self.submitReceiptCallbacks.forEach { callback in callback?(error)}
         self.submitReceiptCallbacks.removeAll()
+    }
+    
+    internal func scheduleSubmitReceiptRetry() {
+        guard httpClient.canRetry else {
+            return
+        }
+        submitReceiptRetriesCount += 1
+        let delay: TimeInterval = TimeInterval(submitReceiptRetriesCount * 5)
+        perform(#selector(submitAppStoreReceipt), with: nil, afterDelay: delay)
+        apphudLog("Failed to upload App Store Receipt, will retry in \(delay) seconds.", forceDisplay: true)
     }
 
     internal func purchase(product: SKProduct, callback: ((ApphudPurchaseResult) -> Void)?) {

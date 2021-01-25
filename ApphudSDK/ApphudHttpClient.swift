@@ -37,6 +37,13 @@ public class ApphudHttpClient {
 
     internal var apiKey: String = ""
 
+    internal var canRetry: Bool {
+        !invalidAPiKey && !unauthorized
+    }
+    
+    private var invalidAPiKey: Bool = false
+    private var unauthorized: Bool = false
+    
     private let session: URLSession = {
         let config = URLSessionConfiguration.default
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
@@ -193,6 +200,14 @@ public class ApphudHttpClient {
 
                         callback?(true, dictionary, nil, code)
                         return
+                    }
+                    
+                    if code == 401 {
+                        self.invalidAPiKey = true
+                        apphudLog("Unable to perform API requests, because your API Key is invalid.", forceDisplay: true)
+                    } else if code == 403 {
+                        self.unauthorized = true
+                        apphudLog("Unable to perform API requests, because your account has been suspended.", forceDisplay: true)
                     }
 
                     if ApphudUtils.shared.logLevel == .all {

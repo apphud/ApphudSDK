@@ -63,8 +63,10 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
     @objc optional func apphudShouldStartAppStoreDirectPurchase(_ product: SKProduct) -> ((ApphudPurchaseResult) -> Void)?
     
     /**
-        Specify a list of product identifiers to fetch from the App Store.
-        This is optional method. If you don't implement this method, then product identifiers will be fetched from Apphud.
+        Optional. Specify a list of product identifiers to fetch from the App Store.
+        If you don't implement this method, then product identifiers will be fetched from Apphud servers.
+     
+        Implementing this delegate method gives you more reliabality on fetching products and a little more speed on loading due to skipping Apphud request, but also gives less flexibility because you have to hardcode product identifiers this way.
      */
     @objc optional func apphudProductIdentifiers() -> [String]
 }
