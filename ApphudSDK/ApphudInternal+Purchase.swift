@@ -107,6 +107,9 @@ extension ApphudInternal {
         if let transactionID = transaction?.transactionIdentifier {
             params["transaction_id"] = transactionID
         }
+        if let bundleID = Bundle.main.bundleIdentifier {
+            params["bundle_id"] = bundleID
+        }
         if let product = product {
             params["product_info"] = product.apphudSubmittableParameters()
         } else if let productID = transaction?.payment.productIdentifier, let product = ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == productID}) {
