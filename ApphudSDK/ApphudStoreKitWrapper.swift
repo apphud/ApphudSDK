@@ -219,6 +219,9 @@ private class ApphudProductsFetcher: NSObject, SKProductsRequestDelegate {
             if response.invalidProductIdentifiers.count > 0 {
                 apphudLog("Failed to load SKProducts from the App Store, because product identifiers are invalid:\n \(response.invalidProductIdentifiers)", forceDisplay: true)
             }
+            if response.products.count > 0 {
+                apphudLog("Successfully fetched SKProducts from the App Store:\n \(response.products.map{ $0.productIdentifier })")
+            }
             self.callback = nil
             self.productsRequest = nil
         }

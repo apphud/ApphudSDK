@@ -211,7 +211,8 @@ final class ApphudInternal: NSObject {
 
             self.isRegisteringUser = false
             self.setupObservers()
-
+            self.checkPendingRules()
+            
             if success {
                 apphudLog("User successfully registered with id: \(self.currentUserID)", forceDisplay: true)
                 self.performAllUserRegisteredBlocks()
@@ -246,14 +247,18 @@ final class ApphudInternal: NSObject {
         }
     }
 
+    private func checkPendingRules() {
+        performWhenUserRegistered {
+            ApphudRulesManager.shared.handlePendingAPSInfo()
+        }
+    }
+    
     @objc private func handleDidBecomeActive() {
 
         let minCheckInterval: Double = 30
 
-        performWhenUserRegistered {
-            ApphudRulesManager.shared.handlePendingAPSInfo()
-        }
-
+        checkPendingRules()
+        
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             if self.currentUser == nil {
                 self.continueToRegisteringUser()

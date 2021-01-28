@@ -33,18 +33,18 @@ internal class ApphudRulesManager {
         self.apsInfo = apsInfo
         self.handledRules.append(rule_id)
 
-        if UIApplication.shared.applicationState == .active {
-            self.handlePendingAPSInfo()
-        } else {
-            // do nothing, because ApphudInternal will call once app is active
-            apphudLog("Got APS info, but app is not yet active, waiting for app to be active, then will handle push notification.", forceDisplay: true)
-        }
+        self.handlePendingAPSInfo()
 
         return true
     }
 
     @objc internal func handlePendingAPSInfo() {
 
+        guard UIApplication.shared.applicationState == .active else {
+            apphudLog("Got APS info, but app is not yet active, waiting for app to be active, then will handle push notification.", forceDisplay: true)
+            return
+        }
+        
         guard let rule_id = apsInfo?["rule_id"] as? String else {
             return
         }
