@@ -99,12 +99,12 @@ public class ApphudSubscription: NSObject {
 
     /// Subscription private initializer
     init?(dictionary: [String: Any]) {
-        guard let expDate = ApphudSubscription.dateFrom(dictionary["expires_at"]) else {return nil}
+        guard let expDate = (dictionary["expires_at"] as? String ?? "").apphudIsoDate else {return nil}
         id = dictionary["id"] as? String ?? ""
         expiresDate = expDate
         productId = dictionary["product_id"] as? String ?? ""
-        canceledAt = ApphudSubscription.dateFrom(dictionary["cancelled_at"])
-        startedAt = ApphudSubscription.dateFrom(dictionary["started_at"])
+        canceledAt =  (dictionary["cancelled_at"] as? String ?? "").apphudIsoDate
+        startedAt = (dictionary["started_at"] as? String ?? "").apphudIsoDate
         isInRetryBilling = dictionary["in_retry_billing"] as? Bool ?? false
         isAutorenewEnabled = dictionary["autorenew_enabled"] as? Bool ?? false
         isIntroductoryActivated = dictionary["introductory_activated"] as? Bool ?? false
@@ -135,15 +135,6 @@ public class ApphudSubscription: NSObject {
         default:
             return .expired
         }
-    }
-
-    /// Helper method to parse date string into Date object
-    internal static func dateFrom(_ object: Any?) -> Date? {
-        guard let date_string = object as? String else { return nil }
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withFractionalSeconds, .withInternetDateTime, .withColonSeparatorInTimeZone, .withColonSeparatorInTime]
-        let date = formatter.date(from: date_string)
-        return date
     }
 }
 

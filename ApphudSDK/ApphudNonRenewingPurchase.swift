@@ -30,9 +30,10 @@ public class ApphudNonRenewingPurchase: NSObject {
     /// Subscription private initializer
     init?(dictionary: [String: Any]) {
         guard dictionary["kind"] as? String == "nonrenewable" else {return nil}
-        canceledAt = ApphudSubscription.dateFrom(dictionary["cancelled_at"])
+        
+        canceledAt =  (dictionary["cancelled_at"] as? String ?? "").apphudIsoDate
+        purchasedAt = (dictionary["started_at"] as? String ?? "").apphudIsoDate ?? Date()
         productId = dictionary["product_id"] as? String ?? ""
-        purchasedAt = ApphudSubscription.dateFrom(dictionary["started_at"]) ?? Date()
     }
 
     /**

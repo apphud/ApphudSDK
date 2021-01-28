@@ -21,6 +21,19 @@ internal func apphudVisibleViewController() -> UIViewController? {
     return currentVC
 }
 
+extension String {
+    /// Helper method to parse date string into Date object
+    internal var apphudIsoDate: Date? {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withFractionalSeconds,
+                                   .withInternetDateTime,
+                                   .withColonSeparatorInTimeZone,
+                                   .withColonSeparatorInTime]
+        let date = formatter.date(from: self)
+        return date
+    }
+}
+
 internal func apphudIsSandbox() -> Bool {
     if apphudIsSimulator() {
         return true
