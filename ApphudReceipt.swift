@@ -8,19 +8,49 @@
 import Foundation
 
 public class ApphudReceipt: NSObject, Codable {
+    
+    /**
+        For more information about receipt fields check following documentation:
+        https://developer.apple.com/documentation/appstorereceipts/responsebody/receipt
+     */
+    
+    /**
+     The version of the app that the user originally purchased. This value does not change, and corresponds to the value of CFBundleVersion (in iOS) or CFBundleShortVersionString (in macOS) in the Info.plist file of the original purchase. In the sandbox environment, the value is always "1.0".
+     */
     @objc public var originalApplicationVersion: String?
-    @objc public var originalPurchaseDate: Date? { _originalPurchaseDate.apphudIsoDate }
-    @objc public var receiptCreationDate: Date? { _receiptCreationDate.apphudIsoDate }
+    
+    /**
+     The time of the original app purchase.
+     */
+    @objc public var originalPurchaseDate: Date? { _originalPurchaseDate.appleReceiptDate }
+    
+    /**
+     The time the App Store generated the receipt.
+     */
+    @objc public var receiptCreationDate: Date? { _receiptCreationDate.appleReceiptDate }
+    
+    /**
+     The app’s version number. The app's version number corresponds to the value of CFBundleVersion (in iOS) or CFBundleShortVersionString (in macOS) in the Info.plist. In production, this value is the current version of the app on the device based on the receipt_creation_date_ms. In the sandbox, the value is always "1.0".
+     */
     @objc public var applicationVersion: String
+    
+    /**
+     The bundle identifier for the app to which the receipt belongs.
+     */
     @objc public var bundleId: String
     
+    /**
+     Raw receipt JSON
+     */
     @objc public var rawJSON: [String: Any]?
     
+    
+    // MARK: - Private
     private var _originalPurchaseDate: String
     private var _receiptCreationDate: String
     
     enum CodingKeys: String, CodingKey {
-        case originalApplicationVersion = "font"
+        case originalApplicationVersion
         case _originalPurchaseDate = "originalPurchaseDate"
         case _receiptCreationDate = "receiptCreationDate"
         case applicationVersion
