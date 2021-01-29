@@ -17,7 +17,7 @@ public class ApphudReceipt: NSObject, Codable {
     /**
      The version of the app that the user originally purchased. This value does not change, and corresponds to the value of CFBundleVersion (in iOS) or CFBundleShortVersionString (in macOS) in the Info.plist file of the original purchase. In the sandbox environment, the value is always "1.0".
      */
-    @objc public var originalApplicationVersion: String?
+    @objc public var originalApplicationVersion: String
     
     /**
      The time of the original app purchase.

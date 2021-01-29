@@ -40,6 +40,10 @@ class ViewController: UITableViewController {
         Apphud.restorePurchases { _, _, _ in
             self.reload()
         }
+        
+//        Apphud.fetchRawReceiptInfo { receipt in
+//            print("Original App Version = \(receipt?.originalApplicationVersion ?? "")")
+//        }
     }
 
     @objc func reload() {
