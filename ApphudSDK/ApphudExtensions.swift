@@ -32,6 +32,13 @@ extension String {
         let date = formatter.date(from: self)
         return date
     }
+    
+    internal var appleReceiptDate: Date? {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss VV"
+        let date = formatter.date(from: self)
+        return date
+    }
 }
 
 internal func apphudIsSandbox() -> Bool {

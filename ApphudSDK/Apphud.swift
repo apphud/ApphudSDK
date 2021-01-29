@@ -10,7 +10,7 @@ import UIKit
 import StoreKit
 import UserNotifications
 
-internal let apphud_sdk_version = "1.0.3"
+internal let apphud_sdk_version = "1.0.4"
 
 public typealias ApphudEligibilityCallback = (([String: Bool]) -> Void)
 public typealias ApphudBoolCallback = ((Bool) -> Void)
@@ -403,6 +403,13 @@ final public class Apphud: NSObject {
                 callback(subscriptions, purchases, error)
             }
         }
+    }
+    
+    /**
+     Fetches raw receipt info in a wrapped `ApphudReceipt` model class. This might be useful to get `original_application_version` value.
+     */
+    @objc public static func fetchRawReceiptInfo(_ completion: @escaping (ApphudReceipt?) -> Void) {
+        ApphudReceipt.getRawReceipt(completion: completion)
     }
 
     // MARK: - User Properties
