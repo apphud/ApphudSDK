@@ -7,14 +7,14 @@
 
 import Foundation
 
-class ApphudReceipt: Codable {
-    var originalApplicationVersion: String?
-    var originalPurchaseDate: Date? { _originalPurchaseDate.apphudIsoDate }
-    var receiptCreationDate: Date? { _receiptCreationDate.apphudIsoDate }
-    var applicationVersion: String
-    var bundleId: String
+public class ApphudReceipt: NSObject, Codable {
+    @objc public var originalApplicationVersion: String?
+    @objc public var originalPurchaseDate: Date? { _originalPurchaseDate.apphudIsoDate }
+    @objc public var receiptCreationDate: Date? { _receiptCreationDate.apphudIsoDate }
+    @objc public var applicationVersion: String
+    @objc public var bundleId: String
     
-    var rawJSON: [String: Any]?
+    @objc public var rawJSON: [String: Any]?
     
     private var _originalPurchaseDate: String
     private var _receiptCreationDate: String
@@ -35,7 +35,7 @@ class ApphudReceipt: Codable {
         }
         ApphudHttpClient.shared.startRequest(path: "subscriptions/raw", params: ["receipt_data": receiptData], method: .post) { (result, dict, error, code) in
             
-            guard let dict = dict else {
+            guard let receiptDict = dict?["receipt"] as? [String: Any] else {
                 completion(nil)
                 return
             }
@@ -44,8 +44,9 @@ class ApphudReceipt: Codable {
             jsonDecoder.keyDecodingStrategy = .convertFromSnakeCase
             
             do {
-                let data = try JSONSerialization.data(withJSONObject: dict, options: [])
-                let receipt = try? jsonDecoder.decode(ApphudReceipt.self, from: data)
+                let receiptData = try JSONSerialization.data(withJSONObject: receiptDict, options: [])
+                let receipt = try jsonDecoder.decode(ApphudReceipt.self, from: receiptData)
+                receipt.rawJSON = dict
                 completion(receipt)
             } catch {
                 apphudLog("An error occurred while decoding App Store Receipt: \(error)")

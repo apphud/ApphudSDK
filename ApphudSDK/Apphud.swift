@@ -404,6 +404,10 @@ final public class Apphud: NSObject {
             }
         }
     }
+    
+    @objc public static func fetchRawReceiptInfo(_ completion: @escaping (ApphudReceipt?) -> Void) {
+        ApphudReceipt.getRawReceipt(completion: completion)
+    }
 
     // MARK: - User Properties
 
