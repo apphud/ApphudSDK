@@ -172,7 +172,43 @@ extension ApphudInternal {
             callback?(ApphudPurchaseResult(nil, nil, transaction, error))
         }
     }
-
+    
+    internal func purchase(productId: String, callback: ((ApphudPurchaseResult) -> Void)?) {
+        if let product = ApphudStoreKitWrapper.shared.products.first(where: { $0.productIdentifier == productId }) {
+            purchase(product: product, callback: callback)
+        } else {
+            apphudLog("Product with id \(productId) not found in cache, fetching...")
+            ApphudStoreKitWrapper.shared.fetchProduct(productId: productId) { product in
+                if let product = product {
+                    self.purchase(product: product, callback: callback)
+                } else {
+                    let message = "Unable to fetch product with given product id: \(productId)"
+                    apphudLog(message, forceDisplay: true)
+                    let error = ApphudError(message: message)
+                    callback?(ApphudPurchaseResult(nil, nil, nil, error))
+                }
+            }
+        }
+    }
+    
+    internal func purchaseWithoutValidation(productId: String, callback: ((ApphudPurchaseResult) -> Void)?) {
+        if let product = ApphudStoreKitWrapper.shared.products.first(where: { $0.productIdentifier == productId }) {
+            purchaseWithoutValidation(product: product, callback: callback)
+        } else {
+            apphudLog("Product with id \(productId) not found in cache, fetching...")
+            ApphudStoreKitWrapper.shared.fetchProduct(productId: productId) { product in
+                if let product = product {
+                    self.purchaseWithoutValidation(product: product, callback: callback)
+                } else {
+                    let message = "Unable to fetch product with given product id: \(productId)"
+                    apphudLog(message, forceDisplay: true)
+                    let error = ApphudError(message: message)
+                    callback?(ApphudPurchaseResult(nil, nil, nil, error))
+                }
+            }
+        }
+    }
+    
     @available(iOS 12.2, *)
     internal func purchasePromo(product: SKProduct, discountID: String, callback: ((ApphudPurchaseResult) -> Void)?) {
         self.signPromoOffer(productID: product.productIdentifier, discountID: discountID) { (paymentDiscount, _) in
