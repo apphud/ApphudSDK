@@ -22,7 +22,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     internal var products = [SKProduct]()
 
     fileprivate let fetcher = ApphudProductsFetcher()
-    fileprivate let receiptSubmitProductFetcher = ApphudProductsFetcher()
+    fileprivate let singleFetcher = ApphudProductsFetcher()
 
     private var refreshReceiptCallback: (() -> Void)?
     private var paymentCallback: ApphudTransactionCallback?
@@ -54,8 +54,8 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         }
     }
 
-    func fetchReceiptSubmitProduct(productId: String, callback: @escaping (SKProduct?) -> Void) {
-        receiptSubmitProductFetcher.fetchStoreKitProducts(identifiers: Set([productId])) { (products) in
+    func fetchProduct(productId: String, callback: @escaping (SKProduct?) -> Void) {
+        singleFetcher.fetchStoreKitProducts(identifiers: Set([productId])) { (products) in
             callback(products.first)
         }
     }
