@@ -56,7 +56,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     func fetchProduct(productId: String, callback: @escaping (SKProduct?) -> Void) {
         singleFetcher.fetchStoreKitProducts(identifiers: Set([productId])) { (products) in
-            callback(products.first)
+            callback(products.first(where: { $0.productIdentifier == productId }))
         }
     }
 
@@ -208,6 +208,8 @@ private class ApphudProductsFetcher: NSObject, SKProductsRequestDelegate {
 
     func fetchStoreKitProducts(identifiers: Set<String>, callback : @escaping ApphudStoreKitProductsCallback) {
         self.callback = callback
+        productsRequest?.delegate = nil
+        productsRequest?.cancel()
         productsRequest = SKProductsRequest(productIdentifiers: identifiers)
         productsRequest?.delegate = self
         productsRequest?.start()
