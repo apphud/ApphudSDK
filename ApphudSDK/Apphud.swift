@@ -10,7 +10,7 @@ import UIKit
 import StoreKit
 import UserNotifications
 
-internal let apphud_sdk_version = "1.0.4"
+internal let apphud_sdk_version = "1.0.5"
 
 public typealias ApphudEligibilityCallback = (([String: Bool]) -> Void)
 public typealias ApphudBoolCallback = ((Bool) -> Void)
@@ -302,7 +302,8 @@ final public class Apphud: NSObject {
      - parameter productId: Required. Identifier of the product that user wants to purchase.
      - parameter callback: Optional. Returns `ApphudPurchaseResult` object.
      */
-    @objc public static func purchaseById(_ productId: String, callback: ((ApphudPurchaseResult) -> Void)?) {
+    @objc(purchaseById:callback:)
+    public static func purchase(_ productId: String, callback: ((ApphudPurchaseResult) -> Void)?) {
         ApphudInternal.shared.purchase(productId: productId, callback: callback)
     }
 
@@ -326,7 +327,8 @@ final public class Apphud: NSObject {
     - parameter productId: Required. Identifier of the product that user wants to purchase.
     - parameter callback: Optional. Returns `ApphudPurchaseResult` object.
     */
-    @objc public static func purchaseWithoutValidationById(_ productId: String, callback: ((ApphudPurchaseResult) -> Void)?) {
+    @objc(purchaseWithoutValidationById:callback:)
+    public static func purchaseWithoutValidation(_ productId: String, callback: ((ApphudPurchaseResult) -> Void)?) {
         ApphudInternal.shared.purchaseWithoutValidation(productId: productId, callback: callback)
     }
 
