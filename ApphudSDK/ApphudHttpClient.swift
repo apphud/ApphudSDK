@@ -50,9 +50,12 @@ public class ApphudHttpClient {
         config.urlCache = nil
         return URLSession.init(configuration: config)
     }()
+    
+    private let GET_TIMEOUT: TimeInterval = 10.0
+    private let POST_PUT_TIMEOUT: TimeInterval = 40.0
 
     internal func requestInstance(url: URL) -> URLRequest? {
-        var request = URLRequest(url: url, cachePolicy: URLRequest.CachePolicy.useProtocolCachePolicy, timeoutInterval: 20)
+        var request = URLRequest(url: url)
         request.setValue(apiKey, forHTTPHeaderField: "APPHUD-API-KEY")
         return request
     }
@@ -125,6 +128,7 @@ public class ApphudHttpClient {
             request?.httpMethod = method.rawValue
             request?.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
             request?.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Accept")
+            request?.timeoutInterval = method == .get ? GET_TIMEOUT : POST_PUT_TIMEOUT
             if method != .get {
                 var finalParams: [String: Any] = ["api_key": apiKey]
                 if params != nil {

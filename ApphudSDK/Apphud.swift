@@ -283,40 +283,46 @@ final public class Apphud: NSObject {
     }
 
     /**
-     Purchases product and automatically submits App Store Receipt to Apphud.
+     Purchase product and automatically submits App Store Receipt to Apphud.
+     Two methods provided: using SKProduct model (recommended) or Product ID.
      
      __Note__:  You are not required to purchase product using Apphud SDK methods. You can purchase subscription or any in-app purchase using your own code. App Store receipt will be sent to Apphud anyway.
      
-     - parameter product: Required. This is an `SKProduct` object that user wants to purchase. 
+     - parameter product: Required. This is preferred parameter. `SKProduct` object that user wants to purchase.
+     OR
+     - parameter productId: Required. Identifier of the product that user wants to purchase.
+     
      - parameter callback: Optional. Returns `ApphudPurchaseResult` object.
      */
     @objc public static func purchase(_ product: SKProduct, callback: ((ApphudPurchaseResult) -> Void)?) {
         ApphudInternal.shared.purchase(product: product, callback: callback)
     }
-    
-    /**
-     Purchases product and automatically submits App Store Receipt to Apphud.
-     
-     __Note__:  You are not required to purchase product using Apphud SDK methods. You can purchase subscription or any in-app purchase using your own code. App Store receipt will be sent to Apphud anyway.
-     
-     - parameter productId: Required. Identifier of the product that user wants to purchase.
-     - parameter callback: Optional. Returns `ApphudPurchaseResult` object.
-     */
+    /* Passing SKProduct model instead of Product ID is preferred */
     @objc(purchaseById:callback:)
     public static func purchase(_ productId: String, callback: ((ApphudPurchaseResult) -> Void)?) {
         ApphudInternal.shared.purchase(productId: productId, callback: callback)
     }
 
     /**
-    Purchases product and automatically submits App Store Receipt to Apphud. This method doesn't wait until Apphud validates receipt from Apple and immediately returns transaction object. This method may be useful if you don't care about receipt validation in callback. 
+     Purchases product and automatically submits App Store Receipt to Apphud. This method doesn't wait until Apphud validates receipt from Apple and immediately returns transaction object. This method may be useful if you don't care about receipt validation in callback.
+     
+     Two methods provided: using SKProduct model (recommended) or Product ID.
     
      __Note__: When using this method properties `subscription` and `nonRenewingPurchase` in `ApphudPurchaseResult` will always be `nil` !
      
-    - parameter product: Required. This is an `SKProduct` object that user wants to purchase.
+     - parameter product: Required. This is preferred parameter. `SKProduct` object that user wants to purchase.
+     OR
+     - parameter productId: Required. Identifier of the product that user wants to purchase.
+     
     - parameter callback: Optional. Returns `ApphudPurchaseResult` object.
     */
     @objc public static func purchaseWithoutValidation(_ product: SKProduct, callback: ((ApphudPurchaseResult) -> Void)?) {
         ApphudInternal.shared.purchaseWithoutValidation(product: product, callback: callback)
+    }
+    /* Passing SKProduct model instead of Product ID is preferred */
+    @objc(purchaseWithoutValidationById:callback:)
+    public static func purchaseWithoutValidation(_ productId: String, callback: ((ApphudPurchaseResult) -> Void)?) {
+        ApphudInternal.shared.purchaseWithoutValidation(productId: productId, callback: callback)
     }
     
     /**
@@ -327,10 +333,7 @@ final public class Apphud: NSObject {
     - parameter productId: Required. Identifier of the product that user wants to purchase.
     - parameter callback: Optional. Returns `ApphudPurchaseResult` object.
     */
-    @objc(purchaseWithoutValidationById:callback:)
-    public static func purchaseWithoutValidation(_ productId: String, callback: ((ApphudPurchaseResult) -> Void)?) {
-        ApphudInternal.shared.purchaseWithoutValidation(productId: productId, callback: callback)
-    }
+    
 
     /**
         Purchases subscription (promotional) offer and automatically submits App Store Receipt to Apphud. 
@@ -543,10 +546,7 @@ final public class Apphud: NSObject {
      Submit Advertising Identifier (IDFA) to Apphud. This is used to properly match user with attribution platforms (AppsFlyer, Facebook, etc.)
      */
     @objc public static func setAdvertisingIdentifier(_ idfa: String) {
-        /*
-         Temporarily disabled. IDFA is now being collected automatically again, until the next year. You can still disable automatic collection with the `disableIDFACollection` method.
-         */
-//        ApphudInternal.shared.advertisingIdentifier = idfa
+        ApphudInternal.shared.advertisingIdentifier = idfa
     }
 
     /**
@@ -554,6 +554,7 @@ final public class Apphud: NSObject {
 
      __Note__: This method must be called before Apphud SDK initialization.
      */
+    @available(*, deprecated, message: "This method is redundant. Since iOS 14.5 all devices will loose access to IDFA by default.")
     @objc public static func disableIDFACollection() {
         ApphudUtils.shared.optOutOfIDFACollection = true
     }
@@ -633,25 +634,6 @@ final public class Apphud: NSObject {
      */
     @objc public static func enableDebugLogs() {
         ApphudUtils.enableDebugLogs()
-    }
-
-    /**
-     __DEPRECATED__ .Automatically finishes all completed (failed, purchased or restored) transactions.
-     
-     You should call it only if you purchase products using Apphud SDK, i.e. by using `Apphud.purchase(product)` method. Do not call this method in observer (analytics) mode.
-     
-     By default, Apphud SDK only finishes transactions, that were started by Apphud SDK, i.e. by calling  any of `Apphud.purchase..()` methods.
-    
-     However, in rare cases transactions may stay in the queue (for example, if you broke execution until transaction is finished). And these transactions will try to finish at every next app launch or resume. In this case you may see a system alert prompting to enter your Apple ID password or even new purchase flow will not start. To fix this issue, you can add this method.
-     
-     You may also use this method in production if you don't care about handling pending transactions, for example, downloading Apple hosted content.
-     
-     __Note__: Must be called before Apphud SDK initialization.
-     */
-
-    @available(*, deprecated, message: "You can safely remove this method as it's no longer needed.")
-    @objc public static func setFinishAllTransactions() {
-        ApphudUtils.shared.storeKitObserverMode = false
     }
 
     /**

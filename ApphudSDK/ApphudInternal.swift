@@ -96,7 +96,8 @@ final class ApphudInternal: NSObject {
     internal let didSubmitProductPricesKey = "didSubmitProductPricesKey"
     internal var isSendingAppsFlyer = false
     internal var isSendingAdjust = false
-
+    internal var isFreshInstall = true
+    
     internal var didSubmitAppsFlyerAttribution: Bool {
         get {
             UserDefaults.standard.bool(forKey: didSubmitAppsFlyerAttributionKey)
@@ -156,6 +157,8 @@ final class ApphudInternal: NSObject {
 
         var deviceID = ApphudKeychain.loadDeviceID()
 
+        isFreshInstall = deviceID == nil
+        
         if inputDeviceID?.count ?? 0 > 0 {
             deviceID = inputDeviceID
         }
@@ -255,7 +258,7 @@ final class ApphudInternal: NSObject {
     
     @objc private func handleDidBecomeActive() {
 
-        let minCheckInterval: Double = 30
+        let minCheckInterval: Double = 60
 
         checkPendingRules()
         
