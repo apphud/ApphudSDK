@@ -131,24 +131,14 @@ class ViewController: UITableViewController {
 
     func purchaseProduct(product: SKProduct) {
         Apphud.purchase(product) { result in
-            if result.error != nil {
-                print("Purchase error: \(result.error?.localizedDescription ?? "")")
-            } else {
-                print("Purchase result: \(result.transaction?.transactionState.rawValue), trx_id: \(result.transaction?.transactionIdentifier)")
-            }
-
+            print(result)
             self.reload()
         }
     }
     
     func purchaseWithoutValidation(product: SKProduct) {
         Apphud.purchaseWithoutValidation(product) { result in
-            if result.error != nil {
-                print("Purchase error: \(result.error?.localizedDescription ?? "")")
-            } else {
-                print("Purchase result: \(result.transaction?.transactionState.rawValue), trx_id: \(result.transaction?.transactionIdentifier)")
-            }
-
+            print(result)
             self.reload()
         }
     }

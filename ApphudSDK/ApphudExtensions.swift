@@ -77,6 +77,16 @@ internal func apphudFromUserDefaultsCache(key: String) -> [String: String]? {
     return UserDefaults.standard.object(forKey: key) as? [String: String]
 }
 
+internal func apphudPerformOnMainThread(callback: @escaping () -> Void) {
+    if Thread.isMainThread {
+        callback()
+    } else {
+        DispatchQueue.main.async {
+            callback()
+        }
+    }
+}
+
 internal func apphudCurrentDeviceParameters() -> [String: String] {
 
     let family: String

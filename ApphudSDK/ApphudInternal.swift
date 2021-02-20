@@ -76,7 +76,9 @@ final class ApphudInternal: NSObject {
         didSet {
             if advertisingIdentifier != nil {
                 apphudLog("Received IDFA (\(advertisingIdentifier ?? ""), will submit soon.")
-                setNeedsToUpdateUser = true
+                apphudPerformOnMainThread {
+                    self.setNeedsToUpdateUser = true
+                }
             }
         }
     }
