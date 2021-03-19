@@ -110,10 +110,18 @@ extension ApphudInternal {
         if let bundleID = Bundle.main.bundleIdentifier {
             params["bundle_id"] = bundleID
         }
+        
+        var mainProductID: String? = nil
         if let product = product {
             params["product_info"] = product.apphudSubmittableParameters()
         } else if let productID = transaction?.payment.productIdentifier, let product = ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == productID}) {
             params["product_info"] = product.apphudSubmittableParameters()
+        }
+        
+        if transaction?.transactionState == .purchased {
+            let mainProductID: String? = product?.productIdentifier ?? transaction?.payment.productIdentifier
+            let other_products = ApphudStoreKitWrapper.shared.products.filter { $0.productIdentifier != mainProductID }
+            params["other_products_info"] = other_products.map { $0.apphudSubmittableParameters() }
         }
 
         self.requiresReceiptSubmission = true
