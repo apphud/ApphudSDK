@@ -10,7 +10,7 @@ import UIKit
 import StoreKit
 import UserNotifications
 
-internal let apphud_sdk_version = "1.0.5"
+internal let apphud_sdk_version = "1.1"
 
 public typealias ApphudEligibilityCallback = (([String: Bool]) -> Void)
 public typealias ApphudBoolCallback = ((Bool) -> Void)
@@ -163,7 +163,7 @@ final public class Apphud: NSObject {
      
      - parameter apiKey: Required. Your api key.
      - parameter userID: Optional. You can provide your own unique user identifier. If nil passed then UUID will be generated instead.
-     - parameter observerMode: Optional. Sets SDK to Observer (Analytics) mode. If you purchase products by your own code, then pass `true`. If you purchase products using `Apphud.purchase(product)` method, then pass `false`. Default value is `false`. If you were previously calling `Apphud.setFinishTransactions()`, then you can safely remove that method and pass here `observerMode as false`.
+     - parameter observerMode: Optional. Sets SDK to Observer (i.e. Analytics) mode. If you purchase products by other code, then pass `true`. If you purchase products using `Apphud.purchase(..)` method, then pass `false`. Default value is `false`.
      */
     @objc public static func start(apiKey: String, userID: String? = nil, observerMode: Bool = false) {
         ApphudInternal.shared.initialize(apiKey: apiKey, inputUserID: userID, observerMode: observerMode)
@@ -348,6 +348,14 @@ final public class Apphud: NSObject {
     @objc public static func purchasePromo(_ product: SKProduct, discountID: String, _ callback: ((ApphudPurchaseResult) -> Void)?) {
         ApphudInternal.shared.purchasePromo(product: product, discountID: discountID, callback: callback)
     }
+    
+    /**
+     Displays an offer code redemption sheet.
+     */
+    @available(iOS 14.0, *)
+    @objc public static func presentOfferCodeRedemptionSheet() {
+        ApphudStoreKitWrapper.shared.presentOfferCodeSheet()
+    }
 
     // MARK: - Handle Purchases
 
@@ -396,6 +404,13 @@ final public class Apphud: NSObject {
      */
     @objc public static func isNonRenewingPurchaseActive(productIdentifier: String) -> Bool {
         return ApphudInternal.shared.currentUser?.purchases.first(where: {$0.productId == productIdentifier})?.isActive() ?? false
+    }
+    
+    /**
+     Basically the same as restoring purchases.
+     */
+    @objc public static func validateReceipt(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {
+        Apphud.restorePurchases(callback: callback)
     }
 
     /**
@@ -573,6 +588,24 @@ final public class Apphud: NSObject {
     // MARK: - Eligibility Checks
 
     /**
+        Checks whether the given product is eligible for purchasing introductory offer (`free trial`, `pay as you go` or `pay up front` modes).
+     
+        New and returning customers are eligible for introductory offers including free trials as follows:
+     
+        * New subscribers are always eligible.
+     
+        * Lapsed subscribers who renew are eligible if they haven't previously used an introductory offer for the given product (or any product within the same subscription group).
+     
+        - parameter product: Required. This is an `SKProduct` object for which you want to check intro offers eligibility.
+        - parameter callback: Returns true if product is eligible for purchasing introductory offer.
+     */
+    @objc public static func checkEligibilityForIntroductoryOffer(product: SKProduct, callback: @escaping ApphudBoolCallback) {
+        ApphudInternal.shared.checkEligibilitiesForIntroductoryOffers(products: [product]) { result in
+            callback(result[product.productIdentifier] ?? true)
+        }
+    }
+    
+    /**
         Checks whether the given product is eligible for purchasing any of it's promotional offers.
      
         Only customers who already purchased subscription are eligible for promotional offer for the given product (or any product within the same subscription group).
@@ -585,24 +618,6 @@ final public class Apphud: NSObject {
     @objc public static func checkEligibilityForPromotionalOffer(product: SKProduct, callback: @escaping ApphudBoolCallback) {
         ApphudInternal.shared.checkEligibilitiesForPromotionalOffers(products: [product]) { result in
             callback(result[product.productIdentifier] ?? false)
-        }
-    }
-
-    /**
-        Checks whether the given product is eligible for purchasing introductory offer (`free trial`, `pay as you go` or `pay up front` modes).
-     
-        New and returning customers are eligible for introductory offers including free trials as follows:
-     
-        * New subscribers are always eligible.
-     
-        * Lapsed subscribers who renew are eligible if they haven't previously used an introductory offer for the given product (or any product within the same subscription group).
-     
-        - parameter product: Required. This is an `SKProduct` object for which you want to check promo offers eligibility.
-        - parameter callback: Returns true if product is eligible for purchasing promotional offer.
-     */  
-    @objc public static func checkEligibilityForIntroductoryOffer(product: SKProduct, callback: @escaping ApphudBoolCallback) {
-        ApphudInternal.shared.checkEligibilitiesForIntroductoryOffers(products: [product]) { result in
-            callback(result[product.productIdentifier] ?? true)
         }
     }
 
@@ -630,7 +645,7 @@ final public class Apphud: NSObject {
     // MARK: - Other
 
     /**
-     Enables debug logs. Better to call this method before SDK initialization.
+     Enables debug logs. You should call this method before SDK initialization.
      */
     @objc public static func enableDebugLogs() {
         ApphudUtils.enableDebugLogs()
