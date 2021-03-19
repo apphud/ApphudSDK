@@ -141,14 +141,23 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     }
 
     private func finishCompletedTransactions(for productIdentifier: String) {
-        SKPaymentQueue.default().transactions.filter { $0.payment.productIdentifier == productIdentifier && $0.finishable }.forEach { transaction in finishTransaction(transaction) }
+        SKPaymentQueue.default().transactions
+            .filter { $0.payment.productIdentifier == productIdentifier && $0.finishable }
+            .forEach { transaction in finishTransaction(transaction) }
     }
 
     internal func finishTransaction(_ transaction: SKPaymentTransaction) {
         apphudLog("Finish Transaction: \(transaction.payment.productIdentifier), state: \(transaction.transactionState.rawValue), id: \(transaction.transactionIdentifier ?? "")")
         NotificationCenter.default.post(name: ApphudWillFinishTransactionNotification, object: transaction)
         SKPaymentQueue.default().finishTransaction(transaction)
-        NotificationCenter.default.post(name: ApphudDidFinishTransactionNotification, object: transaction)
+    }
+    
+    func paymentQueue(_ queue: SKPaymentQueue, removedTransactions transactions: [SKPaymentTransaction]) {
+        DispatchQueue.main.async {
+            transactions.forEach { transaction in
+                NotificationCenter.default.post(name: ApphudDidFinishTransactionNotification, object: transaction)
+            }
+        }
     }
 
     #if os(iOS) && !targetEnvironment(macCatalyst)
@@ -194,6 +203,14 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
                 }
                 self.refreshRequest = nil
             }
+        }
+    }
+    
+    func presentOfferCodeSheet() {
+        if #available(iOS 14.0, *) {
+            SKPaymentQueue.default().presentCodeRedemptionSheet()
+        } else {
+            apphudLog("Method unavailable on current iOS version (minimum 14.0).", forceDisplay: true)
         }
     }
 }

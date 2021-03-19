@@ -1,99 +1,138 @@
 //
 //  ViewController.swift
-//  Apphud, Inc
+// Apphud
 //
 //  Created by ren6 on 11/06/2019.
-//  Copyright © 2019 Apphud Inc. All rights reserved.
+//  Copyright © 2019 Softeam Inc. All rights reserved.
 //
 
 import UIKit
 import StoreKit
 import ApphudSDK
 
-let cellID = "cell"
+typealias Callback = (() -> Void)
 
-class ViewController: UITableViewController {
-
+class ViewController: UITableViewController{
+    
     var products = [SKProduct]()
-
+    
+    var rowsActions = [(String, Callback)]()
+        
     override func viewDidLoad() {
         super.viewDidLoad()
 
         Apphud.setDelegate(self)
         Apphud.setUIDelegate(self)
 
-        reload()
-
-        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Restore", style: .done, target: self, action: #selector(restore))
-
-        if Apphud.products() == nil {
-            Apphud.productsDidFetchCallback { (products) in
-                self.products = products
-                self.reload()
-            }
+        setupRowActions()
+        
+        if Apphud.products() != nil {
+            reloadUI()
         } else {
-            self.products = Apphud.products()!
+            Apphud.productsDidFetchCallback { [weak self] prods in
+                self?.reload()
+            }
+        }
+        
+        reload()
+    }
+    
+    func setupRowActions() {
+        rowsActions = [
+            ("Restore", { self.restore() }),
+            ("Offer Code Redemption Sheet", { self.presentOfferCodeSheet() }),
+            ("Fetch Raw Receipt", { self.fetchRawReceipt() }),
+            ("Log out", { Apphud.logout() })
+        ]
+    }
+    
+    @objc func presentOfferCodeSheet() {
+        if #available(iOS 14.0, *) {
+            Apphud.presentOfferCodeRedemptionSheet()
+        } else {
+            print("Not supported")
         }
     }
-
-    @objc func restore() {
+    
+    @objc func reloadUI(){
+        reload()
+    }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        self.title = Apphud.userID()
+    }
+        
+    @objc func fetchRawReceipt() {
+        Apphud.fetchRawReceiptInfo { receipt in
+            if let receipt = receipt {
+                print("details = \(receipt.originalApplicationVersion), creation_date = \(String(describing: receipt.receiptCreationDate))")
+            } else {
+                print("could not fetch raw receipt")
+            }
+            
+        }
+    }
+    
+    @objc func restore(){
         Apphud.restorePurchases { _, _, _ in
             self.reload()
         }
-        
-//        Apphud.fetchRawReceiptInfo { receipt in
-//            print("Original App Version = \(receipt?.originalApplicationVersion ?? "")")
-//        }
     }
-
-    @objc func reload() {
+    
+    @objc func reload(){
         tableView.reloadData()
     }
-
-    // MARK: - TableView Delegate methods
-
+    
+    //MARK:- TableView Delegate methods
+    
+    override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
+        section == 0 ? "ACTIONS" : "PRODUCTS"
+    }
+    
     override func numberOfSections(in tableView: UITableView) -> Int {
-        1
+        2
     }
-
+    
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        products.count
+        section == 0 ? rowsActions.count : products.count
     }
-
+    
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-
-        let cell = tableView.dequeueReusableCell(withIdentifier: cellID, for: indexPath)
-        let product = products[indexPath.item]
-
-        if let text = product.fullSubscriptionInfoString() {
+        
+        let cell = tableView.dequeueReusableCell(withIdentifier: "productCell", for: indexPath)
+        
+        if indexPath.section == 0 {
+            cell.textLabel?.text = rowsActions[indexPath.row].0
+            cell.detailTextLabel?.text = nil
+        } else {
+            let product = products[indexPath.item]
+            let text = product.fullSubscriptionInfoString() ?? product.productIdentifier
             cell.textLabel?.text = text
-        } else {
-            cell.textLabel?.text = product.localizedPriceFrom(price: product.price)
+            if let subscription = Apphud.subscriptions()?.first(where: {$0.productId == product.productIdentifier}) {
+                cell.detailTextLabel?.text = subscription.expiresDate.description(with: Locale.current) + "\nState: \(subscription.status.toStringDuplicate())\nIntroductory used:\(subscription.isIntroductoryActivated)".uppercased()
+            } else {
+                cell.detailTextLabel?.text = "Not active"
+            }
         }
-
-        if let subscription = Apphud.subscriptions()?.first(where: {$0.productId == product.productIdentifier}) {
-
-            cell.detailTextLabel?.text = subscription.expiresDate.description(with: Locale.current) + "\nState: \(subscription.status.toStringDuplicate())\nIntroductory used:\(subscription.isIntroductoryActivated)".uppercased()
-
-        } else if let purchase = Apphud.nonRenewingPurchases()?.first(where: {$0.productId == product.productIdentifier}) {
-            cell.detailTextLabel?.text = "\(purchase.productId). Last Purchased at: \(purchase.purchasedAt)"
-            print("purchase: \(purchase.productId) is active: \(purchase.isActive())")
-        } else {
-            cell.detailTextLabel?.text = "\(product.productIdentifier): not active"
-        }
-
+        
         return cell
     }
-
+    
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-
+        
         tableView.deselectRow(at: indexPath, animated: true)
-
+        
+        if indexPath.section == 0 {
+            rowsActions[indexPath.row].1()
+            return
+        }
+        
         let product = products[indexPath.item]
 
         if #available(iOS 12.2, *) {
-            if product.discounts.count > 0 && (Apphud.subscriptions()?.first(where: {$0.productId == product.productIdentifier}) != nil) {
-                // purchase promo offer                
+            if product.discounts.count > 0 {
+                // purchase promo offer
                 showPromoOffersAlert(product: product)
             } else {
                 purchaseProduct(product: product)
@@ -102,109 +141,68 @@ class ViewController: UITableViewController {
             purchaseProduct(product: product)
         }
     }
-
+    
     @available(iOS 12.2, *)
-    func showPromoOffersAlert(product: SKProduct) {
-
+    func showPromoOffersAlert(product : SKProduct) {
+        
         let controller = UIAlertController(title: "You already have subscription for this product", message: "would you like to activate promo offer?", preferredStyle: .alert)
-
+        
         for discount in product.discounts {
-            controller.addAction(UIAlertAction(title: "Purchase Promo: \(discount.identifier!)", style: .default, handler: { _ in
+            controller.addAction(UIAlertAction(title: "Purchase Promo: \(discount.identifier!)", style: .default, handler: { act in
                 self.purchaseProduct(product: product, promoID: discount.identifier!)
             }))
         }
-
-        controller.addAction(UIAlertAction(title: "Purchase Product As Usual", style: .destructive, handler: { _ in
+        
+        controller.addAction(UIAlertAction(title: "Purchase Product As Usual", style: .destructive, handler: { act in
             self.purchaseProduct(product: product)
         }))
-
+        
         controller.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: nil))
         present(controller, animated: true, completion: nil)
     }
-
+    
     @available(iOS 12.2, *)
-    func purchaseProduct(product: SKProduct, promoID: String) {
-        Apphud.purchasePromo(product, discountID: promoID) { (_) in
+    func purchaseProduct(product: SKProduct, promoID: String){
+        Apphud.purchasePromo(product, discountID: promoID, { result in
             self.reload()
-        }
+        })
     }
-
-    func purchaseProduct(product: SKProduct) {
+    
+    func purchaseProduct(product : SKProduct) {
         Apphud.purchase(product) { result in
-            print(result)
+            if result.error != nil {
+                self.notifyPurchaseError(error: result.error!)
+            }
             self.reload()
         }
     }
     
-    func purchaseWithoutValidation(product: SKProduct) {
-        Apphud.purchaseWithoutValidation(product) { result in
-            print(result)
-            self.reload()
-        }
+    func notifyPurchaseError(error: Error) {
+        let controller = UIAlertController(title: "Error", message: error.localizedDescription, preferredStyle: .alert)
+        controller.addAction(UIAlertAction(title: "Ok", style: .default, handler: nil))
+        present(controller, animated: true, completion: nil)
     }
 }
 
-extension ViewController: ApphudDelegate {
-
-    func apphudDidChangeUserID(_ userID: String) {
-        print("new apphud user id: \(userID)")
-    }
-
+extension ViewController : ApphudDelegate {
+    
     func apphudDidFetchStoreKitProducts(_ products: [SKProduct]) {
-        print("apphudDidFetchStoreKitProducts")
-     //   self.products = products
+        self.products = products
         self.reload()
     }
-
+    
     func apphudSubscriptionsUpdated(_ subscriptions: [ApphudSubscription]) {
         self.reload()
-        print("apphudSubscriptionsUpdated")
-    }
-
-    func apphudNonRenewingPurchasesUpdated(_ purchases: [ApphudNonRenewingPurchase]) {
-        print("non renewing purchases updated")
-    }
-
-    func apphudShouldStartAppStoreDirectPurchase(_ product: SKProduct) -> ((ApphudPurchaseResult) -> Void)? {
-        let callback: ((ApphudPurchaseResult) -> Void) = { result in
-            // handle ApphudPurchaseResult
-            self.reload()
-        }
-        return callback
     }
 }
 
-extension ViewController: ApphudUIDelegate {
-
-    func apphudShouldPerformRule(rule: ApphudRule) -> Bool {
-        return true
-    }
-
-    func apphudShouldShowScreen(screenName: String) -> Bool {
-        return true
-    }
-
+extension ViewController : ApphudUIDelegate {
+    
     func apphudScreenPresentationStyle(controller: UIViewController) -> UIModalPresentationStyle {
         if UIDevice.current.userInterfaceIdiom == .pad {
             return .pageSheet
         } else {
-            return .fullScreen
+            return .overFullScreen
         }
-    }
-
-    func apphudDidDismissScreen(controller: UIViewController) {
-        print("did dismiss screen")
-    }
-
-    func apphudDidPurchase(product: SKProduct, offerID: String?, screenName: String) {
-        print("did purchase \(product.productIdentifier), offer: \(offerID ?? ""), screenName: \(screenName)")
-    }
-
-    func apphudDidFailPurchase(product: SKProduct, offerID: String?, errorCode: SKError.Code, screenName: String) {
-        print("did fail purchase \(product.productIdentifier), offer: \(offerID ?? ""), screenName: \(screenName), errorCode:\(errorCode.rawValue)")
-    }
-
-    func apphudWillPurchase(product: SKProduct, offerID: String?, screenName: String) {
-        print("will purchase \(product.productIdentifier), offer: \(offerID ?? ""), screenName: \(screenName)")
     }
 }
