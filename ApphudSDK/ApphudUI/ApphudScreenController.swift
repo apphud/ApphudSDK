@@ -46,7 +46,7 @@ class ApphudScreenController: UIViewController {
     private(set) var rule: ApphudRule
     private(set) var screenID: String
 
-    private var screen: ApphudScreen?
+    private(set) var screen: ApphudScreen?
     private var addedObserver = false
     private var start = Date()
     private var loadedCallback: ((Bool) -> Void)?
@@ -312,7 +312,7 @@ class ApphudScreenController: UIViewController {
 
         let presentedVC = (self.navigationController ?? self)
 
-        ApphudInternal.shared.uiDelegate?.apphudScreenWillDismiss?(screenName: rule.screen_name, error: error)
+        ApphudInternal.shared.uiDelegate?.apphudScreenWillDismiss?(screenName: screen?.name ?? rule.screen_name, error: error)
 
         if let nc = navigationController, nc.viewControllers.count > 1 && supportBackNavigation {
             nc.popViewController(animated: true)
@@ -337,15 +337,27 @@ class ApphudScreenController: UIViewController {
 
     internal func thankForFeedbackAndClose(isSurvey: Bool) {
 
-        let message = isSurvey ? "Answer sent" : "Feedback sent"
+        let action = ApphudInternal.shared.uiDelegate?.apphudScreenDismissAction?(screenName: screen?.name ?? rule.screen_name, controller: self) ?? .thankAndClose
+        
+        switch action {
+        case .thankAndClose:
+            thankAndClose(isSurvey: isSurvey)
+        case .closeOnly:
+            dismiss()
+        case .none:
+            break
+        }
+    }
 
+    private func thankAndClose(isSurvey: Bool) {
+        let message = isSurvey ? "Answer sent" : "Feedback sent"
         let alertController = UIAlertController(title: "Thank you for feedback!", message: message, preferredStyle: .alert)
-        alertController.addAction(UIAlertAction(title: "OK", style: .default, handler: { (_) in
-            self.dismiss()
+        alertController.addAction(UIAlertAction(title: "OK", style: .default, handler: { [weak self] _ in
+            self?.dismiss()
         }))
         present(alertController, animated: true, completion: nil)
     }
-
+    
     internal func handleBillingIssueTapped() {
         ApphudInternal.shared.trackEvent(params: ["rule_id": self.rule.id, "screen_id": self.screenID, "name": "$billing_issue"]) {}
         self.dismiss()

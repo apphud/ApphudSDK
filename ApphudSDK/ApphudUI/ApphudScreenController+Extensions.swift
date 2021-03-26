@@ -149,6 +149,7 @@ extension ApphudScreenController {
 
         if question != nil && answer != nil {
             ApphudInternal.shared.trackEvent(params: ["rule_id": self.rule.id, "screen_id": self.screenID, "name": "$survey_answer", "properties": ["question": question!, "answer": answer!]]) {}
+            ApphudInternal.shared.uiDelegate?.apphudDidSelectSurveyAnswer?(question: question!, answer: answer!, screenName: screen?.name ?? rule.rule_name)
         }
 
         if answerAndDismiss {

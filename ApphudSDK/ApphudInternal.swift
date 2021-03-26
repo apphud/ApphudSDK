@@ -389,4 +389,16 @@ final class ApphudInternal: NSObject {
             })
         }
     }
+    
+    internal func getActiveRuleScreens(_ callback: @escaping ([String]) -> Void) {
+        performWhenUserRegistered {
+            self.httpClient.startRequest(path: "rules/screens", apiVersion: .APIV2, params: nil, method: .get) { result, response, error, code in
+                if result, let dataDict = response?["data"] as? [String: Any], let screensIdsArray = dataDict["results"] as? [String] {
+                    callback(screensIdsArray)
+                } else {
+                    callback([])
+                }
+            }
+        }
+    }
 }

@@ -67,13 +67,23 @@ public class ApphudSubscription: NSObject {
     /**
      Date when user has purchased the subscription.
      */
-    @objc public let startedAt: Date?
+    @objc public let startedAt: Date
 
     /**
      Canceled date of subscription, i.e. refund date. Nil if subscription is not refunded.
      */
     @objc public let canceledAt: Date?
 
+    /**
+     Returns `true` if subscription is made in test environment, i.e. sandbox or local purchase.
+     */
+    @objc public let isSandbox: Bool
+    
+    /**
+     Returns `true` if subscription was made using Local StoreKit Configuration File. Read more: https://docs.apphud.com/getting-started/sandbox#testing-purchases-using-local-storekit-configuration-file
+     */
+    @objc public let isLocal: Bool
+    
     /**
      Means that subscription has failed billing, but Apple will try to charge the user later.
      */
@@ -104,10 +114,12 @@ public class ApphudSubscription: NSObject {
         expiresDate = expDate
         productId = dictionary["product_id"] as? String ?? ""
         canceledAt =  (dictionary["cancelled_at"] as? String ?? "").apphudIsoDate
-        startedAt = (dictionary["started_at"] as? String ?? "").apphudIsoDate
+        startedAt = (dictionary["started_at"] as? String ?? "").apphudIsoDate ?? Date()
         isInRetryBilling = dictionary["in_retry_billing"] as? Bool ?? false
         isAutorenewEnabled = dictionary["autorenew_enabled"] as? Bool ?? false
         isIntroductoryActivated = dictionary["introductory_activated"] as? Bool ?? false
+        isSandbox = (dictionary["environment"] as? String ?? "") == "sandbox"
+        isLocal = dictionary["local"] as? Bool ?? false
         if let statusString = dictionary["status"] as? String {
             status = ApphudSubscription.statusFrom(string: statusString)
         } else {

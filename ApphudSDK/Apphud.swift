@@ -10,7 +10,7 @@ import UIKit
 import StoreKit
 import UserNotifications
 
-internal let apphud_sdk_version = "1.1"
+internal let apphud_sdk_version = "1.2"
 
 public typealias ApphudEligibilityCallback = (([String: Bool]) -> Void)
 public typealias ApphudBoolCallback = ((Bool) -> Void)
@@ -116,14 +116,47 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
     */
     @objc optional func apphudDidFailPurchase(product: SKProduct, offerID: String?, errorCode: SKError.Code, screenName: String)
 
+    /**
+     Called when screen succesfully loaded and is visible to user.
+     */
     @objc optional func apphudScreenDidAppear(screenName: String)
 
+    /**
+     Called when screen is about to dismiss.
+     */
     @objc optional func apphudScreenWillDismiss(screenName: String, error: Error?)
 
     /**
      Notifies that Apphud Screen did dismiss
     */
     @objc optional func apphudDidDismissScreen(controller: UIViewController)
+    
+    /**
+     (New) Overrides action after survey option is selected or feeback sent is tapped. Default is "thankAndClose".
+     This delegate method is only called if no other screen is selected as button action in Apphud Screens editor.
+     You can return `noAction` value and use `navigationController` property of `controller` variable to push your own view controller into hierarchy.
+     */
+    @objc optional func apphudScreenDismissAction(screenName: String, controller: UIViewController) -> ApphudScreenDismissAction
+    
+    /**
+     (New) Called after survey answer is selected.
+     */
+    @objc optional func apphudDidSelectSurveyAnswer(question: String, answer: String, screenName: String)
+}
+
+/**
+ These are three types of actions that are returned in `apphudScreenDismissAction(screenName: String, controller: UIViewController)` delegate method
+ */
+@objc public enum ApphudScreenDismissAction: Int {
+    
+    // Displays "Thank you for feedback" or "Answer sent" alert message and dismisses
+    case thankAndClose
+    
+    // Just dismisses view controller
+    case closeOnly
+    
+    // Does nothing, in this case you can push your own view controller into hierarchy, use `navigationController` property of `controller` variable.
+    case none
 }
 
 /// List of available attribution providers
@@ -447,6 +480,13 @@ final public class Apphud: NSObject {
                 callback(subscriptions, purchases, error)
             }
         }
+    }
+    
+    /**
+     Returns base64 encoded App Store receipt string, if available.
+     */
+    @objc public static func appStoreReceipt() -> String? {
+        apphudReceiptDataString()
     }
     
     /**

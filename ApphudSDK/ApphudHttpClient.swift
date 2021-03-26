@@ -51,6 +51,7 @@ public class ApphudHttpClient {
         return URLSession.init(configuration: config)
     }()
     
+    private let CACHE_TIMEOUT: TimeInterval = 3600.0
     private let GET_TIMEOUT: TimeInterval = 10.0
     private let POST_PUT_TIMEOUT: TimeInterval = 40.0
 
@@ -68,14 +69,22 @@ public class ApphudHttpClient {
 
     internal func loadScreenHtmlData(screenID: String, callback: @escaping (String?, Error?) -> Void) {
 
+        if let data = cachedScreenData(id: screenID), let string = String(data: data, encoding: .utf8) {
+            callback(string, nil)
+            apphudLog("using cached html data for screen id = \(screenID)", logLevel: .all)
+            return
+        }
+        
         if let request = makeScreenRequest(screenID: screenID) {
 
             apphudLog("started loading screen html data:\(request)", logLevel: .all)
 
             let task = session.dataTask(with: request) { (data, response, error) in
                 var string: String?
-                if data != nil, let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode < 299 {
-                    string = String(data: data!, encoding: .utf8)
+                if let data = data, let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode < 299,
+                   let stringData = String(data: data, encoding: .utf8) {
+                    self.cacheScreenData(id: screenID, html: data)
+                    string = stringData
                 }
                 DispatchQueue.main.async {
                     callback(string, error)
@@ -88,6 +97,32 @@ public class ApphudHttpClient {
         }
     }
 
+    private func cachedScreenData(id: String) -> Data? {
+        guard var url = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return nil }
+        url = url.appendingPathComponent(id).appendingPathExtension("html")
+        
+        if FileManager.default.fileExists(atPath: url.path),
+           let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
+           let creationDate = attrs[.creationDate] as? Date,
+           Date().timeIntervalSince(creationDate) < CACHE_TIMEOUT,
+           let data = try? Data(contentsOf: url) {
+            return data
+        }
+        
+        return nil
+    }
+    
+    private func cacheScreenData(id: String, html: Data) {
+        guard var url = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }
+        url = url.appendingPathComponent(id).appendingPathExtension("html")
+        
+        if FileManager.default.fileExists(atPath: url.path) {
+            try? FileManager.default.removeItem(at: url)
+        }
+        
+        try? html.write(to: url)
+    }
+    
     internal func makeScreenRequest(screenID: String) -> URLRequest? {
 
         let deviceID: String = ApphudInternal.shared.currentDeviceID
@@ -202,9 +237,7 @@ public class ApphudHttpClient {
 
                         callback?(true, dictionary, nil, code)
                         return
-                    }
-                    
-                    if code == 401 {
+                    } else if code == 401 {
                         self.invalidAPiKey = true
                         apphudLog("Unable to perform API requests, because your API Key is invalid.", forceDisplay: true)
                     } else if code == 403 {
@@ -218,12 +251,26 @@ public class ApphudHttpClient {
                         apphudLog("Request \(method) \(request.url?.absoluteString ?? "") failed with code \(code), error: \(error?.localizedDescription ?? "")")
                     }
 
-                    callback?(false, nil, error, code)
+                    var finalError = error
+                    
+                    if code == 422 && dictionary != nil {
+                        finalError = self.parseError(dictionary!)
+                    }
+                    
+                    callback?(false, nil, finalError, code)
                 } else {
                     callback?(false, nil, error, 0)
                 }
             }
         }
         task.resume()
+    }
+    
+    private func parseError(_ dictionary: [String: Any]) -> Error? {
+        if let errors = dictionary["errors"] as? [[String: Any]], let errorDict = errors.first, let errorMessage = errorDict["title"] as? String {
+            return ApphudError(message: errorMessage)
+        } else {
+            return nil
+        }
     }
 }
