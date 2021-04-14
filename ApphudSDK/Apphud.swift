@@ -10,7 +10,7 @@ import UIKit
 import StoreKit
 import UserNotifications
 
-internal let apphud_sdk_version = "1.2"
+internal let apphud_sdk_version = "1.2.1"
 
 public typealias ApphudEligibilityCallback = (([String: Bool]) -> Void)
 public typealias ApphudBoolCallback = ((Bool) -> Void)
@@ -282,7 +282,7 @@ final public class Apphud: NSObject {
     You can use `productsDidFetchCallback` callback or observe for `didFetchProductsNotification()` or implement `apphudDidFetchStoreKitProducts` delegate method. Use whatever you like most.
     */
     @objc public static func productsDidFetchCallback(_ callback: @escaping ([SKProduct]) -> Void) {
-        ApphudStoreKitWrapper.shared.customProductsFetchedBlock = callback
+        ApphudStoreKitWrapper.shared.customProductsFetchedBlocks.append(callback)
     }
 
     /**
