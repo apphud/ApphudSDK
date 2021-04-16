@@ -15,13 +15,13 @@ extension ApphudInternal {
         if let productIDs = delegate?.apphudProductIdentifiers?(), productIDs.count > 0 {
             var map = [String: String]()
             productIDs.forEach { id in map[id] = "Untitled" }
-            continueWithProductsMap(map)
+            continueWithProductsMap(map, errorCode: nil)
         } else {
-            getProducts { map in  self.continueWithProductsMap(map) }
+            getProducts { map, code in  self.continueWithProductsMap(map, errorCode: code) }
         }
     }
     
-    fileprivate func continueWithProductsMap(_ productsGroupsMap: [String: String]?) {
+    fileprivate func continueWithProductsMap(_ productsGroupsMap: [String: String]?, errorCode: Int?) {
         // perform even if productsGroupsMap is nil or empty
         self.performAllProductGroupsFetchedCallbacks()
 
@@ -33,11 +33,12 @@ extension ApphudInternal {
         if self.productsGroupsMap?.keys.count ?? 0 > 0 {
             self.continueToFetchStoreKitProducts()
         } else {
-            self.scheduleProductsFetchRetry()
+            let noInternetErrorCode = errorCode == NSURLErrorNotConnectedToInternet
+            self.scheduleProductsFetchRetry(noInternetErrorCode)
         }
     }
 
-    fileprivate func scheduleProductsFetchRetry() {
+    fileprivate func scheduleProductsFetchRetry(_ noInternetError: Bool) {
         guard httpClient.canRetry else {
             return
         }
@@ -45,8 +46,17 @@ extension ApphudInternal {
             apphudLog("Reached max number of product fetch retries \(productsFetchRetriesCount). Exiting..", forceDisplay: true)
             return
         }
-        productsFetchRetriesCount += 1
-        let delay: TimeInterval = TimeInterval(productsFetchRetriesCount * 5)
+        
+        let delay: TimeInterval
+
+        if noInternetError {
+            delay = 2.0
+        } else {
+            delay = 5.0
+            userRegisterRetriesCount += 1
+        }
+        
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(continueToFetchProducts), object: nil)
         perform(#selector(continueToFetchProducts), with: nil, afterDelay: delay)
         apphudLog("No Product Identifiers found in Apphud. Probably you forgot to add products in Apphud Settings? Scheduled products fetch retry in \(delay) seconds.", forceDisplay: true)
     }
@@ -73,7 +83,7 @@ extension ApphudInternal {
 
     internal func refreshStoreKitProductsWithCallback(callback: (([SKProduct]) -> Void)?) {
 
-        ApphudStoreKitWrapper.shared.customProductsFetchedBlock = callback
+        callback.map{ ApphudStoreKitWrapper.shared.customProductsFetchedBlocks.append($0) }
 
         if self.currentUser == nil {
             continueToRegisteringUser()
@@ -84,9 +94,9 @@ extension ApphudInternal {
         }
     }
 
-    private func getProducts(callback: @escaping (([String: String]?) -> Void)) {
+    private func getProducts(callback: @escaping (([String: String]?, Int) -> Void)) {
 
-        httpClient.startRequest(path: "products", params: nil, method: .get) { (result, response, _, _) in
+        httpClient.startRequest(path: "products", params: ["device_id": currentDeviceID], method: .get) { (result, response, _, code) in
             if result, let dataDict = response?["data"] as? [String: Any],
                 let productsArray = dataDict["results"] as? [[String: Any]] {
 
@@ -97,9 +107,9 @@ extension ApphudInternal {
                     let groupID = (product["group_id"] as? String) ?? ""
                     map[productID] = groupID
                 }
-                callback(map)
+                callback(map, code)
             } else {
-                callback(nil)
+                callback(nil, code)
             }
         }
     }

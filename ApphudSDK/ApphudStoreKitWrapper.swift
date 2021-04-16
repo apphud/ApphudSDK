@@ -28,7 +28,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     private var paymentCallback: ApphudTransactionCallback?
     private var purchasingProductID: String?
     private weak var purchasingPayment: SKPayment?
-    internal var customProductsFetchedBlock: ApphudStoreKitProductsCallback?
+    internal var customProductsFetchedBlocks = [ApphudStoreKitProductsCallback]()
 
     private var refreshRequest: SKReceiptRefreshRequest?
 
@@ -49,8 +49,8 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
             callback(products)
             NotificationCenter.default.post(name: Apphud.didFetchProductsNotification(), object: self.products)
             ApphudInternal.shared.delegate?.apphudDidFetchStoreKitProducts?(self.products)
-            self.customProductsFetchedBlock?(self.products)
-            self.customProductsFetchedBlock = nil
+            self.customProductsFetchedBlocks.forEach { block in block(self.products) }
+            self.customProductsFetchedBlocks.removeAll()
         }
     }
 
@@ -123,7 +123,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         if transaction.payment.productIdentifier == self.purchasingProductID {
             self.purchasingProductID = nil
             if self.paymentCallback != nil {
-                self.paymentCallback?(transaction, nil)
+                self.paymentCallback?(transaction, transaction.error)
             } else {
                 finishTransaction(transaction)
             }

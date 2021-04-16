@@ -51,11 +51,11 @@ extension ApphudInternal {
         }
     }
 
-    internal func createOrGetUser(shouldUpdateUserID: Bool, callback: @escaping (Bool) -> Void) {
+    internal func createOrGetUser(shouldUpdateUserID: Bool, callback: @escaping (Bool, Int) -> Void) {
 
         let fields = shouldUpdateUserID ? ["user_id": self.currentUserID] : [:]
 
-        self.updateUser(fields: fields) { (result, response, error, _) in
+        self.updateUser(fields: fields) { (result, response, error, code) in
 
             let hasChanges = self.parseUser(response)
 
@@ -77,7 +77,7 @@ extension ApphudInternal {
                 apphudLog("Failed to register or get user, error:\(error!.localizedDescription)", forceDisplay: true)
             }
 
-            callback(finalResult)
+            callback(finalResult, code)
         }
     }
 
@@ -130,7 +130,7 @@ extension ApphudInternal {
     }
 
     @objc internal func updateCurrentUser() {
-        createOrGetUser(shouldUpdateUserID: false) { _ in
+        createOrGetUser(shouldUpdateUserID: false) { _, _ in
             self.lastCheckDate = Date()
         }
     }

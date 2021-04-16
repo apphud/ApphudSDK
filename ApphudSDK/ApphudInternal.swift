@@ -65,7 +65,7 @@ final class ApphudInternal: NSObject {
     internal var isRegisteringUser = false {
         didSet {
             if isRegisteringUser {
-                NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(continueToRegisteringUser), object: nil)
+                NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(registerUser), object: nil)
             }
         }
     }
@@ -205,14 +205,15 @@ final class ApphudInternal: NSObject {
         apphudLog("User logged out. Apphud SDK is uninitialized.", logLevel: .all)
     }
 
-    @objc internal func continueToRegisteringUser() {
+    internal func continueToRegisteringUser() {
         guard !isRegisteringUser else {return}
         isRegisteringUser = true
-
-        // try to continue anyway, because maybe already has cached data, try to fetch storekit products
-        self.continueToFetchProducts()
-        
-        createOrGetUser(shouldUpdateUserID: true) { success in
+        continueToFetchProducts()
+        registerUser()
+    }
+    
+    @objc private func registerUser() {
+        createOrGetUser(shouldUpdateUserID: true) { success, errorCode in
 
             self.isRegisteringUser = false
             self.setupObservers()
@@ -224,12 +225,13 @@ final class ApphudInternal: NSObject {
                 self.checkForUnreadNotifications()
                 self.perform(#selector(self.forceSendAttributionDataIfNeeded), with: nil, afterDelay: 10.0)
             } else {
-                self.scheduleUserRegistering()
+                let noInternetErrorCode = errorCode == NSURLErrorNotConnectedToInternet
+                self.scheduleUserRegistering(noInternetErrorCode)
             }
         }
     }
 
-    private func scheduleUserRegistering() {
+    private func scheduleUserRegistering(_ noInternetError: Bool) {
         guard httpClient.canRetry else {
             return
         }
@@ -237,9 +239,18 @@ final class ApphudInternal: NSObject {
             apphudLog("Reached max number of user register retries \(userRegisterRetriesCount). Exiting..", forceDisplay: true)
             return
         }
-        userRegisterRetriesCount += 1
-        let delay: TimeInterval = TimeInterval(userRegisterRetriesCount * 5)
-        perform(#selector(continueToRegisteringUser), with: nil, afterDelay: delay)
+        
+        let delay: TimeInterval
+
+        if noInternetError {
+            delay = 2.0
+        } else {
+            delay = 5.0
+            userRegisterRetriesCount += 1
+        }
+        
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(registerUser), object: nil)
+        perform(#selector(registerUser), with: nil, afterDelay: delay)
         apphudLog("Scheduled user register retry in \(delay) seconds.", forceDisplay: true)
     }
 

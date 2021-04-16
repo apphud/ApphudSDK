@@ -259,7 +259,8 @@ public class ApphudHttpClient {
                     
                     callback?(false, nil, finalError, code)
                 } else {
-                    callback?(false, nil, error, 0)
+                    let code = (error as NSError?)?.code ?? NSURLErrorUnknown
+                    callback?(false, nil, error, code)
                 }
             }
         }
