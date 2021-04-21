@@ -3,7 +3,7 @@
 //  apphud
 //
 //  Created by Renat on 01.07.2020.
-//  Copyright © 2020 softeam. All rights reserved.
+//  Copyright © 2020 Apphud Inc. All rights reserved.
 //
 
 import Foundation
@@ -110,10 +110,19 @@ extension ApphudInternal {
         if let bundleID = Bundle.main.bundleIdentifier {
             params["bundle_id"] = bundleID
         }
+        
         if let product = product {
             params["product_info"] = product.apphudSubmittableParameters()
         } else if let productID = transaction?.payment.productIdentifier, let product = ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == productID}) {
             params["product_info"] = product.apphudSubmittableParameters()
+        }
+        
+        if transaction?.transactionState == .purchased {
+            let mainProductID: String? = product?.productIdentifier ?? transaction?.payment.productIdentifier
+            let other_products = ApphudStoreKitWrapper.shared.products.filter { $0.productIdentifier != mainProductID }
+            params["other_products_info"] = other_products.map { $0.apphudSubmittableParameters() }
+            
+            ApphudRulesManager.shared.cacheActiveScreens()
         }
 
         self.requiresReceiptSubmission = true
@@ -141,21 +150,21 @@ extension ApphudInternal {
                 }
             }
         } else {
-            scheduleSubmitReceiptRetry()
+            scheduleSubmitReceiptRetry(error: error)
         }
 
         self.submitReceiptCallbacks.forEach { callback in callback?(error)}
         self.submitReceiptCallbacks.removeAll()
     }
     
-    internal func scheduleSubmitReceiptRetry() {
+    internal func scheduleSubmitReceiptRetry(error: Error?) {
         guard httpClient.canRetry else {
             return
         }
         submitReceiptRetriesCount += 1
         let delay: TimeInterval = TimeInterval(submitReceiptRetriesCount * 5)
         perform(#selector(submitAppStoreReceipt), with: nil, afterDelay: delay)
-        apphudLog("Failed to upload App Store Receipt, will retry in \(delay) seconds.", forceDisplay: true)
+        apphudLog("Failed to upload App Store Receipt with error: \(error?.localizedDescription ?? "null"). Will retry in \(Int(delay)) seconds.", forceDisplay: true)
     }
 
     internal func purchase(product: SKProduct, callback: ((ApphudPurchaseResult) -> Void)?) {

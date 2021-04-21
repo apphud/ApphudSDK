@@ -28,7 +28,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     private var paymentCallback: ApphudTransactionCallback?
     private var purchasingProductID: String?
     private weak var purchasingPayment: SKPayment?
-    internal var customProductsFetchedBlock: ApphudStoreKitProductsCallback?
+    internal var customProductsFetchedBlocks = [ApphudStoreKitProductsCallback]()
 
     private var refreshRequest: SKReceiptRefreshRequest?
 
@@ -49,8 +49,8 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
             callback(products)
             NotificationCenter.default.post(name: Apphud.didFetchProductsNotification(), object: self.products)
             ApphudInternal.shared.delegate?.apphudDidFetchStoreKitProducts?(self.products)
-            self.customProductsFetchedBlock?(self.products)
-            self.customProductsFetchedBlock = nil
+            self.customProductsFetchedBlocks.forEach { block in block(self.products) }
+            self.customProductsFetchedBlocks.removeAll()
         }
     }
 
@@ -123,7 +123,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         if transaction.payment.productIdentifier == self.purchasingProductID {
             self.purchasingProductID = nil
             if self.paymentCallback != nil {
-                self.paymentCallback?(transaction, nil)
+                self.paymentCallback?(transaction, transaction.error)
             } else {
                 finishTransaction(transaction)
             }
@@ -141,14 +141,23 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     }
 
     private func finishCompletedTransactions(for productIdentifier: String) {
-        SKPaymentQueue.default().transactions.filter { $0.payment.productIdentifier == productIdentifier && $0.finishable }.forEach { transaction in finishTransaction(transaction) }
+        SKPaymentQueue.default().transactions
+            .filter { $0.payment.productIdentifier == productIdentifier && $0.finishable }
+            .forEach { transaction in finishTransaction(transaction) }
     }
 
     internal func finishTransaction(_ transaction: SKPaymentTransaction) {
         apphudLog("Finish Transaction: \(transaction.payment.productIdentifier), state: \(transaction.transactionState.rawValue), id: \(transaction.transactionIdentifier ?? "")")
         NotificationCenter.default.post(name: ApphudWillFinishTransactionNotification, object: transaction)
         SKPaymentQueue.default().finishTransaction(transaction)
-        NotificationCenter.default.post(name: ApphudDidFinishTransactionNotification, object: transaction)
+    }
+    
+    func paymentQueue(_ queue: SKPaymentQueue, removedTransactions transactions: [SKPaymentTransaction]) {
+        DispatchQueue.main.async {
+            transactions.forEach { transaction in
+                NotificationCenter.default.post(name: ApphudDidFinishTransactionNotification, object: transaction)
+            }
+        }
     }
 
     #if os(iOS) && !targetEnvironment(macCatalyst)
@@ -194,6 +203,14 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
                 }
                 self.refreshRequest = nil
             }
+        }
+    }
+    
+    func presentOfferCodeSheet() {
+        if #available(iOS 14.0, *) {
+            SKPaymentQueue.default().presentCodeRedemptionSheet()
+        } else {
+            apphudLog("Method unavailable on current iOS version (minimum 14.0).", forceDisplay: true)
         }
     }
 }

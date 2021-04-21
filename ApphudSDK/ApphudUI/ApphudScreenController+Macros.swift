@@ -3,7 +3,7 @@
 //  apphud
 //
 //  Created by Renat on 01.07.2020.
-//  Copyright © 2020 softeam. All rights reserved.
+//  Copyright © 2020 Apphud Inc. All rights reserved.
 //
 
 import Foundation

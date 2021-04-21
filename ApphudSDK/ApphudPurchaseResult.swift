@@ -48,4 +48,15 @@ public class ApphudPurchaseResult: NSObject {
         self.transaction = transaction
         self.error = error
     }
+    
+    public override var description: String {
+        """
+            ApphudPurchaseResult:
+        \ntransaction_id = \(transaction?.transactionIdentifier ?? "")
+        \nproduct_id = \(transaction?.payment.productIdentifier ?? "")
+        \nsubscription status = \( subscription != nil ? subscription!.isActive().description : "nil")
+        \nnon renewing purchase status = \( nonRenewingPurchase != nil ? nonRenewingPurchase!.isActive().description : "nil")
+        \nerror = \(error?.localizedDescription ?? "nil")
+        """
+    }
 }

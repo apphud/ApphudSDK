@@ -65,7 +65,7 @@ final class ApphudInternal: NSObject {
     internal var isRegisteringUser = false {
         didSet {
             if isRegisteringUser {
-                NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(continueToRegisteringUser), object: nil)
+                NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(registerUser), object: nil)
             }
         }
     }
@@ -76,7 +76,9 @@ final class ApphudInternal: NSObject {
         didSet {
             if advertisingIdentifier != nil {
                 apphudLog("Received IDFA (\(advertisingIdentifier ?? ""), will submit soon.")
-                setNeedsToUpdateUser = true
+                apphudPerformOnMainThread {
+                    self.setNeedsToUpdateUser = true
+                }
             }
         }
     }
@@ -96,7 +98,8 @@ final class ApphudInternal: NSObject {
     internal let didSubmitProductPricesKey = "didSubmitProductPricesKey"
     internal var isSendingAppsFlyer = false
     internal var isSendingAdjust = false
-
+    internal var isFreshInstall = true
+    
     internal var didSubmitAppsFlyerAttribution: Bool {
         get {
             UserDefaults.standard.bool(forKey: didSubmitAppsFlyerAttributionKey)
@@ -156,6 +159,8 @@ final class ApphudInternal: NSObject {
 
         var deviceID = ApphudKeychain.loadDeviceID()
 
+        isFreshInstall = deviceID == nil
+        
         if inputDeviceID?.count ?? 0 > 0 {
             deviceID = inputDeviceID
         }
@@ -200,14 +205,15 @@ final class ApphudInternal: NSObject {
         apphudLog("User logged out. Apphud SDK is uninitialized.", logLevel: .all)
     }
 
-    @objc internal func continueToRegisteringUser() {
+    internal func continueToRegisteringUser() {
         guard !isRegisteringUser else {return}
         isRegisteringUser = true
-
-        // try to continue anyway, because maybe already has cached data, try to fetch storekit products
-        self.continueToFetchProducts()
-        
-        createOrGetUser(shouldUpdateUserID: true) { success in
+        continueToFetchProducts()
+        registerUser()
+    }
+    
+    @objc private func registerUser() {
+        createOrGetUser(shouldUpdateUserID: true) { success, errorCode in
 
             self.isRegisteringUser = false
             self.setupObservers()
@@ -219,7 +225,8 @@ final class ApphudInternal: NSObject {
                 self.checkForUnreadNotifications()
                 self.perform(#selector(self.forceSendAttributionDataIfNeeded), with: nil, afterDelay: 10.0)
             } else {
-                self.scheduleUserRegistering()
+                let noInternetErrorCode = errorCode == NSURLErrorNotConnectedToInternet
+                self.scheduleUserRegistering(noInternetErrorCode)
             }
         }
         
@@ -227,7 +234,7 @@ final class ApphudInternal: NSObject {
         self.continueToFetchProducts()
     }
 
-    private func scheduleUserRegistering() {
+    private func scheduleUserRegistering(_ noInternetError: Bool) {
         guard httpClient.canRetry else {
             return
         }
@@ -235,9 +242,18 @@ final class ApphudInternal: NSObject {
             apphudLog("Reached max number of user register retries \(userRegisterRetriesCount). Exiting..", forceDisplay: true)
             return
         }
-        userRegisterRetriesCount += 1
-        let delay: TimeInterval = TimeInterval(userRegisterRetriesCount * 5)
-        perform(#selector(continueToRegisteringUser), with: nil, afterDelay: delay)
+        
+        let delay: TimeInterval
+
+        if noInternetError {
+            delay = 2.0
+        } else {
+            delay = 5.0
+            userRegisterRetriesCount += 1
+        }
+        
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(registerUser), object: nil)
+        perform(#selector(registerUser), with: nil, afterDelay: delay)
         apphudLog("Scheduled user register retry in \(delay) seconds.", forceDisplay: true)
     }
 
@@ -258,7 +274,7 @@ final class ApphudInternal: NSObject {
     
     @objc private func handleDidBecomeActive() {
 
-        let minCheckInterval: Double = 30
+        let minCheckInterval: Double = 60
 
         checkPendingRules()
         
@@ -385,6 +401,18 @@ final class ApphudInternal: NSObject {
             let params = ["device_id": self.currentDeviceID, "rule_id": ruleID] as [String: String]
             self.httpClient.startRequest(path: "notifications/read", apiVersion: .APIV2, params: params, method: .post, callback: { (_, _, _, _) in
             })
+        }
+    }
+    
+    internal func getActiveRuleScreens(_ callback: @escaping ([String]) -> Void) {
+        performWhenUserRegistered {
+            self.httpClient.startRequest(path: "rules/screens", apiVersion: .APIV2, params: nil, method: .get) { result, response, error, code in
+                if result, let dataDict = response?["data"] as? [String: Any], let screensIdsArray = dataDict["results"] as? [String] {
+                    callback(screensIdsArray)
+                } else {
+                    callback([])
+                }
+            }
         }
     }
 }

@@ -114,4 +114,12 @@ internal class ApphudRulesManager {
             return nil
         }
     }
+    
+    internal func cacheActiveScreens() {
+        ApphudInternal.shared.getActiveRuleScreens { ids in
+            ids.forEach { id in
+                ApphudHttpClient.shared.loadScreenHtmlData(screenID: id) { _, _ in }
+            }
+        }
+    }
 }

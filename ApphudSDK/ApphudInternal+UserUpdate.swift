@@ -3,7 +3,7 @@
 //  apphud
 //
 //  Created by Renat on 01.07.2020.
-//  Copyright © 2020 softeam. All rights reserved.
+//  Copyright © 2020 Apphud Inc. All rights reserved.
 //
 
 import Foundation
@@ -51,11 +51,11 @@ extension ApphudInternal {
         }
     }
 
-    internal func createOrGetUser(shouldUpdateUserID: Bool, callback: @escaping (Bool) -> Void) {
+    internal func createOrGetUser(shouldUpdateUserID: Bool, callback: @escaping (Bool, Int) -> Void) {
 
         let fields = shouldUpdateUserID ? ["user_id": self.currentUserID] : [:]
 
-        self.updateUser(fields: fields) { (result, response, error, _) in
+        self.updateUser(fields: fields) { (result, response, error, code) in
 
             let hasChanges = self.parseUser(response)
 
@@ -77,7 +77,7 @@ extension ApphudInternal {
                 apphudLog("Failed to register or get user, error:\(error!.localizedDescription)", forceDisplay: true)
             }
 
-            callback(finalResult)
+            callback(finalResult, code)
         }
     }
 
@@ -124,12 +124,13 @@ extension ApphudInternal {
         params.merge(fields) { (current, _) in current}
         params["device_id"] = self.currentDeviceID
         params["is_debug"] = apphudIsSandbox()
+        params["is_new"] = isFreshInstall
         // do not automatically pass currentUserID here,because we have separate method updateUserID
         httpClient.startRequest(path: "customers", params: params, method: .post, callback: callback)
     }
 
     @objc internal func updateCurrentUser() {
-        createOrGetUser(shouldUpdateUserID: false) { _ in
+        createOrGetUser(shouldUpdateUserID: false) { _, _ in
             self.lastCheckDate = Date()
         }
     }

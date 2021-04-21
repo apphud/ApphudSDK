@@ -16,18 +16,19 @@ public class ApphudReceipt: NSObject, Codable {
     
     /**
      The version of the app that the user originally purchased. This value does not change, and corresponds to the value of CFBundleVersion (in iOS) or CFBundleShortVersionString (in macOS) in the Info.plist file of the original purchase. In the sandbox environment, the value is always "1.0".
+     Value is `nil` in StoreKit Testing generated receipts.
      */
-    @objc public var originalApplicationVersion: String
+    @objc public var originalApplicationVersion: String?
     
     /**
-     The time of the original app purchase.
+     The time of the original app purchase. Value is `nil` in StoreKit Testing generated receipts.
      */
-    @objc public var originalPurchaseDate: Date? { _originalPurchaseDate.appleReceiptDate }
+    @objc public var originalPurchaseDate: Date? { _originalPurchaseDate?.appleReceiptDate }
     
     /**
      The time the App Store generated the receipt.
      */
-    @objc public var receiptCreationDate: Date? { _receiptCreationDate.appleReceiptDate }
+    @objc public var receiptCreationDate: Date? { _receiptCreationDate?.appleReceiptDate ?? _creationDate?.appleReceiptDate }
     
     /**
      The app’s version number. The app's version number corresponds to the value of CFBundleVersion (in iOS) or CFBundleShortVersionString (in macOS) in the Info.plist. In production, this value is the current version of the app on the device based on the receipt_creation_date_ms. In the sandbox, the value is always "1.0".
@@ -46,13 +47,15 @@ public class ApphudReceipt: NSObject, Codable {
     
     
     // MARK: - Private
-    private var _originalPurchaseDate: String
-    private var _receiptCreationDate: String
+    private var _originalPurchaseDate: String?
+    private var _receiptCreationDate: String?
+    private var _creationDate: String?
     
     enum CodingKeys: String, CodingKey {
         case originalApplicationVersion
         case _originalPurchaseDate = "originalPurchaseDate"
         case _receiptCreationDate = "receiptCreationDate"
+        case _creationDate = "creationDate"
         case applicationVersion
         case bundleId
     }
@@ -65,7 +68,7 @@ public class ApphudReceipt: NSObject, Codable {
         }
         ApphudHttpClient.shared.startRequest(path: "subscriptions/raw", params: ["receipt_data": receiptData], method: .post) { (result, dict, error, code) in
             
-            guard let receiptDict = dict?["receipt"] as? [String: Any] else {
+            guard let receiptDict = (dict?["receipt"] as? [String: Any]) ?? dict else {
                 completion(nil)
                 return
             }

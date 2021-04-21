@@ -3,7 +3,7 @@
 //  apphud
 //
 //  Created by Renat on 01.07.2020.
-//  Copyright © 2020 softeam. All rights reserved.
+//  Copyright © 2020 Apphud Inc. All rights reserved.
 //
 
 import Foundation
@@ -149,6 +149,7 @@ extension ApphudScreenController {
 
         if question != nil && answer != nil {
             ApphudInternal.shared.trackEvent(params: ["rule_id": self.rule.id, "screen_id": self.screenID, "name": "$survey_answer", "properties": ["question": question!, "answer": answer!]]) {}
+            ApphudInternal.shared.uiDelegate?.apphudDidSelectSurveyAnswer?(question: question!, answer: answer!, screenName: screen?.name ?? rule.rule_name)
         }
 
         if answerAndDismiss {

@@ -29,14 +29,24 @@ extension String {
                                    .withColonSeparatorInTimeZone,
                                    .withColonSeparatorInTime]
         let date = formatter.date(from: self)
-        return date
+        if date != nil { return date }
+        
+        // fallback
+        return apphudStandardIsoDate
     }
     
     internal var appleReceiptDate: Date? {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH:mm:ss VV"
         let date = formatter.date(from: self)
-        return date
+        if date != nil { return date }
+        
+        // for local storekit receipts
+        return apphudStandardIsoDate
+    }
+    
+    internal var apphudStandardIsoDate: Date? {
+        ISO8601DateFormatter().date(from: self)
     }
 }
 
@@ -74,6 +84,16 @@ internal func apphudToUserDefaultsCache(dictionary: [String: String], key: Strin
 
 internal func apphudFromUserDefaultsCache(key: String) -> [String: String]? {
     return UserDefaults.standard.object(forKey: key) as? [String: String]
+}
+
+internal func apphudPerformOnMainThread(callback: @escaping () -> Void) {
+    if Thread.isMainThread {
+        callback()
+    } else {
+        DispatchQueue.main.async {
+            callback()
+        }
+    }
 }
 
 internal func apphudCurrentDeviceParameters() -> [String: String] {
