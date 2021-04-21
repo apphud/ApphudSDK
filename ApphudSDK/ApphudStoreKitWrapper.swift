@@ -45,7 +45,9 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     func fetchProducts(identifiers: Set<String>, callback: @escaping ApphudStoreKitProductsCallback) {
         fetcher.fetchStoreKitProducts(identifiers: identifiers) { (products) in
-            self.products.append(contentsOf: products)
+            let existingProductIDS = self.products.map { $0.productIdentifier }
+            let uniqueProducts = products.filter { !existingProductIDS.contains($0.productIdentifier) }
+            self.products.append(contentsOf: uniqueProducts)
             callback(products)
             NotificationCenter.default.post(name: Apphud.didFetchProductsNotification(), object: self.products)
             ApphudInternal.shared.delegate?.apphudDidFetchStoreKitProducts?(self.products)

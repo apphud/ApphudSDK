@@ -124,6 +124,10 @@ internal func apphudCurrentDeviceParameters() -> [String: String] {
     if let idfv = UIDevice.current.identifierForVendor?.uuidString {
         params["idfv"] = idfv
     }
+    
+    if let idfa = ApphudInternal.shared.advertisingIdentifier {
+        params["idfa"] = idfa
+    }
 
     return params
 }
