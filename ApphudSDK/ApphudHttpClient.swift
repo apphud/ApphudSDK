@@ -31,8 +31,8 @@ public class ApphudHttpClient {
     public static let shared = ApphudHttpClient()
     public var domainUrlString = "https://api.apphud.com"
     #else
-    internal static let shared = ApphudHttpClient()
-    internal var domainUrlString = "https://api.apphud.com"
+    public static let shared = ApphudHttpClient()
+    public var domainUrlString = "https://api.apphud.com"
     #endif
 
     internal var apiKey: String = ""

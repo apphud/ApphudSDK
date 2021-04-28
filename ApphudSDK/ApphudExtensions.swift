@@ -135,7 +135,7 @@ internal func apphudCurrentDeviceParameters() -> [String: String] {
 }
 
 internal func apphudIdentifierForAdvertising() -> String? {
-    let idfa = ASIdentifierManager.shared().advertisingIdentifier.uuidString
+    let idfa = ApphudInternal.shared.advertisingIdentifier ?? ASIdentifierManager.shared().advertisingIdentifier.uuidString
     if idfa == "00000000-0000-0000-0000-000000000000" {
         return nil
     } else {
