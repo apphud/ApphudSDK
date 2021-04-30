@@ -29,7 +29,10 @@ final class ApphudInternal: NSObject {
     internal let maxNumberOfProductsFetchRetries: Int = 10
 
     internal var productGroupsFetchedCallbacks = [ApphudVoidCallback]()
-    internal var productsGroupsMap: [String: String]?
+    internal var storeKitProductsFetchedCallbacks = [ApphudVoidCallback]()
+    internal var customProductsFetchedBlocks = [ApphudStoreKitProductsCallback]()
+    internal var productGroups = [ApphudGroup]()
+    internal var paywalls = [ApphudPaywall]()
 
     internal var submitReceiptRetriesCount: Int = 0
     internal var submitReceiptCallbacks = [ApphudErrorCallback?]()
@@ -191,8 +194,9 @@ final class ApphudInternal: NSObject {
             ApphudKeychain.saveUserID(userID: self.currentUserID)
         }
 
-        self.productsGroupsMap = apphudFromUserDefaultsCache(key: "productsGroupsMap")
-
+        self.productGroups = cachedGroups() ?? []
+        self.paywalls = cachedPaywalls() ?? []
+        
         DispatchQueue.main.async {
             self.continueToRegisteringUser()
         }
@@ -311,7 +315,7 @@ final class ApphudInternal: NSObject {
 
     /// Returns false if products groups map dictionary not yet received, block is added to array and will be performed later.
     @discardableResult internal func performWhenProductGroupsFetched(callback : @escaping ApphudVoidCallback) -> Bool {
-        if self.productsGroupsMap != nil {
+        if self.productGroups.count > 0 {
             callback()
             return true
         } else {
@@ -330,6 +334,28 @@ final class ApphudInternal: NSObject {
             productGroupsFetchedCallbacks.removeAll()
         }
     }
+    
+    /// Returns false if products groups map dictionary not yet received, block is added to array and will be performed later.
+    @discardableResult internal func performWhenStoreKitProductFetched(callback : @escaping ApphudVoidCallback) -> Bool {
+        if ApphudStoreKitWrapper.shared.products.count > 0 {
+            callback()
+            return true
+        } else {
+            storeKitProductsFetchedCallbacks.append(callback)
+            return false
+        }
+    }
+    
+    internal func performAllStoreKitProductsFetchedCallbacks() {
+        for block in storeKitProductsFetchedCallbacks {
+            apphudLog("Performing scheduled block..")
+            block()
+        }
+        if storeKitProductsFetchedCallbacks.count > 0 {
+            apphudLog("All scheduled blocks performed, removing..")
+            storeKitProductsFetchedCallbacks.removeAll()
+        }
+    }
 
     // MARK: - Push Notifications API
 
@@ -337,7 +363,7 @@ final class ApphudInternal: NSObject {
         performWhenUserRegistered {
             let tokenString = token.map { String(format: "%02.2hhx", $0) }.joined()
             let params: [String: String] = ["device_id": self.currentDeviceID, "push_token": tokenString]
-            self.httpClient.startRequest(path: "customers/push_token", params: params, method: .put) { (result, _, _, _) in
+            self.httpClient.startRequest(path: "customers/push_token", params: params, method: .put) { (result, _, _, _, _) in
                 callback?(result)
             }
         }
@@ -349,7 +375,7 @@ final class ApphudInternal: NSObject {
 
         let result = performWhenUserRegistered {
             let final_params: [String: AnyHashable] = ["device_id": self.currentDeviceID].merging(params, uniquingKeysWith: {(current, _) in current})
-            self.httpClient.startRequest(path: "events", apiVersion: .APIV2, params: final_params, method: .post) { (_, _, _, _) in
+            self.httpClient.startRequest(path: "events", apiVersion: .APIV2, params: final_params, method: .post) { (_, _, _, _, _) in
                 callback()
             }
         }
@@ -364,7 +390,7 @@ final class ApphudInternal: NSObject {
         let result = performWhenUserRegistered {
             let params = ["device_id": self.currentDeviceID] as [String: String]
 
-            self.httpClient.startRequest(path: "rules/\(ruleID)", apiVersion: .APIV2, params: params, method: .get) { (result, response, _, _) in
+            self.httpClient.startRequest(path: "rules/\(ruleID)", apiVersion: .APIV2, params: params, method: .get) { (result, response, _, _, _) in
                 if result, let dataDict = response?["data"] as? [String: Any],
                     let ruleDict = dataDict["results"] as? [String: Any] {
                     callback(ApphudRule(dictionary: ruleDict))
@@ -381,7 +407,7 @@ final class ApphudInternal: NSObject {
     internal func checkForUnreadNotifications() {
         performWhenUserRegistered {
             let params = ["device_id": self.currentDeviceID] as [String: String]
-            self.httpClient.startRequest(path: "notifications", apiVersion: .APIV2, params: params, method: .get, callback: { (result, response, _, _) in
+            self.httpClient.startRequest(path: "notifications", apiVersion: .APIV2, params: params, method: .get, callback: { (result, response, _, _, _) in
 
                 if result, let dataDict = response?["data"] as? [String: Any], let notifArray = dataDict["results"] as? [[String: Any]], let notifDict = notifArray.first, var ruleDict = notifDict["rule"] as? [String: Any] {
                     let properties = notifDict["properties"] as? [String: Any]
@@ -396,14 +422,14 @@ final class ApphudInternal: NSObject {
     internal func readAllNotifications(for ruleID: String) {
         performWhenUserRegistered {
             let params = ["device_id": self.currentDeviceID, "rule_id": ruleID] as [String: String]
-            self.httpClient.startRequest(path: "notifications/read", apiVersion: .APIV2, params: params, method: .post, callback: { (_, _, _, _) in
+            self.httpClient.startRequest(path: "notifications/read", apiVersion: .APIV2, params: params, method: .post, callback: { (_, _, _, _, _) in
             })
         }
     }
     
     internal func getActiveRuleScreens(_ callback: @escaping ([String]) -> Void) {
         performWhenUserRegistered {
-            self.httpClient.startRequest(path: "rules/screens", apiVersion: .APIV2, params: nil, method: .get) { result, response, error, code in
+            self.httpClient.startRequest(path: "rules/screens", apiVersion: .APIV2, params: nil, method: .get) { result, response, _, error, code in
                 if result, let dataDict = response?["data"] as? [String: Any], let screensIdsArray = dataDict["results"] as? [String] {
                     callback(screensIdsArray)
                 } else {

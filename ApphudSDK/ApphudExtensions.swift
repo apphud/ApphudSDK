@@ -79,6 +79,14 @@ internal func apphudShouldMigrate() -> Bool {
     return !UserDefaults.standard.bool(forKey: "ApphudSubscriptionsMigrated")
 }
 
+internal func apphudDataToUserDefaultsCache(data: Data, key: String) {
+    UserDefaults.standard.set(data, forKey: key)
+}
+
+internal func apphudDataFromUserDefaultsCache(key: String) -> Data? {
+    UserDefaults.standard.object(forKey: key) as? Data
+}
+
 internal func apphudToUserDefaultsCache(dictionary: [String: String], key: String) {
     UserDefaults.standard.set(dictionary, forKey: key)
 }

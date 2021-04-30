@@ -55,7 +55,7 @@ extension ApphudInternal {
 
         let fields = shouldUpdateUserID ? ["user_id": self.currentUserID] : [:]
 
-        self.updateUser(fields: fields) { (result, response, error, code) in
+        self.updateUser(fields: fields) { (result, response, _, error, code) in
 
             let hasChanges = self.parseUser(response)
 
@@ -91,7 +91,7 @@ extension ApphudInternal {
 
         let params: [String: String] = ["country_code": countryCode, "currency_code": currencyCode]
 
-        updateUser(fields: params) { (result, response, _, _) in
+        updateUser(fields: params) { (result, response, _, _, _) in
             if result {
                 self.parseUser(response)
             }
@@ -107,7 +107,7 @@ extension ApphudInternal {
 
         let exist = performWhenUserRegistered {
 
-            self.updateUser(fields: ["user_id": userID]) { (result, response, _, _) in
+            self.updateUser(fields: ["user_id": userID]) { (result, response, _, _, _) in
                 if result {
                     self.parseUser(response)
                 }
@@ -196,7 +196,7 @@ extension ApphudInternal {
             }
         }
         params["properties"] = properties
-        httpClient.startRequest(path: "customers/properties", params: params, method: .post) { (result, _, error, code) in
+        httpClient.startRequest(path: "customers/properties", params: params, method: .post) { (result, _, _, error, code) in
             if result {
                 self.pendingUserProperties.removeAll()
                 apphudLog("User Properties successfully updated.")
