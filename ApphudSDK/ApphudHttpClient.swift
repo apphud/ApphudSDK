@@ -218,7 +218,7 @@ public class ApphudHttpClient {
             var dictionary: [String: Any]?
 
             do {
-                if data != nil && !useDecoder {
+                if data != nil && (!useDecoder || apphudIsSandbox()){
                     dictionary = try JSONSerialization.jsonObject(with: data!, options: []) as? [String: Any]
                 }
             } catch {

@@ -9,9 +9,21 @@ import UIKit
 
 public class ApphudGroup: NSObject, Codable {
     
+    /**
+     Name of permission group configured in Apphud dashboard.
+     */
     public var name: String
+    
+    /**
+     Products that belong to this permission group.
+     */
     public var products: [ApphudProduct]
     
+    /**
+     Returns `true` if this permission group has active subscription. Keep in mind, that this method doesn't take into account non-renewing purchases.
+     */
+    
+    #warning("TODO: Use group id from subscription model")
     public var hasAccess: Bool {
         
         let productIDs = products.map { $0.productId }
@@ -24,6 +36,8 @@ public class ApphudGroup: NSObject, Codable {
         
         return false
     }
+    
+    // MARK:- Private
     
     internal var id: String
     

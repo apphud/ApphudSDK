@@ -10,7 +10,7 @@ import UIKit
 import StoreKit
 import UserNotifications
 
-internal let apphud_sdk_version = "1.2.3"
+internal let apphud_sdk_version = "2.0.0"
 
 public typealias ApphudEligibilityCallback = (([String: Bool]) -> Void)
 public typealias ApphudBoolCallback = ((Bool) -> Void)
@@ -49,11 +49,10 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
     @objc optional func apphudDidChangeUserID(_ userID: String)
 
     /**
-        Returns array of `ApphudProduct` objects. Note that you have to add all product identifiers in Apphud.
+     Deprecated. Use `func getPaywalls` method instead.
+        
+     This method gets called when products are fetched from App Store.
      */
-    @objc optional func apphudDidFetchProducts(_ products: [ApphudProduct])
-    
-    @available(*, deprecated, message: "Use `func apphudDidFetchProducts(_ products: [ApphudProduct])` delegate method instead.")
     @objc optional func apphudDidFetchStoreKitProducts(_ products: [SKProduct])
 
     /**
@@ -280,7 +279,6 @@ final public class Apphud: NSObject {
      
      You can use `productsDidFetchCallback` callback or observe for `didFetchProductsNotification()` or implement `apphudDidFetchStoreKitProducts` delegate method. Use whatever you like most.
      */
-    @available(*, deprecated, message: "Use `func productsDidFetchCallback` method instead.")
     @objc public static func didFetchProductsNotification() -> Notification.Name {
         return Notification.Name("ApphudDidFetchProductsNotification")
     }
@@ -290,6 +288,7 @@ final public class Apphud: NSObject {
     
     You can use `productsDidFetchCallback` callback or observe for `didFetchProductsNotification()` or implement `apphudDidFetchStoreKitProducts` delegate method. Use whatever you like most.
     */
+    @available(*, deprecated, message: "Use `func getPaywalls` method instead.")
     @objc public static func productsDidFetchCallback(_ callback: @escaping ([SKProduct]) -> Void) {
         ApphudInternal.shared.customProductsFetchedBlocks.append(callback)
     }
@@ -338,7 +337,7 @@ final public class Apphud: NSObject {
      - parameter callback: Optional. Returns `ApphudPurchaseResult` object.
      */
     @objc public static func purchase(_ product: ApphudProduct, callback: ((ApphudPurchaseResult) -> Void)?) {
-        ApphudInternal.shared.purchase(product: product, callback: callback)
+        ApphudInternal.shared.purchase(productId: product.productId, validate: true, callback: callback)
     }
     
     /**
@@ -353,30 +352,19 @@ final public class Apphud: NSObject {
     @available(*, deprecated, message: "Use `func purchase(_ product: ApphudProduct, callback: ((ApphudPurchaseResult) -> Void)?)` method instead.")
     @objc(purchaseById:callback:)
     public static func purchase(_ productId: String, callback: ((ApphudPurchaseResult) -> Void)?) {
-        ApphudInternal.shared.purchase(productId: productId, callback: callback)
+        ApphudInternal.shared.purchase(productId: productId, validate: true, callback: callback)
     }
 
     /**
      Purchases product and automatically submits App Store Receipt to Apphud. This method doesn't wait until Apphud validates receipt from Apple and immediately returns transaction object. This method may be useful if you don't care about receipt validation in callback.
-     
-     Two methods provided: using SKProduct model (recommended) or Product ID.
-    
      __Note__: When using this method properties `subscription` and `nonRenewingPurchase` in `ApphudPurchaseResult` will always be `nil` !
      
-     - parameter product: Required. This is preferred parameter. `SKProduct` object that user wants to purchase.
-     OR
      - parameter productId: Required. Identifier of the product that user wants to purchase.
-     
-    - parameter callback: Optional. Returns `ApphudPurchaseResult` object.
+     - parameter callback: Optional. Returns `ApphudPurchaseResult` object.
     */
-    @objc public static func purchaseWithoutValidation(_ product: ApphudProduct, callback: ((ApphudPurchaseResult) -> Void)?) {
-        ApphudInternal.shared.purchaseWithoutValidation(product: product, callback: callback)
-    }
-    
-    /* Passing SKProduct model instead of Product ID is preferred */
     @objc(purchaseWithoutValidationById:callback:)
     public static func purchaseWithoutValidation(_ productId: String, callback: ((ApphudPurchaseResult) -> Void)?) {
-        ApphudInternal.shared.purchaseWithoutValidation(productId: productId, callback: callback)
+        ApphudInternal.shared.purchase(productId: productId, validate: false, callback: callback)
     }
     
     /**
@@ -389,8 +377,9 @@ final public class Apphud: NSObject {
         - parameter callback: Optional. Returns `ApphudPurchaseResult` object.
      */
     @available(iOS 12.2, *)
-    @objc public static func purchasePromo(_ product: ApphudProduct, discountID: String, _ callback: ((ApphudPurchaseResult) -> Void)?) {
-        ApphudInternal.shared.purchasePromo(skProduct: product.skProduct!, apphudProduct: product, discountID: discountID, callback: callback)
+    @objc public static func purchasePromo(_ product: SKProduct, discountID: String, _ callback: ((ApphudPurchaseResult) -> Void)?) {
+        let apphudProduct = ApphudInternal.shared.allAvailableProducts.first(where: { $0.productId == product.productIdentifier })
+        ApphudInternal.shared.purchasePromo(skProduct: product, apphudProduct: apphudProduct, discountID: discountID, callback: callback)
     }
     
     /**
@@ -404,12 +393,19 @@ final public class Apphud: NSObject {
     // MARK: - Handle Purchases
     
     /**
-        Returns true if user has active subscription.
+     Returns `true` if user has active subscription.
      
-        Use this method to determine whether or not to unlock premium functionality to the user.
+     Use this method to determine whether or not to unlock premium functionality to the user.
      */
     @objc public static func hasActiveSubscription() -> Bool {
         return Apphud.subscription()?.isActive() ?? false
+    }
+    
+    /**
+     Permission groups configured in Apphud dashboard.
+     */
+    @objc public static var permissionGroups: [ApphudGroup] {
+        ApphudInternal.shared.productGroups
     }
     
     /**

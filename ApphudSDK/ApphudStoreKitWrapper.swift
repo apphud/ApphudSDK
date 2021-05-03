@@ -27,7 +27,6 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     private var refreshReceiptCallback: (() -> Void)?
     private var paymentCallback: ApphudTransactionCallback?
     private var purchasingProductID: String?
-    private weak var purchasingPayment: SKPayment?
     
     private var refreshRequest: SKReceiptRefreshRequest?
 
@@ -76,7 +75,6 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         payment.applicationUsername = ""
         paymentCallback = callback
         purchasingProductID = payment.productIdentifier
-        purchasingPayment = payment
         apphudLog("Starting payment for \(payment.productIdentifier), transactions in queue: \(SKPaymentQueue.default().transactions)")
         SKPaymentQueue.default().add(payment)
     }
@@ -85,7 +83,13 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     func paymentQueue(_ queue: SKPaymentQueue, updatedTransactions transactions: [SKPaymentTransaction]) {
         DispatchQueue.main.async {
-            for trx in transactions {
+            
+            // order purchased state before any others
+            let sortedTransactions = transactions.sorted { first, second in
+                first.transactionState == .purchased
+            }
+            
+            for trx in sortedTransactions {
                 switch trx.transactionState {
                 case .purchasing:
                     if self.purchasingProductID == nil && ApphudUtils.shared.storeKitObserverMode == false {
@@ -113,19 +117,13 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     private func handleTransactionIfStarted(_ transaction: SKPaymentTransaction) {
 
-        if transaction.payment == purchasingPayment {
-            apphudLog("handle transaction started by Apphud SDK method", forceDisplay: false)
-        }
-
         if transaction.payment.productIdentifier == self.purchasingProductID {
-            self.purchasingProductID = nil
             if self.paymentCallback != nil {
                 self.paymentCallback?(transaction, transaction.error)
             } else {
                 finishTransaction(transaction)
             }
             self.paymentCallback = nil
-            self.purchasingPayment = nil
         } else {
             if transaction.transactionState == .purchased || transaction.failedWithUnknownReason {
                 ApphudInternal.shared.submitReceiptAutomaticPurchaseTracking(transaction: transaction)
@@ -162,7 +160,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
         DispatchQueue.main.async {
             if let callback = ApphudInternal.shared.delegate?.apphudShouldStartAppStoreDirectPurchase?(product) {
-                Apphud.purchase(product.productIdentifier, callback: callback)
+                ApphudInternal.shared.purchase(productId: product.productIdentifier, validate: true, callback: callback)
             }
         }
 

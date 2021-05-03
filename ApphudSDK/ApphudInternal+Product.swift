@@ -13,18 +13,21 @@ extension ApphudInternal {
 
     @objc internal func continueToFetchProducts() {
         if let productIDs = delegate?.apphudProductIdentifiers?(), productIDs.count > 0 {
-            let products = productIDs.map { ApphudProduct(id: $0, name: $0, productId: $0, store: "iOS", skProduct: nil) }
+            let products = productIDs.map { ApphudProduct(id: $0, name: $0, productId: $0, store: "app_store", skProduct: nil) }
             let group = ApphudGroup(id: "Untitled", name: "Untitled", products: products)
-            continueWithProductGroups([group], errorCode: nil)
+            continueWithProductGroups([group], errorCode: nil, writeToCache: false)
         } else {
-            #warning("TODO: USE CACHED PRODUCTS IDS TO REQUEST STOREKIT PRODUCTS")
-            getProductGroups { groups, _, code in
-                self.continueWithProductGroups(groups, errorCode: code)
+            if productGroups.count > 0 {
+                self.continueWithProductGroups(productGroups, errorCode: nil, writeToCache: false)
+            } else {
+                getProductGroups { groups, _, code in
+                    self.continueWithProductGroups(groups, errorCode: code, writeToCache: true)
+                }
             }
         }
     }
     
-    fileprivate func continueWithProductGroups(_ productGroups: [ApphudGroup]?, errorCode: Int?) {
+    fileprivate func continueWithProductGroups(_ productGroups: [ApphudGroup]?, errorCode: Int?, writeToCache: Bool) {
         // perform even if productsGroupsMap is nil or empty
         self.performAllProductGroupsFetchedCallbacks()
 
@@ -35,7 +38,11 @@ extension ApphudInternal {
         }
         
         self.productGroups = groups
-        cacheGroups(groups: groups)
+        
+        if writeToCache {
+            cacheGroups(groups: groups)
+        }
+        
         self.continueToFetchStoreKitProducts()
     }
 
@@ -78,7 +85,6 @@ extension ApphudInternal {
             self.updateProductGroupsWithStoreKitProducts()
             ApphudInternal.shared.performAllStoreKitProductsFetchedCallbacks()
             NotificationCenter.default.post(name: Apphud.didFetchProductsNotification(), object: storeKitProducts)
-            ApphudInternal.shared.delegate?.apphudDidFetchProducts?(self.allAvailableProducts)
             ApphudInternal.shared.delegate?.apphudDidFetchStoreKitProducts?(storeKitProducts)
             self.customProductsFetchedBlocks.forEach { block in block(storeKitProducts) }
             self.customProductsFetchedBlocks.removeAll()
@@ -122,7 +128,6 @@ extension ApphudInternal {
                 do {
                     let response = try jsonDecoder.decode(ApphudArrayResponse.self, from: data)
                     let groups = response.data.results
-                    apphudLog("groups: \(groups)")
                     callback(groups, nil, code)
                 } catch {
                     apphudLog("Failed to decode products structure with error: \(error)")
@@ -135,19 +140,33 @@ extension ApphudInternal {
     }
     
     internal func getPaywalls(callback: @escaping ([ApphudPaywall]?, Error?) -> Void) {
-        self.getPaywallsOnly { paywalls, error in
+                
+        self.fetchPaywallsIfNeeded { paywalls, error, writeToCache in
+            
+            guard let paywalls = paywalls else {
+                callback(nil, error)
+                return
+            }
+            
+            self.paywalls = paywalls
+            
+            if paywalls.count > 0 && writeToCache {
+                self.cachePaywalls(paywalls: paywalls)
+            }
+            
             self.performWhenStoreKitProductFetched {
-                if let paywalls = paywalls {
-                    self.updatePaywallsWithStoreKitProducts(paywalls: paywalls)
-                }
+                self.updatePaywallsWithStoreKitProducts(paywalls: paywalls)
                 callback(paywalls, error)
             }
         }
     }
     
-    private func getPaywallsOnly(callback: @escaping ([ApphudPaywall]?, Error?) -> Void) {
+    private func fetchPaywallsIfNeeded(forceRefresh: Bool = false, callback: @escaping ([ApphudPaywall]?, Error?, Bool) -> Void) {
         
-        #warning("TODO: use cache")
+        guard paywalls.isEmpty || forceRefresh else {
+            callback(paywalls, nil, false)
+            return
+        }
         
         httpClient.startRequest(path: "paywall_configs", apiVersion: .APIV2, params: ["device_id": currentDeviceID], method: .get, useDecoder: true) { result, _, data, error, code in
             
@@ -160,14 +179,13 @@ extension ApphudInternal {
                 do {
                     let response = try jsonDecoder.decode(ApphudArrayResponse.self, from: data)
                     let paywalls = response.data.results
-                    apphudLog("groups: \(paywalls)")
-                    callback(paywalls, nil)
+                    callback(paywalls, nil, true)
                 } catch {
                     apphudLog("Failed to decode paywalls with error: \(error)")
-                    callback(nil, error)
+                    callback(nil, error, false)
                 }
             } else {
-                callback(nil, error)
+                callback(nil, error, false)
             }
         }
     }
@@ -215,12 +233,15 @@ extension ApphudInternal {
         let encoder = JSONEncoder()
         encoder.keyEncodingStrategy = .convertToSnakeCase
         if let data = try? encoder.encode(groups) {
-            apphudDataToUserDefaultsCache(data: data, key: "ApphudProductGroups")
+            apphudDataToCache(data: data, key: "ApphudProductGroups")
         }
     }
     
     internal func cachedGroups() -> [ApphudGroup]? {
-        if let data = apphudDataFromUserDefaultsCache(key: "ApphudProductGroups") {
+        #warning("TODO: test cache timeout")
+        let cacheTimeout: TimeInterval = apphudIsSandbox() ? 0 : 3600
+        
+        if let data = apphudDataFromCache(key: "ApphudProductGroups", cacheTimeout: cacheTimeout) {
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase
             if let groups = try? decoder.decode([ApphudGroup].self, from: data) {
@@ -231,17 +252,19 @@ extension ApphudInternal {
         return nil
     }
     
-    internal func cachePaywalls(groups: [ApphudPaywall]) {
+    internal func cachePaywalls(paywalls: [ApphudPaywall]) {
         let encoder = JSONEncoder()
         encoder.keyEncodingStrategy = .convertToSnakeCase
-        if let data = try? encoder.encode(groups) {
-            apphudDataToUserDefaultsCache(data: data, key: "ApphudPaywalls")
+        if let data = try? encoder.encode(paywalls) {
+            apphudDataToCache(data: data, key: "ApphudPaywalls")
         }
     }
     
     internal func cachedPaywalls() -> [ApphudPaywall]? {
-        #warning("TODO: USE THIS")
-        if let data = apphudDataFromUserDefaultsCache(key: "ApphudPaywalls") {
+        #warning("TODO: test cache timeout")
+        let cacheTimeout: TimeInterval = apphudIsSandbox() ? 0 : 3600
+        
+        if let data = apphudDataFromCache(key: "ApphudPaywalls", cacheTimeout: cacheTimeout) {
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase
             if let groups = try? decoder.decode([ApphudPaywall].self, from: data) {

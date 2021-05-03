@@ -219,7 +219,6 @@ class ApphudScreenController: UIViewController {
 
     internal func addObserverIfNeeded() {
         if !addedObserver {
-            #warning("TODO")
             NotificationCenter.default.addObserver(self, selector: #selector(replaceMacroses), name: Apphud.didFetchProductsNotification(), object: nil)
             addedObserver = true
         }
@@ -292,8 +291,8 @@ class ApphudScreenController: UIViewController {
             self.startLoading()
 
             ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(product: product, offerID: nil, screenName: self.rule.screen_name)
-
-            ApphudInternal.shared.purchase(productId: product.productIdentifier) { (result) in
+            
+            ApphudInternal.shared.purchase(productId: product.productIdentifier, validate: true) { result in
                 self.handlePurchaseResult(product: product, result: result)
             }
         }
