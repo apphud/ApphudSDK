@@ -104,6 +104,8 @@ public class ApphudSubscription: NSObject {
     @objc public let isIntroductoryActivated: Bool
 
     @objc internal let id: String
+    
+    @objc internal let groupId: String
 
     // MARK: - Private methods
 
@@ -120,6 +122,7 @@ public class ApphudSubscription: NSObject {
         isIntroductoryActivated = dictionary["introductory_activated"] as? Bool ?? false
         isSandbox = (dictionary["environment"] as? String ?? "") == "sandbox"
         isLocal = dictionary["local"] as? Bool ?? false
+        groupId = dictionary["group_id"] as? String ?? ""
         if let statusString = dictionary["status"] as? String {
             status = ApphudSubscription.statusFrom(string: statusString)
         } else {

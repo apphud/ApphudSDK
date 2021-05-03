@@ -18,6 +18,7 @@ extension ApphudInternal {
             continueWithProductGroups([group], errorCode: nil, writeToCache: false)
         } else {
             if productGroups.count > 0 {
+                apphudLog("Using cached product groups structure")
                 self.continueWithProductGroups(productGroups, errorCode: nil, writeToCache: false)
             } else {
                 getProductGroups { groups, _, code in
@@ -164,6 +165,7 @@ extension ApphudInternal {
     private func fetchPaywallsIfNeeded(forceRefresh: Bool = false, callback: @escaping ([ApphudPaywall]?, Error?, Bool) -> Void) {
         
         guard paywalls.isEmpty || forceRefresh else {
+            apphudLog("Using cached paywalls")
             callback(paywalls, nil, false)
             return
         }
@@ -202,9 +204,8 @@ extension ApphudInternal {
     
     internal func updatePaywallsWithStoreKitProducts(paywalls: [ApphudPaywall]) {
         paywalls.forEach { paywall in
-            paywall.products?.forEach({ product in
+            paywall.products.forEach({ product in
                 product.skProduct = ApphudStoreKitWrapper.shared.products.first(where: { $0.productIdentifier == product.productId })
-                product.paywallId = paywall.id
             })
         }
     }
@@ -238,8 +239,8 @@ extension ApphudInternal {
     }
     
     internal func cachedGroups() -> [ApphudGroup]? {
-        #warning("TODO: test cache timeout")
-        let cacheTimeout: TimeInterval = apphudIsSandbox() ? 0 : 3600
+        
+        let cacheTimeout: TimeInterval = apphudIsSandbox() ? 60 : 3600
         
         if let data = apphudDataFromCache(key: "ApphudProductGroups", cacheTimeout: cacheTimeout) {
             let decoder = JSONDecoder()
@@ -261,8 +262,8 @@ extension ApphudInternal {
     }
     
     internal func cachedPaywalls() -> [ApphudPaywall]? {
-        #warning("TODO: test cache timeout")
-        let cacheTimeout: TimeInterval = apphudIsSandbox() ? 0 : 3600
+        
+        let cacheTimeout: TimeInterval = apphudIsSandbox() ? 60 : 3600
         
         if let data = apphudDataFromCache(key: "ApphudPaywalls", cacheTimeout: cacheTimeout) {
             let decoder = JSONDecoder()

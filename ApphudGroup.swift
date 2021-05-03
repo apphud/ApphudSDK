@@ -23,13 +23,10 @@ public class ApphudGroup: NSObject, Codable {
      Returns `true` if this permission group has active subscription. Keep in mind, that this method doesn't take into account non-renewing purchases.
      */
     
-    #warning("TODO: Use group id from subscription model")
     public var hasAccess: Bool {
         
-        let productIDs = products.map { $0.productId }
-        
         for subscription in ApphudInternal.shared.currentUser?.subscriptions ?? [] {
-            if subscription.isActive() && productIDs.contains(subscription.productId) {
+            if subscription.isActive() && subscription.groupId == id {
                 return true
             }
         }

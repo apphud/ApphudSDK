@@ -13,7 +13,7 @@ public class ApphudPaywall: NSObject, Codable {
     public internal(set) var name: String
     public internal(set) var isDefault: Bool
     public var json: [String: Any]? { [:] }
-    public internal(set) var products: [ApphudProduct]?
+    public internal(set) var products: [ApphudProduct]
     
     internal var id: String
     private var jsonString: String?
@@ -27,12 +27,13 @@ public class ApphudPaywall: NSObject, Codable {
         case products = "items"
     }
     
-    init(id: String, name: String, identifier: String, isDefault: Bool, jsonString: String?) {
+    init(id: String, name: String, identifier: String, isDefault: Bool, jsonString: String?, products: [ApphudProduct]) {
         self.id = id
         self.name = name
         self.jsonString = jsonString
         self.identifier = identifier
         self.isDefault = isDefault
+        self.products = products
     }
     
     required public init(from decoder: Decoder) throws {
@@ -42,6 +43,7 @@ public class ApphudPaywall: NSObject, Codable {
         identifier = try values.decode(String.self, forKey: .identifier)
         jsonString = try? values.decode(String.self, forKey: .jsonString)
         isDefault = try values.decode(Bool.self, forKey: .isDefault)
+        products = try values.decode([ApphudProduct].self, forKey: .products)
     }
     
     public func encode(to encoder: Encoder) throws {
@@ -51,5 +53,6 @@ public class ApphudPaywall: NSObject, Codable {
         try container.encode(identifier, forKey: .identifier)
         try? container.encode(jsonString, forKey: .jsonString)
         try container.encode(isDefault, forKey: .isDefault)
+        try container.encode(products, forKey: .products)
     }
 }

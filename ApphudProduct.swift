@@ -35,7 +35,17 @@ public class ApphudProduct: NSObject, Codable {
     
     // MARK: - Private
     
-    internal var paywallId: String?
+    internal func findPaywallId() -> String? {
+        for paywall in ApphudInternal.shared.paywalls {
+            for product in paywall.products {
+                if product.productId == productId {
+                    return paywall.id
+                }
+            }
+        }
+        return nil
+    }
+    
     internal var id: String?
     
     private enum CodingKeys: String, CodingKey {

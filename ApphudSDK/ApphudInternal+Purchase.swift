@@ -125,7 +125,7 @@ extension ApphudInternal {
         }
         
         apphudProduct?.id.map { params["product_bundle_id"] = $0 }
-        apphudProduct?.paywallId.map { params["paywall_id"] = $0 }
+        apphudProduct?.findPaywallId().map { params["paywall_id"] = $0 }
         
         if transaction?.transactionState == .purchased {
             ApphudRulesManager.shared.cacheActiveScreens()
