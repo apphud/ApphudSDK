@@ -20,7 +20,8 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     static var shared = ApphudStoreKitWrapper()
 
     internal var products = [SKProduct]()
-
+    internal var didFetch: Bool = false
+    
     fileprivate let fetcher = ApphudProductsFetcher()
     fileprivate let singleFetcher = ApphudProductsFetcher()
 
@@ -46,6 +47,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
             let existingIDS = self.products.map { $0.productIdentifier }
             let uniqueProducts = products.filter { !existingIDS.contains($0.productIdentifier) }
             self.products.append(contentsOf: uniqueProducts)
+            self.didFetch = true
             callback(products)
         }
     }

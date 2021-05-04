@@ -337,7 +337,7 @@ final class ApphudInternal: NSObject {
     
     /// Returns false if products groups map dictionary not yet received, block is added to array and will be performed later.
     @discardableResult internal func performWhenStoreKitProductFetched(callback : @escaping ApphudVoidCallback) -> Bool {
-        if ApphudStoreKitWrapper.shared.products.count > 0 {
+        if ApphudStoreKitWrapper.shared.didFetch {
             callback()
             return true
         } else {

@@ -82,8 +82,8 @@ class ApphudScreenController: UIViewController {
 
     internal func loadScreenPage() {
 
-        // if after 15 seconds webview not appeared, then fail
-        self.perform(#selector(failedByTimeOut), with: nil, afterDelay: 15.0)
+        // if after 30 seconds webview not appeared, then fail
+        self.perform(#selector(failedByTimeOut), with: nil, afterDelay: 30.0)
         self.startLoading()
         _ = self.view // trigger viewdidload
         self.webView.alpha = 0

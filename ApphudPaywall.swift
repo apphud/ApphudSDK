@@ -12,7 +12,21 @@ public class ApphudPaywall: NSObject, Codable {
     public internal(set) var identifier: String
     public internal(set) var name: String
     public internal(set) var isDefault: Bool
-    public var json: [String: Any]? { [:] }
+    public var json: [String: Any]? {
+        
+        guard let string = jsonString, let data = string.data(using: .utf8) else {
+            return [:]
+        }
+        
+        do {
+            let dict = try JSONSerialization.jsonObject(with: data, options: .allowFragments) as? [String: Any]
+            return dict
+        } catch  {
+            apphudLog("Failed to decode paywall JSON. Identifier: \(identifier), json: \(jsonString ?? "")")
+        }
+        
+        return [:]
+    }
     public internal(set) var products: [ApphudProduct]
     
     internal var id: String
