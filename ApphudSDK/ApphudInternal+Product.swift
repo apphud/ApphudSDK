@@ -29,6 +29,7 @@ extension ApphudInternal {
     }
     
     fileprivate func continueWithProductGroups(_ productGroups: [ApphudGroup]?, errorCode: Int?, writeToCache: Bool) {
+        
         // perform even if productsGroupsMap is nil or empty
         self.performAllProductGroupsFetchedCallbacks()
 

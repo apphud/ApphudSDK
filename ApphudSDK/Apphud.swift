@@ -402,7 +402,8 @@ final public class Apphud: NSObject {
     }
     
     /**
-     Permission groups configured in Apphud dashboard.
+     Permission groups configured in Apphud dashboard. Groups are cached on device.
+     Note that this method may be `nil` at first launch of the app.
      */
     @objc public static var permissionGroups: [ApphudGroup] {
         ApphudInternal.shared.productGroups
