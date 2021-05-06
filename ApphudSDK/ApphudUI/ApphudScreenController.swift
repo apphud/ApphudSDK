@@ -82,8 +82,8 @@ class ApphudScreenController: UIViewController {
 
     internal func loadScreenPage() {
 
-        // if after 15 seconds webview not appeared, then fail
-        self.perform(#selector(failedByTimeOut), with: nil, afterDelay: 15.0)
+        // if after 30 seconds webview not appeared, then fail
+        self.perform(#selector(failedByTimeOut), with: nil, afterDelay: 30.0)
         self.startLoading()
         _ = self.view // trigger viewdidload
         self.webView.alpha = 0
@@ -275,7 +275,7 @@ class ApphudScreenController: UIViewController {
 
                     ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(product: product, offerID: offerID!, screenName: self.rule.screen_name)
 
-                    ApphudInternal.shared.purchasePromo(product: product, discountID: offerID!) { (result) in
+                    ApphudInternal.shared.purchasePromo(skProduct: product, apphudProduct: nil, discountID: offerID!) { (result) in
                         self.handlePurchaseResult(product: product, offerID: offerID!, result: result)
                     }
                 } else {
@@ -291,8 +291,8 @@ class ApphudScreenController: UIViewController {
             self.startLoading()
 
             ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(product: product, offerID: nil, screenName: self.rule.screen_name)
-
-            ApphudInternal.shared.purchase(product: product) { (result) in
+            
+            ApphudInternal.shared.purchase(productId: product.productIdentifier, validate: true) { result in
                 self.handlePurchaseResult(product: product, result: result)
             }
         }

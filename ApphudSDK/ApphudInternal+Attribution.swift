@@ -61,7 +61,7 @@ extension ApphudInternal {
                 params["facebook_data"] = hash
             }
 
-            self.httpClient.startRequest(path: "customers/attribution", params: params, method: .post) { (result, _, _, _) in
+            self.httpClient.startRequest(path: "customers/attribution", params: params, method: .post) { (result, _, _, _, _) in
 
                 switch provider {
                 case .adjust:

@@ -79,6 +79,31 @@ internal func apphudShouldMigrate() -> Bool {
     return !UserDefaults.standard.bool(forKey: "ApphudSubscriptionsMigrated")
 }
 
+internal func apphudDataToCache(data: Data, key: String) {
+    if var url = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first {
+        url.appendPathComponent(key)
+        if FileManager.default.fileExists(atPath: url.path) {
+            try? FileManager.default.removeItem(at: url)
+        }
+        try? data.write(to: url)
+    }
+}
+
+internal func apphudDataFromCache(key: String, cacheTimeout: TimeInterval) -> Data? {
+    if var url = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first {
+        url.appendPathComponent(key)
+        
+        if FileManager.default.fileExists(atPath: url.path),
+           let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
+           let creationDate = attrs[.creationDate] as? Date,
+           Date().timeIntervalSince(creationDate) < cacheTimeout,
+           let data = try? Data(contentsOf: url) {
+            return data
+        }
+    }
+    return nil
+}
+
 internal func apphudToUserDefaultsCache(dictionary: [String: String], key: String) {
     UserDefaults.standard.set(dictionary, forKey: key)
 }

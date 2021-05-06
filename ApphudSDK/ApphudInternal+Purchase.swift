@@ -24,7 +24,7 @@ extension ApphudInternal {
 
         performWhenUserRegistered {
             guard let receiptString = apphudReceiptDataString() else { return }
-            self.submitReceipt(product: nil, transaction: transaction, receiptString: receiptString, notifyDelegate: true, callback: nil)
+            self.submitReceipt(product: nil, apphudProduct: nil, transaction: transaction, receiptString: receiptString, notifyDelegate: true, callback: nil)
         }
     }
 
@@ -46,7 +46,8 @@ extension ApphudInternal {
         }
 
         let exist = performWhenUserRegistered {
-            self.submitReceipt(product: nil, transaction: nil, receiptString: receiptString, notifyDelegate: true) { error in
+            
+            self.submitReceipt(product: nil, apphudProduct: nil, transaction: nil, receiptString: receiptString, notifyDelegate: true) { error in
                 self.restorePurchasesCallback?(self.currentUser?.subscriptions, self.currentUser?.purchases, error)
                 self.restorePurchasesCallback = nil
             }
@@ -56,11 +57,11 @@ extension ApphudInternal {
         }
     }
 
-    internal func submitReceipt(product: SKProduct, transaction: SKPaymentTransaction?, callback: ((ApphudPurchaseResult) -> Void)?) {
+    internal func submitReceipt(product: SKProduct, transaction: SKPaymentTransaction?, apphudProduct: ApphudProduct? = nil, callback: ((ApphudPurchaseResult) -> Void)?) {
 
         let block: (String) -> Void = { receiptStr in
             let exist = self.performWhenUserRegistered {
-                self.submitReceipt(product: product, transaction: transaction, receiptString: receiptStr, notifyDelegate: true) { error in
+                self.submitReceipt(product: product, apphudProduct: apphudProduct, transaction: transaction, receiptString: receiptStr, notifyDelegate: true) { error in
                     let result = self.purchaseResult(productId: product.productIdentifier, transaction: transaction, error: error)
                     callback?(result)
                 }
@@ -85,10 +86,10 @@ extension ApphudInternal {
         }
     }
 
-    internal func submitReceipt(product: SKProduct?, transaction: SKPaymentTransaction?, receiptString: String, notifyDelegate: Bool, shouldAppendCallback: Bool = false, callback: ApphudErrorCallback?) {
+    internal func submitReceipt(product: SKProduct?, apphudProduct: ApphudProduct?, transaction: SKPaymentTransaction?, receiptString: String, notifyDelegate: Bool, eligibilityCheck: Bool = false, callback: ApphudErrorCallback?) {
 
         if callback != nil {
-            if shouldAppendCallback {
+            if eligibilityCheck {
                 self.submitReceiptCallbacks.append(callback)
             } else {
                 self.submitReceiptCallbacks = [callback]
@@ -117,11 +118,16 @@ extension ApphudInternal {
             params["product_info"] = product.apphudSubmittableParameters()
         }
         
-        if transaction?.transactionState == .purchased {
+        if !eligibilityCheck {
             let mainProductID: String? = product?.productIdentifier ?? transaction?.payment.productIdentifier
             let other_products = ApphudStoreKitWrapper.shared.products.filter { $0.productIdentifier != mainProductID }
             params["other_products_info"] = other_products.map { $0.apphudSubmittableParameters() }
-            
+        }
+        
+        apphudProduct?.id.map { params["product_bundle_id"] = $0 }
+        apphudProduct?.findPaywallId().map { params["paywall_id"] = $0 }
+        
+        if transaction?.transactionState == .purchased {
             ApphudRulesManager.shared.cacheActiveScreens()
         }
 
@@ -129,7 +135,7 @@ extension ApphudInternal {
 
         apphudLog("Uploading App Store Receipt...")
 
-        httpClient.startRequest(path: "subscriptions", params: params, method: .post) { (result, response, error, _) in
+        httpClient.startRequest(path: "subscriptions", params: params, method: .post) { (result, response, _, error, _) in
             self.forceSendAttributionDataIfNeeded()
             self.isSubmittingReceipt = false
             self.handleSubmitReceiptCallback(result: result, response: response, error: error, notifyDelegate: notifyDelegate)
@@ -167,78 +173,63 @@ extension ApphudInternal {
         apphudLog("Failed to upload App Store Receipt with error: \(error?.localizedDescription ?? "null"). Will retry in \(Int(delay)) seconds.", forceDisplay: true)
     }
 
-    internal func purchase(product: SKProduct, callback: ((ApphudPurchaseResult) -> Void)?) {
-        ApphudStoreKitWrapper.shared.purchase(product: product) { transaction, error in
-            self.handleTransaction(product: product, transaction: transaction, error: error) { (result) in
-                callback?(result)
-            }
-        }
-    }
-
-    internal func purchaseWithoutValidation(product: SKProduct, callback: ((ApphudPurchaseResult) -> Void)?) {
-        ApphudStoreKitWrapper.shared.purchase(product: product) { transaction, error in
-            self.handleTransaction(product: product, transaction: transaction, error: error, callback: nil)
-            callback?(ApphudPurchaseResult(nil, nil, transaction, error))
-        }
-    }
+    // MARK: - Internal purchase methods
     
-    internal func purchase(productId: String, callback: ((ApphudPurchaseResult) -> Void)?) {
-        if let product = ApphudStoreKitWrapper.shared.products.first(where: { $0.productIdentifier == productId }) {
-            purchase(product: product, callback: callback)
+    internal func purchase(productId: String, validate: Bool, callback: ((ApphudPurchaseResult) -> Void)?) {
+        if let apphudProduct = ApphudInternal.shared.allAvailableProducts.first(where: { $0.productId == productId }), let skProduct = apphudProduct.skProduct {
+            purchase(product: skProduct, apphudProduct: apphudProduct, validate:validate, callback: callback)
         } else {
-            apphudLog("Product with id \(productId) not found in cache, fetching...")
+            apphudLog("Product with id \(productId) not found, re-fetching from App Store...")
             ApphudStoreKitWrapper.shared.fetchProduct(productId: productId) { product in
                 if let product = product {
-                    self.purchase(product: product, callback: callback)
+                    self.purchase(product: product, apphudProduct: nil, validate: validate, callback: callback)
                 } else {
-                    let message = "Unable to fetch product with given product id: \(productId)"
+                    let message = "Unable to start payment because product identifier is invalid: [\([productId])]"
                     apphudLog(message, forceDisplay: true)
-                    let error = ApphudError(message: message)
-                    callback?(ApphudPurchaseResult(nil, nil, nil, error))
-                }
-            }
-        }
-    }
-    
-    internal func purchaseWithoutValidation(productId: String, callback: ((ApphudPurchaseResult) -> Void)?) {
-        if let product = ApphudStoreKitWrapper.shared.products.first(where: { $0.productIdentifier == productId }) {
-            purchaseWithoutValidation(product: product, callback: callback)
-        } else {
-            apphudLog("Product with id \(productId) not found in cache, fetching...")
-            ApphudStoreKitWrapper.shared.fetchProduct(productId: productId) { product in
-                if let product = product {
-                    self.purchaseWithoutValidation(product: product, callback: callback)
-                } else {
-                    let message = "Unable to fetch product with given product id: \(productId)"
-                    apphudLog(message, forceDisplay: true)
-                    let error = ApphudError(message: message)
-                    callback?(ApphudPurchaseResult(nil, nil, nil, error))
+                    let result = ApphudPurchaseResult(nil, nil, nil, ApphudError(message: message))
+                    callback?(result)
                 }
             }
         }
     }
     
     @available(iOS 12.2, *)
-    internal func purchasePromo(product: SKProduct, discountID: String, callback: ((ApphudPurchaseResult) -> Void)?) {
-        self.signPromoOffer(productID: product.productIdentifier, discountID: discountID) { (paymentDiscount, _) in
+    internal func purchasePromo(skProduct: SKProduct, apphudProduct: ApphudProduct?, discountID: String, callback: ((ApphudPurchaseResult) -> Void)?) {
+        
+        self.signPromoOffer(productID: skProduct.productIdentifier, discountID: discountID) { (paymentDiscount, _) in
             if let paymentDiscount = paymentDiscount {
-                self.purchasePromo(product: product, discount: paymentDiscount, callback: callback)
+                self.purchasePromo(skProduct: skProduct, product: apphudProduct, discount: paymentDiscount, callback: callback)
             } else {
-                callback?(ApphudPurchaseResult(nil, nil, nil, ApphudError(message: "Could not sign offer id: \(discountID), product id: \(product.productIdentifier)")))
+                callback?(ApphudPurchaseResult(nil, nil, nil, ApphudError(message: "Could not sign offer id: \(discountID), product id: \(skProduct.productIdentifier)")))
             }
         }
     }
 
+    // MARK: - Private purchase methods
+    
+    private func purchase(product: SKProduct, apphudProduct: ApphudProduct?, validate: Bool, callback: ((ApphudPurchaseResult) -> Void)?) {
+        
+        ApphudStoreKitWrapper.shared.purchase(product: product) { transaction, error in
+            if validate {
+                self.handleTransaction(product: product, transaction: transaction, error: error, apphudProduct: apphudProduct, callback: callback)
+            } else {
+                self.handleTransaction(product: product, transaction: transaction, error: error, apphudProduct: apphudProduct, callback: nil)
+                callback?(ApphudPurchaseResult(nil, nil, transaction, error))
+            }
+        }
+    }
+    
     @available(iOS 12.2, *)
-    internal func purchasePromo(product: SKProduct, discount: SKPaymentDiscount, callback: ((ApphudPurchaseResult) -> Void)?) {
-        ApphudStoreKitWrapper.shared.purchase(product: product, discount: discount) { transaction, error in
-            self.handleTransaction(product: product, transaction: transaction, error: error, callback: callback)
+    private func purchasePromo(skProduct: SKProduct, product: ApphudProduct?, discount: SKPaymentDiscount, callback: ((ApphudPurchaseResult) -> Void)?) {
+        
+        ApphudStoreKitWrapper.shared.purchase(product: skProduct, discount: discount) { transaction, error in
+            self.handleTransaction(product: skProduct, transaction: transaction, error: error, apphudProduct: product, callback: callback)
         }
     }
 
-    private func handleTransaction(product: SKProduct, transaction: SKPaymentTransaction, error: Error?, callback: ((ApphudPurchaseResult) -> Void)?) {
+    private func handleTransaction(product: SKProduct, transaction: SKPaymentTransaction, error: Error?, apphudProduct: ApphudProduct?, callback: ((ApphudPurchaseResult) -> Void)?) {
         if transaction.transactionState == .purchased || transaction.failedWithUnknownReason {
-            self.submitReceipt(product: product, transaction: transaction) { (result) in
+            self.submitReceipt(product: product, transaction: transaction, apphudProduct: apphudProduct) { (result) in
                 ApphudStoreKitWrapper.shared.finishTransaction(transaction)
                 callback?(result)
             }
@@ -270,18 +261,18 @@ extension ApphudInternal {
             }
         }
 
-        // 3. Try to find subscription by groupID provided in Apphud project settings
-        if subscription == nil, let groupID = self.productsGroupsMap?[productId] {
-            subscription = currentUser?.subscriptions.first(where: { self.productsGroupsMap?[$0.productId] == groupID})
+        // 3. Try to find subscription by Apphud Product Group ID
+        if subscription == nil, let groupID = self.groupID(productId: productId) {
+            subscription = currentUser?.subscriptions.first(where: { self.groupID(productId: $0.productId) == groupID})
         }
 
         return ApphudPurchaseResult(subscription, purchase, transaction, error ?? transaction?.error)
     }
 
     @available(iOS 12.2, *)
-    internal func signPromoOffer(productID: String, discountID: String, callback: ((SKPaymentDiscount?, Error?) -> Void)?) {
+    private func signPromoOffer(productID: String, discountID: String, callback: ((SKPaymentDiscount?, Error?) -> Void)?) {
         let params: [String: Any] = ["product_id": productID, "offer_id": discountID ]
-        httpClient.startRequest(path: "sign_offer", params: params, method: .post) { (result, dict, error, _) in
+        httpClient.startRequest(path: "sign_offer", params: params, method: .post) { (result, dict, _, error, _) in
             if result, let responseDict = dict, let dataDict = responseDict["data"] as? [String: Any], let resultsDict = dataDict["results"] as? [String: Any] {
 
                 let signatureData = resultsDict["data"] as? [String: Any]

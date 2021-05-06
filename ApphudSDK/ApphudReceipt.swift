@@ -66,7 +66,7 @@ public class ApphudReceipt: NSObject, Codable {
             completion(nil)
             return
         }
-        ApphudHttpClient.shared.startRequest(path: "subscriptions/raw", params: ["receipt_data": receiptData], method: .post) { (result, dict, error, code) in
+        ApphudHttpClient.shared.startRequest(path: "subscriptions/raw", params: ["receipt_data": receiptData], method: .post) { (result, dict, _, error, code) in
             
             guard let receiptDict = (dict?["receipt"] as? [String: Any]) ?? dict else {
                 completion(nil)

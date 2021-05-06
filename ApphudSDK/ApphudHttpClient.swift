@@ -8,7 +8,15 @@
 
 import Foundation
 
-typealias ApphudHTTPResponseCallback = (Bool, [String: Any]?, Error?, Int) -> Void
+internal struct ApphudAPIDataResponse<T: Decodable>: Decodable {
+    var data: T
+}
+
+internal struct ApphudAPIArrayResponse<T: Decodable>: Decodable {
+    var results: [T]
+}
+
+typealias ApphudHTTPResponseCallback = (Bool, [String: Any]?, Data?, Error?, Int) -> Void
 typealias ApphudStringCallback = (String?, Error?) -> Void
 /**
  This is Apphud's internal class.
@@ -61,9 +69,9 @@ public class ApphudHttpClient {
         return request
     }
 
-    internal func startRequest(path: String, apiVersion: ApphudApiVersion = .APIV1, params: [String: Any]?, method: ApphudHttpMethod, callback: ApphudHTTPResponseCallback?) {
+    internal func startRequest(path: String, apiVersion: ApphudApiVersion = .APIV1, params: [String: Any]?, method: ApphudHttpMethod, useDecoder: Bool = false, callback: ApphudHTTPResponseCallback?) {
         if let request = makeRequest(path: path, apiVersion: apiVersion, params: params, method: method) {
-            start(request: request, callback: callback)
+            start(request: request, useDecoder: useDecoder, callback: callback)
         }
     }
 
@@ -204,13 +212,13 @@ public class ApphudHttpClient {
         task.resume()
     }
 
-    private func start(request: URLRequest, callback: ApphudHTTPResponseCallback?) {
+    private func start(request: URLRequest, useDecoder: Bool = false, callback: ApphudHTTPResponseCallback?) {
         let task = session.dataTask(with: request) { (data, response, error) in
 
             var dictionary: [String: Any]?
 
             do {
-                if data != nil {
+                if data != nil && (!useDecoder || apphudIsSandbox()){
                     dictionary = try JSONSerialization.jsonObject(with: data!, options: []) as? [String: Any]
                 }
             } catch {
@@ -235,7 +243,7 @@ public class ApphudHttpClient {
                             }
                         }
 
-                        callback?(true, dictionary, nil, code)
+                        callback?(true, dictionary, data, nil, code)
                         return
                     } else if code == 401 {
                         self.invalidAPiKey = true
@@ -257,10 +265,10 @@ public class ApphudHttpClient {
                         finalError = self.parseError(dictionary!)
                     }
                     
-                    callback?(false, nil, finalError, code)
+                    callback?(false, nil, data, finalError, code)
                 } else {
                     let code = (error as NSError?)?.code ?? NSURLErrorUnknown
-                    callback?(false, nil, error, code)
+                    callback?(false, nil, data, error, code)
                 }
             }
         }
