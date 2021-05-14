@@ -69,4 +69,25 @@ public class ApphudPaywall: NSObject, Codable {
         try container.encode(isDefault, forKey: .isDefault)
         try container.encode(products, forKey: .products)
     }
+    
+    static func clearCache() {
+        guard let folderURLAppSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {return}
+        guard let folderURLCaches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {return}
+        let fileURLOne = folderURLAppSupport.appendingPathComponent("ApphudPaywalls")
+        let fileURLTwo = folderURLCaches.appendingPathComponent("ApphudPaywalls")
+        if FileManager.default.fileExists(atPath: fileURLOne.path) {
+            do {
+                try FileManager.default.removeItem(at: fileURLOne)
+            } catch {
+                apphudLog("failed to clear apphud cache, error: \(error.localizedDescription)", forceDisplay: true)
+            }
+        }
+        if FileManager.default.fileExists(atPath: fileURLTwo.path) {
+            do {
+                try FileManager.default.removeItem(at: fileURLTwo)
+            } catch {
+                apphudLog("failed to clear apphud cache, error: \(error.localizedDescription)", forceDisplay: true)
+            }
+        }
+    }
 }

@@ -135,7 +135,7 @@ extension ApphudInternal {
 
         apphudLog("Uploading App Store Receipt...")
 
-        httpClient.startRequest(path: "subscriptions", params: params, method: .post) { (result, response, _, error, _) in
+        httpClient?.startRequest(path: "subscriptions", params: params, method: .post) { (result, response, _, error, _) in
             self.forceSendAttributionDataIfNeeded()
             self.isSubmittingReceipt = false
             self.handleSubmitReceiptCallback(result: result, response: response, error: error, notifyDelegate: notifyDelegate)
@@ -164,7 +164,7 @@ extension ApphudInternal {
     }
     
     internal func scheduleSubmitReceiptRetry(error: Error?) {
-        guard httpClient.canRetry else {
+        guard httpClient != nil, httpClient!.canRetry else {
             return
         }
         submitReceiptRetriesCount += 1
@@ -272,7 +272,7 @@ extension ApphudInternal {
     @available(iOS 12.2, *)
     private func signPromoOffer(productID: String, discountID: String, callback: ((SKPaymentDiscount?, Error?) -> Void)?) {
         let params: [String: Any] = ["product_id": productID, "offer_id": discountID ]
-        httpClient.startRequest(path: "sign_offer", params: params, method: .post) { (result, dict, _, error, _) in
+        httpClient?.startRequest(path: "sign_offer", params: params, method: .post) { (result, dict, _, error, _) in
             if result, let responseDict = dict, let dataDict = responseDict["data"] as? [String: Any], let resultsDict = dataDict["results"] as? [String: Any] {
 
                 let signatureData = resultsDict["data"] as? [String: Any]
