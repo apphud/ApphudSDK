@@ -126,7 +126,7 @@ extension ApphudInternal {
         params["is_debug"] = apphudIsSandbox()
         params["is_new"] = isFreshInstall
         // do not automatically pass currentUserID here,because we have separate method updateUserID
-        httpClient.startRequest(path: "customers", params: params, method: .post, callback: callback)
+        httpClient?.startRequest(path: "customers", params: params, method: .post, callback: callback)
     }
 
     @objc internal func updateCurrentUser() {
@@ -196,7 +196,7 @@ extension ApphudInternal {
             }
         }
         params["properties"] = properties
-        httpClient.startRequest(path: "customers/properties", params: params, method: .post) { (result, _, _, error, code) in
+        httpClient?.startRequest(path: "customers/properties", params: params, method: .post) { (result, _, _, error, code) in
             if result {
                 self.pendingUserProperties.removeAll()
                 apphudLog("User Properties successfully updated.")

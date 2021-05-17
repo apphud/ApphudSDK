@@ -49,7 +49,7 @@ extension ApphudInternal {
     }
 
     fileprivate func scheduleProductsFetchRetry(_ noInternetError: Bool) {
-        guard httpClient.canRetry else {
+        guard httpClient != nil, httpClient!.canRetry else {
             return
         }
         guard productsFetchRetriesCount < maxNumberOfProductsFetchRetries else {
@@ -119,7 +119,7 @@ extension ApphudInternal {
     }
     
     private func getProductGroups(callback: @escaping ([ApphudGroup]?, Error?, Int?) -> Void) {
-        httpClient.startRequest(path: "products", apiVersion: .APIV2, params: ["device_id": currentDeviceID], method: .get, useDecoder: true) { result, _, data, error, code in
+        httpClient?.startRequest(path: "products", apiVersion: .APIV2, params: ["device_id": currentDeviceID], method: .get, useDecoder: true) { result, _, data, error, code in
             
             if let data = data {
                 typealias ApphudArrayResponse = ApphudAPIDataResponse<ApphudAPIArrayResponse <ApphudGroup> >
@@ -171,7 +171,7 @@ extension ApphudInternal {
             return
         }
         
-        httpClient.startRequest(path: "paywall_configs", apiVersion: .APIV2, params: ["device_id": currentDeviceID], method: .get, useDecoder: true) { result, _, data, error, code in
+        httpClient?.startRequest(path: "paywall_configs", apiVersion: .APIV2, params: ["device_id": currentDeviceID], method: .get, useDecoder: true) { result, _, data, error, code in
             
             if let data = data {
                 typealias ApphudArrayResponse = ApphudAPIDataResponse<ApphudAPIArrayResponse <ApphudPaywall> >
