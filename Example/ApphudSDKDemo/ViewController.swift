@@ -26,7 +26,7 @@ class ViewController: UITableViewController{
 
         setupRowActions()
         
-        if Apphud.products() != nil {
+        if Apphud.products != nil {
             reloadUI()
         } else {
             Apphud.productsDidFetchCallback { [weak self] prods in
@@ -169,7 +169,7 @@ class ViewController: UITableViewController{
     }
     
     func purchaseProduct(product : SKProduct) {
-        Apphud.purchase(product) { result in
+        Apphud.purchase(product.productIdentifier) { result in
             if result.error != nil {
                 self.notifyPurchaseError(error: result.error!)
             }
