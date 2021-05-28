@@ -208,10 +208,10 @@ extension ApphudInternal {
     // MARK: - Private purchase methods
     
     private func purchase(product: SKProduct, apphudProduct: ApphudProduct?, paywallId:String?, validate: Bool, callback: ((ApphudPurchaseResult) -> Void)?) {
-        ApphudLoggerService.paywallCheckoutInitiated(paywallId, apphudProduct?.id)
+        ApphudLoggerService.paywallCheckoutInitiated(paywallId, apphudProduct?.productId)
         ApphudStoreKitWrapper.shared.purchase(product: product) { transaction, error in
             if let error = error as? SKError {
-                ApphudLoggerService.paywallPaymentError(paywallId, apphudProduct?.id, error)
+                ApphudLoggerService.paywallPaymentError(paywallId, apphudProduct?.productId, error)
             }
             if validate {
                 self.handleTransaction(product: product, transaction: transaction, error: error, apphudProduct: apphudProduct, callback: callback)
