@@ -337,7 +337,7 @@ final public class Apphud: NSObject {
      - parameter callback: Optional. Returns `ApphudPurchaseResult` object.
      */
     @objc public static func purchase(_ product: ApphudProduct, callback: ((ApphudPurchaseResult) -> Void)?) {
-        ApphudInternal.shared.purchase(productId: product.productId, validate: true, callback: callback)
+        ApphudInternal.shared.purchase(productId: product.productId, paywallId: product.paywallId, validate: true, callback: callback)
     }
     
     /**
@@ -352,7 +352,7 @@ final public class Apphud: NSObject {
     @available(*, deprecated, message: "Use `func purchase(_ product: ApphudProduct, callback: ((ApphudPurchaseResult) -> Void)?)` method instead.")
     @objc(purchaseById:callback:)
     public static func purchase(_ productId: String, callback: ((ApphudPurchaseResult) -> Void)?) {
-        ApphudInternal.shared.purchase(productId: productId, validate: true, callback: callback)
+        ApphudInternal.shared.purchase(productId: productId, paywallId: nil, validate: true, callback: callback)
     }
 
     /**
@@ -364,7 +364,7 @@ final public class Apphud: NSObject {
     */
     @objc(purchaseWithoutValidationById:callback:)
     public static func purchaseWithoutValidation(_ productId: String, callback: ((ApphudPurchaseResult) -> Void)?) {
-        ApphudInternal.shared.purchase(productId: productId, validate: false, callback: callback)
+        ApphudInternal.shared.purchase(productId: productId, paywallId: nil, validate: false, callback: callback)
     }
     
     /**
@@ -704,5 +704,17 @@ final public class Apphud: NSObject {
      */
     @objc public static func isSandbox() -> Bool {
         return apphudIsSandbox()
+    }
+    
+    // MARK: - Paywall logs
+    /**
+     Will be displayed in AppHud dashboard
+     */
+    @objc public static func paywallShown(_ paywall: ApphudPaywall?) {
+        ApphudLoggerService.paywallShown(paywall?.id)
+    }
+    
+    @objc public static func paywallClosed(_ paywall: ApphudPaywall?) {
+        ApphudLoggerService.paywallClosed(paywall?.id)
     }
 }

@@ -206,6 +206,7 @@ extension ApphudInternal {
     internal func updatePaywallsWithStoreKitProducts(paywalls: [ApphudPaywall]) {
         paywalls.forEach { paywall in
             paywall.products.forEach({ product in
+                product.paywallId = paywall.id
                 product.skProduct = ApphudStoreKitWrapper.shared.products.first(where: { $0.productIdentifier == product.productId })
             })
         }

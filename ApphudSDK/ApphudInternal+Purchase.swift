@@ -125,7 +125,7 @@ extension ApphudInternal {
         }
         
         apphudProduct?.id.map { params["product_bundle_id"] = $0 }
-        apphudProduct?.findPaywallId().map { params["paywall_id"] = $0 }
+        apphudProduct?.paywallId.map { params["paywall_id"] = $0 }
         
         if transaction?.transactionState == .purchased {
             ApphudRulesManager.shared.cacheActiveScreens()
@@ -175,14 +175,14 @@ extension ApphudInternal {
 
     // MARK: - Internal purchase methods
     
-    internal func purchase(productId: String, validate: Bool, callback: ((ApphudPurchaseResult) -> Void)?) {
+    internal func purchase(productId: String, paywallId: String?, validate: Bool, callback: ((ApphudPurchaseResult) -> Void)?) {
         if let apphudProduct = ApphudInternal.shared.allAvailableProducts.first(where: { $0.productId == productId }), let skProduct = apphudProduct.skProduct {
-            purchase(product: skProduct, apphudProduct: apphudProduct, validate:validate, callback: callback)
+            purchase(product: skProduct, apphudProduct: apphudProduct, paywallId: paywallId, validate:validate, callback: callback)
         } else {
             apphudLog("Product with id \(productId) not found, re-fetching from App Store...")
             ApphudStoreKitWrapper.shared.fetchProduct(productId: productId) { product in
                 if let product = product {
-                    self.purchase(product: product, apphudProduct: nil, validate: validate, callback: callback)
+                    self.purchase(product: product, apphudProduct: nil, paywallId: nil, validate: validate, callback: callback)
                 } else {
                     let message = "Unable to start payment because product identifier is invalid: [\([productId])]"
                     apphudLog(message, forceDisplay: true)
@@ -207,9 +207,12 @@ extension ApphudInternal {
 
     // MARK: - Private purchase methods
     
-    private func purchase(product: SKProduct, apphudProduct: ApphudProduct?, validate: Bool, callback: ((ApphudPurchaseResult) -> Void)?) {
-        
+    private func purchase(product: SKProduct, apphudProduct: ApphudProduct?, paywallId:String?, validate: Bool, callback: ((ApphudPurchaseResult) -> Void)?) {
+        ApphudLoggerService.paywallCheckoutInitiated(paywallId, apphudProduct?.id)
         ApphudStoreKitWrapper.shared.purchase(product: product) { transaction, error in
+            if let error = error as? SKError {
+                ApphudLoggerService.paywallPaymentError(paywallId, apphudProduct?.id, error)
+            }
             if validate {
                 self.handleTransaction(product: product, transaction: transaction, error: error, apphudProduct: apphudProduct, callback: callback)
             } else {

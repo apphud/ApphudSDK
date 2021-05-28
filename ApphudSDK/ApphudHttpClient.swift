@@ -171,6 +171,7 @@ public class ApphudHttpClient {
             request?.httpMethod = method.rawValue
             request?.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
             request?.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Accept")
+            request?.setValue("ios", forHTTPHeaderField: "X-Platform")
             request?.timeoutInterval = method == .get ? GET_TIMEOUT : POST_PUT_TIMEOUT
             if method != .get {
                 var finalParams: [String: Any] = ["api_key": apiKey]

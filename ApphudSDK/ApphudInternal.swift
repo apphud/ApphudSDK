@@ -383,6 +383,40 @@ final class ApphudInternal: NSObject {
             apphudLog("Tried to trackRuleEvent, but user not yet registered, adding to schedule")
         }
     }
+    
+    internal func trackPaywallEvent(params: [String: AnyHashable], callback: @escaping () -> Void) {
+
+        let result = performWhenUserRegistered {
+            let environment = Apphud.isSandbox() ? "sandbox" : "production"
+            let final_params: [String: AnyHashable] = ["device_id": self.currentDeviceID,
+                                                       "user_id": self.currentUserID,
+                                                       "environment": environment].merging(params, uniquingKeysWith: {(current, _) in current})
+            
+            self.httpClient?.startRequest(path: "events", apiVersion: .APIV1, params: final_params, method: .post) { (_, _, _, _, _) in
+                callback()
+            }
+        }
+        if !result {
+            apphudLog("Tried to trackPaywallEvent, but user not yet registered, adding to schedule")
+        }
+    }
+    
+    internal func logEvent(params: [String: AnyHashable], callback: @escaping () -> Void) {
+
+        let result = performWhenUserRegistered {
+            let environment = Apphud.isSandbox() ? "sandbox" : "production"
+            let final_params: [String: AnyHashable] = ["device_id": self.currentDeviceID,
+                                                       "user_id": self.currentUserID,
+                                                       "environment": environment].merging(params, uniquingKeysWith: {(current, _) in current})
+            
+            self.httpClient?.startRequest(path: "logs", apiVersion: .APIV1, params: final_params, method: .post) { (_, _, _, _, _) in
+                callback()
+            }
+        }
+        if !result {
+            apphudLog("Tried to trackPaywallEvent, but user not yet registered, adding to schedule")
+        }
+    }
 
     /// Not used yet
     internal func getRule(ruleID: String, callback: @escaping (ApphudRule?) -> Void) {
