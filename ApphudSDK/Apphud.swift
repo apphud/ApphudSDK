@@ -648,6 +648,11 @@ final public class Apphud: NSObject {
         - parameter callback: Returns true if product is eligible for purchasing introductory offer.
      */
     @objc public static func checkEligibilityForIntroductoryOffer(product: SKProduct, callback: @escaping ApphudBoolCallback) {
+        guard product.introductoryPrice != nil else {
+            callback(false)
+            return
+        }
+        
         ApphudInternal.shared.checkEligibilitiesForIntroductoryOffers(products: [product]) { result in
             callback(result[product.productIdentifier] ?? true)
         }
