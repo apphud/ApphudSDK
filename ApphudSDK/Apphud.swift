@@ -336,7 +336,8 @@ final public class Apphud: NSObject {
      
      - parameter callback: Optional. Returns `ApphudPurchaseResult` object.
      */
-    @objc public static func purchase(_ product: ApphudProduct, callback: ((ApphudPurchaseResult) -> Void)?) {
+    @objc(purchaseApphudProduct:callback:)
+    public static func purchase(_ product: ApphudProduct, callback: ((ApphudPurchaseResult) -> Void)?) {
         ApphudInternal.shared.purchase(productId: product.productId, paywallId: product.paywallId, validate: true, callback: callback)
     }
     

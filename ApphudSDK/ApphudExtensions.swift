@@ -8,7 +8,6 @@
 
 import Foundation
 import StoreKit
-import AdSupport
 
 typealias ApphudVoidCallback = (() -> Void)
 typealias ApphudErrorCallback = ((Error?) -> Void)
