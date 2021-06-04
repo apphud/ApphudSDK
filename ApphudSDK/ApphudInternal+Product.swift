@@ -69,6 +69,7 @@ extension ApphudInternal {
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(continueToFetchProducts), object: nil)
         perform(#selector(continueToFetchProducts), with: nil, afterDelay: delay)
         apphudLog("No Product Identifiers found in Apphud. Probably you forgot to add products in Apphud Settings? Scheduled products fetch retry in \(delay) seconds.", forceDisplay: true)
+        ApphudLoggerService.logError("No Product Identifiers found in Apphud")
     }
 
     internal func continueToFetchStoreKitProducts() {

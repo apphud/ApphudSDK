@@ -80,9 +80,12 @@ extension ApphudInternal {
                     block(receipt)
                 } else {
                     if let transactionOid = transaction?.transactionIdentifier {
+                        ApphudLoggerService.logError("Receipt not found, submit receipt with transactionIdentifier \(transactionOid)")
                         block(nil)
                     } else {
-                        apphudLog("Failed to get App Store receipt", forceDisplay: true)
+                        let message = "Failed to get App Store receipt"
+                        ApphudLoggerService.logError(message)
+                        apphudLog(message, forceDisplay: true)
                         callback?(ApphudPurchaseResult(nil, nil, transaction, ApphudError(message: "Failed to get App Store receipt")))
                     }
                 }
@@ -191,6 +194,7 @@ extension ApphudInternal {
                     self.purchase(product: product, apphudProduct: nil, paywallId: nil, validate: validate, callback: callback)
                 } else {
                     let message = "Unable to start payment because product identifier is invalid: [\([productId])]"
+                    ApphudLoggerService.logError(message)
                     apphudLog(message, forceDisplay: true)
                     let result = ApphudPurchaseResult(nil, nil, nil, ApphudError(message: message))
                     callback?(result)

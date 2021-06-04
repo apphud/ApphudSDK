@@ -29,4 +29,8 @@ class ApphudLoggerService {
             ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_payment_cancelled", "properties":["paywall_id":paywallId ?? "", "product_id":productId ?? ""] ]) {}
         }
     }
+    
+    class func logError(_ error:String) {
+        ApphudInternal.shared.logEvent(params: ["message": error]) {}
+    }
 }
