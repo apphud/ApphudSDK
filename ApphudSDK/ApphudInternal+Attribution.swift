@@ -90,7 +90,9 @@ extension ApphudInternal {
                 if result {
                     apphudLog("Did send \(provider.toString()) attribution data to Apphud!")
                 } else {
-                    apphudLog("Failed to send \(provider.toString()) attribution data to Apphud!")
+                    let message = "Failed to send \(provider.toString()) attribution data to Apphud!"
+                    apphudLog(message)
+                    ApphudLoggerService.logError(message)
                 }
 
                 callback?(result)

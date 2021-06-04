@@ -82,7 +82,9 @@ public class ApphudReceipt: NSObject, Codable {
                 receipt.rawJSON = dict
                 completion(receipt)
             } catch {
-                apphudLog("An error occurred while decoding App Store Receipt: \(error)")
+                let message = "An error occurred while decoding App Store Receipt: \(error)"
+                apphudLog(message)
+                ApphudLoggerService.logError(message)
                 completion(nil)
             }
         }

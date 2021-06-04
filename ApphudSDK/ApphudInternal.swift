@@ -383,6 +383,46 @@ final class ApphudInternal: NSObject {
             apphudLog("Tried to trackRuleEvent, but user not yet registered, adding to schedule")
         }
     }
+    
+    internal func trackPaywallEvent(params: [String: AnyHashable], callback: @escaping () -> Void) {
+
+        let result = performWhenUserRegistered {
+            let environment = Apphud.isSandbox() ? "sandbox" : "production"
+            let final_params: [String: AnyHashable] = ["device_id": self.currentDeviceID,
+                                                       "user_id": self.currentUserID,
+                                                       "timestamp": Date().currentTimestamp(),
+                                                       "environment": environment].merging(params, uniquingKeysWith: {(current, _) in current})
+            
+            self.httpClient?.startRequest(path: "events", apiVersion: .APIV1, params: final_params, method: .post) { (_, _, _, _, _) in
+                callback()
+            }
+        }
+        if !result {
+            apphudLog("Tried to trackPaywallEvent, but user not yet registered, adding to schedule")
+        }
+    }
+    
+    internal func logEvent(params: [String: AnyHashable], callback: @escaping () -> Void) {
+
+        let result = performWhenUserRegistered {
+            let environment = Apphud.isSandbox() ? "sandbox" : "production"
+            var final_params: [String: AnyHashable] = ["device_id": self.currentDeviceID,
+                                                       "user_id": self.currentUserID,
+                                                       "timestamp": Date().currentTimestamp(),
+                                                       "environment": environment].merging(params, uniquingKeysWith: {(current, _) in current})
+            
+            if let bundleID = Bundle.main.bundleIdentifier {
+                final_params["bundle_id"] = bundleID
+            }
+            
+            self.httpClient?.startRequest(path: "logs", apiVersion: .APIV1, params: final_params, method: .post) { (_, _, _, _, _) in
+                callback()
+            }
+        }
+        if !result {
+            apphudLog("Tried to trackPaywallEvent, but user not yet registered, adding to schedule")
+        }
+    }
 
     /// Not used yet
     internal func getRule(ruleID: String, callback: @escaping (ApphudRule?) -> Void) {
@@ -437,5 +477,11 @@ final class ApphudInternal: NSObject {
                 }
             }
         }
+    }
+}
+
+extension Date {
+    func currentTimestamp() -> Int64 {
+        return Int64(self.timeIntervalSince1970 * 1000)
     }
 }

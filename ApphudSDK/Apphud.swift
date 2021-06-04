@@ -10,7 +10,7 @@ import UIKit
 import StoreKit
 import UserNotifications
 
-internal let apphud_sdk_version = "2.0.1"
+internal let apphud_sdk_version = "2.1.0"
 
 public typealias ApphudEligibilityCallback = (([String: Bool]) -> Void)
 public typealias ApphudBoolCallback = ((Bool) -> Void)
@@ -336,8 +336,9 @@ final public class Apphud: NSObject {
      
      - parameter callback: Optional. Returns `ApphudPurchaseResult` object.
      */
-    @objc public static func purchase(_ product: ApphudProduct, callback: ((ApphudPurchaseResult) -> Void)?) {
-        ApphudInternal.shared.purchase(productId: product.productId, validate: true, callback: callback)
+    @objc(purchaseApphudProduct:callback:)
+    public static func purchase(_ product: ApphudProduct, callback: ((ApphudPurchaseResult) -> Void)?) {
+        ApphudInternal.shared.purchase(productId: product.productId, paywallId: product.paywallId, validate: true, callback: callback)
     }
     
     /**
@@ -352,7 +353,7 @@ final public class Apphud: NSObject {
     @available(*, deprecated, message: "Use `func purchase(_ product: ApphudProduct, callback: ((ApphudPurchaseResult) -> Void)?)` method instead.")
     @objc(purchaseById:callback:)
     public static func purchase(_ productId: String, callback: ((ApphudPurchaseResult) -> Void)?) {
-        ApphudInternal.shared.purchase(productId: productId, validate: true, callback: callback)
+        ApphudInternal.shared.purchase(productId: productId, paywallId: nil, validate: true, callback: callback)
     }
 
     /**
@@ -364,7 +365,7 @@ final public class Apphud: NSObject {
     */
     @objc(purchaseWithoutValidationById:callback:)
     public static func purchaseWithoutValidation(_ productId: String, callback: ((ApphudPurchaseResult) -> Void)?) {
-        ApphudInternal.shared.purchase(productId: productId, validate: false, callback: callback)
+        ApphudInternal.shared.purchase(productId: productId, paywallId: nil, validate: false, callback: callback)
     }
     
     /**
@@ -648,6 +649,11 @@ final public class Apphud: NSObject {
         - parameter callback: Returns true if product is eligible for purchasing introductory offer.
      */
     @objc public static func checkEligibilityForIntroductoryOffer(product: SKProduct, callback: @escaping ApphudBoolCallback) {
+        guard product.introductoryPrice != nil else {
+            callback(false)
+            return
+        }
+        
         ApphudInternal.shared.checkEligibilitiesForIntroductoryOffers(products: [product]) { result in
             callback(result[product.productIdentifier] ?? true)
         }
@@ -704,5 +710,17 @@ final public class Apphud: NSObject {
      */
     @objc public static func isSandbox() -> Bool {
         return apphudIsSandbox()
+    }
+    
+    // MARK: - Paywall logs
+    /**
+     Will be displayed in AppHud dashboard
+     */
+    @objc public static func paywallShown(_ paywall: ApphudPaywall?) {
+        ApphudLoggerService.paywallShown(paywall?.id)
+    }
+    
+    @objc public static func paywallClosed(_ paywall: ApphudPaywall?) {
+        ApphudLoggerService.paywallClosed(paywall?.id)
     }
 }

@@ -168,12 +168,14 @@ extension ApphudInternal {
         guard let typeString = getType(value: value) else {
             let givenType = type(of: value)
             apphudLog("Invalid property type: (\(givenType)). Must be one of: [Int, Float, Double, Bool, String, NSNull, nil]", forceDisplay: true)
+            ApphudLoggerService.logError("set user property: Invalid property type")
             return
         }
 
         if increment && !(typeString == "integer" || typeString == "float") {
             let givenType = type(of: value)
             apphudLog("Invalid increment property type: (\(givenType)). Must be one of: [Int, Float, Double]", forceDisplay: true)
+            ApphudLoggerService.logError("set user property: Invalid increment property type")
             return
         }
 
