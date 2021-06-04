@@ -59,7 +59,7 @@ extension ApphudInternal {
 
     internal func submitReceipt(product: SKProduct, transaction: SKPaymentTransaction?, apphudProduct: ApphudProduct? = nil, callback: ((ApphudPurchaseResult) -> Void)?) {
 
-        let block: (String) -> Void = { receiptStr in
+        let block: (String?) -> Void = { receiptStr in
             let exist = self.performWhenUserRegistered {
                 self.submitReceipt(product: product, apphudProduct: apphudProduct, transaction: transaction, receiptString: receiptStr, notifyDelegate: true) { error in
                     let result = self.purchaseResult(productId: product.productIdentifier, transaction: transaction, error: error)
@@ -79,14 +79,18 @@ extension ApphudInternal {
                 if let receipt = apphudReceiptDataString() {
                     block(receipt)
                 } else {
-                    apphudLog("Failed to get App Store receipt", forceDisplay: true)
-                    callback?(ApphudPurchaseResult(nil, nil, transaction, ApphudError(message: "Failed to get App Store receipt")))
+                    if let transactionOid = transaction?.transactionIdentifier {
+                        block(nil)
+                    } else {
+                        apphudLog("Failed to get App Store receipt", forceDisplay: true)
+                        callback?(ApphudPurchaseResult(nil, nil, transaction, ApphudError(message: "Failed to get App Store receipt")))
+                    }
                 }
             }
         }
     }
 
-    internal func submitReceipt(product: SKProduct?, apphudProduct: ApphudProduct?, transaction: SKPaymentTransaction?, receiptString: String, notifyDelegate: Bool, eligibilityCheck: Bool = false, callback: ApphudErrorCallback?) {
+    internal func submitReceipt(product: SKProduct?, apphudProduct: ApphudProduct?, transaction: SKPaymentTransaction?, receiptString: String?, notifyDelegate: Bool, eligibilityCheck: Bool = false, callback: ApphudErrorCallback?) {
 
         if callback != nil {
             if eligibilityCheck {
@@ -102,9 +106,11 @@ extension ApphudInternal {
         let environment = Apphud.isSandbox() ? "sandbox" : "production"
 
         var params: [String: Any] = ["device_id": self.currentDeviceID,
-                                          "receipt_data": receiptString,
                                           "environment": environment]
-
+        
+        if let receipt = receiptString {
+            params["receipt_data"] = receipt
+        }
         if let transactionID = transaction?.transactionIdentifier {
             params["transaction_id"] = transactionID
         }
