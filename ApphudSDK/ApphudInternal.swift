@@ -405,9 +405,13 @@ final class ApphudInternal: NSObject {
 
         let result = performWhenUserRegistered {
             let environment = Apphud.isSandbox() ? "sandbox" : "production"
-            let final_params: [String: AnyHashable] = ["device_id": self.currentDeviceID,
+            var final_params: [String: AnyHashable] = ["device_id": self.currentDeviceID,
                                                        "user_id": self.currentUserID,
                                                        "environment": environment].merging(params, uniquingKeysWith: {(current, _) in current})
+            
+            if let bundleID = Bundle.main.bundleIdentifier {
+                final_params["bundle_id"] = bundleID
+            }
             
             self.httpClient?.startRequest(path: "logs", apiVersion: .APIV1, params: final_params, method: .post) { (_, _, _, _, _) in
                 callback()

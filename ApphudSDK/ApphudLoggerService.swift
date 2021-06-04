@@ -10,6 +10,8 @@ import StoreKit
 
 class ApphudLoggerService {
     
+    // MARK: - Paywalls logs
+    
     class func paywallShown(_ paywallId: String?) {
         ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_shown", "properties":["paywall_id":paywallId ?? ""] ]) {}
     }
@@ -29,6 +31,8 @@ class ApphudLoggerService {
             ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_payment_cancelled", "properties":["paywall_id":paywallId ?? "", "product_id":productId ?? ""] ]) {}
         }
     }
+    
+    // MARK: - Main errors logs
     
     class func logError(_ error:String) {
         ApphudInternal.shared.logEvent(params: ["message": error]) {}
