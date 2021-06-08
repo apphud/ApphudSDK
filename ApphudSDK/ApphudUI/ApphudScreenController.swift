@@ -292,7 +292,7 @@ class ApphudScreenController: UIViewController {
 
             ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(product: product, offerID: nil, screenName: self.rule.screen_name)
             
-            ApphudInternal.shared.purchase(productId: product.productIdentifier, paywallId: nil, validate: true) { result in
+            ApphudInternal.shared.purchase(productId: product.productIdentifier, product: nil, paywallId: nil, validate: true) { result in
                 self.handlePurchaseResult(product: product, result: result)
             }
         }

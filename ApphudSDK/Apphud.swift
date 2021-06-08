@@ -338,7 +338,7 @@ final public class Apphud: NSObject {
      */
     @objc(purchaseApphudProduct:callback:)
     public static func purchase(_ product: ApphudProduct, callback: ((ApphudPurchaseResult) -> Void)?) {
-        ApphudInternal.shared.purchase(productId: product.productId, paywallId: product.paywallId, validate: true, callback: callback)
+        ApphudInternal.shared.purchase(productId: product.productId, product: product, paywallId: product.paywallId, validate: true, callback: callback)
     }
     
     /**
@@ -353,7 +353,7 @@ final public class Apphud: NSObject {
     @available(*, deprecated, message: "Use `func purchase(_ product: ApphudProduct, callback: ((ApphudPurchaseResult) -> Void)?)` method instead.")
     @objc(purchaseById:callback:)
     public static func purchase(_ productId: String, callback: ((ApphudPurchaseResult) -> Void)?) {
-        ApphudInternal.shared.purchase(productId: productId, paywallId: nil, validate: true, callback: callback)
+        ApphudInternal.shared.purchase(productId: productId, product: nil, paywallId: nil, validate: true, callback: callback)
     }
 
     /**
@@ -365,7 +365,7 @@ final public class Apphud: NSObject {
     */
     @objc(purchaseWithoutValidationById:callback:)
     public static func purchaseWithoutValidation(_ productId: String, callback: ((ApphudPurchaseResult) -> Void)?) {
-        ApphudInternal.shared.purchase(productId: productId, paywallId: nil, validate: false, callback: callback)
+        ApphudInternal.shared.purchase(productId: productId, product: nil, paywallId: nil, validate: false, callback: callback)
     }
     
     /**
