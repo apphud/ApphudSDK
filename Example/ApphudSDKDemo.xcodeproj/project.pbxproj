@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1A35CDA82679092C00ED881F /* PaywallViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A35CDA72679092C00ED881F /* PaywallViewController.swift */; };
+		1AA429FB26791033007A4907 /* PaywallCollectionViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AA429FA26791033007A4907 /* PaywallCollectionViewCell.swift */; };
+		1AE524752679375E0056CD68 /* Router.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AE524742679375E0056CD68 /* Router.swift */; };
+		1AE52478267938C80056CD68 /* ContentViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AE52477267938C80056CD68 /* ContentViewController.swift */; };
 		1C7D8922438BFCE604D851EF /* Pods_ApphudSDKDemo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E54C08459308EF04A9E71DB5 /* Pods_ApphudSDKDemo.framework */; };
 		94B8A71524C02E6F00A8B950 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94B8A70C24C02E6F00A8B950 /* ViewController.swift */; };
 		94B8A71624C02E6F00A8B950 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 94B8A70D24C02E6F00A8B950 /* Assets.xcassets */; };
@@ -30,6 +34,10 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		1A35CDA72679092C00ED881F /* PaywallViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallViewController.swift; sourceTree = "<group>"; };
+		1AA429FA26791033007A4907 /* PaywallCollectionViewCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallCollectionViewCell.swift; sourceTree = "<group>"; };
+		1AE524742679375E0056CD68 /* Router.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Router.swift; sourceTree = "<group>"; };
+		1AE52477267938C80056CD68 /* ContentViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentViewController.swift; sourceTree = "<group>"; };
 		71F35EFC71E4EBC3EA1D0E97 /* Pods-ApphudSDKDemo.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ApphudSDKDemo.release.xcconfig"; path = "Target Support Files/Pods-ApphudSDKDemo/Pods-ApphudSDKDemo.release.xcconfig"; sourceTree = "<group>"; };
 		94AE4E8D22A0FAC800564F85 /* ApphudDemoApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ApphudDemoApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		94B8A70C24C02E6F00A8B950 /* ViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
@@ -85,6 +93,10 @@
 				94B8A71224C02E6F00A8B950 /* Extensions.swift */,
 				94B8A71324C02E6F00A8B950 /* AppDelegate.swift */,
 				94B8A71424C02E6F00A8B950 /* Info.plist */,
+				1A35CDA72679092C00ED881F /* PaywallViewController.swift */,
+				1AA429FA26791033007A4907 /* PaywallCollectionViewCell.swift */,
+				1AE524742679375E0056CD68 /* Router.swift */,
+				1AE52477267938C80056CD68 /* ContentViewController.swift */,
 			);
 			path = ApphudSDKDemo;
 			sourceTree = "<group>";
@@ -230,7 +242,11 @@
 			files = (
 				94B8A71A24C02E6F00A8B950 /* AppDelegate.swift in Sources */,
 				94B8A71524C02E6F00A8B950 /* ViewController.swift in Sources */,
+				1AA429FB26791033007A4907 /* PaywallCollectionViewCell.swift in Sources */,
 				94B8A71924C02E6F00A8B950 /* Extensions.swift in Sources */,
+				1AE524752679375E0056CD68 /* Router.swift in Sources */,
+				1A35CDA82679092C00ED881F /* PaywallViewController.swift in Sources */,
+				1AE52478267938C80056CD68 /* ContentViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

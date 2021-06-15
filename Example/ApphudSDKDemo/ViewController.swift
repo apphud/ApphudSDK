@@ -13,9 +13,7 @@ import ApphudSDK
 typealias Callback = (() -> Void)
 
 class ViewController: UITableViewController{
-    
-    var products = [SKProduct]()
-    
+    var paywalls = [ApphudPaywall]()
     var rowsActions = [(String, Callback)]()
         
     override func viewDidLoad() {
@@ -26,11 +24,10 @@ class ViewController: UITableViewController{
 
         setupRowActions()
         
-        if Apphud.products != nil {
-            reloadUI()
-        } else {
-            Apphud.productsDidFetchCallback { [weak self] prods in
-                self?.reload()
+        Apphud.getPaywalls { paywallsss, error in
+            paywallsss.map {
+                self.paywalls = $0
+                self.reloadUI()
             }
         }
         
@@ -42,7 +39,7 @@ class ViewController: UITableViewController{
             ("Restore", { self.restore() }),
             ("Offer Code Redemption Sheet", { self.presentOfferCodeSheet() }),
             ("Fetch Raw Receipt", { self.fetchRawReceipt() }),
-            ("Log out", { Apphud.logout() })
+            ("Log out <\(Apphud.userID())>", { Apphud.logout() })
         ]
     }
     
@@ -57,12 +54,7 @@ class ViewController: UITableViewController{
     @objc func reloadUI(){
         reload()
     }
-    
-    override func viewDidAppear(_ animated: Bool) {
-        super.viewDidAppear(animated)
-        self.title = Apphud.userID()
-    }
-        
+            
     @objc func fetchRawReceipt() {
         Apphud.fetchRawReceiptInfo { receipt in
             if let receipt = receipt {
@@ -70,7 +62,6 @@ class ViewController: UITableViewController{
             } else {
                 print("could not fetch raw receipt")
             }
-            
         }
     }
     
@@ -91,31 +82,32 @@ class ViewController: UITableViewController{
     }
     
     override func numberOfSections(in tableView: UITableView) -> Int {
-        2
+        1 + paywalls.count
     }
     
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        section == 0 ? rowsActions.count : products.count
+        section == 0 ? rowsActions.count : paywalls[section - 1].products.count
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        
         let cell = tableView.dequeueReusableCell(withIdentifier: "productCell", for: indexPath)
         
         if indexPath.section == 0 {
             cell.textLabel?.text = rowsActions[indexPath.row].0
             cell.detailTextLabel?.text = nil
         } else {
-            let product = products[indexPath.item]
-            let text = product.fullSubscriptionInfoString() ?? product.productIdentifier
+            let paywall = paywalls[indexPath.section - 1]
+            let product = paywall.products[indexPath.item]
+            
+            let text = product.skProduct?.getFullSubscriptionInfoString() ?? "PRODUCT UNAVAILABLE: \(product.productId)"
             cell.textLabel?.text = text
-            if let subscription = Apphud.subscriptions()?.first(where: {$0.productId == product.productIdentifier}) {
+            if let subscription = Apphud.subscriptions()?.first(where: {$0.productId == product.productId}) {
                 cell.detailTextLabel?.text = subscription.expiresDate.description(with: Locale.current) + "\nState: \(subscription.status.toStringDuplicate())\nIntroductory used:\(subscription.isIntroductoryActivated)".uppercased()
             } else {
                 cell.detailTextLabel?.text = "Not active"
             }
         }
-        
+    
         return cell
     }
     
@@ -128,10 +120,11 @@ class ViewController: UITableViewController{
             return
         }
         
-        let product = products[indexPath.item]
+        let paywall = paywalls[indexPath.section - 1]
+        let product = paywall.products[indexPath.item]
 
         if #available(iOS 12.2, *) {
-            if product.discounts.count > 0 {
+            if product.skProduct?.discounts.count ?? 0 > 0 {
                 // purchase promo offer
                 showPromoOffersAlert(product: product)
             } else {
@@ -140,16 +133,17 @@ class ViewController: UITableViewController{
         } else {
             purchaseProduct(product: product)
         }
+       
     }
     
     @available(iOS 12.2, *)
-    func showPromoOffersAlert(product : SKProduct) {
+    func showPromoOffersAlert(product : ApphudProduct) {
         
         let controller = UIAlertController(title: "You already have subscription for this product", message: "would you like to activate promo offer?", preferredStyle: .alert)
         
-        for discount in product.discounts {
+        for discount in product.skProduct?.discounts ?? [] {
             controller.addAction(UIAlertAction(title: "Purchase Promo: \(discount.identifier!)", style: .default, handler: { act in
-                self.purchaseProduct(product: product, promoID: discount.identifier!)
+                self.purchasePromo(product: product, promoID: discount.identifier!)
             }))
         }
         
@@ -162,21 +156,24 @@ class ViewController: UITableViewController{
     }
     
     @available(iOS 12.2, *)
-    func purchaseProduct(product: SKProduct, promoID: String){
-        Apphud.purchasePromo(product, discountID: promoID, { result in
+    func purchasePromo(product: ApphudProduct, promoID: String) {
+        
+        guard let skproduct = product.skProduct else {return}
+        
+        Apphud.purchasePromo(skproduct, discountID: promoID, { result in
             self.reload()
         })
     }
     
-    func purchaseProduct(product : SKProduct) {
-        Apphud.purchase(product.productIdentifier) { result in
+    func purchaseProduct(product : ApphudProduct) {
+        Apphud.purchase(product) { result in
             if result.error != nil {
                 self.notifyPurchaseError(error: result.error!)
             }
             self.reload()
         }
     }
-    
+        
     func notifyPurchaseError(error: Error) {
         let controller = UIAlertController(title: "Error", message: error.localizedDescription, preferredStyle: .alert)
         controller.addAction(UIAlertAction(title: "Ok", style: .default, handler: nil))
@@ -187,7 +184,6 @@ class ViewController: UITableViewController{
 extension ViewController : ApphudDelegate {
     
     func apphudDidFetchStoreKitProducts(_ products: [SKProduct]) {
-        self.products = products
         self.reload()
     }
     

@@ -12,25 +12,25 @@ import StoreKit
 import ApphudSDK
 
 extension SKProduct {
-
-    func unitStringFrom(unitValue: SKProduct.PeriodUnit) -> String {
+        
+    func getProductDuration() -> String? {
         var unit = ""
-        switch unitValue {
+        switch self.subscriptionPeriod?.unit {
         case .day:
-            unit = "day"
+            unit = "\(subscriptionPeriod!.numberOfUnits) days"
         case .week:
-            unit = "week"
+            unit = "weekly"
         case .month:
-            unit = "month"
+            unit = "monthly"
         case .year:
-            unit = "year"
+            unit = "annually"
         default:
-            break
+            unit = "lifetime"
         }
         return unit
     }
-
-    func localizedPriceFrom(price: NSDecimalNumber) -> String {
+    
+    func getProductPrice() -> String? {
         let numberFormatter = NumberFormatter()
         numberFormatter.numberStyle = .currency
         numberFormatter.locale = priceLocale
@@ -39,29 +39,8 @@ extension SKProduct {
         let priceString = numberFormatter.string(from: price)
         return priceString ?? ""
     }
-
-    func discountDescription(discount: SKProductDiscount) -> String {
-
-        let periodsCount = discount.numberOfPeriods
-
-        let unit = unitStringFrom(unitValue: discount.subscriptionPeriod.unit)
-
-        let unitCount = discount.subscriptionPeriod.numberOfUnits
-
-        let priceString = localizedPriceFrom(price: discount.price)
-
-        var string = ""
-        if discount.paymentMode == .payAsYouGo {
-            string = "PAY AS YOU GO: \(priceString) every \(unitCount) \(unit) and pay it \(periodsCount) times"
-        } else if discount.paymentMode == .payUpFront {
-            string = "INTRO PAY UP FRONT: \(priceString) per \(unitCount) \(unit) for  \(periodsCount) times"
-        } else if discount.paymentMode == .freeTrial {
-            string = "FREE TRIAL: \(priceString) per \(unitCount) \(unit) for  \(periodsCount) times"
-        }
-        return string
-    }
-
-    func fullSubscriptionInfoString() -> String? {
+    
+    func getFullSubscriptionInfoString() -> String? {
 
         guard subscriptionPeriod != nil else {return nil}
 
@@ -86,6 +65,84 @@ extension SKProduct {
         }
 
         return string
+    }
+
+    private func unitStringFrom(unitValue: SKProduct.PeriodUnit) -> String {
+        var unit = ""
+        switch unitValue {
+        case .day:
+            unit = "day"
+        case .week:
+            unit = "week"
+        case .month:
+            unit = "month"
+        case .year:
+            unit = "year"
+        default:
+            break
+        }
+        return unit
+    }
+
+    private func localizedPriceFrom(price: NSDecimalNumber) -> String {
+        let numberFormatter = NumberFormatter()
+        numberFormatter.numberStyle = .currency
+        numberFormatter.locale = priceLocale
+        numberFormatter.currencyCode = priceLocale.currencyCode
+        numberFormatter.currencySymbol = priceLocale.currencySymbol
+        let priceString = numberFormatter.string(from: price)
+        return priceString ?? ""
+    }
+
+    private func discountDescription(discount: SKProductDiscount) -> String {
+
+        let periodsCount = discount.numberOfPeriods
+
+        let unit = unitStringFrom(unitValue: discount.subscriptionPeriod.unit)
+
+        let unitCount = discount.subscriptionPeriod.numberOfUnits
+
+        let priceString = localizedPriceFrom(price: discount.price)
+
+        var string = ""
+        if discount.paymentMode == .payAsYouGo {
+            string = "PAY AS YOU GO: \(priceString) every \(unitCount) \(unit) and pay it \(periodsCount) times"
+        } else if discount.paymentMode == .payUpFront {
+            string = "INTRO PAY UP FRONT: \(priceString) per \(unitCount) \(unit) for  \(periodsCount) times"
+        } else if discount.paymentMode == .freeTrial {
+            string = "FREE TRIAL: \(priceString) per \(unitCount) \(unit) for  \(periodsCount) times"
+        }
+        return string
+    }
+}
+
+struct LoaderDialog {
+    static var alert = UIAlertController()
+    static var progressView = UIProgressView()
+    static var progressPoint : Float = 0 {
+        didSet {
+            if (progressPoint == 1) {
+                LoaderDialog.alert.dismiss(animated: true, completion: nil)
+            }
+        }
+    }
+}
+
+extension UIViewController {
+    func showLoader() {
+        LoaderDialog.alert = UIAlertController(title: nil, message: "Connect to Apple...", preferredStyle: .alert)
+        
+        let loadingIndicator = UIActivityIndicatorView(frame: CGRect(x: 10, y: 5, width: 50, height: 50))
+        loadingIndicator.hidesWhenStopped = true
+        loadingIndicator.style = UIActivityIndicatorView.Style.white
+        loadingIndicator.startAnimating()
+        
+        LoaderDialog.alert.view.addSubview(loadingIndicator)
+        present(LoaderDialog.alert, animated: true, completion: nil)
+    }
+    
+    func hideLoader() {
+        LoaderDialog.alert.dismiss(animated: true, completion: nil)
     }
 }
 
