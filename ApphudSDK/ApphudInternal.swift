@@ -85,6 +85,19 @@ final class ApphudInternal: NSObject {
             }
         }
     }
+    
+    // MARK: - Attribution Token
+
+    internal var appleAttributionToken: String? {
+        didSet {
+            if appleAttributionToken != nil {
+                apphudLog("Received AAToken (\(appleAttributionToken ?? ""), will submit soon.")
+                apphudPerformOnMainThread {
+                    self.setNeedsToUpdateUser = true
+                }
+            }
+        }
+    }
 
     // MARK: - Attribution properties
     internal var requiresReceiptSubmission: Bool {
