@@ -153,10 +153,6 @@ internal func apphudCurrentDeviceParameters() -> [String: String] {
     if !ApphudUtils.shared.optOutOfIDFACollection, let idfa = apphudIdentifierForAdvertising() {
         params["idfa"] = idfa
     }
-    
-    if let attributionToken = attributionToken() {
-        params["appleAttributionToken"] = attributionToken
-    }
 
     return params
 }
@@ -164,13 +160,6 @@ internal func apphudCurrentDeviceParameters() -> [String: String] {
 internal func apphudIdentifierForAdvertising() -> String? {
     if let idfa = ApphudInternal.shared.advertisingIdentifier, idfa != "00000000-0000-0000-0000-000000000000" {
         return idfa
-    }
-    return nil
-}
-
-internal func attributionToken() -> String? {
-    if let aaToken = ApphudInternal.shared.appleAttributionToken {
-        return aaToken
     }
     return nil
 }

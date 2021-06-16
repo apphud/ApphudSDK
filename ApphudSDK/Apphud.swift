@@ -164,7 +164,8 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
 @objc public enum ApphudAttributionProvider: Int {
     case appsFlyer
     case adjust
-    case appleSearchAds
+    case appleSearchAds // Deprecated, attribution for versions 14.2 or lower, iAd framework
+    case appleAdsAttribution // Submit Apple Attribution Token to Apphud. This is used to fetch attribution records within the 24-hour TTL window. iOS 14.3 or above, AdServices Framework.
     case facebook
     /**
      Branch is implemented and doesn't require any additional code from Apphud SDK 
@@ -182,6 +183,8 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
             return "Facebook"
         case .appleSearchAds:
             return "Apple Search Ads"
+        case .appleAdsAttribution:
+            return "Apple Ads Attribution"
         }
     }
 }
@@ -612,13 +615,6 @@ final public class Apphud: NSObject {
     @objc public static func setAdvertisingIdentifier(_ idfa: String) {
         ApphudInternal.shared.advertisingIdentifier = idfa
     }
-    
-    /**
-     Submit Apple Attribution Token to Apphud. This is used to  fetch attribution records within the 24-hour TTL window
-     */
-    @objc public static func setAppleAttributionToken(_ attributionToken: String) {
-        ApphudInternal.shared.appleAttributionToken = attributionToken
-    }
 
     /**
      Opt out of IDFA collection. Currently we collect IDFA to match users between Apphud and attribution platforms (AppsFlyer, Branch). If you don't use and not planning to use such services, you can call this method.
@@ -637,7 +633,7 @@ final public class Apphud: NSObject {
      - parameter identifier: Optional. Identifier that matches Apphud and Attrubution provider. Required for AppsFlyer. 
      - parameter callback: Optional. Returns true if successfully sent.
      */
-    @objc public static func addAttribution(data: [AnyHashable: Any], from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ApphudBoolCallback?) {
+    @objc public static func addAttribution(data: [AnyHashable: Any]?, from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ApphudBoolCallback?) {
         ApphudInternal.shared.addAttribution(data: data, from: provider, identifer: identifer, callback: callback)
     }
 
