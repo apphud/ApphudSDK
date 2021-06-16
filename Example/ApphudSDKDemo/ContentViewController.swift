@@ -25,8 +25,7 @@ class ContentViewController: UIViewController {
     
     var isPremium: Bool {
         Apphud.hasActiveSubscription() ||
-        Apphud.isNonRenewingPurchaseActive(productIdentifier: "com.lifetime1") ||
-        Apphud.isNonRenewingPurchaseActive(productIdentifier: "com.lifetime2")
+        Apphud.isNonRenewingPurchaseActive(productIdentifier: "com.apphud.lifetime")
     }
     
     @IBAction func showPaywallPressed(_ sender: Any) {

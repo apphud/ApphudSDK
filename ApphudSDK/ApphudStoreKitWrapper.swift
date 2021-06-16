@@ -232,7 +232,7 @@ private class ApphudProductsFetcher: NSObject, SKProductsRequestDelegate {
     public func productsRequest(_ request: SKProductsRequest, didReceive response: SKProductsResponse) {
         DispatchQueue.main.async {
             self.callback?(response.products)
-            if response.invalidProductIdentifiers.count > 0 {
+            if response.invalidProductIdentifiers.count > 0 && response.products.count == 0 {
                 apphudLog("Failed to load SKProducts from the App Store, because product identifiers are invalid:\n \(response.invalidProductIdentifiers)", forceDisplay: true)
                 ApphudLoggerService.logError("Failed to load SKProducts, because product identifiers are invalid")
             }

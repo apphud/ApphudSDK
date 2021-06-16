@@ -38,6 +38,7 @@
 		1AA429FA26791033007A4907 /* PaywallCollectionViewCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallCollectionViewCell.swift; sourceTree = "<group>"; };
 		1AE524742679375E0056CD68 /* Router.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Router.swift; sourceTree = "<group>"; };
 		1AE52477267938C80056CD68 /* ContentViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentViewController.swift; sourceTree = "<group>"; };
+		28F3C31E267A1D0400EF0520 /* Configuration.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Configuration.storekit; sourceTree = "<group>"; };
 		71F35EFC71E4EBC3EA1D0E97 /* Pods-ApphudSDKDemo.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ApphudSDKDemo.release.xcconfig"; path = "Target Support Files/Pods-ApphudSDKDemo/Pods-ApphudSDKDemo.release.xcconfig"; sourceTree = "<group>"; };
 		94AE4E8D22A0FAC800564F85 /* ApphudDemoApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ApphudDemoApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		94B8A70C24C02E6F00A8B950 /* ViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
@@ -86,6 +87,7 @@
 			isa = PBXGroup;
 			children = (
 				94F3C3B824E1781E00DD7CD2 /* ApphudDemoApp.entitlements */,
+				28F3C31E267A1D0400EF0520 /* Configuration.storekit */,
 				94B8A70C24C02E6F00A8B950 /* ViewController.swift */,
 				94B8A70D24C02E6F00A8B950 /* Assets.xcassets */,
 				94B8A70E24C02E6F00A8B950 /* LaunchScreen.storyboard */,
@@ -407,7 +409,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.apphud.testapp;
+				PRODUCT_BUNDLE_IDENTIFIER = com.apphud;
 				PRODUCT_NAME = ApphudDemoApp;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				"PROVISIONING_PROFILE_SPECIFIER[sdk=macosx*]" = "";
@@ -435,7 +437,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.apphud.testapp;
+				PRODUCT_BUNDLE_IDENTIFIER = com.apphud;
 				PRODUCT_NAME = ApphudDemoApp;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				"PROVISIONING_PROFILE_SPECIFIER[sdk=macosx*]" = "";
