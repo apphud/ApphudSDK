@@ -612,6 +612,13 @@ final public class Apphud: NSObject {
     @objc public static func setAdvertisingIdentifier(_ idfa: String) {
         ApphudInternal.shared.advertisingIdentifier = idfa
     }
+    
+    /**
+     Submit Apple Attribution Token to Apphud. This is used to  fetch attribution records within the 24-hour TTL window
+     */
+    @objc public static func setAppleAttributionToken(_ attributionToken: String) {
+        ApphudInternal.shared.appleAttributionToken = attributionToken
+    }
 
     /**
      Opt out of IDFA collection. Currently we collect IDFA to match users between Apphud and attribution platforms (AppsFlyer, Branch). If you don't use and not planning to use such services, you can call this method.
