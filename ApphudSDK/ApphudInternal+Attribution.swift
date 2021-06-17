@@ -46,6 +46,12 @@ extension ApphudInternal {
                 if data != nil {
                     params["search_ads_data"] = data
                 }
+            case .appleAdsAttribution:
+                guard identifer != nil else {
+                    callback?(false)
+                    return
+                }
+                params["apple_attribution_token"] = identifer
             case .facebook:
                 var hash: [AnyHashable: Any] = ["fb_device": true]
 

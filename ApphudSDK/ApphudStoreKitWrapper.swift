@@ -233,8 +233,10 @@ private class ApphudProductsFetcher: NSObject, SKProductsRequestDelegate {
         DispatchQueue.main.async {
             self.callback?(response.products)
             if response.invalidProductIdentifiers.count > 0 {
-                apphudLog("Failed to load SKProducts from the App Store, because product identifiers are invalid:\n \(response.invalidProductIdentifiers)", forceDisplay: true)
-                ApphudLoggerService.logError("Failed to load SKProducts, because product identifiers are invalid")
+                apphudLog("Failed to load SKProducts from the App Store, because product identifiers are invalid:\n \(response.invalidProductIdentifiers)\n\tFor more details visit: https://docs.apphud.com/testing/ios#failed-to-load-skproducts-from-the-app-store-error", forceDisplay: true)
+                if response.products.count == 0 {
+                    ApphudLoggerService.logError("Failed to load SKProducts, because all product identifiers are invalid")
+                }
             }
             if response.products.count > 0 {
                 apphudLog("Successfully fetched SKProducts from the App Store:\n \(response.products.map{ $0.productIdentifier })")
@@ -246,7 +248,12 @@ private class ApphudProductsFetcher: NSObject, SKProductsRequestDelegate {
 
     func request(_ request: SKRequest, didFailWithError error: Error) {
         DispatchQueue.main.async {
-            apphudLog("Failed to load SKProducts from the App Store, error: \(error)", forceDisplay: true)
+            if (error as NSError).description.contains("Attempted to decode store response") {
+                apphudLog("Failed to load SKProducts from the App Store, error: \(error). [!] App Store features in iOS Simulator are not supported. For more details visit: https://docs.apphud.com/testing/ios#attempted-to-decode-store-response-error-while-fetching-products", forceDisplay: true)
+            } else {
+                apphudLog("Failed to load SKProducts from the App Store, error: \(error)", forceDisplay: true)
+            }
+            
             self.callback?([])
             self.callback = nil
             self.productsRequest = nil

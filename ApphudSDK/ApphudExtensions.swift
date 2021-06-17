@@ -150,7 +150,6 @@ internal func apphudCurrentDeviceParameters() -> [String: String] {
         params["idfv"] = idfv
     }
 
-    // let idfa = ApphudInternal.shared.advertisingIdentifier
     if !ApphudUtils.shared.optOutOfIDFACollection, let idfa = apphudIdentifierForAdvertising() {
         params["idfa"] = idfa
     }
