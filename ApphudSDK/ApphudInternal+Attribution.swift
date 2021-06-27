@@ -51,7 +51,13 @@ extension ApphudInternal {
                     callback?(false)
                     return
                 }
+                guard !self.isSendingAppleAdsAttribution else {
+                    apphudLog("Already submitting Apple Ads Attribution, skipping", forceDisplay: true)
+                    callback?(false)
+                    return
+                }
                 params["apple_attribution_token"] = identifer
+                self.isSendingAppleAdsAttribution = true
             case .facebook:
                 var hash: [AnyHashable: Any] = ["fb_device": true]
 
@@ -88,6 +94,10 @@ extension ApphudInternal {
                 case .facebook:
                     if result {
                         self.didSubmitFacebookAttribution = true
+                    }
+                case .appleAdsAttribution:
+                    if !result {
+                        self.isSendingAppleAdsAttribution = false
                     }
                 default:
                     break

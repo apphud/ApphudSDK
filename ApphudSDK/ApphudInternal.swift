@@ -99,6 +99,7 @@ final class ApphudInternal: NSObject {
     internal let didSubmitFacebookAttributionKey = "didSubmitFacebookAttributionKey"
     internal let didSubmitAdjustAttributionKey = "didSubmitAdjustAttributionKey"
     internal let didSubmitProductPricesKey = "didSubmitProductPricesKey"
+    internal var isSendingAppleAdsAttribution = false
     internal var isSendingAppsFlyer = false
     internal var isSendingAdjust = false
     internal var isFreshInstall = true
