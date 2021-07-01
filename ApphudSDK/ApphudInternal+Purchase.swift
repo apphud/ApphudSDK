@@ -225,7 +225,7 @@ extension ApphudInternal {
         ApphudLoggerService.paywallCheckoutInitiated(apphudProduct?.paywallId, product.productIdentifier)
         ApphudStoreKitWrapper.shared.purchase(product: product) { transaction, error in
             if let error = error as? SKError {
-                ApphudLoggerService.paywallPaymentError(apphudProduct?.paywallId, product.productIdentifier, error)
+                ApphudLoggerService.paywallPaymentCancelled(apphudProduct?.paywallId, product.productIdentifier, error)
             }
             if validate {
                 self.handleTransaction(product: product, transaction: transaction, error: error, apphudProduct: apphudProduct, callback: callback)

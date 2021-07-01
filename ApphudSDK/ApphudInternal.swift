@@ -65,6 +65,8 @@ final class ApphudInternal: NSObject {
     internal var lastCheckDate = Date()
     internal var userRegisterRetriesCount: Int = 0
     internal let maxNumberOfUserRegisterRetries: Int = 10
+    internal var paywallEventsRetriesCount: Int = 0
+    internal let maxNumberOfPaywallEventsRetries: Int = 25
     internal var isRegisteringUser = false {
         didSet {
             if isRegisteringUser {
@@ -373,7 +375,6 @@ final class ApphudInternal: NSObject {
     // MARK: - V2 API
 
     internal func trackEvent(params: [String: AnyHashable], callback: @escaping () -> Void) {
-
         let result = performWhenUserRegistered {
             let final_params: [String: AnyHashable] = ["device_id": self.currentDeviceID].merging(params, uniquingKeysWith: {(current, _) in current})
             self.httpClient?.startRequest(path: "events", apiVersion: .APIV2, params: final_params, method: .post) { (_, _, _, _, _) in
@@ -385,8 +386,38 @@ final class ApphudInternal: NSObject {
         }
     }
     
-    internal func trackPaywallEvent(params: [String: AnyHashable], callback: @escaping () -> Void) {
+    @objc internal func trackPaywallEvent(params: [String: AnyHashable]) {
+        fetchPaywallEvent(params: params) { (result, _, _, _, code) in
+            if !result {
+                self.schedulePaywallEvent(params, code == NSURLErrorNotConnectedToInternet)
+            }
+        }
+    }
+    
+    private func schedulePaywallEvent(_ params: [String: AnyHashable], _ noInternetError: Bool) {
+        guard httpClient != nil, httpClient!.canRetry else {
+            return
+        }
+        guard paywallEventsRetriesCount < maxNumberOfPaywallEventsRetries else {
+            apphudLog("Reached max number of paywall events retries \(paywallEventsRetriesCount). Exiting..", forceDisplay: true)
+            return
+        }
+        
+        let delay: TimeInterval
 
+        if noInternetError {
+            delay = 2.0
+        } else {
+            delay = 5.0
+            paywallEventsRetriesCount += 1
+        }
+        
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(trackPaywallEvent(params:)), object: nil)
+        perform(#selector(trackPaywallEvent(params:)), with: params, afterDelay: delay)
+        apphudLog("Scheduled paywall events retry in \(delay) seconds.", forceDisplay: true)
+    }
+    
+    internal func fetchPaywallEvent(params: [String: AnyHashable], callback: @escaping ApphudHTTPResponseCallback) {
         let result = performWhenUserRegistered {
             let environment = Apphud.isSandbox() ? "sandbox" : "production"
             let final_params: [String: AnyHashable] = ["device_id": self.currentDeviceID,
@@ -394,9 +425,7 @@ final class ApphudInternal: NSObject {
                                                        "timestamp": Date().currentTimestamp(),
                                                        "environment": environment].merging(params, uniquingKeysWith: {(current, _) in current})
             
-            self.httpClient?.startRequest(path: "events", apiVersion: .APIV1, params: final_params, method: .post) { (_, _, _, _, _) in
-                callback()
-            }
+            self.httpClient?.startRequest(path: "events", apiVersion: .APIV1, params: final_params, method: .post, callback: callback)
         }
         if !result {
             apphudLog("Tried to trackPaywallEvent, but user not yet registered, adding to schedule")

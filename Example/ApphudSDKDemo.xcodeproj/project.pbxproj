@@ -401,8 +401,8 @@
 				CODE_SIGN_ENTITLEMENTS = ApphudSDKDemo/ApphudDemoApp.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
-				CODE_SIGN_STYLE = Manual;
-				DEVELOPMENT_TEAM = "";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = SZ57DYCTKD;
 				INFOPLIST_FILE = "$(SRCROOT)/ApphudSDKDemo/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 11.2;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -429,8 +429,8 @@
 				CODE_SIGN_ENTITLEMENTS = ApphudSDKDemo/ApphudDemoApp.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
-				CODE_SIGN_STYLE = Manual;
-				DEVELOPMENT_TEAM = "";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = SZ57DYCTKD;
 				INFOPLIST_FILE = "$(SRCROOT)/ApphudSDKDemo/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 11.2;
 				LD_RUNPATH_SEARCH_PATHS = (
