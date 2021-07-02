@@ -387,7 +387,7 @@ final class ApphudInternal: NSObject {
     }
     
     @objc internal func trackPaywallEvent(params: [String: AnyHashable]) {
-        fetchPaywallEvent(params: params) { (result, _, _, _, code) in
+        submitPaywallEvent(params: params) { (result, _, _, _, code) in
             if !result {
                 self.schedulePaywallEvent(params, code == NSURLErrorNotConnectedToInternet)
             }
@@ -417,7 +417,7 @@ final class ApphudInternal: NSObject {
         apphudLog("Scheduled paywall events retry in \(delay) seconds.", forceDisplay: true)
     }
     
-    internal func fetchPaywallEvent(params: [String: AnyHashable], callback: @escaping ApphudHTTPResponseCallback) {
+    internal func submitPaywallEvent(params: [String: AnyHashable], callback: @escaping ApphudHTTPResponseCallback) {
         let result = performWhenUserRegistered {
             let environment = Apphud.isSandbox() ? "sandbox" : "production"
             let final_params: [String: AnyHashable] = ["device_id": self.currentDeviceID,
