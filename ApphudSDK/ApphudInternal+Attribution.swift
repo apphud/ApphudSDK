@@ -17,6 +17,12 @@ extension ApphudInternal {
             var params: [String: Any] = ["device_id": self.currentDeviceID]
 
             switch provider {
+            case .firebase:
+                guard identifer != nil, self.submittedFirebaseId != identifer else {
+                    callback?(false)
+                    return
+                }
+                params["firebase_id"] = identifer
             case .appsFlyer:
                 guard identifer != nil else {
                     callback?(false)
@@ -51,13 +57,12 @@ extension ApphudInternal {
                     callback?(false)
                     return
                 }
-                guard !self.isSendingAppleAdsAttribution else {
-                    apphudLog("Already submitting Apple Ads Attribution, skipping", forceDisplay: true)
+                guard !self.didSubmitAppleAdsAttribution else {
+                    apphudLog("Already submitted Apple Ads Attribution, exiting", forceDisplay: true)
                     callback?(false)
                     return
                 }
                 params["apple_attribution_token"] = identifer
-                self.isSendingAppleAdsAttribution = true
             case .facebook:
                 var hash: [AnyHashable: Any] = ["fb_device": true]
 
@@ -95,9 +100,13 @@ extension ApphudInternal {
                     if result {
                         self.didSubmitFacebookAttribution = true
                     }
+                case .firebase:
+                    if result {
+                        self.submittedFirebaseId = identifer
+                    }
                 case .appleAdsAttribution:
                     if !result {
-                        self.isSendingAppleAdsAttribution = false
+                        self.didSubmitAppleAdsAttribution = true
                     }
                 default:
                     break

@@ -167,6 +167,7 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
     case appleSearchAds // Deprecated, attribution for versions 14.2 or lower, iAd framework
     case appleAdsAttribution // Submit Apple Attribution Token to Apphud. This is used to fetch attribution records within the 24-hour TTL window. iOS 14.3 or above, AdServices Framework.
     case facebook
+    case firebase
     /**
      Branch is implemented and doesn't require any additional code from Apphud SDK 
      More details: https://docs.apphud.com/integrations/attribution/branch
@@ -185,6 +186,8 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
             return "Apple Search Ads"
         case .appleAdsAttribution:
             return "Apple Ads Attribution"
+        case .firebase:
+            return "Firebase"
         }
     }
 }
@@ -375,7 +378,7 @@ final public class Apphud: NSObject {
         Purchases subscription (promotional) offer and automatically submits App Store Receipt to Apphud. 
      
         __Note__: This method automatically sends in-app purchase receipt to Apphud, so you don't need to call `submitReceipt` method.    
-     
+
         - parameter product: Required. This is an `SKProduct` object that user wants to purchase.
         - parameter discountID: Required. This is a `SKProductDiscount` Identifier String object that you would like to apply.
         - parameter callback: Optional. Returns `ApphudPurchaseResult` object.
