@@ -17,6 +17,12 @@ extension ApphudInternal {
             var params: [String: Any] = ["device_id": self.currentDeviceID]
 
             switch provider {
+            case .firebase:
+                guard identifer != nil, self.submittedFirebaseId != identifer else {
+                    callback?(false)
+                    return
+                }
+                params["firebase_id"] = identifer
             case .appsFlyer:
                 guard identifer != nil else {
                     callback?(false)
@@ -88,6 +94,10 @@ extension ApphudInternal {
                 case .facebook:
                     if result {
                         self.didSubmitFacebookAttribution = true
+                    }
+                case .firebase:
+                    if result {
+                        self.submittedFirebaseId = identifer
                     }
                 default:
                     break

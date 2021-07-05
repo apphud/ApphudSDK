@@ -99,6 +99,7 @@ final class ApphudInternal: NSObject {
     internal let didSubmitFacebookAttributionKey = "didSubmitFacebookAttributionKey"
     internal let didSubmitAdjustAttributionKey = "didSubmitAdjustAttributionKey"
     internal let didSubmitProductPricesKey = "didSubmitProductPricesKey"
+    internal let submittedFirebaseIdKey = "submittedFirebaseIdKey"
     internal var isSendingAppsFlyer = false
     internal var isSendingAdjust = false
     internal var isFreshInstall = true
@@ -133,6 +134,14 @@ final class ApphudInternal: NSObject {
         }
         set {
             UserDefaults.standard.set(newValue, forKey: didSubmitProductPricesKey)
+        }
+    }
+    internal var submittedFirebaseId: String? {
+        get {
+            UserDefaults.standard.string(forKey: submittedFirebaseIdKey)
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: submittedFirebaseIdKey)
         }
     }
 
