@@ -57,6 +57,11 @@ extension ApphudInternal {
                     callback?(false)
                     return
                 }
+                guard !self.didSubmitAppleAdsAttribution else {
+                    apphudLog("Already submitted Apple Ads Attribution, exiting", forceDisplay: true)
+                    callback?(false)
+                    return
+                }
                 params["apple_attribution_token"] = identifer
             case .facebook:
                 var hash: [AnyHashable: Any] = ["fb_device": true]
@@ -98,6 +103,10 @@ extension ApphudInternal {
                 case .firebase:
                     if result {
                         self.submittedFirebaseId = identifer
+                    }
+                case .appleAdsAttribution:
+                    if !result {
+                        self.didSubmitAppleAdsAttribution = true
                     }
                 default:
                     break
