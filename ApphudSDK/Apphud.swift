@@ -729,4 +729,12 @@ final public class Apphud: NSObject {
     @objc public static func paywallClosed(_ paywall: ApphudPaywall?) {
         ApphudLoggerService.paywallClosed(paywall?.id)
     }
+    
+    // MARK: - Promotionals
+    /**
+     You can give free subscription to user with any duration.
+     */
+    @objc public static func getPromotional(daysCount: Int, permissionGroup:ApphudGroup, productId:String?, callback: ApphudBoolCallback?) {
+        ApphudInternal.shared.getPromotional(daysCount, permissionGroup, productId: productId, callback: callback)
+    }
 }
