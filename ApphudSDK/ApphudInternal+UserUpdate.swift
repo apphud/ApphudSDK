@@ -118,7 +118,7 @@ extension ApphudInternal {
         }
     }
     
-    internal func getPromotional(_ duration: Int, _ permissionGroup:ApphudGroup, productId:String?, callback: ApphudBoolCallback?) {
+    internal func setPromotional(_ duration: Int, _ permissionGroup:ApphudGroup?, productId:String?, callback: ApphudBoolCallback?) {
         performWhenUserRegistered {
             self.fetchPromotional(duration, permissionGroup, productId: productId) { (result, response, _, _, _) in
                 if result {
@@ -129,17 +129,20 @@ extension ApphudInternal {
         }
     }
         
-    private func fetchPromotional(_ duration: Int, _ permissionGroup:ApphudGroup, productId:String?, callback: @escaping ApphudHTTPResponseCallback) {
-        var params = apphudCurrentDeviceParameters() as [String: Any]
-        params["product_group_id"] = permissionGroup.id
+    private func fetchPromotional(_ duration: Int, _ permissionGroup:ApphudGroup?, productId:String?, callback: @escaping ApphudHTTPResponseCallback) {
+        var params:[String: Any] = [:]
         params["duration"] = duration
-        params["user_id"] = ApphudUser.fromCache()?.user_id
+        params["user_id"] = currentUserID
+        params["device_id"] = currentDeviceID
         
-        if let productOid = productId {
-            params["product_id"] = productOid
+        if let permissionGroup = permissionGroup {
+            params["product_group_id"] = permissionGroup.id
         }
         
-        // do not automatically pass currentUserID here,because we have separate method updateUserID
+        if let productId = productId {
+            params["product_id"] = productId
+        }
+        
         httpClient?.startRequest(path: "promotions", params: params, method: .post, callback: callback)
     }
 
