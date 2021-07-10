@@ -732,12 +732,16 @@ final public class Apphud: NSObject {
     
     // MARK: - Promotionals
     /**
-     You can set free subscription to user with any duration. Returns `true` if promotional successfully setted.
-     - parameter daysCount: Required. This is an value of day count of your promotional period
-     - parameter permissionGroup: Optional. If not setted, will be used first active permission group. Permission groups configured in Apphud dashboard.
-     - parameter productId: Optional. Set it, if you want discern your promotionals in charts or transfer them to integrations.
+     You can grant free promotional subscription to user. Returns `true` in a callback if promotional was granted.
+    
+     __Note__: You should pass either `productId` (recommended) or `permissionGroup` OR both parameters `nil`. Sending both `productId` and `permissionGroup` parameters will result in `productId` being used. Sending `productId` is recommended.
+    
+     - parameter daysCount: Required. This is a number of days of free premium usage. For lifetime promotionals just pass extremely high value, like 10000.
+     - parameter productId: Optional*. Recommended. Product Id of promotional subscription. See __Note__ message above for details.
+     - parameter permissionGroup: Optional*. Permission Group of promotional subscription. Use this parameter in case you have multiple permission groups. See __Note__ message above for details.
+     - parameter callback: Optional. Returns `true` if promotional subscription was granted.
      */
-    @objc public static func setPromotional(daysCount: Int, permissionGroup:ApphudGroup?, productId:String?, callback: ApphudBoolCallback?) {
+    @objc public static func grantPromotional(daysCount: Int, productId: String?, permissionGroup: ApphudGroup?, callback: ApphudBoolCallback?) {
         ApphudInternal.shared.setPromotional(daysCount, permissionGroup, productId: productId, callback: callback)
     }
 }
