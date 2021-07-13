@@ -117,6 +117,32 @@ extension ApphudInternal {
             apphudLog("Tried to make update user id: \(userID) request when user is not yet registered, addind to schedule..")
         }
     }
+    
+    internal func grantPromotional(_ duration: Int, _ permissionGroup:ApphudGroup?, productId:String?, callback: ApphudBoolCallback?) {
+        performWhenUserRegistered {
+            self.grantPromotional(duration, permissionGroup, productId: productId) { (result, response, _, _, _) in
+                if result {
+                    self.parseUser(response)
+                }
+                callback!(result)
+            }
+        }
+    }
+        
+    private func grantPromotional(_ duration: Int, _ permissionGroup:ApphudGroup?, productId:String?, callback: @escaping ApphudHTTPResponseCallback) {
+        var params: [String: Any] = [:]
+        params["duration"] = duration
+        params["user_id"] = currentUserID
+        params["device_id"] = currentDeviceID
+        
+        if let productId = productId {
+            params["product_id"] = productId
+        } else if let permissionGroup = permissionGroup {
+            params["product_group_id"] = permissionGroup.id
+        }
+        
+        httpClient?.startRequest(path: "promotions", params: params, method: .post, callback: callback)
+    }
 
     private func updateUser(fields: [String: Any], callback: @escaping ApphudHTTPResponseCallback) {
         setNeedsToUpdateUser = false

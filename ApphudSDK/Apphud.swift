@@ -729,4 +729,19 @@ final public class Apphud: NSObject {
     @objc public static func paywallClosed(_ paywall: ApphudPaywall?) {
         ApphudLoggerService.paywallClosed(paywall?.id)
     }
+    
+    // MARK: - Promotionals
+    /**
+     You can grant free promotional subscription to user. Returns `true` in a callback if promotional was granted.
+    
+     __Note__: You should pass either `productId` (recommended) or `permissionGroup` OR both parameters `nil`. Sending both `productId` and `permissionGroup` parameters will result in `productId` being used.
+    
+     - parameter daysCount: Required. Number of days of free premium usage. For lifetime promotionals just pass extremely high value, like 10000.
+     - parameter productId: Optional*. Recommended. Product Id of promotional subscription. See __Note__ message above for details.
+     - parameter permissionGroup: Optional*. Permission Group of promotional subscription. Use this parameter in case you have multiple permission groups. See __Note__ message above for details.
+     - parameter callback: Optional. Returns `true` if promotional subscription was granted.
+     */
+    @objc public static func grantPromotional(daysCount: Int, productId: String?, permissionGroup: ApphudGroup?, callback: ApphudBoolCallback?) {
+        ApphudInternal.shared.grantPromotional(daysCount, permissionGroup, productId: productId, callback: callback)
+    }
 }
