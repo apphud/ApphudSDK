@@ -12,6 +12,13 @@ public class ApphudPaywall: NSObject, Codable {
     public internal(set) var identifier: String
     public internal(set) var name: String
     public internal(set) var isDefault: Bool
+    /**
+     A/B test functional properties
+     */
+    public var experimentId: String?
+    public var variationId: String?
+    public var fromPaywall: String?
+    
     public var json: [String: Any]? {
         
         guard let string = jsonString, let data = string.data(using: .utf8) else {
@@ -36,24 +43,55 @@ public class ApphudPaywall: NSObject, Codable {
         case id
         case identifier
         case name
+        case experimentId
+        case fromPaywall
+        case variationId = "variationIdentifier"
         case isDefault = "default"
         case jsonString = "json"
         case products = "items"
     }
     
-    init(id: String, name: String, identifier: String, isDefault: Bool, jsonString: String?, products: [ApphudProduct]) {
+    init(id: String, name: String, identifier: String, isDefault: Bool, jsonString: String?, experimentId: String?, variationid: String?, fromPaywall: String?, products: [ApphudProduct]) {
         self.id = id
         self.name = name
         self.jsonString = jsonString
         self.identifier = identifier
         self.isDefault = isDefault
         self.products = products
+        self.experimentId = experimentId
+        self.variationId = variationid
+        self.fromPaywall = fromPaywall
+    }
+    
+    init(dictionary: [String: Any]) {
+        self.id = dictionary["code"] as? String ?? ""
+        self.name = dictionary["name"] as? String ?? ""
+        self.identifier = dictionary["identifier"] as? String ?? ""
+        self.isDefault = dictionary["default"] as? Bool ?? false
+        self.experimentId = dictionary["experiment_id"] as? String
+        self.fromPaywall = dictionary["from_paywall"] as? String
+        self.variationId = dictionary["variation_identifier"] as? String
+        self.jsonString = dictionary["json"] as? String
+        self.products = []
+        
+        if let products = dictionary["items"] as? [[String: Any]] {
+            if let jsonData = try? JSONSerialization.data(withJSONObject:products) {
+                let jsonDecoder = JSONDecoder()
+                jsonDecoder.keyDecodingStrategy = .convertFromSnakeCase
+                if let appHudProducts = try? jsonDecoder.decode([ApphudProduct].self, from: jsonData) {
+                    self.products = appHudProducts
+                }
+            }
+        }
     }
     
     required public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         id = try values.decode(String.self, forKey: .id)
         name = try values.decode(String.self, forKey: .name)
+        experimentId = try? values.decode(String.self, forKey: .experimentId)
+        fromPaywall = try? values.decode(String.self, forKey: .fromPaywall)
+        variationId = try? values.decode(String.self, forKey: .variationId)
         identifier = try values.decode(String.self, forKey: .identifier)
         jsonString = try? values.decode(String.self, forKey: .jsonString)
         isDefault = try values.decode(Bool.self, forKey: .isDefault)
@@ -63,6 +101,9 @@ public class ApphudPaywall: NSObject, Codable {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
+        try? container.encode(experimentId, forKey: .experimentId)
+        try? container.encode(fromPaywall, forKey: .fromPaywall)
+        try? container.encode(variationId, forKey: .variationId)
         try container.encode(name, forKey: .name)
         try container.encode(identifier, forKey: .identifier)
         try? container.encode(jsonString, forKey: .jsonString)
