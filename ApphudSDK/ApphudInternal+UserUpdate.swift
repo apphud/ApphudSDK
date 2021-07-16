@@ -47,6 +47,7 @@ extension ApphudInternal {
     internal func switchToProdIfNeeded(code:Int) {
         switch code {
         case 401:
+            apphudLog("Got 401 on create customers, switching to Production", forceDisplay: true)
             ApphudHttpClient.shared.domainUrlString = "https://api.apphud.com"
         default:
             break

@@ -35,18 +35,20 @@ public class ApphudHttpClient {
         case APIV2 = "v2"
     }
 
+    static let productionEndpoint = "https://api.apphud.com"
+    
     #if DEBUG
     public static let shared = ApphudHttpClient()
-    public var domainUrlString = "https://api.apphud.com"
+    public var domainUrlString = productionEndpoint
     #else
     public static let shared = ApphudHttpClient()
-    public var domainUrlString = "https://api.apphud.com"
+    public var domainUrlString = productionEndpoint
     #endif
 
     internal var apiKey: String = ""
 
     internal var canRetry: Bool {
-        !invalidAPiKey && !unauthorized
+        !invalidAPiKey && !unauthorized || domainUrlString != Self.productionEndpoint
     }
     
     private var invalidAPiKey: Bool = false
