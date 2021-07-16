@@ -25,6 +25,8 @@ class ViewController: UITableViewController{
         setupRowActions()
         
         Apphud.getPaywalls { paywallsss, error in
+            
+            
             paywallsss.map {
                 self.paywalls = $0
                 self.reloadUI()

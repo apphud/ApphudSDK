@@ -48,11 +48,11 @@ public class ApphudHttpClient {
     internal var apiKey: String = ""
 
     internal var canRetry: Bool {
-        !invalidAPiKey && !unauthorized || domainUrlString != Self.productionEndpoint
+        !invalidAPiKey && !unauthorized
     }
     
-    private var invalidAPiKey: Bool = false
-    private var unauthorized: Bool = false
+    internal var invalidAPiKey: Bool = false
+    internal var unauthorized: Bool = false
     
     private let session: URLSession = {
         let config = URLSessionConfiguration.default

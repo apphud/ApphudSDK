@@ -44,13 +44,16 @@ extension ApphudInternal {
         return (hasSubscriptionChanges, hasPurchasesChanges)
     }
     
-    internal func switchToProdIfNeeded(code:Int) {
+    internal func switchToProdIfNeeded(code:Int) -> Int {
         switch code {
         case 401:
             apphudLog("Got 401 on create customers, switching to Production", forceDisplay: true)
             ApphudHttpClient.shared.domainUrlString = "https://api.apphud.com"
+            ApphudHttpClient.shared.invalidAPiKey = false
+            ApphudInternal.shared.continueToFetchProducts()
+            return NSURLErrorRedirectToNonExistentLocation
         default:
-            break
+            return code
         }
     }
     
@@ -99,13 +102,11 @@ extension ApphudInternal {
                 }
             }
             
-            self.switchToProdIfNeeded(code: code)
-
             if error != nil {
                 apphudLog("Failed to register or get user, error:\(error!.localizedDescription)", forceDisplay: true)
             }
             
-            callback(finalResult, code)
+            callback(finalResult, self.switchToProdIfNeeded(code: code))
         }
     }
 
@@ -123,7 +124,6 @@ extension ApphudInternal {
             if result {
                 self.parseUser(response)
             }
-            self.switchToProdIfNeeded(code: code)
         }
     }
 
@@ -140,8 +140,6 @@ extension ApphudInternal {
                 if result {
                     self.parseUser(response)
                 }
-                
-                self.switchToProdIfNeeded(code: code)
             }
         }
         if !exist {

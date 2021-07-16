@@ -249,13 +249,12 @@ final class ApphudInternal: NSObject {
                 self.checkForUnreadNotifications()
                 self.perform(#selector(self.forceSendAttributionDataIfNeeded), with: nil, afterDelay: 10.0)
             } else {
-                let noInternetErrorCode = errorCode == NSURLErrorNotConnectedToInternet
-                self.scheduleUserRegistering(noInternetErrorCode)
+                self.scheduleUserRegistering(errorCode: errorCode)
             }
         }
     }
 
-    private func scheduleUserRegistering(_ noInternetError: Bool) {
+    private func scheduleUserRegistering(errorCode: Int) {
         guard httpClient != nil, httpClient!.canRetry else {
             return
         }
@@ -264,9 +263,14 @@ final class ApphudInternal: NSObject {
             return
         }
         
+        let noInternetError = errorCode == NSURLErrorNotConnectedToInternet
+        let retryImmediately = errorCode == NSURLErrorRedirectToNonExistentLocation
+        
         let delay: TimeInterval
 
-        if noInternetError {
+        if retryImmediately {
+            delay = 0.01
+        } else if noInternetError {
             delay = 2.0
         } else {
             delay = 5.0
