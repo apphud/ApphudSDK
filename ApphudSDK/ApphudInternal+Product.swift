@@ -142,10 +142,10 @@ extension ApphudInternal {
         }
     }
     
-    internal func getPaywalls(callback: @escaping ([ApphudPaywall]?, Error?) -> Void) {
+    internal func getPaywalls(forceRefresh: Bool = false, callback: @escaping ([ApphudPaywall]?, Error?) -> Void) {
                 
         self.performWhenUserRegistered {
-            self.fetchPaywallsIfNeeded { paywalls, error, writeToCache in
+            self.fetchPaywallsIfNeeded(forceRefresh: forceRefresh) { paywalls, error, writeToCache in
                 
                 guard let paywalls = paywalls else {
                     callback(nil, error)
