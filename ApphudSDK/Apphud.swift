@@ -274,18 +274,15 @@ final public class Apphud: NSObject {
     // MARK: - Make Purchase
 
     /**
-     Fetches  paywalls configured in Apphud dashboard. This makes an api request to Apphud. Always check if there are cached paywalls on device by using paywalls method below.
-     */
-    
-    @objc public static func getPaywalls(callback: @escaping ([ApphudPaywall]?, Error?) -> Void) {
-        ApphudInternal.shared.getPaywalls(forceRefresh: true, callback: callback)
-    }
-    
-    /**
-     Returns cached paywalls, if exist.
+     Returns paywalls, if configure. Returns nil when SKProducts not yet fetched. To get notified if paywalls array is loaded, use `productsDidFetchCallback` – when it's called, paywalls are populated with their SKProducts.
      */
     @objc public static var paywalls: [ApphudPaywall]? {
-        ApphudInternal.shared.paywalls
+        if ApphudStoreKitWrapper.shared.didFetch {
+            // only return paywalls when their SKProducts are fetched from the App Store.
+            return ApphudInternal.shared.paywalls
+        } else {
+            return nil
+        }
     }
     
     /**
