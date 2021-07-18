@@ -28,9 +28,11 @@ final class ApphudInternal: NSObject {
     internal var productsFetchRetriesCount: Int = 0
     internal let maxNumberOfProductsFetchRetries: Int = 10
 
+    internal var customPaywallsLoadedCallbacks = [ApphudPaywallsCallback]()
     internal var productGroupsFetchedCallbacks = [ApphudVoidCallback]()
     internal var storeKitProductsFetchedCallbacks = [ApphudVoidCallback]()
     internal var customProductsFetchedBlocks = [ApphudStoreKitProductsCallback]()
+    internal var paywallsAreReady = false
     internal var productGroups = [ApphudGroup]()
     internal var paywalls = [ApphudPaywall]()
 

@@ -57,14 +57,9 @@ extension ApphudInternal {
         }
     }
     
-    private func mappingPaywalls(_ paywalls: [[String: Any]]) {
-        var finalPaywalls:[ApphudPaywall] = []
-        
-        for paywall in paywalls {
-            finalPaywalls.append(ApphudPaywall.init(dictionary: paywall))
-        }
-        ApphudInternal.shared.cachePaywalls(paywalls: finalPaywalls)
-        ApphudInternal.shared.paywalls = finalPaywalls
+    private func mappingPaywalls(_ pwls: [[String: Any]]) {
+        let finalPaywalls = pwls.map { ApphudPaywall(dictionary: $0) }
+        self.preparePaywalls(pwls: finalPaywalls, writeToCache: finalPaywalls.count > 0, completionBlock: nil)
     }
 
     private func checkUserID(tellDelegate: Bool) {

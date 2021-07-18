@@ -145,27 +145,34 @@ extension ApphudInternal {
     internal func getPaywalls(forceRefresh: Bool = false, callback: @escaping ([ApphudPaywall]?, Error?) -> Void) {
                 
         self.performWhenUserRegistered {
-            self.fetchPaywallsIfNeeded(forceRefresh: forceRefresh) { paywalls, error, writeToCache in
+            self.fetchPaywallsIfNeeded(forceRefresh: forceRefresh) { pwls, error, writeToCache in
                 
-                guard let paywalls = paywalls else {
+                guard let pwls = pwls else {
                     callback(nil, error)
                     return
                 }
                 
-                self.paywalls = paywalls
-                
-                if paywalls.count > 0 && writeToCache {
-                    self.cachePaywalls(paywalls: paywalls)
-                }
-                
-                self.performWhenStoreKitProductFetched {
-                    self.updatePaywallsWithStoreKitProducts(paywalls: paywalls)
-                    callback(paywalls, error)
-                }
+                self.preparePaywalls(pwls: pwls, writeToCache: writeToCache, completionBlock: callback)
             }
         }
     }
     
+    internal func preparePaywalls(pwls: [ApphudPaywall], writeToCache: Bool = true, completionBlock: (([ApphudPaywall]?, Error?) -> Void)?) {
+        
+        self.paywalls = pwls
+        
+        if pwls.count > 0 && writeToCache {
+            self.cachePaywalls(paywalls: paywalls)
+        }
+        
+        self.performWhenStoreKitProductFetched {
+            self.updatePaywallsWithStoreKitProducts(paywalls: self.paywalls)
+            self.paywallsAreReady = true
+            completionBlock?(self.paywalls, nil)
+            self.customPaywallsLoadedCallbacks.forEach { block in block(self.paywalls) }
+            self.customPaywallsLoadedCallbacks.removeAll()
+        }
+    }
     private func fetchPaywallsIfNeeded(forceRefresh: Bool = false, callback: @escaping ([ApphudPaywall]?, Error?, Bool) -> Void) {
         
         guard paywalls.isEmpty || forceRefresh else {

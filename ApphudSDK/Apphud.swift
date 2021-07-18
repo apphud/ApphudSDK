@@ -274,15 +274,22 @@ final public class Apphud: NSObject {
     // MARK: - Make Purchase
 
     /**
-     Returns paywalls, if configure. Returns nil when SKProducts not yet fetched. To get notified if paywalls array is loaded, use `productsDidFetchCallback` – when it's called, paywalls are populated with their SKProducts.
+     Returns paywalls, if configure. Returns nil when SKProducts not yet fetched. To get notified if paywalls array is loaded, use `paywallsDidLoadCallback` – when it's called, paywalls are populated with their SKProducts.
      */
     @objc public static var paywalls: [ApphudPaywall]? {
-        if ApphudStoreKitWrapper.shared.didFetch {
+        if ApphudInternal.shared.paywallsDidFetch {
             // only return paywalls when their SKProducts are fetched from the App Store.
             return ApphudInternal.shared.paywalls
         } else {
             return nil
         }
+    }
+    
+    /**
+    This callback is called when paywalls are fully loaded with their StoreKit products.
+    */
+    @objc public static func paywallsDidLoadCallback(_ callback: @escaping ([ApphudPaywall]) -> Void) {
+        ApphudInternal.shared.customPaywallsLoadedCallbacks.append(callback)
     }
     
     /**
