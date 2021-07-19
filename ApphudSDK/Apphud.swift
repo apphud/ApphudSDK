@@ -286,10 +286,15 @@ final public class Apphud: NSObject {
     }
     
     /**
-    This callback is called when paywalls are fully loaded with their StoreKit products.
+    This callback is called when paywalls are fully loaded with their StoreKit products. Returns immediately if paywalls are already loaded.
+     It is safe to call this method multiple times – previous callback will not be overwritten, but will be added to array.
     */
     @objc public static func paywallsDidLoadCallback(_ callback: @escaping ([ApphudPaywall]) -> Void) {
-        ApphudInternal.shared.customPaywallsLoadedCallbacks.append(callback)
+        if ApphudInternal.shared.paywallsAreReady {
+            callback(ApphudInternal.shared.paywalls)
+        } else {
+            ApphudInternal.shared.customPaywallsLoadedCallbacks.append(callback)
+        }
     }
     
     /**
