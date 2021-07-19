@@ -64,7 +64,7 @@ public class ApphudPaywall: NSObject, Codable {
     }
     
     init(dictionary: [String: Any]) {
-        self.id = dictionary["code"] as? String ?? ""
+        self.id = dictionary["id"] as? String ?? ""
         self.name = dictionary["name"] as? String ?? ""
         self.identifier = dictionary["identifier"] as? String ?? ""
         self.isDefault = dictionary["default"] as? Bool ?? false
