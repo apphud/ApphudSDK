@@ -21,21 +21,27 @@ class PaywallViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        Apphud.getPaywalls { paywalls, error in
-            if error == nil {
-                // retrieve current paywall with identifier
-                self.paywall = paywalls?.first(where: { $0.identifier == self.currentPaywallIdentifier })
-                
-                // retrieve the products [ApphudProduct] from current paywall
-                self.products = self.paywall?.products
-                
-                // send Apphud log, that your paywall shown
-                Apphud.paywallShown(self.paywall)
-                
-                // setup your UI
-                self.setupViewConfiguration()
+        if Apphud.paywalls != nil {
+            handlePaywallsReady(paywalls: Apphud.paywalls!)
+        } else {
+            Apphud.paywallsDidLoadCallback { [weak self] pwls in
+                self?.handlePaywallsReady(paywalls: pwls)
             }
         }
+    }
+    
+    private func handlePaywallsReady(paywalls: [ApphudPaywall]) {
+        // retrieve current paywall with identifier
+        self.paywall = paywalls.first(where: { $0.identifier == self.currentPaywallIdentifier })
+        
+        // retrieve the products [ApphudProduct] from current paywall
+        self.products = self.paywall?.products
+        
+        // send Apphud log, that your paywall shown
+        Apphud.paywallShown(self.paywall)
+        
+        // setup your UI
+        self.setupViewConfiguration()
     }
     
     override func viewWillDisappear(_ animated: Bool) {

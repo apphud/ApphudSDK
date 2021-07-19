@@ -277,7 +277,7 @@ final public class Apphud: NSObject {
      Returns paywalls, if configure. Returns nil when SKProducts not yet fetched. To get notified if paywalls array is loaded, use `paywallsDidLoadCallback` – when it's called, paywalls are populated with their SKProducts.
      */
     @objc public static var paywalls: [ApphudPaywall]? {
-        if ApphudInternal.shared.paywallsDidFetch {
+        if ApphudInternal.shared.paywallsAreReady {
             // only return paywalls when their SKProducts are fetched from the App Store.
             return ApphudInternal.shared.paywalls
         } else {
