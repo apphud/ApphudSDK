@@ -301,7 +301,7 @@ final public class Apphud: NSObject {
      Force refresh paywalls configured in Apphud dashboard. This callback is called when paywalls are fully loaded with their StoreKit products. Good practice is to use this method only as fallback – if paywalls didn't load but you need to refresh your UI.
     */
     @objc public static func refreshPaywalls(callback: @escaping ([ApphudPaywall]?, Error?) -> Void) {
-        ApphudInternal.shared.getPaywalls(forceRefresh: true, callback: callback)
+        ApphudInternal.shared.getPaywalls(forceRefresh: false, callback: callback)
     }
     
     /**
