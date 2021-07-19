@@ -217,6 +217,7 @@ extension ApphudInternal {
         paywalls.forEach { paywall in
             paywall.products.forEach({ product in
                 product.paywallId = paywall.id
+                product.paywallIdentifier = paywall.identifier
                 product.skProduct = ApphudStoreKitWrapper.shared.products.first(where: { $0.productIdentifier == product.productId })
             })
         }

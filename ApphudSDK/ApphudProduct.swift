@@ -33,15 +33,15 @@ public class ApphudProduct: NSObject, Codable {
     public internal(set) var skProduct: SKProduct?
     
     /**
-     Current ApphudProduct paywall identifier
+     Current product's Paywall identifier, if available.
      */
-    public internal(set) var paywallId: String?
-
+    public internal(set) var paywallIdentifier: String?
     
     // MARK: - Private
     
     internal var id: String?
-    
+    internal var paywallId: String?
+
     private enum CodingKeys: String, CodingKey {
         case id
         case name

@@ -10,7 +10,6 @@ import UIKit
 public class ApphudPaywall: NSObject, Codable {
     
     public internal(set) var identifier: String
-    public internal(set) var name: String
     public internal(set) var isDefault: Bool
     /**
      A/B test functional properties
@@ -38,7 +37,8 @@ public class ApphudPaywall: NSObject, Codable {
     
     internal var id: String
     private var jsonString: String?
-    
+    internal var name: String
+
     private enum CodingKeys: String, CodingKey {
         case id
         case identifier
