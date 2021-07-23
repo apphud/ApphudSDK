@@ -154,7 +154,9 @@ extension ApphudInternal {
                 print("Search Ads attribution info:", result)
                 // The values of the various attributes, like the campaign ID, are set to a mock Int value of 1234567890 in the case in which the user has not actually come from a campaign
                 if let campaignId = result["campaignId"] as? Int, campaignId != 1234567890 {
-                    completion(result)
+                    if let attribution = result["attribution"] as? Bool, attribution == true {
+                        completion(result)
+                    }
                 }
             } catch {
                 completion(nil)
