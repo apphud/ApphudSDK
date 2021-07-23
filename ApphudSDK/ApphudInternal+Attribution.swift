@@ -53,6 +53,7 @@ extension ApphudInternal {
                     params["search_ads_data"] = data
                 }
             case .appleAdsAttribution:
+                //iOS 14.3 +
                 guard identifer != nil else {
                     callback?(false)
                     return
@@ -62,7 +63,13 @@ extension ApphudInternal {
                     callback?(false)
                     return
                 }
-                params["apple_attribution_token"] = identifer
+                self.getAppleAttributionIfNeeded(appleAttibutionToken: identifer!) { (appleAttributionData) in
+                    if appleAttributionData != nil {
+                        params["apple_attribution_data"] = appleAttributionData
+                    } else {
+                        return
+                    }
+                }
             case .facebook:
                 var hash: [AnyHashable: Any] = ["fb_device": true]
 
@@ -124,7 +131,32 @@ extension ApphudInternal {
             }
         }
     }
-
+    
+    @objc internal func getAppleAttributionIfNeeded(appleAttibutionToken:String, completion: @escaping ([AnyHashable: Any]?) -> Void) {
+        let request = NSMutableURLRequest(url: URL(string:"https://api-adservices.apple.com/api/v1/")!)
+        request.httpMethod = "POST"
+        request.setValue("text/plain", forHTTPHeaderField: "Content-Type")
+        request.httpBody = Data(appleAttibutionToken.utf8)
+        
+        let task = URLSession.shared.dataTask(with: request as URLRequest) { (data, _, error) in
+            if let error = error {
+                print(error)
+                completion(nil)
+            }
+            do {
+                let result = try JSONSerialization.jsonObject(with: data!, options: .allowFragments) as! [String:Any]
+                print("Search Ads attribution info:", result)
+                // The values of the various attributes, like the campaign ID, are set to a mock Int value of 1234567890 in the case in which the user has not actually come from a campaign
+                if let campaignId = result["campaignId"] as? Int, campaignId != 1234567890 {
+                    completion(result)
+                }
+            } catch {
+                completion(nil)
+            }
+        }
+        task.resume()
+    }
+    
     @objc internal func forceSendAttributionDataIfNeeded() {
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(forceSendAttributionDataIfNeeded), object: nil)
         automaticallySubmitAppsFlyerAttributionIfNeeded()
