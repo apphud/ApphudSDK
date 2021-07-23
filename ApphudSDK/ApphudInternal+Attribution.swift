@@ -146,22 +146,17 @@ extension ApphudInternal {
         request.httpBody = Data(appleAttibutionToken.utf8)
         
         let task = URLSession.shared.dataTask(with: request as URLRequest) { (data, _, error) in
-            if let error = error {
-                print(error)
-                completion(nil)
-            }
-            do {
-                let result = try JSONSerialization.jsonObject(with: data!, options: .allowFragments) as! [String:Any]
-                print("Search Ads attribution info:", result)
-                // The values of the various attributes, like the campaign ID, are set to a mock Int value of 1234567890 in the case in which the user has not actually come from a campaign
-                if let campaignId = result["campaignId"] as? Int, campaignId != 1234567890 {
-                    if let attribution = result["attribution"] as? Bool, attribution == true {
-                        completion(result)
-                    }
+            
+            if let data = data,
+               let result = try? JSONSerialization.jsonObject(with: data, options: .allowFragments) as? [String: Any],
+               let campaignId = result["campaignId"] as? Int,
+               campaignId != 1234567890,
+               let attribution = result["attribution"] as? Bool,
+               attribution == true {
+                    completion(result)
+                    return
                 }
-            } catch {
-                completion(nil)
-            }
+            completion(nil)
         }
         task.resume()
     }
