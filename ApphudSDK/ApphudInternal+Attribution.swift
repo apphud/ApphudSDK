@@ -86,8 +86,11 @@ extension ApphudInternal {
                 params["facebook_data"] = hash
             }
             
-            self.startAttributionRequest(params: params, provider: provider, identifer: identifer) { result in
-                callback?(result)
+            // to avoid 404 problems on backend
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                self.startAttributionRequest(params: params, provider: provider, identifer: identifer) { result in
+                    callback?(result)
+                }
             }
         }
     }
