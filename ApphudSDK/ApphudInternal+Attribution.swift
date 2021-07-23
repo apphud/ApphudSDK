@@ -65,7 +65,7 @@ extension ApphudInternal {
                 self.getAppleAttribution(identifer!) {(appleAttributionData) in
                     if appleAttributionData != nil {
                         params["search_ads_data"] = appleAttributionData
-                        self.startAttributionRequest(params: params, provider: provider, data:data, identifer: identifer) { result in
+                        self.startAttributionRequest(params: params, provider: provider, identifer: identifer) { result in
                             callback?(result)
                         }
                     }
@@ -86,17 +86,17 @@ extension ApphudInternal {
                 params["facebook_data"] = hash
             }
             
-            self.startAttributionRequest(params: params, provider: provider, data:data, identifer: identifer) { result in
+            self.startAttributionRequest(params: params, provider: provider, identifer: identifer) { result in
                 callback?(result)
             }
         }
     }
     
-    func startAttributionRequest(params:[String: Any], provider:ApphudAttributionProvider,data:[AnyHashable: Any]?,identifer:String?,  callback: ((Bool) -> Void)?) {
+    func startAttributionRequest(params: [String: Any], provider: ApphudAttributionProvider, identifer:String?, callback: ((Bool) -> Void)?) {
         self.httpClient?.startRequest(path: "customers/attribution", params: params, method: .post) { (result, _, _, _, _) in
             switch provider {
             case .adjust:
-                UserDefaults.standard.set((result ? nil : data), forKey: "adjust_data_cache")
+                // to avoid sending the same data several times in a row
                 DispatchQueue.main.asyncAfter(deadline: .now()+1.0) {
                     self.isSendingAdjust = false
                 }
@@ -104,6 +104,7 @@ extension ApphudInternal {
                     self.didSubmitAdjustAttribution = true
                 }
             case .appsFlyer:
+                // to avoid sending the same data several times in a row
                 DispatchQueue.main.asyncAfter(deadline: .now()+5.0) {
                     self.isSendingAppsFlyer = false
                 }
@@ -119,7 +120,7 @@ extension ApphudInternal {
                     self.submittedFirebaseId = identifer
                 }
             case .appleAdsAttribution:
-                if !result {
+                if result {
                     self.didSubmitAppleAdsAttribution = true
                 }
             default:
