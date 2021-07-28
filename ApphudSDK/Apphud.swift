@@ -274,6 +274,16 @@ final public class Apphud: NSObject {
     // MARK: - Make Purchase
     
     /**
+     Fetches paywalls configured in Apphud dashboard. This makes an api request to Apphud. Always check if there are cached paywalls on device by using paywalls method below.
+     */
+    @available(*, deprecated, message: "Use `func paywalls` method instead. Paywalls are already exist after SDK initialization")
+    @objc public static func getPaywalls(callback: @escaping ([ApphudPaywall]?, Error?) -> Void) {
+        self.paywallsDidLoadCallback { (paywalls) in
+            callback(paywalls, nil)
+        }
+    }
+
+    /**
      Returns paywalls, if configure. Returns nil when SKProducts not yet fetched. To get notified if paywalls array is loaded, use `paywallsDidLoadCallback` – when it's called, paywalls are populated with their SKProducts.
      */
     @objc public static var paywalls: [ApphudPaywall]? {
@@ -295,13 +305,6 @@ final public class Apphud: NSObject {
         } else {
             ApphudInternal.shared.customPaywallsLoadedCallbacks.append(callback)
         }
-    }
-    
-    /**
-     Force refresh paywalls configured in Apphud dashboard. This callback is called when paywalls are fully loaded with their StoreKit products. Good practice is to use this method only as fallback – if paywalls didn't load but you need to refresh your UI.
-    */
-    @objc public static func refreshPaywalls(callback: @escaping ([ApphudPaywall]?, Error?) -> Void) {
-        ApphudInternal.shared.getPaywalls(forceRefresh: false, callback: callback)
     }
     
     /**

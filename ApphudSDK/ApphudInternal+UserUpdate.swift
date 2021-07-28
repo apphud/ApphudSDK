@@ -43,20 +43,7 @@ extension ApphudInternal {
         let hasPurchasesChanges = (oldPurchasesStates != newPurchasesStates && self.currentUser?.purchases != nil)
         return (hasSubscriptionChanges, hasPurchasesChanges)
     }
-    
-    internal func switchToProdIfNeeded(code:Int) -> Int {
-        switch code {
-        case 401:
-            apphudLog("Got 401 on create customers, switching to Production", forceDisplay: true)
-            ApphudHttpClient.shared.domainUrlString = "https://api.apphud.com"
-            ApphudHttpClient.shared.invalidAPiKey = false
-            ApphudInternal.shared.continueToFetchProducts()
-            return NSURLErrorRedirectToNonExistentLocation
-        default:
-            return code
-        }
-    }
-    
+        
     private func mappingPaywalls(_ pwls: [[String: Any]]) {
         let finalPaywalls = pwls.map { ApphudPaywall(dictionary: $0) }
         self.preparePaywalls(pwls: finalPaywalls, writeToCache: finalPaywalls.count > 0, completionBlock: nil)
@@ -101,7 +88,7 @@ extension ApphudInternal {
                 apphudLog("Failed to register or get user, error:\(error!.localizedDescription)", forceDisplay: true)
             }
             
-            callback(finalResult, self.switchToProdIfNeeded(code: code))
+            callback(finalResult, code)
         }
     }
 

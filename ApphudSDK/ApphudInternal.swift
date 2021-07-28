@@ -265,14 +265,14 @@ final class ApphudInternal: NSObject {
             return
         }
         
-        let noInternetError = errorCode == NSURLErrorNotConnectedToInternet
-        let retryImmediately = errorCode == NSURLErrorRedirectToNonExistentLocation
+        let retryImmediately = [NSURLErrorRedirectToNonExistentLocation, NSURLErrorUnknown, NSURLErrorTimedOut, NSURLErrorNetworkConnectionLost]
+        let noInternetError = [NSURLErrorNotConnectedToInternet, NSURLErrorCannotConnectToHost, NSURLErrorCannotFindHost]
         
         let delay: TimeInterval
 
-        if retryImmediately {
+        if retryImmediately.contains(errorCode) {
             delay = 0.01
-        } else if noInternetError {
+        } else if noInternetError.contains(errorCode) {
             delay = 2.0
         } else {
             delay = 5.0
