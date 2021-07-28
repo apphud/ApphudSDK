@@ -274,9 +274,9 @@ final public class Apphud: NSObject {
     // MARK: - Make Purchase
     
     /**
-     Fetches  paywalls configured in Apphud dashboard. This makes an api request to Apphud. Always check if there are cached paywalls on device by using paywalls method below.
+     Fetches paywalls configured in Apphud dashboard. This makes an api request to Apphud. Always check if there are cached paywalls on device by using paywalls method below.
      */
-    @available(*, deprecated, message: "Use `func paywalls` method instead. Paywalls already exist after initialize SDK")
+    @available(*, deprecated, message: "Use `func paywalls` method instead. Paywalls are already exist after SDK initialization")
     @objc public static func getPaywalls(callback: @escaping ([ApphudPaywall]?, Error?) -> Void) {
         self.paywallsDidLoadCallback { (paywalls) in
             callback(paywalls, nil)
