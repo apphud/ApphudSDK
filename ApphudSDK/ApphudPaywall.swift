@@ -50,19 +50,7 @@ public class ApphudPaywall: NSObject, Codable {
         case jsonString = "json"
         case products = "items"
     }
-    
-    init(id: String, name: String, identifier: String, isDefault: Bool, jsonString: String?, experimentId: String?, variationid: String?, fromPaywall: String?, products: [ApphudProduct]) {
-        self.id = id
-        self.name = name
-        self.jsonString = jsonString
-        self.identifier = identifier
-        self.isDefault = isDefault
-        self.products = products
-        self.experimentId = experimentId
-        self.variationId = variationid
-        self.fromPaywall = fromPaywall
-    }
-    
+        
     init(dictionary: [String: Any]) {
         self.id = dictionary["id"] as? String ?? ""
         self.name = dictionary["name"] as? String ?? ""
@@ -75,13 +63,7 @@ public class ApphudPaywall: NSObject, Codable {
         self.products = []
         
         if let products = dictionary["items"] as? [[String: Any]] {
-            if let jsonData = try? JSONSerialization.data(withJSONObject:products) {
-                let jsonDecoder = JSONDecoder()
-                jsonDecoder.keyDecodingStrategy = .convertFromSnakeCase
-                if let appHudProducts = try? jsonDecoder.decode([ApphudProduct].self, from: jsonData) {
-                    self.products = appHudProducts
-                }
-            }
+            self.products = products.map { ApphudProduct(dictionary: $0) }
         }
     }
     

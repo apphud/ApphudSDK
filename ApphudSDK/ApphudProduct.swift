@@ -49,6 +49,13 @@ public class ApphudProduct: NSObject, Codable {
         case productId
     }
     
+    init(dictionary: [String: Any]) {
+        self.id = dictionary["id"] as? String ?? ""
+        self.name = dictionary["name"] as? String ?? ""
+        self.productId = dictionary["product_id"] as? String ?? ""
+        self.store = dictionary["store"] as? String ?? "app_store"
+    }
+    
     init(id: String?, name: String?, productId: String, store: String, skProduct: SKProduct?) {
         self.id = id
         self.name = name
