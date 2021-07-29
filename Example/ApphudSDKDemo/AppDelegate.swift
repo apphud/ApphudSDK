@@ -19,9 +19,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         
-        ApphudHttpClient.shared.domainUrlString = "https://api.appfist.com"
-        ApphudUtils.enableAllLogs()
-        Apphud.start(apiKey: "app_4sY9cLggXpMDDQMmvc5wXUPGReMp8G")
+        Apphud.start(apiKey: "app_T231m9oPTj6SDKcw9NaKCSLZtmFZVY")
 
         /** Custom User Properties Examples */
         Apphud.setUserProperty(key: .email, value: "user@example.com", setOnce: true)

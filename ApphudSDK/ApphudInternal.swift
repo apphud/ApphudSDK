@@ -69,6 +69,7 @@ final class ApphudInternal: NSObject {
     internal let maxNumberOfUserRegisterRetries: Int = 10
     internal var paywallEventsRetriesCount: Int = 0
     internal let maxNumberOfPaywallEventsRetries: Int = 25
+    internal var didRetrievePaywallsAtThisLaunch: Bool = false
     internal var isRegisteringUser = false {
         didSet {
             if isRegisteringUser {

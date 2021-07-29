@@ -161,6 +161,8 @@ extension ApphudInternal {
         
         self.paywalls = pwls
         
+        didRetrievePaywallsAtThisLaunch = true
+        
         if pwls.count > 0 && writeToCache {
             self.cachePaywalls(paywalls: paywalls)
         }
