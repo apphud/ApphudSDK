@@ -33,20 +33,27 @@ public class ApphudProduct: NSObject, Codable {
     public internal(set) var skProduct: SKProduct?
     
     /**
-     Current ApphudProduct paywall identifier
+     Current product's Paywall identifier, if available.
      */
-    public internal(set) var paywallId: String?
-
+    public internal(set) var paywallIdentifier: String?
     
     // MARK: - Private
     
     internal var id: String?
-    
+    internal var paywallId: String?
+
     private enum CodingKeys: String, CodingKey {
         case id
         case name
         case store
         case productId
+    }
+    
+    init(dictionary: [String: Any]) {
+        self.id = dictionary["id"] as? String ?? ""
+        self.name = dictionary["name"] as? String ?? ""
+        self.productId = dictionary["product_id"] as? String ?? ""
+        self.store = dictionary["store"] as? String ?? "app_store"
     }
     
     init(id: String?, name: String?, productId: String, store: String, skProduct: SKProduct?) {

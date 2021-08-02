@@ -142,28 +142,39 @@ extension ApphudInternal {
         }
     }
     
-    internal func getPaywalls(callback: @escaping ([ApphudPaywall]?, Error?) -> Void) {
+    internal func getPaywalls(forceRefresh: Bool = false, callback: @escaping ([ApphudPaywall]?, Error?) -> Void) {
                 
-        self.fetchPaywallsIfNeeded { paywalls, error, writeToCache in
-            
-            guard let paywalls = paywalls else {
-                callback(nil, error)
-                return
-            }
-            
-            self.paywalls = paywalls
-            
-            if paywalls.count > 0 && writeToCache {
-                self.cachePaywalls(paywalls: paywalls)
-            }
-            
-            self.performWhenStoreKitProductFetched {
-                self.updatePaywallsWithStoreKitProducts(paywalls: paywalls)
-                callback(paywalls, error)
+        self.performWhenUserRegistered {
+            self.fetchPaywallsIfNeeded(forceRefresh: forceRefresh) { pwls, error, writeToCache in
+                
+                guard let pwls = pwls else {
+                    callback(nil, error)
+                    return
+                }
+                
+                self.preparePaywalls(pwls: pwls, writeToCache: writeToCache, completionBlock: callback)
             }
         }
     }
     
+    internal func preparePaywalls(pwls: [ApphudPaywall], writeToCache: Bool = true, completionBlock: (([ApphudPaywall]?, Error?) -> Void)?) {
+        
+        self.paywalls = pwls
+        
+        didRetrievePaywallsAtThisLaunch = true
+        
+        if pwls.count > 0 && writeToCache {
+            self.cachePaywalls(paywalls: paywalls)
+        }
+        
+        self.performWhenStoreKitProductFetched {
+            self.updatePaywallsWithStoreKitProducts(paywalls: self.paywalls)
+            self.paywallsAreReady = true
+            completionBlock?(self.paywalls, nil)
+            self.customPaywallsLoadedCallbacks.forEach { block in block(self.paywalls) }
+            self.customPaywallsLoadedCallbacks.removeAll()
+        }
+    }
     private func fetchPaywallsIfNeeded(forceRefresh: Bool = false, callback: @escaping ([ApphudPaywall]?, Error?, Bool) -> Void) {
         
         guard paywalls.isEmpty || forceRefresh else {
@@ -208,6 +219,7 @@ extension ApphudInternal {
         paywalls.forEach { paywall in
             paywall.products.forEach({ product in
                 product.paywallId = paywall.id
+                product.paywallIdentifier = paywall.identifier
                 product.skProduct = ApphudStoreKitWrapper.shared.products.first(where: { $0.productIdentifier == product.productId })
             })
         }

@@ -28,9 +28,11 @@ final class ApphudInternal: NSObject {
     internal var productsFetchRetriesCount: Int = 0
     internal let maxNumberOfProductsFetchRetries: Int = 10
 
+    internal var customPaywallsLoadedCallbacks = [ApphudPaywallsCallback]()
     internal var productGroupsFetchedCallbacks = [ApphudVoidCallback]()
     internal var storeKitProductsFetchedCallbacks = [ApphudVoidCallback]()
     internal var customProductsFetchedBlocks = [ApphudStoreKitProductsCallback]()
+    internal var paywallsAreReady = false
     internal var productGroups = [ApphudGroup]()
     internal var paywalls = [ApphudPaywall]()
 
@@ -67,6 +69,7 @@ final class ApphudInternal: NSObject {
     internal let maxNumberOfUserRegisterRetries: Int = 10
     internal var paywallEventsRetriesCount: Int = 0
     internal let maxNumberOfPaywallEventsRetries: Int = 25
+    internal var didRetrievePaywallsAtThisLaunch: Bool = false
     internal var isRegisteringUser = false {
         didSet {
             if isRegisteringUser {
@@ -249,13 +252,12 @@ final class ApphudInternal: NSObject {
                 self.checkForUnreadNotifications()
                 self.perform(#selector(self.forceSendAttributionDataIfNeeded), with: nil, afterDelay: 10.0)
             } else {
-                let noInternetErrorCode = errorCode == NSURLErrorNotConnectedToInternet
-                self.scheduleUserRegistering(noInternetErrorCode)
+                self.scheduleUserRegistering(errorCode: errorCode)
             }
         }
     }
 
-    private func scheduleUserRegistering(_ noInternetError: Bool) {
+    private func scheduleUserRegistering(errorCode: Int) {
         guard httpClient != nil, httpClient!.canRetry else {
             return
         }
@@ -264,12 +266,17 @@ final class ApphudInternal: NSObject {
             return
         }
         
+        let retryImmediately = [NSURLErrorRedirectToNonExistentLocation, NSURLErrorUnknown, NSURLErrorTimedOut, NSURLErrorNetworkConnectionLost]
+        let noInternetError = [NSURLErrorNotConnectedToInternet, NSURLErrorCannotConnectToHost, NSURLErrorCannotFindHost]
+        
         let delay: TimeInterval
 
-        if noInternetError {
+        if retryImmediately.contains(errorCode) {
+            delay = 0.01
+        } else if noInternetError.contains(errorCode) {
             delay = 2.0
         } else {
-            delay = 5.0
+            delay = 3.0
             userRegisterRetriesCount += 1
         }
         

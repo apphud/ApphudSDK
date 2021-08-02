@@ -62,7 +62,15 @@ extension ApphudInternal {
                     callback?(false)
                     return
                 }
-                params["apple_attribution_token"] = identifer
+                self.getAppleAttribution(identifer!) {(appleAttributionData) in
+                    if appleAttributionData != nil {
+                        params["search_ads_data"] = appleAttributionData
+                        self.startAttributionRequest(params: params, provider: provider, identifer: identifer) { result in
+                            callback?(result)
+                        }
+                    }
+                }
+                return
             case .facebook:
                 var hash: [AnyHashable: Any] = ["fb_device": true]
 
@@ -77,54 +85,85 @@ extension ApphudInternal {
                 }
                 params["facebook_data"] = hash
             }
-
-            self.httpClient?.startRequest(path: "customers/attribution", params: params, method: .post) { (result, _, _, _, _) in
-
-                switch provider {
-                case .adjust:
-                    UserDefaults.standard.set((result ? nil : data), forKey: "adjust_data_cache")
-                    DispatchQueue.main.asyncAfter(deadline: .now()+1.0) {
-                        self.isSendingAdjust = false
-                    }
-                    if result {
-                        self.didSubmitAdjustAttribution = true
-                    }
-                case .appsFlyer:
-                    DispatchQueue.main.asyncAfter(deadline: .now()+5.0) {
-                        self.isSendingAppsFlyer = false
-                    }
-                    if result {
-                        self.didSubmitAppsFlyerAttribution = true
-                    }
-                case .facebook:
-                    if result {
-                        self.didSubmitFacebookAttribution = true
-                    }
-                case .firebase:
-                    if result {
-                        self.submittedFirebaseId = identifer
-                    }
-                case .appleAdsAttribution:
-                    if !result {
-                        self.didSubmitAppleAdsAttribution = true
-                    }
-                default:
-                    break
+            
+            // to avoid 404 problems on backend
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                self.startAttributionRequest(params: params, provider: provider, identifer: identifer) { result in
+                    callback?(result)
                 }
-
-                if result {
-                    apphudLog("Did send \(provider.toString()) attribution data to Apphud!")
-                } else {
-                    let message = "Failed to send \(provider.toString()) attribution data to Apphud!"
-                    apphudLog(message)
-                    ApphudLoggerService.logError(message)
-                }
-
-                callback?(result)
             }
         }
     }
-
+    
+    func startAttributionRequest(params: [String: Any], provider: ApphudAttributionProvider, identifer:String?, callback: ((Bool) -> Void)?) {
+        self.httpClient?.startRequest(path: "customers/attribution", params: params, method: .post) { (result, _, _, _, _) in
+            switch provider {
+            case .adjust:
+                // to avoid sending the same data several times in a row
+                DispatchQueue.main.asyncAfter(deadline: .now()+1.0) {
+                    self.isSendingAdjust = false
+                }
+                if result {
+                    self.didSubmitAdjustAttribution = true
+                }
+            case .appsFlyer:
+                // to avoid sending the same data several times in a row
+                DispatchQueue.main.asyncAfter(deadline: .now()+5.0) {
+                    self.isSendingAppsFlyer = false
+                }
+                if result {
+                    self.didSubmitAppsFlyerAttribution = true
+                }
+            case .facebook:
+                if result {
+                    self.didSubmitFacebookAttribution = true
+                }
+            case .firebase:
+                if result {
+                    self.submittedFirebaseId = identifer
+                }
+            case .appleAdsAttribution:
+                if result {
+                    self.didSubmitAppleAdsAttribution = true
+                }
+            default:
+                break
+            }
+            
+            if result {
+                apphudLog("Did send \(provider.toString()) attribution data to Apphud!")
+            } else {
+                let message = "Failed to send \(provider.toString()) attribution data to Apphud!"
+                apphudLog(message)
+                ApphudLoggerService.logError(message)
+            }
+            
+            callback?(result)
+        }
+    }
+    
+    @objc internal func getAppleAttribution(_ appleAttibutionToken:String, completion: @escaping ([AnyHashable: Any]?) -> Void) {
+        let request = NSMutableURLRequest(url: URL(string:"https://api-adservices.apple.com/api/v1/")!)
+        request.httpMethod = "POST"
+        request.setValue("text/plain", forHTTPHeaderField: "Content-Type")
+        request.httpBody = Data(appleAttibutionToken.utf8)
+        
+        let task = URLSession.shared.dataTask(with: request as URLRequest) { (data, _, error) in
+            
+            if let data = data,
+               let result = try? JSONSerialization.jsonObject(with: data, options: .allowFragments) as? [String: Any],
+               let campaignId = result["campaignId"] as? Int,
+               campaignId != 1234567890,
+               let attribution = result["attribution"] as? Bool,
+               attribution == true {
+                    completion(result)
+                    return
+                }
+            completion(nil)
+        }
+        task.resume()
+    }
+    
     @objc internal func forceSendAttributionDataIfNeeded() {
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(forceSendAttributionDataIfNeeded), object: nil)
         automaticallySubmitAppsFlyerAttributionIfNeeded()

@@ -35,12 +35,14 @@ public class ApphudHttpClient {
         case APIV2 = "v2"
     }
 
+    static let productionEndpoint = "https://api.apphud.com"
+    
     #if DEBUG
     public static let shared = ApphudHttpClient()
-    public var domainUrlString = "https://api.apphud.com"
+    public var domainUrlString = productionEndpoint
     #else
     public static let shared = ApphudHttpClient()
-    public var domainUrlString = "https://api.apphud.com"
+    public var domainUrlString = productionEndpoint
     #endif
 
     internal var apiKey: String = ""
@@ -49,8 +51,8 @@ public class ApphudHttpClient {
         !invalidAPiKey && !unauthorized
     }
     
-    private var invalidAPiKey: Bool = false
-    private var unauthorized: Bool = false
+    internal var invalidAPiKey: Bool = false
+    internal var unauthorized: Bool = false
     
     private let session: URLSession = {
         let config = URLSessionConfiguration.default

@@ -24,10 +24,13 @@ class ViewController: UITableViewController{
 
         setupRowActions()
         
-        Apphud.getPaywalls { paywallsss, error in
-            paywallsss.map {
-                self.paywalls = $0
-                self.reloadUI()
+        if Apphud.paywalls != nil {
+            paywalls = Apphud.paywalls!
+            reloadUI()
+        } else {
+            Apphud.paywallsDidLoadCallback { [weak self] pwls in
+                self?.paywalls = pwls
+                self?.reloadUI()
             }
         }
         

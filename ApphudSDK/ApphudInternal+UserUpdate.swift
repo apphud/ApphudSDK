@@ -19,6 +19,10 @@ extension ApphudInternal {
         guard let userDict = dataDict["results"] as? [String: Any] else {
             return (false, false)
         }
+        
+        if let paywalls = userDict["paywalls"] as? [[String: Any]] {
+            self.mappingPaywalls(paywalls)
+        }
 
         let oldStates = self.currentUser?.subscriptionsStates()
         let oldPurchasesStates = self.currentUser?.purchasesStates()
@@ -39,6 +43,11 @@ extension ApphudInternal {
         let hasPurchasesChanges = (oldPurchasesStates != newPurchasesStates && self.currentUser?.purchases != nil)
         return (hasSubscriptionChanges, hasPurchasesChanges)
     }
+        
+    private func mappingPaywalls(_ pwls: [[String: Any]]) {
+        let finalPaywalls = pwls.map { ApphudPaywall(dictionary: $0) }
+        self.preparePaywalls(pwls: finalPaywalls, writeToCache: finalPaywalls.count > 0, completionBlock: nil)
+    }
 
     private func checkUserID(tellDelegate: Bool) {
         guard let userID = self.currentUser?.user_id else {return}
@@ -52,16 +61,18 @@ extension ApphudInternal {
     }
 
     internal func createOrGetUser(shouldUpdateUserID: Bool, callback: @escaping (Bool, Int) -> Void) {
-
         let fields = shouldUpdateUserID ? ["user_id": self.currentUserID] : [:]
-
+        let startBench = Date()
+        
         self.updateUser(fields: fields) { (result, response, _, error, code) in
-
             let hasChanges = self.parseUser(response)
 
             let finalResult = result && self.currentUser != nil
 
             if finalResult {
+                let endBench = startBench.timeIntervalSinceNow * -1
+                ApphudInternal.shared.logEvent(params: ["message": String(format:"customers_benchmark:%.3f", endBench)]) {}
+                
                 if hasChanges.hasSubscriptionChanges {
                     self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions)
                 }
@@ -72,11 +83,11 @@ extension ApphudInternal {
                     self.submitAppStoreReceipt()
                 }
             }
-
+            
             if error != nil {
                 apphudLog("Failed to register or get user, error:\(error!.localizedDescription)", forceDisplay: true)
             }
-
+            
             callback(finalResult, code)
         }
     }
@@ -91,7 +102,7 @@ extension ApphudInternal {
 
         let params: [String: String] = ["country_code": countryCode, "currency_code": currencyCode]
 
-        updateUser(fields: params) { (result, response, _, _, _) in
+        updateUser(fields: params) { (result, response, _, _, code) in
             if result {
                 self.parseUser(response)
             }
@@ -107,7 +118,7 @@ extension ApphudInternal {
 
         let exist = performWhenUserRegistered {
 
-            self.updateUser(fields: ["user_id": userID]) { (result, response, _, _, _) in
+            self.updateUser(fields: ["user_id": userID]) { (result, response, _, _, code) in
                 if result {
                     self.parseUser(response)
                 }
@@ -151,6 +162,7 @@ extension ApphudInternal {
         params["device_id"] = self.currentDeviceID
         params["is_debug"] = apphudIsSandbox()
         params["is_new"] = isFreshInstall
+        params["need_paywalls"] = !didRetrievePaywallsAtThisLaunch
         // do not automatically pass currentUserID here,because we have separate method updateUserID
         httpClient?.startRequest(path: "customers", params: params, method: .post, callback: callback)
     }
