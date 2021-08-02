@@ -274,17 +274,7 @@ final public class Apphud: NSObject {
     // MARK: - Make Purchase
     
     /**
-     Fetches paywalls configured in Apphud dashboard. This makes an api request to Apphud. Always check if there are cached paywalls on device by using paywalls method below.
-     */
-    @available(*, deprecated, message: "Use `func paywalls` method instead. Paywalls are already exist after SDK initialization")
-    @objc public static func getPaywalls(callback: @escaping ([ApphudPaywall]?, Error?) -> Void) {
-        self.paywallsDidLoadCallback { (paywalls) in
-            callback(paywalls, nil)
-        }
-    }
-
-    /**
-     Returns paywalls, if configure. Returns nil when SKProducts not yet fetched. To get notified if paywalls array is loaded, use `paywallsDidLoadCallback` – when it's called, paywalls are populated with their SKProducts.
+     Returns paywalls with their `SKProducts`, if configured in Apphud Products Hub. Returns `nil` if StoreKit products are not yet fetched from the App Store. To get notified when paywalls are ready to use, use `paywallsDidLoadCallback` – when it's called, paywalls are populated with their `SKProducts`.
      */
     @objc public static var paywalls: [ApphudPaywall]? {
         if ApphudInternal.shared.paywallsAreReady {
@@ -296,14 +286,24 @@ final public class Apphud: NSObject {
     }
     
     /**
-    This callback is called when paywalls are fully loaded with their StoreKit products. Returns immediately if paywalls are already loaded.
-     It is safe to call this method multiple times – previous callback will not be overwritten, but will be added to array.
+    This callback is called when paywalls are fully loaded with their StoreKit products. Callback is called immediately if paywalls are already loaded.
+     It is safe to call this method multiple times – previous callback will not be overwritten, but will be added to array and once paywalls are loaded, all callbacks will be called.
     */
     @objc public static func paywallsDidLoadCallback(_ callback: @escaping ([ApphudPaywall]) -> Void) {
         if ApphudInternal.shared.paywallsAreReady {
             callback(ApphudInternal.shared.paywalls)
         } else {
             ApphudInternal.shared.customPaywallsLoadedCallbacks.append(callback)
+        }
+    }
+    
+    /**
+     __Deprecated__. Fetches paywalls configured in Apphud dashboard. This makes an api request to Apphud. Always check if there are cached paywalls on device by using paywalls method below.
+     */
+    @available(*, deprecated, message: "Use `func paywallsDidLoadCallback` method instead.")
+    @objc public static func getPaywalls(callback: @escaping ([ApphudPaywall]?, Error?) -> Void) {
+        self.paywallsDidLoadCallback { (paywalls) in
+            callback(paywalls, nil)
         }
     }
     
@@ -321,7 +321,7 @@ final public class Apphud: NSObject {
     
     You can use `productsDidFetchCallback` callback or observe for `didFetchProductsNotification()` or implement `apphudDidFetchStoreKitProducts` delegate method. Use whatever you like most.
     */
-    @available(*, deprecated, message: "Use `func getPaywalls` method instead.")
+    @available(*, deprecated, message: "Use `func paywallsDidLoadCallback` method instead.")
     @objc public static func productsDidFetchCallback(_ callback: @escaping ([SKProduct]) -> Void) {
         ApphudInternal.shared.customProductsFetchedBlocks.append(callback)
     }
@@ -331,7 +331,7 @@ final public class Apphud: NSObject {
      
      __Note__: You shouldn't call this method at app launch, because Apphud SDK automatically fetches products during initialization. Only use this method as a fallback.
      */
-    @available(*, deprecated, message: "Use `func getPaywalls` method instead.")
+    @available(*, deprecated, message: "Use `func paywallsDidLoadCallback` method instead.")
     @objc public static func refreshStoreKitProducts(_ callback: (([SKProduct]) -> Void)?) {
         ApphudInternal.shared.refreshStoreKitProductsWithCallback(callback: callback)
     }
@@ -341,7 +341,7 @@ final public class Apphud: NSObject {
      
      Note that this method will return `nil` if products are not yet fetched. You should observe for `Apphud.didFetchProductsNotification()` notification or implement  `apphudDidFetchStoreKitProducts` delegate method or set `productsDidFetchCallback` block.
      */
-    @available(*, deprecated, message: "Use `func getPaywalls` method instead.")
+    @available(*, deprecated, message: "Use `func paywallsDidLoadCallback` method instead.")
     @objc(storeKitProducts)
     public static var products: [SKProduct]? {
         guard ApphudStoreKitWrapper.shared.products.count > 0 else {
@@ -355,7 +355,7 @@ final public class Apphud: NSObject {
      
      Will return `nil` if product is not yet fetched from StoreKit.
      */
-    @available(*, deprecated, message: "Use `func getPaywalls` method instead.")
+    @available(*, deprecated, message: "Use `func paywallsDidLoadCallback` method instead.")
     @objc public static func product(productIdentifier: String) -> SKProduct? {
         return ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == productIdentifier})
     }

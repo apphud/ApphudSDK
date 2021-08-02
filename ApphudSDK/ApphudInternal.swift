@@ -276,7 +276,7 @@ final class ApphudInternal: NSObject {
         } else if noInternetError.contains(errorCode) {
             delay = 2.0
         } else {
-            delay = 5.0
+            delay = 3.0
             userRegisterRetriesCount += 1
         }
         
