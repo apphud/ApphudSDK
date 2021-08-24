@@ -21,12 +21,18 @@ class PaywallViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        if Apphud.paywalls != nil {
-            handlePaywallsReady(paywalls: Apphud.paywalls!)
-        } else {
-            Apphud.paywallsDidLoadCallback { [weak self] pwls in
-                self?.handlePaywallsReady(paywalls: pwls)
-            }
+        // First option
+        // Returns nil if StoreKit products are not yet fetched from the App Store.
+        Apphud.paywalls.map { (paywalls) in
+            handlePaywallsReady(paywalls: paywalls)
+        }
+        
+        // Second option
+        // To get notified when paywalls are ready to use, use
+        // paywallsDidLoadCallback – when it’s called,
+        // paywalls are populated with their SKProducts.
+        Apphud.paywallsDidLoadCallback { [weak self] (paywalls) in
+            self?.handlePaywallsReady(paywalls: paywalls)
         }
     }
     
