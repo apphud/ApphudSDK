@@ -13,29 +13,29 @@ public class ApphudProduct: NSObject, Codable {
     /**
      Product Identifier from App Store Connect.
      */
-    public internal(set) var productId: String
+    @objc public internal(set) var productId: String
     
     /**
      Product name from Apphud Dashboard
      */
-    public internal(set) var name: String?
+    @objc public internal(set) var name: String?
     
     /**
      Always `app_store` in iOS SDK.
      */
-    public internal(set) var store: String
+    @objc public internal(set) var store: String
         
     /**
      When paywalls are successfully loaded, skProduct model will always be present if App Store returned model for this product id. getPaywalls method will return callback only when StoreKit products are fetched and mapped with Apphud products.
      
      May be `nil` if product identifier is invalid, or product is not available in App Store Connect.
      */
-    public internal(set) var skProduct: SKProduct?
+    @objc public internal(set) var skProduct: SKProduct?
     
     /**
      Current product's Paywall identifier, if available.
      */
-    public internal(set) var paywallIdentifier: String?
+    @objc public internal(set) var paywallIdentifier: String?
     
     // MARK: - Private
     
