@@ -33,7 +33,8 @@ public class ApphudPaywall: NSObject, Codable {
         
         return [:]
     }
-    public internal(set) var products: [ApphudProduct]
+    
+    @objc public internal(set) var products: [ApphudProduct]
     
     internal var id: String
     private var jsonString: String?
