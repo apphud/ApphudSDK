@@ -135,7 +135,7 @@ extension ApphudInternal {
                 if result {
                     self.parseUser(response)
                 }
-                callback!(result)
+                callback?(result)
             }
         }
     }
