@@ -44,9 +44,9 @@ public class ApphudPaywall: NSObject, Codable {
         case id
         case identifier
         case name
-        case experimentName = "experiment_name"
+        case experimentName
         case fromPaywall
-        case variationName = "variation_name"
+        case variationName
         case isDefault = "default"
         case jsonString = "json"
         case products = "items"
