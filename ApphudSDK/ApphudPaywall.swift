@@ -14,8 +14,8 @@ public class ApphudPaywall: NSObject, Codable {
     /**
      A/B test functional properties
      */
-    @objc public var experimentId: String?
-    @objc public var variationId: String?
+    @objc public var experimentName: String?
+    @objc public var variationName: String?
     @objc public var fromPaywall: String?
     
     @objc public var json: [String: Any]? {
@@ -44,9 +44,9 @@ public class ApphudPaywall: NSObject, Codable {
         case id
         case identifier
         case name
-        case experimentId
+        case experimentName
         case fromPaywall
-        case variationId = "variationIdentifier"
+        case variationName
         case isDefault = "default"
         case jsonString = "json"
         case products = "items"
@@ -57,9 +57,9 @@ public class ApphudPaywall: NSObject, Codable {
         self.name = dictionary["name"] as? String ?? ""
         self.identifier = dictionary["identifier"] as? String ?? ""
         self.isDefault = dictionary["default"] as? Bool ?? false
-        self.experimentId = dictionary["experiment_id"] as? String
+        self.experimentName = dictionary["experiment_name"] as? String
         self.fromPaywall = dictionary["from_paywall"] as? String
-        self.variationId = dictionary["variation_identifier"] as? String
+        self.variationName = dictionary["variation_name"] as? String
         self.jsonString = dictionary["json"] as? String
         self.products = []
         
@@ -72,9 +72,9 @@ public class ApphudPaywall: NSObject, Codable {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         id = try values.decode(String.self, forKey: .id)
         name = try values.decode(String.self, forKey: .name)
-        experimentId = try? values.decode(String.self, forKey: .experimentId)
+        experimentName = try? values.decode(String.self, forKey: .experimentName)
         fromPaywall = try? values.decode(String.self, forKey: .fromPaywall)
-        variationId = try? values.decode(String.self, forKey: .variationId)
+        variationName = try? values.decode(String.self, forKey: .variationName)
         identifier = try values.decode(String.self, forKey: .identifier)
         jsonString = try? values.decode(String.self, forKey: .jsonString)
         isDefault = try values.decode(Bool.self, forKey: .isDefault)
@@ -84,9 +84,9 @@ public class ApphudPaywall: NSObject, Codable {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
-        try? container.encode(experimentId, forKey: .experimentId)
+        try? container.encode(experimentName, forKey: .experimentName)
         try? container.encode(fromPaywall, forKey: .fromPaywall)
-        try? container.encode(variationId, forKey: .variationId)
+        try? container.encode(variationName, forKey: .variationName)
         try container.encode(name, forKey: .name)
         try container.encode(identifier, forKey: .identifier)
         try? container.encode(jsonString, forKey: .jsonString)
