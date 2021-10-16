@@ -216,11 +216,13 @@ extension ApphudInternal {
             ApphudLoggerService.logError("set user property: Invalid increment property type")
             return
         }
-
-        let property = ApphudUserProperty(key: key.key, value: value, increment: increment, setOnce: setOnce, type: typeString)
-        pendingUserProperties.removeAll { prop -> Bool in property.key == prop.key }
-        pendingUserProperties.append(property)
-        setNeedsToUpdateUserProperties = true
+        
+        performWhenUserRegistered {
+            let property = ApphudUserProperty(key: key.key, value: value, increment: increment, setOnce: setOnce, type: typeString)
+            self.pendingUserProperties.removeAll { prop -> Bool in property.key == prop.key }
+            self.pendingUserProperties.append(property)
+            self.setNeedsToUpdateUserProperties = true
+        }
     }
 
     @objc internal func updateUserProperties() {
