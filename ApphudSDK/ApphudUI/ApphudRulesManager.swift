@@ -75,6 +75,7 @@ internal class ApphudRulesManager {
         guard self.pendingController == nil else { return }
         guard rule.screen_id.count > 0 else { return }
         guard ApphudInternal.shared.uiDelegate?.apphudShouldPerformRule?(rule: rule) ?? true else {
+            ApphudInternal.shared.readAllNotifications(for: rule.id)
             apphudLog("apphudShouldPerformRule returned false for rule \(rule.rule_name), exiting", forceDisplay: true)
             return
         }
@@ -89,6 +90,7 @@ internal class ApphudRulesManager {
         if ApphudInternal.shared.uiDelegate?.apphudShouldShowScreen?(screenName: rule.screen_name) ?? true {
              showPendingScreen()
         } else {
+            ApphudInternal.shared.readAllNotifications(for: rule.id)
             apphudLog("apphudShouldShowScreen returned false for screen \(rule.screen_name), exiting", forceDisplay: true)
         }
     }
