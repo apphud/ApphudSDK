@@ -65,6 +65,36 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		8E9E04A527203BB1007484D7 /* Supporting Files */ = {
+			isa = PBXGroup;
+			children = (
+				94B8A71424C02E6F00A8B950 /* Info.plist */,
+				94B8A70D24C02E6F00A8B950 /* Assets.xcassets */,
+				94B8A70E24C02E6F00A8B950 /* LaunchScreen.storyboard */,
+			);
+			path = "Supporting Files";
+			sourceTree = "<group>";
+		};
+		8E9E04A627203DB2007484D7 /* Screens */ = {
+			isa = PBXGroup;
+			children = (
+				94B8A70C24C02E6F00A8B950 /* ViewController.swift */,
+				94B8A71024C02E6F00A8B950 /* Main.storyboard */,
+				1A35CDA72679092C00ED881F /* PaywallViewController.swift */,
+				1AA429FA26791033007A4907 /* PaywallCollectionViewCell.swift */,
+				1AE52477267938C80056CD68 /* ContentViewController.swift */,
+			);
+			path = Screens;
+			sourceTree = "<group>";
+		};
+		8E9E04A727203DCC007484D7 /* Extensions */ = {
+			isa = PBXGroup;
+			children = (
+				94B8A71224C02E6F00A8B950 /* Extensions.swift */,
+			);
+			path = Extensions;
+			sourceTree = "<group>";
+		};
 		94AE4E8422A0FAC800564F85 = {
 			isa = PBXGroup;
 			children = (
@@ -86,19 +116,13 @@
 		94B8A70A24C02E6F00A8B950 /* ApphudSDKDemo */ = {
 			isa = PBXGroup;
 			children = (
-				94F3C3B824E1781E00DD7CD2 /* ApphudDemoApp.entitlements */,
-				28F3C31E267A1D0400EF0520 /* Configuration.storekit */,
-				94B8A70C24C02E6F00A8B950 /* ViewController.swift */,
-				94B8A70D24C02E6F00A8B950 /* Assets.xcassets */,
-				94B8A70E24C02E6F00A8B950 /* LaunchScreen.storyboard */,
-				94B8A71024C02E6F00A8B950 /* Main.storyboard */,
-				94B8A71224C02E6F00A8B950 /* Extensions.swift */,
 				94B8A71324C02E6F00A8B950 /* AppDelegate.swift */,
-				94B8A71424C02E6F00A8B950 /* Info.plist */,
-				1A35CDA72679092C00ED881F /* PaywallViewController.swift */,
-				1AA429FA26791033007A4907 /* PaywallCollectionViewCell.swift */,
+				28F3C31E267A1D0400EF0520 /* Configuration.storekit */,
+				94F3C3B824E1781E00DD7CD2 /* ApphudDemoApp.entitlements */,
 				1AE524742679375E0056CD68 /* Router.swift */,
-				1AE52477267938C80056CD68 /* ContentViewController.swift */,
+				8E9E04A627203DB2007484D7 /* Screens */,
+				8E9E04A727203DCC007484D7 /* Extensions */,
+				8E9E04A527203BB1007484D7 /* Supporting Files */,
 			);
 			path = ApphudSDKDemo;
 			sourceTree = "<group>";
