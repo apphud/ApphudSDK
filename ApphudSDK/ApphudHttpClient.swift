@@ -36,6 +36,8 @@ public class ApphudHttpClient {
     }
 
     static let productionEndpoint = "https://api.apphud.com"
+    public var sdkType:String = "ios"
+    public var sdkVersion:String = apphud_sdk_version
     
     #if DEBUG
     public static let shared = ApphudHttpClient()
@@ -174,6 +176,8 @@ public class ApphudHttpClient {
             request?.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
             request?.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Accept")
             request?.setValue("ios", forHTTPHeaderField: "X-Platform")
+            request?.setValue(self.sdkType, forHTTPHeaderField: "X-SDK")
+            request?.setValue(self.sdkVersion, forHTTPHeaderField: "X-SDK-VERSION")
             request?.timeoutInterval = method == .get ? GET_TIMEOUT : POST_PUT_TIMEOUT
             if method != .get {
                 var finalParams: [String: Any] = ["api_key": apiKey]
