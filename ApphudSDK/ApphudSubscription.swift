@@ -33,6 +33,8 @@ import Foundation
 /*
  To be visible in Objective-C this has to be an NSObject inherited class
  */
+
+@available(OSX 10.14.4, *)
 public class ApphudSubscription: NSObject {
 
     /**

@@ -11,6 +11,7 @@ import StoreKit
 
 internal typealias HasPurchasesChanges = (hasSubscriptionChanges: Bool, hasNonRenewingChanges: Bool)
 
+@available(OSX 10.14.4, *)
 @available(iOS 11.2, *)
 final class ApphudInternal: NSObject {
 
@@ -288,16 +289,25 @@ final class ApphudInternal: NSObject {
     // MARK: - Other
 
     private func setupObservers() {
+        #if os(macOS)
+        if !addedObservers {
+            NotificationCenter.default.addObserver(self, selector: #selector(handleDidBecomeActive), name: NSApplication.didBecomeActiveNotification, object: nil)
+            addedObservers = true
+        }
+        #else
         if !addedObservers {
             NotificationCenter.default.addObserver(self, selector: #selector(handleDidBecomeActive), name: UIApplication.didBecomeActiveNotification, object: nil)
             addedObservers = true
         }
+        #endif
     }
-
+    
     private func checkPendingRules() {
+        #if canImport(UIKit)
         performWhenUserRegistered {
             ApphudRulesManager.shared.handlePendingAPSInfo()
         }
+        #endif
     }
     
     @objc private func handleDidBecomeActive() {
@@ -499,6 +509,7 @@ final class ApphudInternal: NSObject {
     }
 
     internal func checkForUnreadNotifications() {
+        #if canImport(UIKit)
         performWhenUserRegistered {
             let params = ["device_id": self.currentDeviceID] as [String: String]
             self.httpClient?.startRequest(path: "notifications", apiVersion: .APIV2, params: params, method: .get, callback: { (result, response, _, _, _) in
@@ -511,6 +522,7 @@ final class ApphudInternal: NSObject {
                 }
             })
         }
+        #endif
     }
 
     internal func readAllNotifications(for ruleID: String) {

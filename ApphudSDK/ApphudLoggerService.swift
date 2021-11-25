@@ -8,6 +8,7 @@
 import Foundation
 import StoreKit
 
+@available(OSX 10.14.4, *)
 class ApphudLoggerService {
     
     // MARK: - Paywalls logs

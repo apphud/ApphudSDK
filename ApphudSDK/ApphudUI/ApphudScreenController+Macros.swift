@@ -9,6 +9,7 @@
 import Foundation
 import StoreKit
 
+#if canImport(UIKit)
 extension ApphudScreenController {
     func replaceStringFor(product: SKProduct, offerID: String? = nil) -> String {
         if offerID != nil {
@@ -115,3 +116,4 @@ extension ApphudScreenController {
         self.editAndReloadPage(html: html as String)
     }
 }
+#endif

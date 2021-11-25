@@ -5,7 +5,9 @@
 //  Created by Renat on 18.08.2020.
 //
 
+#if canImport(UIKit)
 import UIKit
+#endif
 
 /**
  Built-in property keys.

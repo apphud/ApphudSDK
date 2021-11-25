@@ -14,7 +14,7 @@ import StoreKit
  
  Using class instead of struct in order to support Objective-C
 */ 
-
+@available(OSX 10.14.4, *)
 public class ApphudPurchaseResult: NSObject {
 
     /**

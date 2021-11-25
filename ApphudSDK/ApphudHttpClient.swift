@@ -21,6 +21,7 @@ typealias ApphudStringCallback = (String?, Error?) -> Void
 /**
  This is Apphud's internal class.
  */
+@available(OSX 10.14.4, *)
 @available(iOS 11.2, *)
 public class ApphudHttpClient {
 
@@ -170,14 +171,20 @@ public class ApphudHttpClient {
             guard let finalURL = url else {
                 return nil
             }
-
+            
+            var platform = "ios"
+            #if os(macOS)
+            platform = "macOS"
+            #endif
+            
             request = requestInstance(url: finalURL)
             request?.httpMethod = method.rawValue
             request?.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
             request?.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Accept")
-            request?.setValue("ios", forHTTPHeaderField: "X-Platform")
+            request?.setValue(platform, forHTTPHeaderField: "X-Platform")
             request?.setValue(self.sdkType, forHTTPHeaderField: "X-SDK")
             request?.setValue(self.sdkVersion, forHTTPHeaderField: "X-SDK-VERSION")
+            request?.setValue("Apphud \(platform) (Swift \(self.sdkVersion)", forHTTPHeaderField: "User-Agent")
             request?.timeoutInterval = method == .get ? GET_TIMEOUT : POST_PUT_TIMEOUT
             if method != .get {
                 var finalParams: [String: Any] = ["api_key": apiKey]

@@ -9,6 +9,7 @@
 import Foundation
 import StoreKit
 
+@available(OSX 10.14.4, *)
 extension ApphudInternal {
 
     // MARK: - Main Purchase and Submit Receipt methods
@@ -136,10 +137,13 @@ extension ApphudInternal {
         apphudProduct?.id.map { params["product_bundle_id"] = $0 }
         apphudProduct?.paywallId.map { params["paywall_id"] = $0 }
         
-        if transaction?.transactionState == .purchased {
-            ApphudRulesManager.shared.cacheActiveScreens()
-        }
-
+        #if !os(macOS)
+            if transaction?.transactionState == .purchased {
+                ApphudRulesManager.shared.cacheActiveScreens()
+            }
+        #endif
+        
+        
         self.requiresReceiptSubmission = true
 
         apphudLog("Uploading App Store Receipt...")

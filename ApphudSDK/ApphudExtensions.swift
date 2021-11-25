@@ -12,6 +12,7 @@ import StoreKit
 typealias ApphudVoidCallback = (() -> Void)
 typealias ApphudErrorCallback = ((Error?) -> Void)
 
+#if canImport(UIKit)
 internal func apphudVisibleViewController() -> UIViewController? {
     var currentVC = UIApplication.shared.keyWindow?.rootViewController
     while let presentedVC = currentVC?.presentedViewController {
@@ -19,9 +20,11 @@ internal func apphudVisibleViewController() -> UIViewController? {
     }
     return currentVC
 }
+#endif
 
 extension String {
     /// Helper method to parse date string into Date object
+    @available(OSX 10.14.4, *)
     internal var apphudIsoDate: Date? {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withFractionalSeconds,
@@ -121,12 +124,13 @@ internal func apphudPerformOnMainThread(callback: @escaping () -> Void) {
     }
 }
 
+#if canImport(UIKit)
 internal func apphudCurrentDeviceParameters() -> [String: String] {
 
     let family: String
     if UIDevice.current.userInterfaceIdiom == .phone {
         family = "iPhone"
-    } else {
+    } else if UIDevice.current.userInterfaceIdiom == .ph{
         family = "iPad"
     }
     let app_version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? ""
@@ -157,13 +161,6 @@ internal func apphudCurrentDeviceParameters() -> [String: String] {
     return params
 }
 
-internal func apphudIdentifierForAdvertising() -> String? {
-    if let idfa = ApphudInternal.shared.advertisingIdentifier, idfa != "00000000-0000-0000-0000-000000000000" {
-        return idfa
-    }
-    return nil
-}
-
 extension UIDevice {
     var apphudModelName: String {
         var systemInfo = utsname()
@@ -175,6 +172,57 @@ extension UIDevice {
         }
         return identifier
     }
+}
+#else
+@available(OSX 10.14.4, *)
+internal func apphudCurrentDeviceParameters() -> [String: String] {
+    let app_version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? ""
+    
+    var params: [String: String] = ["locale": Locale.current.identifier,
+                                      "time_zone": TimeZone.current.identifier,
+                                      "device_type": "Mac",
+                                      "device_family": "Mac",
+                                      "platform": "macOS",
+                                      "app_version": app_version,
+                                      "start_app_version": app_version,
+                                      "sdk_version": apphud_sdk_version,
+                                      "os_version": "\(ProcessInfo.processInfo.operatingSystemVersionString)"
+    ]
+
+    if let regionCode = Locale.current.regionCode {
+        params["country_iso_code"] = regionCode.uppercased()
+    }
+
+    if let idfv = getSystemUUID() {
+        params["idfv"] = idfv
+    }
+
+    if !ApphudUtils.shared.optOutOfIDFACollection, let idfa = apphudIdentifierForAdvertising() {
+        params["idfa"] = idfa
+    }
+
+    return params
+}
+
+func getSystemUUID() -> String? {
+    let dev = IOServiceMatching("IOPlatformExpertDevice")
+    let platformExpert: io_service_t = IOServiceGetMatchingService(kIOMasterPortDefault, dev)
+    let serialNumberAsCFString = IORegistryEntryCreateCFProperty(platformExpert, kIOPlatformUUIDKey as CFString, kCFAllocatorDefault, 0)
+    IOObjectRelease(platformExpert)
+    let ser: CFTypeRef = serialNumberAsCFString!.takeUnretainedValue()
+    if let result = ser as? String {
+        return result
+    }
+    return nil
+}
+#endif
+
+@available(OSX 10.14.4, *)
+internal func apphudIdentifierForAdvertising() -> String? {
+    if let idfa = ApphudInternal.shared.advertisingIdentifier, idfa != "00000000-0000-0000-0000-000000000000" {
+        return idfa
+    }
+    return nil
 }
 
 internal func apphudIsAppsFlyerSDKIntegrated() -> Bool {
@@ -340,6 +388,7 @@ internal func apphudReceiptDataString() -> String? {
     return string
 }
 
+@available(OSX 10.14.4, *)
 @available(iOS 11.2, *)
 extension SKProduct {
 

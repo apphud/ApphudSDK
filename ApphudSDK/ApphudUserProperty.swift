@@ -5,7 +5,9 @@
 //  Created by Renat on 15.08.2020.
 //
 
+#if canImport(UIKit)
 import UIKit
+#endif
 
 struct ApphudUserProperty {
     let key: String

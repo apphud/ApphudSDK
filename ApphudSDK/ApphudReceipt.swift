@@ -7,6 +7,7 @@
 
 import Foundation
 
+@available(OSX 10.14.4, *)
 public class ApphudReceipt: NSObject, Codable {
     
     /**

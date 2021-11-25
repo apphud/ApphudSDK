@@ -8,6 +8,7 @@
 
 import Foundation
 
+@available(OSX 10.14.4, *)
 extension ApphudInternal {
 
     // MARK: - Attribution

@@ -16,6 +16,7 @@ internal typealias ApphudTransactionCallback = (SKPaymentTransaction, Error?) ->
 public let ApphudWillFinishTransactionNotification = Notification.Name(rawValue: "ApphudWillFinishTransactionNotification")
 public let ApphudDidFinishTransactionNotification = Notification.Name(rawValue: "ApphudDidFinishTransactionNotification")
 
+@available(OSX 10.14.4, *)
 @available(iOS 11.2, *)
 internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SKRequestDelegate {
     static var shared = ApphudStoreKitWrapper()
@@ -84,6 +85,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     // MARK: - SKPaymentTransactionObserver
 
+    @available(OSX 10.14.4, *)
     func paymentQueue(_ queue: SKPaymentQueue, updatedTransactions transactions: [SKPaymentTransaction]) {
         DispatchQueue.main.async {
             
@@ -206,7 +208,9 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     
     func presentOfferCodeSheet() {
         if #available(iOS 14.0, *) {
+            #if os(iOS)
             SKPaymentQueue.default().presentCodeRedemptionSheet()
+            #endif
         } else {
             apphudLog("Method unavailable on current iOS version (minimum 14.0).", forceDisplay: true)
         }
@@ -216,6 +220,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 /*
  This class will be extended in the future.
  */
+@available(OSX 10.14.4, *)
 private class ApphudProductsFetcher: NSObject, SKProductsRequestDelegate {
     private var callback: ApphudStoreKitProductsCallback?
 

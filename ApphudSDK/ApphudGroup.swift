@@ -5,8 +5,11 @@
 //  Created by Renat Kurbanov on 29.04.2021.
 //
 
+#if canImport(UIKit)
 import UIKit
+#endif
 
+@available(OSX 10.14.4, *)
 public class ApphudGroup: NSObject, Codable {
     
     /**

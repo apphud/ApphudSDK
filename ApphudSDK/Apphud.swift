@@ -6,7 +6,9 @@
 //  Copyright © 2019 Apphud Inc. All rights reserved.
 //
 
+#if canImport(UIKit)
 import UIKit
+#endif
 import StoreKit
 import UserNotifications
 
@@ -17,6 +19,7 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
 
 // MARK: - Delegate
 
+@available(OSX 10.14.4, *)
 @objc public protocol ApphudDelegate {
 
     /**
@@ -84,7 +87,8 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
         Controller will be kept in memory until you present it via `Apphud.showPendingScreen()` method. If you don't want to show screen at all, you should check `apphudShouldPerformRule` delegate method.
      */
     @objc optional func apphudShouldShowScreen(screenName: String) -> Bool
-
+    
+    #if canImport(UIkit)
     /**
         Return `UIViewController` instance from which you want to present given Apphud controller. If you don't implement this method, then top visible viewcontroller from key window will be used.
      
@@ -102,6 +106,8 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
     /**
      Called when user tapped on purchase button in Apphud purchase screen.
     */
+    #endif
+    
     @objc optional func apphudWillPurchase(product: SKProduct, offerID: String?, screenName: String)
 
     /**
@@ -125,7 +131,8 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
      Called when screen is about to dismiss.
      */
     @objc optional func apphudScreenWillDismiss(screenName: String, error: Error?)
-
+    
+    #if canImport(UIkit)
     /**
      Notifies that Apphud Screen did dismiss
     */
@@ -137,6 +144,7 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
      You can return `noAction` value and use `navigationController` property of `controller` variable to push your own view controller into hierarchy.
      */
     @objc optional func apphudScreenDismissAction(screenName: String, controller: UIViewController) -> ApphudScreenDismissAction
+    #endif
     
     /**
      (New) Called after survey answer is selected.
@@ -194,6 +202,7 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
 
 // MARK: - Initialization
 
+@available(OSX 10.14.4, *)
 @available(iOS 11.2, *)
 final public class Apphud: NSObject {
 
@@ -594,7 +603,7 @@ final public class Apphud: NSObject {
     }
 
     // MARK: - Rules & Screens Methods
-
+    #if canImport(UIKit)
     /**
      Presents Apphud screen that was delayed for presentation, i.e. `false` was returned in `apphudShouldShowScreen` delegate method.
      */
@@ -608,14 +617,13 @@ final public class Apphud: NSObject {
     @objc public static func pendingScreenController() -> UIViewController? {
         return ApphudRulesManager.shared.pendingController
     }
-
     /**
         Rule with a screen that was delayed for presentation.
      */
     @objc public static func pendingRule() -> ApphudRule? {
         return ApphudRulesManager.shared.pendingRule()
     }
-
+    #endif
     // MARK: - Push Notifications
 
     /**
@@ -633,10 +641,11 @@ final public class Apphud: NSObject {
      
      Returns true if push notification was handled by Apphud.
      */
+    #if canImport(UIKit)
     @discardableResult @objc public static func handlePushNotification(apsInfo: [AnyHashable: Any]) -> Bool {
         return ApphudRulesManager.shared.handleNotification(apsInfo)
     }
-
+    #endif
     // MARK: - Attribution
 
     /**

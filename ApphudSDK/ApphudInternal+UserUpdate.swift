@@ -7,10 +7,14 @@
 //
 
 import Foundation
+#if canImport(UIKit)
 import UIKit
+#endif
 
+@available(OSX 10.14.4, *)
 extension ApphudInternal {
 
+    
     @discardableResult internal func parseUser(_ dict: [String: Any]?) -> HasPurchasesChanges {
 
         guard let dataDict = dict?["data"] as? [String: Any] else {
