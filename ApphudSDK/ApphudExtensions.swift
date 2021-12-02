@@ -127,12 +127,7 @@ internal func apphudPerformOnMainThread(callback: @escaping () -> Void) {
 #if canImport(UIKit)
 internal func apphudCurrentDeviceParameters() -> [String: String] {
 
-    let family: String
-    if UIDevice.current.userInterfaceIdiom == .phone {
-        family = "iPhone"
-    } else if UIDevice.current.userInterfaceIdiom == .ph{
-        family = "iPad"
-    }
+    let family: String = UIDevice.current.userInterfaceIdiom == .phone ? "iPhone" : "iPad"
     let app_version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? ""
 
     var params: [String: String] = ["locale": Locale.current.identifier,

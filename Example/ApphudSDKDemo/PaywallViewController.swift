@@ -11,7 +11,7 @@ import ApphudSDK
 
 class PaywallViewController: UIViewController {
     
-    let currentPaywallIdentifier = "billing_paywal"
+    let currentPaywallIdentifier = "consumables"
     var products:[ApphudProduct]?
     var paywall:ApphudPaywall?
     var dismissCompletion: (()->())?

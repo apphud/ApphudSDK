@@ -402,14 +402,14 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = SZ57DYCTKD;
+				DEVELOPMENT_TEAM = JLG6CF288G;
 				INFOPLIST_FILE = "$(SRCROOT)/ApphudSDKDemo/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 11.2;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.apphud;
+				PRODUCT_BUNDLE_IDENTIFIER = com.apphud.testapplication;
 				PRODUCT_NAME = ApphudDemoApp;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				"PROVISIONING_PROFILE_SPECIFIER[sdk=macosx*]" = "";
@@ -430,14 +430,14 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = SZ57DYCTKD;
+				DEVELOPMENT_TEAM = JLG6CF288G;
 				INFOPLIST_FILE = "$(SRCROOT)/ApphudSDKDemo/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 11.2;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.apphud;
+				PRODUCT_BUNDLE_IDENTIFIER = com.apphud.testapplication;
 				PRODUCT_NAME = ApphudDemoApp;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				"PROVISIONING_PROFILE_SPECIFIER[sdk=macosx*]" = "";
