@@ -188,10 +188,6 @@ internal func apphudCurrentDeviceParameters() -> [String: String] {
         params["country_iso_code"] = regionCode.uppercased()
     }
 
-    if let idfv = getSystemUUID() {
-        params["idfv"] = idfv
-    }
-
     if !ApphudUtils.shared.optOutOfIDFACollection, let idfa = apphudIdentifierForAdvertising() {
         params["idfa"] = idfa
     }
@@ -199,17 +195,6 @@ internal func apphudCurrentDeviceParameters() -> [String: String] {
     return params
 }
 
-func getSystemUUID() -> String? {
-    let dev = IOServiceMatching("IOPlatformExpertDevice")
-    let platformExpert: io_service_t = IOServiceGetMatchingService(kIOMasterPortDefault, dev)
-    let serialNumberAsCFString = IORegistryEntryCreateCFProperty(platformExpert, kIOPlatformUUIDKey as CFString, kCFAllocatorDefault, 0)
-    IOObjectRelease(platformExpert)
-    let ser: CFTypeRef = serialNumberAsCFString!.takeUnretainedValue()
-    if let result = ser as? String {
-        return result
-    }
-    return nil
-}
 #endif
 
 @available(OSX 10.14.4, *)
