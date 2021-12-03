@@ -10,7 +10,6 @@ import StoreKit
 
 @available(macOS 10.14.4, *)
 @objc public protocol ApphudDelegate {
-
     /**
         Returns array of subscriptions that user ever purchased. Empty array means user never purchased a subscription. If you have just one subscription group in your app, you will always receive just one subscription in an array.
      

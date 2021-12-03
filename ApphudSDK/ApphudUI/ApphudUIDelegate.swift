@@ -9,7 +9,6 @@
 import StoreKit
 
 @objc public protocol ApphudUIDelegate {
-
     /**
         You can return `false` to ignore this rule. You should only do this if you want to handle your rules by yourself. Default implementation is `true`.
      */

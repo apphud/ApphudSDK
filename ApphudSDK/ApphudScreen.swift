@@ -6,10 +6,6 @@
 //  Copyright © 2019 Apphud Inc. All rights reserved.
 //
 
-#if canImport(UIKit)
-import UIKit
-#endif
-
 struct ApphudScreen {
 
     var status_bar_color: String?

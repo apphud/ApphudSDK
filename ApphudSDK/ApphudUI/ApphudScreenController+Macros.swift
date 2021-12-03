@@ -6,6 +6,9 @@
 //  Copyright © 2020 Apphud Inc. All rights reserved.
 //
 
+#if canImport(UIKit)
+import UIKit
+#endif
 import Foundation
 import StoreKit
 

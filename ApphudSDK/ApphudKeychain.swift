@@ -6,9 +6,6 @@
 //  Copyright © 2019 Apphud Inc. All rights reserved.
 //
 
-#if canImport(UIKit)
-import UIKit
-#endif
 import Security
 
 // Constant Identifiers
