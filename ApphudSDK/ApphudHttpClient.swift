@@ -56,6 +56,7 @@ public class ApphudHttpClient {
     
     internal var invalidAPiKey: Bool = false
     internal var unauthorized: Bool = false
+    internal var suspended: Bool = false
     
     private let session: URLSession = {
         let config = URLSessionConfiguration.default
@@ -75,8 +76,10 @@ public class ApphudHttpClient {
     }
 
     internal func startRequest(path: String, apiVersion: ApphudApiVersion = .APIV1, params: [String: Any]?, method: ApphudHttpMethod, useDecoder: Bool = false, callback: ApphudHTTPResponseCallback?) {
-        if let request = makeRequest(path: path, apiVersion: apiVersion, params: params, method: method) {
+        if let request = makeRequest(path: path, apiVersion: apiVersion, params: params, method: method), !suspended {
             start(request: request, useDecoder: useDecoder, callback: callback)
+        } else {
+            apphudLog("Unable to perform API requests, because your account has been suspended.", forceDisplay: true)
         }
     }
 
@@ -264,6 +267,7 @@ public class ApphudHttpClient {
                         apphudLog("Unable to perform API requests, because your API Key is invalid.", forceDisplay: true)
                     } else if code == 403 {
                         self.unauthorized = true
+                        self.suspended = true
                         apphudLog("Unable to perform API requests, because your account has been suspended.", forceDisplay: true)
                     }
 

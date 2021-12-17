@@ -110,8 +110,9 @@ extension ApphudInternal {
         let environment = Apphud.isSandbox() ? "sandbox" : "production"
 
         var params: [String: Any] = ["device_id": self.currentDeviceID,
-                                          "environment": environment]
-        
+                                     "environment": environment,
+                                     "observer_mode": ApphudUtils.shared.storeKitObserverMode]
+
         if let receipt = receiptString {
             params["receipt_data"] = receipt
         }
