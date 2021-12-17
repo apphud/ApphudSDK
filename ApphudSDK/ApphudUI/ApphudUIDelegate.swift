@@ -21,7 +21,7 @@ import StoreKit
      */
     @objc optional func apphudShouldShowScreen(screenName: String) -> Bool
     
-    #if canImport(UIkit)
+    #if canImport(UIKit)
     /**
         Return `UIViewController` instance from which you want to present given Apphud controller. If you don't implement this method, then top visible viewcontroller from key window will be used.
      
@@ -65,7 +65,7 @@ import StoreKit
      */
     @objc optional func apphudScreenWillDismiss(screenName: String, error: Error?)
     
-    #if canImport(UIkit)
+    #if canImport(UIKit)
     /**
      Notifies that Apphud Screen did dismiss
     */

@@ -10,7 +10,7 @@ import Foundation
 import WebKit
 import StoreKit
 import SafariServices
-#if canImport(UIkit)
+#if canImport(UIKit)
 @available(iOS 11.2, *)
 
 extension ApphudScreenController: WKNavigationDelegate {
