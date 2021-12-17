@@ -37,7 +37,7 @@ public class ApphudHttpClient {
     }
 
     static let productionEndpoint = "https://api.apphud.com"
-    public var sdkType:String = "ios"
+    public var sdkType:String = "swift"
     public var sdkVersion:String = apphud_sdk_version
     
     #if DEBUG
@@ -184,7 +184,7 @@ public class ApphudHttpClient {
             request?.setValue(platform, forHTTPHeaderField: "X-Platform")
             request?.setValue(self.sdkType, forHTTPHeaderField: "X-SDK")
             request?.setValue(self.sdkVersion, forHTTPHeaderField: "X-SDK-VERSION")
-            request?.setValue("Apphud \(platform) (Swift \(self.sdkVersion)", forHTTPHeaderField: "User-Agent")
+            request?.setValue("Apphud \(platform) (Swift \(self.sdkVersion))", forHTTPHeaderField: "User-Agent")
             request?.timeoutInterval = method == .get ? GET_TIMEOUT : POST_PUT_TIMEOUT
             if method != .get {
                 var finalParams: [String: Any] = ["api_key": apiKey]
