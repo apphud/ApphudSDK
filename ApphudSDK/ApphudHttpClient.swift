@@ -77,6 +77,8 @@ public class ApphudHttpClient {
     internal func startRequest(path: String, apiVersion: ApphudApiVersion = .APIV1, params: [String: Any]?, method: ApphudHttpMethod, useDecoder: Bool = false, callback: ApphudHTTPResponseCallback?) {
         if let request = makeRequest(path: path, apiVersion: apiVersion, params: params, method: method), !suspended {
             start(request: request, useDecoder: useDecoder, callback: callback)
+        } else {
+            apphudLog("Unable to perform API requests, because your account has been suspended.", forceDisplay: true)
         }
     }
 

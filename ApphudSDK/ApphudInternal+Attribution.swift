@@ -29,7 +29,7 @@ extension ApphudInternal {
                     return
                 }
                 guard !self.isSendingAppsFlyer else {
-                    apphudLog("Already submitting AppsFlyer attribution, skipping", forceDisplay: true)
+                    apphudLog("Already submitted AppsFlyer attribution, skipping", forceDisplay: true)
                     callback?(false)
                     return
                 }
@@ -38,7 +38,7 @@ extension ApphudInternal {
                     params["appsflyer_data"] = data
                     
                     guard self.submittedPreviouslyAF(data: data!) else {
-                        apphudLog("Already submitting AppsFlyer attribution, skipping", forceDisplay: true)
+                        apphudLog("Already submitted AppsFlyer attribution, skipping", forceDisplay: true)
                         callback?(false)
                         return
                     }
@@ -46,7 +46,7 @@ extension ApphudInternal {
                 self.isSendingAppsFlyer = true
             case .adjust:
                 guard !self.isSendingAdjust else {
-                    apphudLog("Already submitting Adjust attribution, skipping", forceDisplay: true)
+                    apphudLog("Already submitted Adjust attribution, skipping", forceDisplay: true)
                     callback?(false)
                     return
                 }
@@ -54,7 +54,7 @@ extension ApphudInternal {
                     params["adjust_data"] = data
                     
                     guard self.submittedPreviouslyAdjust(data: data!) else {
-                        apphudLog("Already submitting Adjust attribution, skipping", forceDisplay: true)
+                        apphudLog("Already submitted Adjust attribution, skipping", forceDisplay: true)
                         callback?(false)
                         return
                     }
