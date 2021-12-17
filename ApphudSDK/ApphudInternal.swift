@@ -106,6 +106,8 @@ final class ApphudInternal: NSObject {
     internal let didSubmitProductPricesKey = "didSubmitProductPricesKey"
     internal let submittedFirebaseIdKey = "submittedFirebaseIdKey"
     internal var didSubmitAppleAdsAttributionKey = "didSubmitAppleAdsAttributionKey"
+    internal let submittedAFDataKey = "submittedAFDataKey"
+    internal let submittedAdjustDataKey = "submittedAdjustDataKey"
     internal var isSendingAppsFlyer = false
     internal var isSendingAdjust = false
     internal var isFreshInstall = true
@@ -150,6 +152,23 @@ final class ApphudInternal: NSObject {
             UserDefaults.standard.set(newValue, forKey: didSubmitAppleAdsAttributionKey)
         }
     }
+    internal var submittedAFData: [AnyHashable: Any]? {
+        get {
+            UserDefaults.standard.object(forKey: submittedAFDataKey) as? [AnyHashable: Any]
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: submittedAFDataKey)
+        }
+    }
+    internal var submittedAdjustData: [AnyHashable: Any]? {
+        get {
+            UserDefaults.standard.object(forKey: submittedAdjustDataKey) as? [AnyHashable: Any]
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: submittedAdjustDataKey)
+        }
+    }
+
     internal var submittedFirebaseId: String? {
         get {
             UserDefaults.standard.string(forKey: submittedFirebaseIdKey)
