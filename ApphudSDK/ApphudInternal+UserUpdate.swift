@@ -75,7 +75,7 @@ extension ApphudInternal {
 
             if finalResult {
                 let endBench = startBench.timeIntervalSinceNow * -1
-                ApphudInternal.shared.logEvent(params: ["message": String(format:"customers_benchmark:%.3f", endBench)]) {}
+                ApphudInternal.shared.logEvent(params: ["message": "create_customer_duration", "duration": endBench]) {}
                 
                 if hasChanges.hasSubscriptionChanges {
                     self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions)
