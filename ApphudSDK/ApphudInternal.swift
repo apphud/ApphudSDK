@@ -66,7 +66,7 @@ final class ApphudInternal: NSObject {
     internal var pendingUserProperties = [ApphudUserProperty]()
     internal var lastCheckDate = Date()
     internal var userRegisterRetriesCount: Int = 0
-    internal let maxNumberOfUserRegisterRetries: Int = 10
+    internal let maxNumberOfUserRegisterRetries: Int = 25
     internal var paywallEventsRetriesCount: Int = 0
     internal let maxNumberOfPaywallEventsRetries: Int = 25
     internal var didRetrievePaywallsAtThisLaunch: Bool = false
@@ -343,6 +343,9 @@ final class ApphudInternal: NSObject {
             callback()
             return true
         } else {
+            if userRegisterRetriesCount >= maxNumberOfUserRegisterRetries {
+                registerUser()
+            }
             userRegisteredCallbacks.append(callback)
             return false
         }
