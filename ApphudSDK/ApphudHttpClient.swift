@@ -177,7 +177,7 @@ public class ApphudHttpClient {
             
             var platform = "ios"
             #if os(macOS)
-            platform = "macOS"
+            platform = "macos"
             #endif
             
             request = requestInstance(url: finalURL)
