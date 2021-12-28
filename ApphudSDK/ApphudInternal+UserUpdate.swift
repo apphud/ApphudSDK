@@ -69,6 +69,7 @@ extension ApphudInternal {
         let startBench = Date()
         
         self.updateUser(fields: fields) { (result, response, _, error, code) in
+            UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "lastUserUpdateTimestamp")
             let hasChanges = self.parseUser(response)
 
             let finalResult = result && self.currentUser != nil

@@ -232,7 +232,9 @@ final class ApphudInternal: NSObject {
             self.currentUserID = generatedUUID
         }
 
+        var isIdenticalUserIds = true
         if self.currentUserID != userIDFromKeychain {
+            isIdenticalUserIds = false
             ApphudKeychain.saveUserID(userID: self.currentUserID)
         }
 
@@ -240,7 +242,25 @@ final class ApphudInternal: NSObject {
         self.paywalls = cachedPaywalls() ?? []
         
         DispatchQueue.main.async {
-            self.continueToRegisteringUser()
+            self.continueToRegisteringUser(skipRegistration: self.skipRegistration(isIdenticalUserIds: isIdenticalUserIds, hasCashedUser: self.currentUser != nil))
+        }
+    }
+    
+    private func skipRegistration(isIdenticalUserIds:Bool, hasCashedUser:Bool) -> Bool {
+        if isIdenticalUserIds == true && hasCashedUser == true && isConsistentTimeinterval() == true {
+            return true
+        } else {
+            return false
+        }
+    }
+        
+    private func isConsistentTimeinterval() -> Bool {
+        let lastRegisterTimestamp = UserDefaults.standard.double(forKey: "lastUserUpdateTimestamp")
+        let savedDate = Date(timeIntervalSince1970: TimeInterval(lastRegisterTimestamp))
+        if Date().minutes(from: savedDate) < 30 {
+            return true
+        } else {
+            return false
         }
     }
 
@@ -251,11 +271,13 @@ final class ApphudInternal: NSObject {
         apphudLog("User logged out. Apphud SDK is uninitialized.", logLevel: .all)
     }
 
-    internal func continueToRegisteringUser() {
+    internal func continueToRegisteringUser(skipRegistration:Bool = false) {
         guard !isRegisteringUser else {return}
         isRegisteringUser = true
         continueToFetchProducts()
-        registerUser()
+        if !skipRegistration {
+            registerUser()
+        }
     }
     
     @objc private func registerUser() {
@@ -584,7 +606,20 @@ final class ApphudInternal: NSObject {
 }
 
 extension Date {
+    /// Returns current Timestamp
     func currentTimestamp() -> Int64 {
         return Int64(self.timeIntervalSince1970 * 1000)
     }
+    
+    /// Returns the amount of minutes from another date
+    func minutes(from date: Date) -> Int {
+        return Calendar.current.dateComponents([.minute], from: date, to: self).minute ?? 0
+    }
+
+    /// Returns the a custom time interval description from another date
+    func offset(from date: Date) -> String {
+        if minutes(from: date) > 0 { return "\(minutes(from: date))m" }
+        return ""
+    }
 }
+
