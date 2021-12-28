@@ -625,11 +625,11 @@ final public class Apphud: NSObject {
      Will be displayed in AppHud dashboard
      */
     @objc public static func paywallShown(_ paywall: ApphudPaywall?) {
-        ApphudLoggerService.paywallShown(paywall?.id)
+        ApphudLoggerService.shared.paywallShown(paywall?.id)
     }
     
     @objc public static func paywallClosed(_ paywall: ApphudPaywall?) {
-        ApphudLoggerService.paywallClosed(paywall?.id)
+        ApphudLoggerService.shared.paywallClosed(paywall?.id)
     }
     
     // MARK: - Promotionals

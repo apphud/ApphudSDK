@@ -75,7 +75,7 @@ extension ApphudInternal {
 
             if finalResult {
                 let endBench = startBench.timeIntervalSinceNow * -1
-                ApphudInternal.shared.logEvent(params: ["message": "create_customer_duration", "duration": endBench]) {}
+                ApphudLoggerService.shared.addDurationEvent(ApphudLoggerService.durationLog.customers.value(), endBench)
                 
                 if hasChanges.hasSubscriptionChanges {
                     self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions)
@@ -210,14 +210,14 @@ extension ApphudInternal {
         guard let typeString = getType(value: value) else {
             let givenType = type(of: value)
             apphudLog("Invalid property type: (\(givenType)). Must be one of: [Int, Float, Double, Bool, String, NSNull, nil]", forceDisplay: true)
-            ApphudLoggerService.logError("set user property: Invalid property type")
+            ApphudLoggerService.shared.logError("set user property: Invalid property type")
             return
         }
 
         if increment && !(typeString == "integer" || typeString == "float") {
             let givenType = type(of: value)
             apphudLog("Invalid increment property type: (\(givenType)). Must be one of: [Int, Float, Double]", forceDisplay: true)
-            ApphudLoggerService.logError("set user property: Invalid increment property type")
+            ApphudLoggerService.shared.logError("set user property: Invalid increment property type")
             return
         }
         

@@ -85,7 +85,7 @@ public class ApphudReceipt: NSObject, Codable {
             } catch {
                 let message = "An error occurred while decoding App Store Receipt: \(error)"
                 apphudLog(message)
-                ApphudLoggerService.logError(message)
+                ApphudLoggerService.shared.logError(message)
                 completion(nil)
             }
         }

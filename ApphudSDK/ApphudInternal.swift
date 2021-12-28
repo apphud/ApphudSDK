@@ -428,6 +428,22 @@ final class ApphudInternal: NSObject {
     }
 
     // MARK: - V2 API
+    
+    internal func trackDuraionLogs(params: [[String: Double]], callback: @escaping () -> Void) {
+        let result = performWhenUserRegistered {
+            let final_params: [String: AnyHashable] = ["device_id": self.currentDeviceID,
+                                                       "user_id": self.currentUserID,
+                                                       "bundle_id": Bundle.main.bundleIdentifier,
+                                                       "data":params]
+            
+            self.httpClient?.startRequest(path: "logs", apiVersion: .APIV2, params: final_params, method: .post) { (_, _, _, _, _) in
+                callback()
+            }
+        }
+        if !result {
+            apphudLog("Tried to sendLogs, but user not yet registered, adding to schedule")
+        }
+    }
 
     internal func trackEvent(params: [String: AnyHashable], callback: @escaping () -> Void) {
         let result = performWhenUserRegistered {
