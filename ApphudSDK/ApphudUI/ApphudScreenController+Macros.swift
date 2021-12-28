@@ -21,7 +21,6 @@ extension ApphudScreenController {
                     return product.apphudLocalizedDiscountPrice(discount: discount)
                 } else {
                     apphudLog("Couldn't find promo offer with id: \(offerID!) in product: \(product.productIdentifier), available promo offer ids: \(product.apphudPromoIdentifiers())", forceDisplay: true)
-                    ApphudLoggerService.shared.logError("Couldn't find promo offer with id")
                     return ""
                 }
             } else {

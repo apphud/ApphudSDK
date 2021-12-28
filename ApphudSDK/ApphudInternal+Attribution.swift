@@ -174,7 +174,6 @@ extension ApphudInternal {
             } else {
                 let message = "Failed to send \(provider.toString()) attribution data to Apphud!"
                 apphudLog(message)
-                ApphudLoggerService.shared.logError(message)
             }
             
             callback?(result)

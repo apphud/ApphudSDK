@@ -32,7 +32,7 @@ class ApphudLoggerService {
     }
     
     internal static let shared = ApphudLoggerService()
-    private var durationLogs:[[String: Double]] = []
+    private var durationLogs:[[String: AnyHashable]] = []
     private var durationLogsTimer = Timer()
     
     // MARK: - Paywalls logs
@@ -55,12 +55,6 @@ class ApphudLoggerService {
         }
     }
     
-    // MARK: - Main errors logs
-    
-    internal func logError(_ error:String) {
-        ApphudInternal.shared.logEvent(params: ["message": error]) {}
-    }
-    
     // MARK: - Duration Logs
     
     internal func addDurationEvent(_ key:String,_ value:Double) {
@@ -68,15 +62,15 @@ class ApphudLoggerService {
             durationLogsTimer.invalidate()
         }
         durationLogsTimer = Timer.scheduledTimer(timeInterval: 5.0, target: self, selector: #selector(durationTimerAction), userInfo: nil, repeats: false)
-        self.durationLogs.append([key:Double(round(100 * value) / 100)])
+        self.durationLogs.append(["path":key, "duration":Double(round(100 * value) / 100)])
     }
     
     @objc private func durationTimerAction() {
-        self.durationLogEvents(durationLogs)
+        self.sendLogEvents(durationLogs)
     }
     
-    private func durationLogEvents(_ logs:[[String: Double]]) {
+    private func sendLogEvents(_ logs:[[String: AnyHashable]]) {
         self.durationLogs.removeAll()
-        ApphudInternal.shared.trackDuraionLogs(params: logs) {}
+        ApphudInternal.shared.trackDurationLogs(params: logs) {}
     }
 }

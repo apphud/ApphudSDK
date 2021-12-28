@@ -247,7 +247,15 @@ final class ApphudInternal: NSObject {
     }
     
     private func skipRegistration(isIdenticalUserIds:Bool, hasCashedUser:Bool) -> Bool {
-        if isIdenticalUserIds == true && hasCashedUser == true && isConsistentTimeinterval() == true {
+        if isIdenticalUserIds && hasCashedUser && isConsistentTimeinterval() && !isUserPayed() {
+            return true
+        } else {
+            return false
+        }
+    }
+    
+    private func isUserPayed() -> Bool {
+        if self.currentUser != nil && (self.currentUser?.subscriptions.count ?? 0 > 0 || self.currentUser?.purchases.count ?? 0 > 0) {
             return true
         } else {
             return false
@@ -257,7 +265,7 @@ final class ApphudInternal: NSObject {
     private func isConsistentTimeinterval() -> Bool {
         let lastRegisterTimestamp = UserDefaults.standard.double(forKey: "lastUserUpdateTimestamp")
         let savedDate = Date(timeIntervalSince1970: TimeInterval(lastRegisterTimestamp))
-        if Date().minutes(from: savedDate) < 30 {
+        if Date().timeIntervalSince(savedDate) < 30*60 {
             return true
         } else {
             return false
@@ -451,19 +459,18 @@ final class ApphudInternal: NSObject {
 
     // MARK: - V2 API
     
-    internal func trackDuraionLogs(params: [[String: Double]], callback: @escaping () -> Void) {
+    internal func trackDurationLogs(params: [[String: AnyHashable]], callback: @escaping () -> Void) {
         let result = performWhenUserRegistered {
             let final_params: [String: AnyHashable] = ["device_id": self.currentDeviceID,
                                                        "user_id": self.currentUserID,
                                                        "bundle_id": Bundle.main.bundleIdentifier,
                                                        "data":params]
-            
             self.httpClient?.startRequest(path: "logs", apiVersion: .APIV2, params: final_params, method: .post) { (_, _, _, _, _) in
                 callback()
             }
         }
         if !result {
-            apphudLog("Tried to sendLogs, but user not yet registered, adding to schedule")
+            apphudLog("Tried to send Logs, but user not yet registered, adding to schedule")
         }
     }
 
@@ -609,17 +616,6 @@ extension Date {
     /// Returns current Timestamp
     func currentTimestamp() -> Int64 {
         return Int64(self.timeIntervalSince1970 * 1000)
-    }
-    
-    /// Returns the amount of minutes from another date
-    func minutes(from date: Date) -> Int {
-        return Calendar.current.dateComponents([.minute], from: date, to: self).minute ?? 0
-    }
-
-    /// Returns the a custom time interval description from another date
-    func offset(from date: Date) -> String {
-        if minutes(from: date) > 0 { return "\(minutes(from: date))m" }
-        return ""
     }
 }
 

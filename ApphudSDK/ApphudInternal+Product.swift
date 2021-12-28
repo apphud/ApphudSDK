@@ -23,9 +23,11 @@ extension ApphudInternal {
                 self.continueWithProductGroups(productGroups, errorCode: nil, writeToCache: false)
             } else {
                 let startBench = Date()
-                getProductGroups { groups, _, code in
-                    let endBench = startBench.timeIntervalSinceNow * -1
-                    ApphudLoggerService.shared.addDurationEvent(ApphudLoggerService.durationLog.products.value(), endBench)
+                getProductGroups { groups, error, code in
+                    if error == nil {
+                        let endBench = startBench.timeIntervalSinceNow * -1
+                        ApphudLoggerService.shared.addDurationEvent(ApphudLoggerService.durationLog.products.value(), endBench)
+                    }
                     self.continueWithProductGroups(groups, errorCode: code, writeToCache: true)
                 }
             }
@@ -73,7 +75,6 @@ extension ApphudInternal {
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(continueToFetchProducts), object: nil)
         perform(#selector(continueToFetchProducts), with: nil, afterDelay: delay)
         apphudLog("No Product Identifiers found in Apphud. Probably you forgot to add products in Apphud Settings? Scheduled products fetch retry in \(delay) seconds.", forceDisplay: true)
-        ApphudLoggerService.shared.logError("No Product Identifiers found in Apphud")
     }
 
     internal func continueToFetchStoreKitProducts() {
@@ -152,13 +153,13 @@ extension ApphudInternal {
             let startBench = Date()
             
             self.fetchPaywallsIfNeeded(forceRefresh: forceRefresh) { pwls, error, writeToCache in
-                let endBench = startBench.timeIntervalSinceNow * -1
-                ApphudLoggerService.shared.addDurationEvent(ApphudLoggerService.durationLog.paywallConfigs.value(), endBench)
                 guard let pwls = pwls else {
                     callback(nil, error)
                     return
                 }
                 
+                let endBench = startBench.timeIntervalSinceNow * -1
+                ApphudLoggerService.shared.addDurationEvent(ApphudLoggerService.durationLog.paywallConfigs.value(), endBench)
                 self.preparePaywalls(pwls: pwls, writeToCache: writeToCache, completionBlock: callback)
             }
         }

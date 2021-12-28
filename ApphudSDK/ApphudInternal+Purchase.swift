@@ -81,11 +81,9 @@ extension ApphudInternal {
                     block(receipt)
                 } else {
                     if let transactionOid = transaction?.transactionIdentifier {
-                        ApphudLoggerService.shared.logError("Receipt not found, submit receipt with transactionIdentifier \(transactionOid)")
                         block(nil)
                     } else {
                         let message = "Failed to get App Store receipt"
-                        ApphudLoggerService.shared.logError(message)
                         apphudLog(message, forceDisplay: true)
                         callback?(ApphudPurchaseResult(nil, nil, transaction, ApphudError(message: "Failed to get App Store receipt")))
                     }
@@ -151,8 +149,10 @@ extension ApphudInternal {
 
         let startBench = Date()
         httpClient?.startRequest(path: "subscriptions", params: params, method: .post) { (result, response, _, error, _) in
-            let endBench = startBench.timeIntervalSinceNow * -1
-            ApphudLoggerService.shared.addDurationEvent(ApphudLoggerService.durationLog.subscriptions.value(), endBench)
+            if error == nil {
+                let endBench = startBench.timeIntervalSinceNow * -1
+                ApphudLoggerService.shared.addDurationEvent(ApphudLoggerService.durationLog.subscriptions.value(), endBench)
+            }
             
             self.forceSendAttributionDataIfNeeded()
             self.isSubmittingReceipt = false
@@ -206,7 +206,6 @@ extension ApphudInternal {
                         self.purchase(product: product, apphudProduct: nil, validate: validate, callback: callback)
                     } else {
                         let message = "Unable to start payment because product identifier is invalid: [\([productId])]"
-                        ApphudLoggerService.shared.logError(message)
                         apphudLog(message, forceDisplay: true)
                         let result = ApphudPurchaseResult(nil, nil, nil, ApphudError(message: message))
                         callback?(result)

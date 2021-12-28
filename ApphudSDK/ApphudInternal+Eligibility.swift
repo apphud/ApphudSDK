@@ -33,7 +33,6 @@ extension ApphudInternal {
                     })
                 } else {
                     apphudLog("Receipt not found on device, impossible to determine eligibility. This is probably missing sandbox receipt issue. This should never not happen on production, because there receipt always exists. For more information see: https://docs.apphud.com/getting-started/sandbox#testing-eligibilities. Exiting", forceDisplay: true)
-                    ApphudLoggerService.shared.logError("Receipt not found on device, impossible to determine eligibility for promotional offers")
                     var response = [String: Bool]()
                     for product in products {
                         response[product.productIdentifier] = false // cannot purchase offer by default
@@ -102,7 +101,6 @@ extension ApphudInternal {
                     })
                 } else {
                     apphudLog("Receipt not found on device, impossible to determine eligibility. This is probably missing sandbox receipt issue. This should never not happen on production, because there receipt always exists. For more information see: https://docs.apphud.com/getting-started/sandbox#testing-eligibilities. Exiting", forceDisplay: true)
-                    ApphudLoggerService.shared.logError("Receipt not found on device, impossible to determine eligibility for introductory offers")
                     var response = [String: Bool]()
                     for product in products {
                         response[product.productIdentifier] = true // can purchase intro by default
