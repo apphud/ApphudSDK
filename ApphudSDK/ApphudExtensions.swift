@@ -181,7 +181,7 @@ internal func apphudCurrentDeviceParameters() -> [String: String] {
                                       "app_version": app_version,
                                       "start_app_version": app_version,
                                       "sdk_version": apphud_sdk_version,
-                                    "os_version": "\(ProcessInfo.processInfo.operatingSystemVersion.majorVersion).\(ProcessInfo.processInfo.operatingSystemVersion.minorVersion).\(ProcessInfo.processInfo.operatingSystemVersion.patchVersion)"
+                                    "os_version": "\(ProcessInfo.processInfo.operatingSystemVersion.majorVersion).\(ProcessInfo.processInfo.operatingSystemVersion.minorVersion)"
     ]
 
     if let regionCode = Locale.current.regionCode {
