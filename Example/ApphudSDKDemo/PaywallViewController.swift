@@ -11,7 +11,7 @@ import ApphudSDK
 
 class PaywallViewController: UIViewController {
     
-    let currentPaywallIdentifier = "consumables"
+    let currentPaywallIdentifier = "main_paywall"
     var products:[ApphudProduct]?
     var paywall:ApphudPaywall?
     var dismissCompletion: (()->())?
@@ -94,6 +94,6 @@ extension PaywallViewController: UICollectionViewDelegate, UICollectionViewDataS
     }
     
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
-        return CGSize(width: UIScreen.main.bounds.size.width/2 - 10, height: UIScreen.main.bounds.size.width/2 - 10)
+        return CGSize(width: UIScreen.main.bounds.size.width, height: 150)
     }
 }

@@ -19,7 +19,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         
-        Apphud.start(apiKey: "app_T231m9oPTj6SDKcw9NaKCSLZtmFZVY")
+        Apphud.start(apiKey: "app_4sY9cLggXpMDDQMmvc5wXUPGReMp8G")
 
         /** Custom User Properties Examples */
         Apphud.setUserProperty(key: .email, value: "user@example.com", setOnce: true)
