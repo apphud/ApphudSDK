@@ -64,15 +64,25 @@ extension ApphudInternal {
         }
     }
 
-    internal func createOrGetUser(shouldUpdateUserID: Bool, callback: @escaping (Bool, Int) -> Void) {
+    internal func createOrGetUser(shouldUpdateUserID: Bool, skipRegistration:Bool = false, callback: @escaping (Bool, Int) -> Void) {
+        if skipRegistration {
+            apphudLog("Loading user from cache, because cache is not expired.", logLevel: .all)
+            self.preparePaywalls(pwls: self.paywalls, writeToCache: false, completionBlock: nil)
+            if self.requiresReceiptSubmission {
+                self.submitAppStoreReceipt()
+            }
+            callback(true, 200)
+            return
+        }
+        
         let fields = shouldUpdateUserID ? ["user_id": self.currentUserID] : [:]
         let startBench = Date()
         
         self.updateUser(fields: fields) { (result, response, _, error, code) in
             let hasChanges = self.parseUser(response)
-
+            
             let finalResult = result && self.currentUser != nil
-
+            
             if finalResult {
                 ApphudLoggerService.lastUserUpdatedAt = Date()
                 let endBench = startBench.timeIntervalSinceNow * -1

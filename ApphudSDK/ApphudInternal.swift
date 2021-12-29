@@ -273,15 +273,11 @@ final class ApphudInternal: NSObject {
         guard !isRegisteringUser else {return}
         isRegisteringUser = true
         continueToFetchProducts()
-        if skipRegistration {
-            apphudLog("Loading user from cache, because cache is not expired.", logLevel: .all)
-        } else {
-            registerUser()
-        }
+        registerUser(skipRegistration: skipRegistration)
     }
     
-    @objc private func registerUser() {
-        createOrGetUser(shouldUpdateUserID: true) { success, errorCode in
+    @objc private func registerUser(skipRegistration:Bool = false) {
+        createOrGetUser(shouldUpdateUserID: true, skipRegistration:skipRegistration) { success, errorCode in
 
             self.isRegisteringUser = false
             self.setupObservers()
