@@ -61,6 +61,9 @@ class PaywallViewController: UIViewController {
     func setupViewConfiguration() {
         self.paywallCollectionView.reloadData()
     }
+    @IBAction func closeView(_ sender: Any) {
+        self.dismiss(animated: true, completion: nil)
+    }
 }
 
 // MARK: - UICollectionViewDataSource, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout
