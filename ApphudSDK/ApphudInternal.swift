@@ -247,25 +247,15 @@ final class ApphudInternal: NSObject {
     }
     
     private func skipRegistration(isIdenticalUserIds:Bool, hasCashedUser:Bool) -> Bool {
-        if isIdenticalUserIds && hasCashedUser && isConsistentTimeinterval() && !isUserPayed() {
-            return true
-        } else {
-            return false
-        }
+        return isIdenticalUserIds && hasCashedUser && isUserCacheExpired() && !isUserPaid()
     }
     
-    private func isUserPayed() -> Bool {
-        if self.currentUser != nil && (self.currentUser?.subscriptions.count ?? 0 > 0 || self.currentUser?.purchases.count ?? 0 > 0) {
-            return true
-        } else {
-            return false
-        }
+    private func isUserPaid() -> Bool {
+       return self.currentUser?.subscriptions.count ?? 0 > 0 || self.currentUser?.purchases.count ?? 0 > 0
     }
         
-    private func isConsistentTimeinterval() -> Bool {
-        let lastRegisterTimestamp = UserDefaults.standard.double(forKey: "lastUserUpdateTimestamp")
-        let savedDate = Date(timeIntervalSince1970: TimeInterval(lastRegisterTimestamp))
-        if Date().timeIntervalSince(savedDate) < 30*60 {
+    private func isUserCacheExpired() -> Bool {
+        if let lastUserUpdatedDate = ApphudLoggerService.lastUserUpdatedAt, Date().timeIntervalSince(lastUserUpdatedDate) > 30*60 {
             return true
         } else {
             return false
@@ -283,7 +273,9 @@ final class ApphudInternal: NSObject {
         guard !isRegisteringUser else {return}
         isRegisteringUser = true
         continueToFetchProducts()
-        if !skipRegistration {
+        if skipRegistration {
+            apphudLog("Loading user from cache, because cache is not expired.", logLevel: .all)
+        } else {
             registerUser()
         }
     }
@@ -470,7 +462,7 @@ final class ApphudInternal: NSObject {
             }
         }
         if !result {
-            apphudLog("Tried to send Logs, but user not yet registered, adding to schedule")
+            apphudLog("Tried to send logs, but user not yet registered, adding to schedule")
         }
     }
 
@@ -522,7 +514,7 @@ final class ApphudInternal: NSObject {
             let environment = Apphud.isSandbox() ? "sandbox" : "production"
             let final_params: [String: AnyHashable] = ["device_id": self.currentDeviceID,
                                                        "user_id": self.currentUserID,
-                                                       "timestamp": Date().currentTimestamp(),
+                                                       "timestamp": Date().currentTimestamp,
                                                        "environment": environment].merging(params, uniquingKeysWith: {(current, _) in current})
             
             self.httpClient?.startRequest(path: "events", apiVersion: .APIV1, params: final_params, method: .post, callback: callback)
@@ -538,7 +530,7 @@ final class ApphudInternal: NSObject {
             let environment = Apphud.isSandbox() ? "sandbox" : "production"
             var final_params: [String: AnyHashable] = ["device_id": self.currentDeviceID,
                                                        "user_id": self.currentUserID,
-                                                       "timestamp": Date().currentTimestamp(),
+                                                       "timestamp": Date().currentTimestamp,
                                                        "environment": environment].merging(params, uniquingKeysWith: {(current, _) in current})
             
             if let bundleID = Bundle.main.bundleIdentifier {
@@ -614,8 +606,8 @@ final class ApphudInternal: NSObject {
 
 extension Date {
     /// Returns current Timestamp
-    func currentTimestamp() -> Int64 {
-        return Int64(self.timeIntervalSince1970 * 1000)
+    var currentTimestamp: Int64 {
+      Int64(self.timeIntervalSince1970 * 1000)
     }
 }
 

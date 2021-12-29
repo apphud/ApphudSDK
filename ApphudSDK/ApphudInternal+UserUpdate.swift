@@ -74,7 +74,7 @@ extension ApphudInternal {
             let finalResult = result && self.currentUser != nil
 
             if finalResult {
-                UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "lastUserUpdateTimestamp")
+                ApphudLoggerService.lastUserUpdatedAt = Date()
                 let endBench = startBench.timeIntervalSinceNow * -1
                 ApphudLoggerService.shared.addDurationEvent(ApphudLoggerService.durationLog.customers.value(), endBench)
                 

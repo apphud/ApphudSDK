@@ -11,6 +11,15 @@ import StoreKit
 @available(OSX 10.14.4, *)
 class ApphudLoggerService {
     
+    var lastUserUpdatedAt: Date? {
+        get {
+            return UserDefaults.standard.object(forKey: "lastUserUpdatedAt") as? Date
+        }
+        set {
+            return UserDefaults.standard.set(Date(), forKey: "lastUserUpdatedAt")
+        }
+    }
+    
     enum durationLog {
         case customers
         case products
