@@ -11,7 +11,7 @@ import StoreKit
 @available(OSX 10.14.4, *)
 class ApphudLoggerService {
     
-    var lastUserUpdatedAt: Date? {
+    static var lastUserUpdatedAt: Date? {
         get {
             return UserDefaults.standard.object(forKey: "lastUserUpdatedAt") as? Date
         }

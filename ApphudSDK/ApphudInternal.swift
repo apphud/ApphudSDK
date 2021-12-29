@@ -247,7 +247,7 @@ final class ApphudInternal: NSObject {
     }
     
     private func skipRegistration(isIdenticalUserIds:Bool, hasCashedUser:Bool) -> Bool {
-        return isIdenticalUserIds && hasCashedUser && isUserCacheExpired() && !isUserPaid()
+        return isIdenticalUserIds && hasCashedUser && !isUserCacheExpired() && !isUserPaid()
     }
     
     private func isUserPaid() -> Bool {
@@ -255,10 +255,10 @@ final class ApphudInternal: NSObject {
     }
         
     private func isUserCacheExpired() -> Bool {
-        if let lastUserUpdatedDate = ApphudLoggerService.lastUserUpdatedAt, Date().timeIntervalSince(lastUserUpdatedDate) > 30*60 {
-            return true
-        } else {
+        if let lastUserUpdatedDate = ApphudLoggerService.lastUserUpdatedAt, Date().timeIntervalSince(lastUserUpdatedDate) < 30*60 {
             return false
+        } else {
+            return true
         }
     }
 
