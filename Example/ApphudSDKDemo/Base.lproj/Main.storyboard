@@ -231,8 +231,9 @@
                                     <constraint firstAttribute="width" constant="45" id="uM5-Lj-ewy"/>
                                     <constraint firstAttribute="height" constant="45" id="ziC-ea-5ko"/>
                                 </constraints>
+                                <color key="tintColor" red="0.066666666669999999" green="0.42352941179999998" blue="0.84313725490000002" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                                 <buttonConfiguration key="configuration" style="plain" title="X">
-                                    <fontDescription key="titleFontDescription" type="system" pointSize="18"/>
+                                    <fontDescription key="titleFontDescription" type="system" weight="semibold" pointSize="20"/>
                                 </buttonConfiguration>
                                 <connections>
                                     <action selector="closeView:" destination="kZI-8A-ILD" eventType="touchUpInside" id="fzj-zg-2oz"/>
