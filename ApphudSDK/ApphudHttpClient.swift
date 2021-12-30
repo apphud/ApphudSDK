@@ -65,7 +65,6 @@ public class ApphudHttpClient {
         return URLSession.init(configuration: config)
     }()
     
-    private let CACHE_TIMEOUT: TimeInterval = 3600.0
     private let GET_TIMEOUT: TimeInterval = 10.0
     private let POST_PUT_TIMEOUT: TimeInterval = 40.0
 
@@ -120,7 +119,7 @@ public class ApphudHttpClient {
         if FileManager.default.fileExists(atPath: url.path),
            let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
            let creationDate = attrs[.creationDate] as? Date,
-           Date().timeIntervalSince(creationDate) < CACHE_TIMEOUT,
+           Date().timeIntervalSince(creationDate) < ApphudInternal.shared.cacheTimeout,
            let data = try? Data(contentsOf: url) {
             return data
         }

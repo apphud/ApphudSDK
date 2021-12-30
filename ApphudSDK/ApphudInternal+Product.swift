@@ -171,7 +171,7 @@ extension ApphudInternal {
         
         didRetrievePaywallsAtThisLaunch = true
         
-        if pwls.count > 0 && writeToCache {
+        if writeToCache {
             self.cachePaywalls(paywalls: paywalls)
         }
         
@@ -264,8 +264,6 @@ extension ApphudInternal {
     
     internal func cachedGroups() -> [ApphudGroup]? {
         
-        let cacheTimeout: TimeInterval = apphudIsSandbox() ? 60 : 3600
-        
         if let data = apphudDataFromCache(key: "ApphudProductGroups", cacheTimeout: cacheTimeout) {
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase
@@ -286,8 +284,6 @@ extension ApphudInternal {
     }
     
     internal func cachedPaywalls() -> [ApphudPaywall]? {
-        
-        let cacheTimeout: TimeInterval = apphudIsSandbox() ? 60 : 3600
         
         if let data = apphudDataFromCache(key: "ApphudPaywalls", cacheTimeout: cacheTimeout) {
             let decoder = JSONDecoder()

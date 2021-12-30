@@ -239,23 +239,29 @@ final class ApphudInternal: NSObject {
         }
 
         self.productGroups = cachedGroups() ?? []
-        self.paywalls = cachedPaywalls() ?? []
+        
+        let cachedPwls = cachedPaywalls()
+        self.paywalls = cachedPwls ?? []
         
         DispatchQueue.main.async {
-            self.continueToRegisteringUser(skipRegistration: self.skipRegistration(isIdenticalUserIds: isIdenticalUserIds, hasCashedUser: self.currentUser != nil))
+            self.continueToRegisteringUser(skipRegistration: self.skipRegistration(isIdenticalUserIds: isIdenticalUserIds, hasCashedUser: self.currentUser != nil, hasCachedPaywalls: cachedPwls != nil))
         }
     }
     
-    private func skipRegistration(isIdenticalUserIds:Bool, hasCashedUser:Bool) -> Bool {
-        return isIdenticalUserIds && hasCashedUser && !isUserCacheExpired() && !isUserPaid()
+    private func skipRegistration(isIdenticalUserIds: Bool, hasCashedUser: Bool, hasCachedPaywalls: Bool) -> Bool {
+        return isIdenticalUserIds && hasCashedUser && hasCachedPaywalls && !isUserCacheExpired() && !isUserPaid()
     }
     
     private func isUserPaid() -> Bool {
        return self.currentUser?.subscriptions.count ?? 0 > 0 || self.currentUser?.purchases.count ?? 0 > 0
     }
         
+    internal var cacheTimeout: TimeInterval {
+        apphudIsSandbox() ? 60 : 3600
+    }
+    
     private func isUserCacheExpired() -> Bool {
-        if let lastUserUpdatedDate = ApphudLoggerService.lastUserUpdatedAt, Date().timeIntervalSince(lastUserUpdatedDate) < 30*60 {
+        if let lastUserUpdatedDate = ApphudLoggerService.lastUserUpdatedAt, Date().timeIntervalSince(lastUserUpdatedDate) < cacheTimeout {
             return false
         } else {
             return true
