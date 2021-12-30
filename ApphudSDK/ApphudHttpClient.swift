@@ -21,6 +21,7 @@ typealias ApphudStringCallback = (String?, Error?) -> Void
 /**
  This is Apphud's internal class.
  */
+@available(OSX 10.14.4, *)
 @available(iOS 11.2, *)
 public class ApphudHttpClient {
 
@@ -36,7 +37,7 @@ public class ApphudHttpClient {
     }
 
     static let productionEndpoint = "https://api.apphud.com"
-    public var sdkType:String = "ios"
+    public var sdkType:String = "swift"
     public var sdkVersion:String = apphud_sdk_version
     
     #if DEBUG
@@ -55,6 +56,7 @@ public class ApphudHttpClient {
     
     internal var invalidAPiKey: Bool = false
     internal var unauthorized: Bool = false
+    internal var suspended: Bool = false
     
     private let session: URLSession = {
         let config = URLSessionConfiguration.default
@@ -63,7 +65,6 @@ public class ApphudHttpClient {
         return URLSession.init(configuration: config)
     }()
     
-    private let CACHE_TIMEOUT: TimeInterval = 3600.0
     private let GET_TIMEOUT: TimeInterval = 10.0
     private let POST_PUT_TIMEOUT: TimeInterval = 40.0
 
@@ -74,8 +75,10 @@ public class ApphudHttpClient {
     }
 
     internal func startRequest(path: String, apiVersion: ApphudApiVersion = .APIV1, params: [String: Any]?, method: ApphudHttpMethod, useDecoder: Bool = false, callback: ApphudHTTPResponseCallback?) {
-        if let request = makeRequest(path: path, apiVersion: apiVersion, params: params, method: method) {
+        if let request = makeRequest(path: path, apiVersion: apiVersion, params: params, method: method), !suspended {
             start(request: request, useDecoder: useDecoder, callback: callback)
+        } else {
+            apphudLog("Unable to perform API requests, because your account has been suspended.", forceDisplay: true)
         }
     }
 
@@ -116,7 +119,7 @@ public class ApphudHttpClient {
         if FileManager.default.fileExists(atPath: url.path),
            let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
            let creationDate = attrs[.creationDate] as? Date,
-           Date().timeIntervalSince(creationDate) < CACHE_TIMEOUT,
+           Date().timeIntervalSince(creationDate) < ApphudInternal.shared.cacheTimeout,
            let data = try? Data(contentsOf: url) {
             return data
         }
@@ -170,14 +173,20 @@ public class ApphudHttpClient {
             guard let finalURL = url else {
                 return nil
             }
-
+            
+            var platform = "ios"
+            #if os(macOS)
+            platform = "macos"
+            #endif
+            
             request = requestInstance(url: finalURL)
             request?.httpMethod = method.rawValue
             request?.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
             request?.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Accept")
-            request?.setValue("ios", forHTTPHeaderField: "X-Platform")
+            request?.setValue(platform, forHTTPHeaderField: "X-Platform")
             request?.setValue(self.sdkType, forHTTPHeaderField: "X-SDK")
             request?.setValue(self.sdkVersion, forHTTPHeaderField: "X-SDK-VERSION")
+            request?.setValue("Apphud \(platform) (Swift \(self.sdkVersion))", forHTTPHeaderField: "User-Agent")
             request?.timeoutInterval = method == .get ? GET_TIMEOUT : POST_PUT_TIMEOUT
             if method != .get {
                 var finalParams: [String: Any] = ["api_key": apiKey]
@@ -257,6 +266,7 @@ public class ApphudHttpClient {
                         apphudLog("Unable to perform API requests, because your API Key is invalid.", forceDisplay: true)
                     } else if code == 403 {
                         self.unauthorized = true
+                        self.suspended = true
                         apphudLog("Unable to perform API requests, because your account has been suspended.", forceDisplay: true)
                     }
 

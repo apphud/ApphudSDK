@@ -5,8 +5,6 @@
 //  Created by Renat Kurbanov on 29.04.2021.
 //
 
-import UIKit
-
 public class ApphudPaywall: NSObject, Codable {
     
     @objc public internal(set) var identifier: String

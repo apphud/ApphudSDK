@@ -9,6 +9,7 @@
 import Foundation
 import StoreKit
 
+@available(OSX 10.14.4, *)
 extension ApphudInternal {
 
     @objc internal func continueToFetchProducts() {
@@ -21,7 +22,12 @@ extension ApphudInternal {
                 apphudLog("Using cached product groups structure")
                 self.continueWithProductGroups(productGroups, errorCode: nil, writeToCache: false)
             } else {
-                getProductGroups { groups, _, code in
+                let startBench = Date()
+                getProductGroups { groups, error, code in
+                    if error == nil {
+                        let endBench = startBench.timeIntervalSinceNow * -1
+                        ApphudLoggerService.shared.addDurationEvent(ApphudLoggerService.durationLog.products.value(), endBench)
+                    }
                     self.continueWithProductGroups(groups, errorCode: code, writeToCache: true)
                 }
             }
@@ -69,7 +75,6 @@ extension ApphudInternal {
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(continueToFetchProducts), object: nil)
         perform(#selector(continueToFetchProducts), with: nil, afterDelay: delay)
         apphudLog("No Product Identifiers found in Apphud. Probably you forgot to add products in Apphud Settings? Scheduled products fetch retry in \(delay) seconds.", forceDisplay: true)
-        ApphudLoggerService.logError("No Product Identifiers found in Apphud")
     }
 
     internal func continueToFetchStoreKitProducts() {
@@ -83,15 +88,15 @@ extension ApphudInternal {
             productIDs.append(contentsOf: group.products.map { $0.productId })
         }
         
-        ApphudStoreKitWrapper.shared.fetchProducts(identifiers: Set(productIDs)) { storeKitProducts in
+        ApphudStoreKitWrapper.shared.fetchProducts(identifiers: Set(productIDs)) { storeKitProducts, error in
             
             self.updateProductGroupsWithStoreKitProducts()
             ApphudInternal.shared.performAllStoreKitProductsFetchedCallbacks()
             NotificationCenter.default.post(name: Apphud.didFetchProductsNotification(), object: storeKitProducts)
-            ApphudInternal.shared.delegate?.apphudDidFetchStoreKitProducts?(storeKitProducts)
-            self.customProductsFetchedBlocks.forEach { block in block(storeKitProducts) }
+            ApphudInternal.shared.delegate?.apphudDidFetchStoreKitProducts?(storeKitProducts, error)
+            self.customProductsFetchedBlocks.forEach { block in block(storeKitProducts, error) }
             self.customProductsFetchedBlocks.removeAll()
-            
+            self.updatePaywallsWithStoreKitProducts(paywalls: self.paywalls) // double call, but it's okay, because user may call refreshStorKitProducts method
             self.continueToUpdateCurrencyIfNeeded()
         }
     }
@@ -106,7 +111,7 @@ extension ApphudInternal {
         }
     }
 
-    internal func refreshStoreKitProductsWithCallback(callback: (([SKProduct]) -> Void)?) {
+    internal func refreshStoreKitProductsWithCallback(callback: (([SKProduct], Error?) -> Void)?) {
         
         callback.map { self.customProductsFetchedBlocks.append($0) }
 
@@ -145,13 +150,16 @@ extension ApphudInternal {
     internal func getPaywalls(forceRefresh: Bool = false, callback: @escaping ([ApphudPaywall]?, Error?) -> Void) {
                 
         self.performWhenUserRegistered {
+            let startBench = Date()
+            
             self.fetchPaywallsIfNeeded(forceRefresh: forceRefresh) { pwls, error, writeToCache in
-                
                 guard let pwls = pwls else {
                     callback(nil, error)
                     return
                 }
                 
+                let endBench = startBench.timeIntervalSinceNow * -1
+                ApphudLoggerService.shared.addDurationEvent(ApphudLoggerService.durationLog.paywallConfigs.value(), endBench)
                 self.preparePaywalls(pwls: pwls, writeToCache: writeToCache, completionBlock: callback)
             }
         }
@@ -163,13 +171,12 @@ extension ApphudInternal {
         
         didRetrievePaywallsAtThisLaunch = true
         
-        if pwls.count > 0 && writeToCache {
+        if writeToCache {
             self.cachePaywalls(paywalls: paywalls)
         }
         
         self.performWhenStoreKitProductFetched {
             self.updatePaywallsWithStoreKitProducts(paywalls: self.paywalls)
-            self.paywallsAreReady = true
             completionBlock?(self.paywalls, nil)
             self.customPaywallsLoadedCallbacks.forEach { block in block(self.paywalls) }
             self.customPaywallsLoadedCallbacks.removeAll()
@@ -216,6 +223,8 @@ extension ApphudInternal {
     }
     
     internal func updatePaywallsWithStoreKitProducts(paywalls: [ApphudPaywall]) {
+        self.paywallsAreReady = true
+        
         paywalls.forEach { paywall in
             paywall.products.forEach({ product in
                 product.paywallId = paywall.id
@@ -255,8 +264,6 @@ extension ApphudInternal {
     
     internal func cachedGroups() -> [ApphudGroup]? {
         
-        let cacheTimeout: TimeInterval = apphudIsSandbox() ? 60 : 3600
-        
         if let data = apphudDataFromCache(key: "ApphudProductGroups", cacheTimeout: cacheTimeout) {
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase
@@ -277,8 +284,6 @@ extension ApphudInternal {
     }
     
     internal func cachedPaywalls() -> [ApphudPaywall]? {
-        
-        let cacheTimeout: TimeInterval = apphudIsSandbox() ? 60 : 3600
         
         if let data = apphudDataFromCache(key: "ApphudPaywalls", cacheTimeout: cacheTimeout) {
             let decoder = JSONDecoder()

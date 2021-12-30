@@ -9,6 +9,7 @@
 import Foundation
 import StoreKit
 
+#if canImport(UIKit)
 internal class ApphudNavigationController: UINavigationController {
 
     private var pendingScreens = [ApphudScreenController]()
@@ -70,3 +71,5 @@ extension ApphudNavigationController: UIAdaptivePresentationControllerDelegate {
     }
 
 }
+
+#endif

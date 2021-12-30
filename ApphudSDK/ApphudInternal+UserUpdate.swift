@@ -7,10 +7,14 @@
 //
 
 import Foundation
+#if canImport(UIKit)
 import UIKit
+#endif
 
+@available(OSX 10.14.4, *)
 extension ApphudInternal {
 
+    
     @discardableResult internal func parseUser(_ dict: [String: Any]?) -> HasPurchasesChanges {
 
         guard let dataDict = dict?["data"] as? [String: Any] else {
@@ -46,7 +50,7 @@ extension ApphudInternal {
         
     private func mappingPaywalls(_ pwls: [[String: Any]]) {
         let finalPaywalls = pwls.map { ApphudPaywall(dictionary: $0) }
-        self.preparePaywalls(pwls: finalPaywalls, writeToCache: finalPaywalls.count > 0, completionBlock: nil)
+        self.preparePaywalls(pwls: finalPaywalls, writeToCache: true, completionBlock: nil)
     }
 
     private func checkUserID(tellDelegate: Bool) {
@@ -60,18 +64,29 @@ extension ApphudInternal {
         }
     }
 
-    internal func createOrGetUser(shouldUpdateUserID: Bool, callback: @escaping (Bool, Int) -> Void) {
+    internal func createOrGetUser(shouldUpdateUserID: Bool, skipRegistration:Bool = false, callback: @escaping (Bool, Int) -> Void) {
+        if skipRegistration {
+            apphudLog("Loading user from cache, because cache is not expired.")
+            self.preparePaywalls(pwls: self.paywalls, writeToCache: false, completionBlock: nil)
+            if self.requiresReceiptSubmission {
+                self.submitAppStoreReceipt()
+            }
+            callback(true, 0)
+            return
+        }
+        
         let fields = shouldUpdateUserID ? ["user_id": self.currentUserID] : [:]
         let startBench = Date()
         
         self.updateUser(fields: fields) { (result, response, _, error, code) in
             let hasChanges = self.parseUser(response)
-
+            
             let finalResult = result && self.currentUser != nil
-
+            
             if finalResult {
+                ApphudLoggerService.lastUserUpdatedAt = Date()
                 let endBench = startBench.timeIntervalSinceNow * -1
-                ApphudInternal.shared.logEvent(params: ["message": String(format:"customers_benchmark:%.3f", endBench)]) {}
+                ApphudLoggerService.shared.addDurationEvent(ApphudLoggerService.durationLog.customers.value(), endBench)
                 
                 if hasChanges.hasSubscriptionChanges {
                     self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions)
@@ -200,20 +215,35 @@ extension ApphudInternal {
         }
         return type
     }
+    
+    private func arePropertyValuesEqual(value1: Any?, value2: Any?) -> Bool {
+        let className1 = object_getClass(value1)?.description() ?? ""
+        let className2 = object_getClass(value2)?.description() ?? ""
+        
+        if className1 == "NSNull" && className2 == "NSNull" { return true }
+        if value1 is NSNull && value2 is NSNull { return true }
+        if value1 is String && value2 is String, value1 as? String == value2 as? String { return true }
+        if value1 is NSString && value2 is NSString, (value1 as! NSString).isEqual(value2 as! NSString) { return true }
+        if value1 is NSNumber && value2 is NSNumber, (value1 as! NSNumber).isEqual(value2 as! NSNumber) { return true }
+        if value1 is Int && value2 is Int, value1 as! Int == value2 as! Int { return true }
+        if value1 is Float && value2 is Float, value1 as! Float == value2 as! Float { return true }
+        if value1 is Double && value2 is Double, value1 as! Double == value2 as! Double { return true }
+        if value1 is Bool && value2 is Bool, value1 as! Bool == value2 as! Bool { return true }
+        
+        return false
+    }
 
     internal func setUserProperty(key: ApphudUserPropertyKey, value: Any?, setOnce: Bool, increment: Bool = false) {
 
         guard let typeString = getType(value: value) else {
             let givenType = type(of: value)
             apphudLog("Invalid property type: (\(givenType)). Must be one of: [Int, Float, Double, Bool, String, NSNull, nil]", forceDisplay: true)
-            ApphudLoggerService.logError("set user property: Invalid property type")
             return
         }
 
         if increment && !(typeString == "integer" || typeString == "float") {
             let givenType = type(of: value)
             apphudLog("Invalid increment property type: (\(givenType)). Must be one of: [Int, Float, Double]", forceDisplay: true)
-            ApphudLoggerService.logError("set user property: Invalid increment property type")
             return
         }
         
@@ -231,19 +261,72 @@ extension ApphudInternal {
         var params = [String: Any]()
         params["device_id"] = self.currentDeviceID
 
+        var canSaveToCache = true
         var properties = [[String: Any?]]()
         pendingUserProperties.forEach { property in
             if let json = property.toJSON() {
                 properties.append(json)
+                if property.increment {
+                    canSaveToCache = false
+                }
             }
         }
         params["properties"] = properties
+        
+        if canSaveToCache == false {
+            // if new properties are not cacheable, then remove old cache and send new props to backend and not cache them
+            self.userPropertiesCache = nil
+        } else if let cachedProperties = self.userPropertiesCache {
+            var shouldSkipUpload = true
+            if cachedProperties.count == properties.count {
+                for cachedProp in cachedProperties {
+                    if let newProperty = properties.first(where: { $0["name"] as! String == cachedProp["name"] as! String }) {
+                        if !arePropertyValuesEqual(value1: newProperty["value"] as Any?, value2: cachedProp["value"] as Any?) {
+                            shouldSkipUpload = false
+                            // values are not equal
+                            break
+                        }
+                    } else {
+                        // not found a property
+                        shouldSkipUpload = false
+                        break
+                    }
+                    
+                }
+            } else {
+                shouldSkipUpload = false
+            }
+            
+            if shouldSkipUpload {
+                apphudLog("Skip uploading user properties, because values did not change") //:\n\n\(properties),\n\ncache:\n\n\(cachedProperties)")
+                self.pendingUserProperties.removeAll()
+                return
+            }
+        }
+        
         httpClient?.startRequest(path: "customers/properties", params: params, method: .post) { (result, _, _, error, code) in
             if result {
+                if canSaveToCache { self.userPropertiesCache = properties }
                 self.pendingUserProperties.removeAll()
                 apphudLog("User Properties successfully updated.")
             } else {
                 apphudLog("User Properties update failed: \(error?.localizedDescription ?? "") with code: \(code)")
+            }
+        }
+    }
+    
+    private var userPropertiesCache: [[String: Any?]]? {
+        get {
+            if let data = apphudDataFromCache(key: "ApphudUserPropertiesCache", cacheTimeout: 86_400*7),
+                let object = try? JSONSerialization.jsonObject(with: data, options: []) as? [[String: Any?]] {
+                return object
+            } else {
+                return nil
+            }
+        }
+        set {
+            if newValue != nil, let data = try? JSONSerialization.data(withJSONObject: newValue!, options: .prettyPrinted) {
+                apphudDataToCache(data: data, key: "ApphudUserPropertiesCache")
             }
         }
     }

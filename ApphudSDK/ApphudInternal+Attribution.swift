@@ -8,6 +8,7 @@
 
 import Foundation
 
+@available(OSX 10.14.4, *)
 extension ApphudInternal {
 
     // MARK: - Attribution
@@ -29,23 +30,36 @@ extension ApphudInternal {
                     return
                 }
                 guard !self.isSendingAppsFlyer else {
-                    apphudLog("Already submitting AppsFlyer attribution, skipping", forceDisplay: true)
+                    apphudLog("Already submitted AppsFlyer attribution, skipping", forceDisplay: true)
                     callback?(false)
                     return
                 }
                 params["appsflyer_id"] = identifer
+                
                 if data != nil {
                     params["appsflyer_data"] = data
+                    
+                    guard self.submittedPreviouslyAF(data: data!) else {
+                        apphudLog("Already submitted AppsFlyer attribution, skipping", forceDisplay: true)
+                        callback?(false)
+                        return
+                    }
                 }
                 self.isSendingAppsFlyer = true
             case .adjust:
                 guard !self.isSendingAdjust else {
-                    apphudLog("Already submitting Adjust attribution, skipping", forceDisplay: true)
+                    apphudLog("Already submitted Adjust attribution, skipping", forceDisplay: true)
                     callback?(false)
                     return
                 }
                 if data != nil {
                     params["adjust_data"] = data
+                    
+                    guard self.submittedPreviouslyAdjust(data: data!) else {
+                        apphudLog("Already submitted Adjust attribution, skipping", forceDisplay: true)
+                        callback?(false)
+                        return
+                    }
                 }
                 self.isSendingAdjust = true
             case .appleSearchAds:
@@ -89,10 +103,35 @@ extension ApphudInternal {
             // to avoid 404 problems on backend
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 self.startAttributionRequest(params: params, provider: provider, identifer: identifer) { result in
+                    if result {
+                        switch provider {
+                        case .appsFlyer:
+                            self.submittedAFData = data
+                        case .adjust:
+                            self.submittedAdjustData = data
+                        default :
+                            break
+                        }
+                    }
                     callback?(result)
                 }
             }
         }
+    }
+    
+    func submittedPreviouslyAF(data:[AnyHashable: Any]) -> Bool {
+        return self.compareAttribution(first: data, second: self.submittedAFData ?? [:])
+    }
+    
+    func submittedPreviouslyAdjust(data:[AnyHashable: Any]) -> Bool {
+        return self.compareAttribution(first: data, second: self.submittedAdjustData ?? [:])
+    }
+    
+    func compareAttribution(first:[AnyHashable: Any], second:[AnyHashable: Any]) -> Bool {
+        let dictionary1 = NSDictionary(dictionary: first)
+        let dictionary2 = NSDictionary(dictionary: second)
+        
+        return !dictionary1.isEqual(to: dictionary2 as! [AnyHashable : Any])
     }
     
     func startAttributionRequest(params: [String: Any], provider: ApphudAttributionProvider, identifer:String?, callback: ((Bool) -> Void)?) {
@@ -135,7 +174,6 @@ extension ApphudInternal {
             } else {
                 let message = "Failed to send \(provider.toString()) attribution data to Apphud!"
                 apphudLog(message)
-                ApphudLoggerService.logError(message)
             }
             
             callback?(result)

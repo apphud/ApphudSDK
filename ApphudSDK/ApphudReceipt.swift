@@ -7,6 +7,7 @@
 
 import Foundation
 
+@available(OSX 10.14.4, *)
 public class ApphudReceipt: NSObject, Codable {
     
     /**
@@ -84,7 +85,6 @@ public class ApphudReceipt: NSObject, Codable {
             } catch {
                 let message = "An error occurred while decoding App Store Receipt: \(error)"
                 apphudLog(message)
-                ApphudLoggerService.logError(message)
                 completion(nil)
             }
         }

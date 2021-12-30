@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="17506" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="F2Z-vP-QdV">
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="19529" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="F2Z-vP-QdV">
     <device id="retina6_1" orientation="portrait" appearance="light"/>
     <dependencies>
         <deployment identifier="iOS"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="17505"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="19519"/>
         <capability name="Safe area layout guides" minToolsVersion="9.0"/>
         <capability name="System colors in document resources" minToolsVersion="11.0"/>
         <capability name="collection view cell content view" minToolsVersion="11.0"/>
@@ -20,7 +20,7 @@
                         <color key="backgroundColor" systemColor="groupTableViewBackgroundColor"/>
                         <prototypes>
                             <tableViewCell clipsSubviews="YES" contentMode="scaleToFill" preservesSuperviewLayoutMargins="YES" selectionStyle="default" indentationWidth="10" reuseIdentifier="productCell" textLabel="c1c-JZ-7Q8" detailTextLabel="moR-Nq-VaK" rowHeight="90" style="IBUITableViewCellStyleSubtitle" id="RJr-ky-FVh">
-                                <rect key="frame" x="0.0" y="55.5" width="414" height="90"/>
+                                <rect key="frame" x="0.0" y="49.5" width="414" height="90"/>
                                 <autoresizingMask key="autoresizingMask"/>
                                 <tableViewCellContentView key="contentView" opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" preservesSuperviewLayoutMargins="YES" insetsLayoutMarginsFromSafeArea="NO" tableViewCell="RJr-ky-FVh" id="75f-bi-rDz">
                                     <rect key="frame" x="0.0" y="0.0" width="414" height="90"/>
@@ -217,7 +217,7 @@
                                 </connections>
                             </collectionView>
                             <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Apphud Paywall" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="CVp-Ag-2az">
-                                <rect key="frame" x="20" y="64" width="374" height="45"/>
+                                <rect key="frame" x="70" y="64" width="274" height="45"/>
                                 <constraints>
                                     <constraint firstAttribute="height" constant="45" id="ocL-DI-Wc2"/>
                                 </constraints>
@@ -225,16 +225,32 @@
                                 <nil key="textColor"/>
                                 <nil key="highlightedColor"/>
                             </label>
+                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="hqS-pe-ZkB">
+                                <rect key="frame" x="17" y="64" width="45" height="45"/>
+                                <constraints>
+                                    <constraint firstAttribute="width" constant="45" id="uM5-Lj-ewy"/>
+                                    <constraint firstAttribute="height" constant="45" id="ziC-ea-5ko"/>
+                                </constraints>
+                                <color key="tintColor" red="0.066666666669999999" green="0.42352941179999998" blue="0.84313725490000002" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                                <buttonConfiguration key="configuration" style="plain" title="X">
+                                    <fontDescription key="titleFontDescription" type="system" weight="semibold" pointSize="20"/>
+                                </buttonConfiguration>
+                                <connections>
+                                    <action selector="closeView:" destination="kZI-8A-ILD" eventType="touchUpInside" id="fzj-zg-2oz"/>
+                                </connections>
+                            </button>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="b18-S9-lv6"/>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
                         <constraints>
-                            <constraint firstItem="CVp-Ag-2az" firstAttribute="leading" secondItem="b18-S9-lv6" secondAttribute="leading" constant="20" id="1JV-fF-zCn"/>
+                            <constraint firstItem="CVp-Ag-2az" firstAttribute="leading" secondItem="b18-S9-lv6" secondAttribute="leading" constant="70" id="1JV-fF-zCn"/>
+                            <constraint firstItem="hqS-pe-ZkB" firstAttribute="centerY" secondItem="CVp-Ag-2az" secondAttribute="centerY" id="1Pl-0h-bTN"/>
+                            <constraint firstItem="hqS-pe-ZkB" firstAttribute="leading" secondItem="b18-S9-lv6" secondAttribute="leading" constant="17" id="3bQ-ri-ucI"/>
                             <constraint firstItem="QIk-pk-v6B" firstAttribute="top" secondItem="CVp-Ag-2az" secondAttribute="bottom" constant="15" id="LaS-t3-pI2"/>
                             <constraint firstItem="b18-S9-lv6" firstAttribute="bottom" secondItem="QIk-pk-v6B" secondAttribute="bottom" id="N7B-qM-Q73"/>
                             <constraint firstItem="QIk-pk-v6B" firstAttribute="trailing" secondItem="b18-S9-lv6" secondAttribute="trailing" id="QYq-P8-FYj"/>
                             <constraint firstItem="QIk-pk-v6B" firstAttribute="leading" secondItem="b18-S9-lv6" secondAttribute="leading" id="hwb-1Q-wFo"/>
-                            <constraint firstItem="b18-S9-lv6" firstAttribute="trailing" secondItem="CVp-Ag-2az" secondAttribute="trailing" constant="20" id="tiW-8K-VKI"/>
+                            <constraint firstItem="b18-S9-lv6" firstAttribute="trailing" secondItem="CVp-Ag-2az" secondAttribute="trailing" constant="70" id="tiW-8K-VKI"/>
                             <constraint firstItem="CVp-Ag-2az" firstAttribute="top" secondItem="b18-S9-lv6" secondAttribute="top" constant="20" id="yaC-A3-IUq"/>
                         </constraints>
                     </view>

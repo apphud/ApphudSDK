@@ -10,8 +10,9 @@ import Foundation
 import WebKit
 import StoreKit
 import SafariServices
-
+#if canImport(UIKit)
 @available(iOS 11.2, *)
+
 extension ApphudScreenController: WKNavigationDelegate {
 
     func handleNavigationAction(navigationAction: WKNavigationAction) -> Bool {
@@ -241,3 +242,5 @@ extension ApphudScreenController {
         }
     }
 }
+
+#endif

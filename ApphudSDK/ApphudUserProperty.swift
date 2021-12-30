@@ -5,8 +5,6 @@
 //  Created by Renat on 15.08.2020.
 //
 
-import UIKit
-
 struct ApphudUserProperty {
     let key: String
     let value: Any?
@@ -27,7 +25,7 @@ struct ApphudUserProperty {
 
         var jsonParams: [String: Any?] = ["name": key, "value": modifiedValue, "set_once": setOnce]
 
-        if value != nil {
+        if value != nil && !(value is NSNull) {
             jsonParams["kind"] = type
         }
 

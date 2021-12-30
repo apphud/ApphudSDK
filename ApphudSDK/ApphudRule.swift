@@ -6,8 +6,6 @@
 //  Copyright © 2019 Apphud Inc. All rights reserved.
 //
 
-import UIKit
-
 public class ApphudRule: NSObject {
 
     /**

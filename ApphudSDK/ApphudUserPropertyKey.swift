@@ -5,8 +5,6 @@
 //  Created by Renat on 18.08.2020.
 //
 
-import UIKit
-
 /**
  Built-in property keys.
  */

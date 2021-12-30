@@ -6,9 +6,13 @@
 //  Copyright © 2020 Apphud Inc. All rights reserved.
 //
 
+#if canImport(UIKit)
+import UIKit
+#endif
 import Foundation
 import StoreKit
 
+#if canImport(UIKit)
 extension ApphudScreenController {
     func replaceStringFor(product: SKProduct, offerID: String? = nil) -> String {
         if offerID != nil {
@@ -17,7 +21,6 @@ extension ApphudScreenController {
                     return product.apphudLocalizedDiscountPrice(discount: discount)
                 } else {
                     apphudLog("Couldn't find promo offer with id: \(offerID!) in product: \(product.productIdentifier), available promo offer ids: \(product.apphudPromoIdentifiers())", forceDisplay: true)
-                    ApphudLoggerService.logError("Couldn't find promo offer with id")
                     return ""
                 }
             } else {
@@ -115,3 +118,4 @@ extension ApphudScreenController {
         self.editAndReloadPage(html: html as String)
     }
 }
+#endif

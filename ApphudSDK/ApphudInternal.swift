@@ -11,6 +11,7 @@ import StoreKit
 
 internal typealias HasPurchasesChanges = (hasSubscriptionChanges: Bool, hasNonRenewingChanges: Bool)
 
+@available(OSX 10.14.4, *)
 @available(iOS 11.2, *)
 final class ApphudInternal: NSObject {
 
@@ -66,7 +67,7 @@ final class ApphudInternal: NSObject {
     internal var pendingUserProperties = [ApphudUserProperty]()
     internal var lastCheckDate = Date()
     internal var userRegisterRetriesCount: Int = 0
-    internal let maxNumberOfUserRegisterRetries: Int = 10
+    internal let maxNumberOfUserRegisterRetries: Int = 25
     internal var paywallEventsRetriesCount: Int = 0
     internal let maxNumberOfPaywallEventsRetries: Int = 25
     internal var didRetrievePaywallsAtThisLaunch: Bool = false
@@ -105,6 +106,8 @@ final class ApphudInternal: NSObject {
     internal let didSubmitAdjustAttributionKey = "didSubmitAdjustAttributionKey"
     internal let didSubmitProductPricesKey = "didSubmitProductPricesKey"
     internal let submittedFirebaseIdKey = "submittedFirebaseIdKey"
+    internal let submittedAFDataKey = "submittedAFDataKey"
+    internal let submittedAdjustDataKey = "submittedAdjustDataKey"
     internal var didSubmitAppleAdsAttributionKey = "didSubmitAppleAdsAttributionKey"
     internal var isSendingAppsFlyer = false
     internal var isSendingAdjust = false
@@ -148,6 +151,22 @@ final class ApphudInternal: NSObject {
         }
         set {
             UserDefaults.standard.set(newValue, forKey: didSubmitAppleAdsAttributionKey)
+        }
+    }
+    internal var submittedAFData: [AnyHashable: Any]? {
+        get {
+            UserDefaults.standard.object(forKey: submittedAFDataKey) as? [AnyHashable: Any]
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: submittedAFDataKey)
+        }
+    }
+    internal var submittedAdjustData: [AnyHashable: Any]? {
+        get {
+            UserDefaults.standard.object(forKey: submittedAdjustDataKey) as? [AnyHashable: Any]
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: submittedAdjustDataKey)
         }
     }
     internal var submittedFirebaseId: String? {
@@ -213,15 +232,39 @@ final class ApphudInternal: NSObject {
             self.currentUserID = generatedUUID
         }
 
+        var isIdenticalUserIds = true
         if self.currentUserID != userIDFromKeychain {
+            isIdenticalUserIds = false
             ApphudKeychain.saveUserID(userID: self.currentUserID)
         }
 
         self.productGroups = cachedGroups() ?? []
-        self.paywalls = cachedPaywalls() ?? []
+        
+        let cachedPwls = cachedPaywalls()
+        self.paywalls = cachedPwls ?? []
         
         DispatchQueue.main.async {
-            self.continueToRegisteringUser()
+            self.continueToRegisteringUser(skipRegistration: self.skipRegistration(isIdenticalUserIds: isIdenticalUserIds, hasCashedUser: self.currentUser != nil, hasCachedPaywalls: cachedPwls != nil))
+        }
+    }
+    
+    private func skipRegistration(isIdenticalUserIds: Bool, hasCashedUser: Bool, hasCachedPaywalls: Bool) -> Bool {
+        return isIdenticalUserIds && hasCashedUser && hasCachedPaywalls && !isUserCacheExpired() && !isUserPaid()
+    }
+    
+    private func isUserPaid() -> Bool {
+       return self.currentUser?.subscriptions.count ?? 0 > 0 || self.currentUser?.purchases.count ?? 0 > 0
+    }
+        
+    internal var cacheTimeout: TimeInterval {
+        apphudIsSandbox() ? 60 : 3600
+    }
+    
+    private func isUserCacheExpired() -> Bool {
+        if let lastUserUpdatedDate = ApphudLoggerService.lastUserUpdatedAt, Date().timeIntervalSince(lastUserUpdatedDate) < cacheTimeout {
+            return false
+        } else {
+            return true
         }
     }
 
@@ -232,15 +275,15 @@ final class ApphudInternal: NSObject {
         apphudLog("User logged out. Apphud SDK is uninitialized.", logLevel: .all)
     }
 
-    internal func continueToRegisteringUser() {
+    internal func continueToRegisteringUser(skipRegistration:Bool = false) {
         guard !isRegisteringUser else {return}
         isRegisteringUser = true
         continueToFetchProducts()
-        registerUser()
+        registerUser(skipRegistration: skipRegistration)
     }
     
-    @objc private func registerUser() {
-        createOrGetUser(shouldUpdateUserID: true) { success, errorCode in
+    @objc private func registerUser(skipRegistration:Bool = false) {
+        createOrGetUser(shouldUpdateUserID: true, skipRegistration:skipRegistration) { success, errorCode in
 
             self.isRegisteringUser = false
             self.setupObservers()
@@ -288,16 +331,25 @@ final class ApphudInternal: NSObject {
     // MARK: - Other
 
     private func setupObservers() {
+        #if os(macOS)
+        if !addedObservers {
+            NotificationCenter.default.addObserver(self, selector: #selector(handleDidBecomeActive), name: NSApplication.didBecomeActiveNotification, object: nil)
+            addedObservers = true
+        }
+        #else
         if !addedObservers {
             NotificationCenter.default.addObserver(self, selector: #selector(handleDidBecomeActive), name: UIApplication.didBecomeActiveNotification, object: nil)
             addedObservers = true
         }
+        #endif
     }
-
+    
     private func checkPendingRules() {
+        #if canImport(UIKit)
         performWhenUserRegistered {
             ApphudRulesManager.shared.handlePendingAPSInfo()
         }
+        #endif
     }
     
     @objc private func handleDidBecomeActive() {
@@ -324,6 +376,9 @@ final class ApphudInternal: NSObject {
             callback()
             return true
         } else {
+            if userRegisterRetriesCount >= maxNumberOfUserRegisterRetries {
+                registerUser()
+            }
             userRegisteredCallbacks.append(callback)
             return false
         }
@@ -397,6 +452,21 @@ final class ApphudInternal: NSObject {
     }
 
     // MARK: - V2 API
+    
+    internal func trackDurationLogs(params: [[String: AnyHashable]], callback: @escaping () -> Void) {
+        let result = performWhenUserRegistered {
+            let final_params: [String: AnyHashable] = ["device_id": self.currentDeviceID,
+                                                       "user_id": self.currentUserID,
+                                                       "bundle_id": Bundle.main.bundleIdentifier,
+                                                       "data":params]
+            self.httpClient?.startRequest(path: "logs", apiVersion: .APIV2, params: final_params, method: .post) { (_, _, _, _, _) in
+                callback()
+            }
+        }
+        if !result {
+            apphudLog("Tried to send logs, but user not yet registered, adding to schedule")
+        }
+    }
 
     internal func trackEvent(params: [String: AnyHashable], callback: @escaping () -> Void) {
         let result = performWhenUserRegistered {
@@ -446,7 +516,7 @@ final class ApphudInternal: NSObject {
             let environment = Apphud.isSandbox() ? "sandbox" : "production"
             let final_params: [String: AnyHashable] = ["device_id": self.currentDeviceID,
                                                        "user_id": self.currentUserID,
-                                                       "timestamp": Date().currentTimestamp(),
+                                                       "timestamp": Date().currentTimestamp,
                                                        "environment": environment].merging(params, uniquingKeysWith: {(current, _) in current})
             
             self.httpClient?.startRequest(path: "events", apiVersion: .APIV1, params: final_params, method: .post, callback: callback)
@@ -462,7 +532,7 @@ final class ApphudInternal: NSObject {
             let environment = Apphud.isSandbox() ? "sandbox" : "production"
             var final_params: [String: AnyHashable] = ["device_id": self.currentDeviceID,
                                                        "user_id": self.currentUserID,
-                                                       "timestamp": Date().currentTimestamp(),
+                                                       "timestamp": Date().currentTimestamp,
                                                        "environment": environment].merging(params, uniquingKeysWith: {(current, _) in current})
             
             if let bundleID = Bundle.main.bundleIdentifier {
@@ -499,6 +569,7 @@ final class ApphudInternal: NSObject {
     }
 
     internal func checkForUnreadNotifications() {
+        #if canImport(UIKit)
         performWhenUserRegistered {
             let params = ["device_id": self.currentDeviceID] as [String: String]
             self.httpClient?.startRequest(path: "notifications", apiVersion: .APIV2, params: params, method: .get, callback: { (result, response, _, _, _) in
@@ -511,6 +582,7 @@ final class ApphudInternal: NSObject {
                 }
             })
         }
+        #endif
     }
 
     internal func readAllNotifications(for ruleID: String) {
@@ -535,7 +607,9 @@ final class ApphudInternal: NSObject {
 }
 
 extension Date {
-    func currentTimestamp() -> Int64 {
-        return Int64(self.timeIntervalSince1970 * 1000)
+    /// Returns current Timestamp
+    var currentTimestamp: Int64 {
+      Int64(self.timeIntervalSince1970 * 1000)
     }
 }
+

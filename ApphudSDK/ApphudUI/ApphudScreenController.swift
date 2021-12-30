@@ -6,11 +6,15 @@
 //  Copyright © 2019 Apphud Inc. All rights reserved.
 //
 
+#if canImport(UIKit)
 import UIKit
+#endif
 import WebKit
 import StoreKit
 import SafariServices
 
+
+#if canImport(UIKit)
 @available(iOS 11.2, *)
 class ApphudScreenController: UIViewController {
 
@@ -366,3 +370,4 @@ class ApphudScreenController: UIViewController {
         }
     }
 }
+#endif

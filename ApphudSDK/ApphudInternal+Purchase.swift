@@ -9,6 +9,7 @@
 import Foundation
 import StoreKit
 
+@available(OSX 10.14.4, *)
 extension ApphudInternal {
 
     // MARK: - Main Purchase and Submit Receipt methods
@@ -80,11 +81,9 @@ extension ApphudInternal {
                     block(receipt)
                 } else {
                     if let transactionOid = transaction?.transactionIdentifier {
-                        ApphudLoggerService.logError("Receipt not found, submit receipt with transactionIdentifier \(transactionOid)")
                         block(nil)
                     } else {
                         let message = "Failed to get App Store receipt"
-                        ApphudLoggerService.logError(message)
                         apphudLog(message, forceDisplay: true)
                         callback?(ApphudPurchaseResult(nil, nil, transaction, ApphudError(message: "Failed to get App Store receipt")))
                     }
@@ -109,8 +108,9 @@ extension ApphudInternal {
         let environment = Apphud.isSandbox() ? "sandbox" : "production"
 
         var params: [String: Any] = ["device_id": self.currentDeviceID,
-                                          "environment": environment]
-        
+                                     "environment": environment,
+                                     "observer_mode": ApphudUtils.shared.storeKitObserverMode]
+
         if let receipt = receiptString {
             params["receipt_data"] = receipt
         }
@@ -136,15 +136,24 @@ extension ApphudInternal {
         apphudProduct?.id.map { params["product_bundle_id"] = $0 }
         apphudProduct?.paywallId.map { params["paywall_id"] = $0 }
         
-        if transaction?.transactionState == .purchased {
-            ApphudRulesManager.shared.cacheActiveScreens()
-        }
-
+        #if !os(macOS)
+            if transaction?.transactionState == .purchased {
+                ApphudRulesManager.shared.cacheActiveScreens()
+            }
+        #endif
+        
+        
         self.requiresReceiptSubmission = true
 
         apphudLog("Uploading App Store Receipt...")
 
+        let startBench = Date()
         httpClient?.startRequest(path: "subscriptions", params: params, method: .post) { (result, response, _, error, _) in
+            if error == nil {
+                let endBench = startBench.timeIntervalSinceNow * -1
+                ApphudLoggerService.shared.addDurationEvent(ApphudLoggerService.durationLog.subscriptions.value(), endBench)
+            }
+            
             self.forceSendAttributionDataIfNeeded()
             self.isSubmittingReceipt = false
             self.handleSubmitReceiptCallback(result: result, response: response, error: error, notifyDelegate: notifyDelegate)
@@ -197,7 +206,6 @@ extension ApphudInternal {
                         self.purchase(product: product, apphudProduct: nil, validate: validate, callback: callback)
                     } else {
                         let message = "Unable to start payment because product identifier is invalid: [\([productId])]"
-                        ApphudLoggerService.logError(message)
                         apphudLog(message, forceDisplay: true)
                         let result = ApphudPurchaseResult(nil, nil, nil, ApphudError(message: message))
                         callback?(result)
@@ -222,10 +230,10 @@ extension ApphudInternal {
     // MARK: - Private purchase methods
     
     private func purchase(product: SKProduct, apphudProduct: ApphudProduct?, validate: Bool, callback: ((ApphudPurchaseResult) -> Void)?) {
-        ApphudLoggerService.paywallCheckoutInitiated(apphudProduct?.paywallId, product.productIdentifier)
+        ApphudLoggerService.shared.paywallCheckoutInitiated(apphudProduct?.paywallId, product.productIdentifier)
         ApphudStoreKitWrapper.shared.purchase(product: product) { transaction, error in
             if let error = error as? SKError {
-                ApphudLoggerService.paywallPaymentCancelled(apphudProduct?.paywallId, product.productIdentifier, error)
+                ApphudLoggerService.shared.paywallPaymentCancelled(apphudProduct?.paywallId, product.productIdentifier, error)
             }
             if validate {
                 self.handleTransaction(product: product, transaction: transaction, error: error, apphudProduct: apphudProduct, callback: callback)

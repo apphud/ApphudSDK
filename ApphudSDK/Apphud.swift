@@ -6,143 +6,17 @@
 //  Copyright © 2019 Apphud Inc. All rights reserved.
 //
 
+#if canImport(UIKit)
 import UIKit
+#endif
 import StoreKit
 import UserNotifications
 
-internal let apphud_sdk_version = "2.4.4"
+internal let apphud_sdk_version = "2.5.0"
 
 public typealias ApphudEligibilityCallback = (([String: Bool]) -> Void)
 public typealias ApphudBoolCallback = ((Bool) -> Void)
 
-// MARK: - Delegate
-
-@objc public protocol ApphudDelegate {
-
-    /**
-        Returns array of subscriptions that user ever purchased. Empty array means user never purchased a subscription. If you have just one subscription group in your app, you will always receive just one subscription in an array.
-     
-        This method is called when subscription is purchased or updated (for example, status changed from `trial` to `expired` or `isAutorenewEnabled` changed to `false`). SDK also checks for subscription updates when app becomes active.
-     */
-    @objc optional func apphudSubscriptionsUpdated(_ subscriptions: [ApphudSubscription])
-
-    /**
-        Called when any of non renewing purchases changes. Called when purchase is made or has been refunded.
-     */
-    @objc optional func apphudNonRenewingPurchasesUpdated(_ purchases: [ApphudNonRenewingPurchase])
-
-    /**
-        Called when user ID has been changed. Use this if you implement integrations with Analytics services.
-     
-        Please read following if you implement integrations: `https://docs.apphud.com/docs/en/sdk-integration#user-identifier-and-integrations`
-     
-        This delegate method is called in 2 cases:
-     
-        * When Apphud has merged two users into a single user (for example, after user has restored purchases from his another device).
-        Merging users is done in the following way: after App Store receipt has been sent to Apphud, server tries to find the same receipt in the database.
-        If the same App Store receipt has been found, Apphud merges two users into a single user with two devices and then returns an original userID. 
-     
-        __Note__: Only subscriber devices are mergable. If non-premium user uses the app from two different devices, Apphud won't be able to know that these devices belong to the same user.
-     
-        * After manual call of `updateUserID(userID : String)` method. 
-     */
-    @objc optional func apphudDidChangeUserID(_ userID: String)
-
-    /**
-     Deprecated. Use `func getPaywalls` method instead.
-        
-     This method gets called when products are fetched from App Store.
-     */
-    @objc optional func apphudDidFetchStoreKitProducts(_ products: [SKProduct])
-
-    /**
-     Implements mechanism of purchasing In-App Purchase initiated directly from the App Store page.
-     
-     You must return a callback block which will be called when a payment is finished. If you don't implement this method or return `nil` then a payment will not start; you can also save the product and return `nil` to initiate a payment later by yourself. Read Apple documentation for details: https://developer.apple.com/documentation/storekit/in-app_purchase/promoting_in-app_purchases
-     */
-    @objc optional func apphudShouldStartAppStoreDirectPurchase(_ product: SKProduct) -> ((ApphudPurchaseResult) -> Void)?
-    
-    /**
-        Optional. Specify a list of product identifiers to fetch from the App Store.
-        If you don't implement this method, then product identifiers will be fetched from Apphud servers.
-     
-        Implementing this delegate method gives you more reliabality on fetching products and a little more speed on loading due to skipping Apphud request, but also gives less flexibility because you have to hardcode product identifiers this way.
-     */
-    @objc optional func apphudProductIdentifiers() -> [String]
-}
-
-@objc public protocol ApphudUIDelegate {
-
-    /**
-        You can return `false` to ignore this rule. You should only do this if you want to handle your rules by yourself. Default implementation is `true`.
-     */
-    @objc optional func apphudShouldPerformRule(rule: ApphudRule) -> Bool
-
-    /**
-        You can return `false` to this delegate method if you want to delay Apphud Screen presentation.
-     
-        Controller will be kept in memory until you present it via `Apphud.showPendingScreen()` method. If you don't want to show screen at all, you should check `apphudShouldPerformRule` delegate method.
-     */
-    @objc optional func apphudShouldShowScreen(screenName: String) -> Bool
-
-    /**
-        Return `UIViewController` instance from which you want to present given Apphud controller. If you don't implement this method, then top visible viewcontroller from key window will be used.
-     
-        __Note__: This delegate method is recommended for implementation when you have multiple windows in your app, because Apphud SDK may have issues while presenting screens in this case. 
-     */
-    @objc optional func apphudParentViewController(controller: UIViewController) -> UIViewController
-
-    /**
-     Pass your own modal presentation style to Apphud Screens. This is useful since iOS 13 presents in page sheet style by default. 
-     
-     To get full screen style you should pass `.fullScreen` or `.overFullScreen`.
-     */
-    @objc optional func apphudScreenPresentationStyle(controller: UIViewController) -> UIModalPresentationStyle
-
-    /**
-     Called when user tapped on purchase button in Apphud purchase screen.
-    */
-    @objc optional func apphudWillPurchase(product: SKProduct, offerID: String?, screenName: String)
-
-    /**
-     Called when user successfully purchased product in Apphud purchase screen.
-    */
-    @objc optional func apphudDidPurchase(product: SKProduct, offerID: String?, screenName: String)
-
-    /**
-     Called when purchase failed in Apphud purchase screen.
-     
-     See error code for details. For example, `.paymentCancelled` error code is when user canceled the purchase by himself.
-    */
-    @objc optional func apphudDidFailPurchase(product: SKProduct, offerID: String?, errorCode: SKError.Code, screenName: String)
-
-    /**
-     Called when screen succesfully loaded and is visible to user.
-     */
-    @objc optional func apphudScreenDidAppear(screenName: String)
-
-    /**
-     Called when screen is about to dismiss.
-     */
-    @objc optional func apphudScreenWillDismiss(screenName: String, error: Error?)
-
-    /**
-     Notifies that Apphud Screen did dismiss
-    */
-    @objc optional func apphudDidDismissScreen(controller: UIViewController)
-    
-    /**
-     (New) Overrides action after survey option is selected or feeback sent is tapped. Default is "thankAndClose".
-     This delegate method is only called if no other screen is selected as button action in Apphud Screens editor.
-     You can return `noAction` value and use `navigationController` property of `controller` variable to push your own view controller into hierarchy.
-     */
-    @objc optional func apphudScreenDismissAction(screenName: String, controller: UIViewController) -> ApphudScreenDismissAction
-    
-    /**
-     (New) Called after survey answer is selected.
-     */
-    @objc optional func apphudDidSelectSurveyAnswer(question: String, answer: String, screenName: String)
-}
 
 /**
  These are three types of actions that are returned in `apphudScreenDismissAction(screenName: String, controller: UIViewController)` delegate method
@@ -194,6 +68,7 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
 
 // MARK: - Initialization
 
+@available(OSX 10.14.4, *)
 @available(iOS 11.2, *)
 final public class Apphud: NSObject {
 
@@ -322,7 +197,7 @@ final public class Apphud: NSObject {
     You can use `productsDidFetchCallback` callback or observe for `didFetchProductsNotification()` or implement `apphudDidFetchStoreKitProducts` delegate method. Use whatever you like most.
     */
     @available(*, deprecated, message: "Use `func paywallsDidLoadCallback` method instead.")
-    @objc public static func productsDidFetchCallback(_ callback: @escaping ([SKProduct]) -> Void) {
+    @objc public static func productsDidFetchCallback(_ callback: @escaping ([SKProduct], Error?) -> Void) {
         ApphudInternal.shared.customProductsFetchedBlocks.append(callback)
     }
     
@@ -332,7 +207,7 @@ final public class Apphud: NSObject {
      __Note__: You shouldn't call this method at app launch, because Apphud SDK automatically fetches products during initialization. Only use this method as a fallback.
      */
     @available(*, deprecated, message: "Use `func paywallsDidLoadCallback` method instead.")
-    @objc public static func refreshStoreKitProducts(_ callback: (([SKProduct]) -> Void)?) {
+    @objc public static func refreshStoreKitProducts(_ callback: (([SKProduct], Error?) -> Void)?) {
         ApphudInternal.shared.refreshStoreKitProductsWithCallback(callback: callback)
     }
 
@@ -594,7 +469,7 @@ final public class Apphud: NSObject {
     }
 
     // MARK: - Rules & Screens Methods
-
+    #if canImport(UIKit)
     /**
      Presents Apphud screen that was delayed for presentation, i.e. `false` was returned in `apphudShouldShowScreen` delegate method.
      */
@@ -608,14 +483,13 @@ final public class Apphud: NSObject {
     @objc public static func pendingScreenController() -> UIViewController? {
         return ApphudRulesManager.shared.pendingController
     }
-
     /**
         Rule with a screen that was delayed for presentation.
      */
     @objc public static func pendingRule() -> ApphudRule? {
         return ApphudRulesManager.shared.pendingRule()
     }
-
+    #endif
     // MARK: - Push Notifications
 
     /**
@@ -633,10 +507,11 @@ final public class Apphud: NSObject {
      
      Returns true if push notification was handled by Apphud.
      */
+    #if canImport(UIKit)
     @discardableResult @objc public static func handlePushNotification(apsInfo: [AnyHashable: Any]) -> Bool {
         return ApphudRulesManager.shared.handleNotification(apsInfo)
     }
-
+    #endif
     // MARK: - Attribution
 
     /**
@@ -750,11 +625,11 @@ final public class Apphud: NSObject {
      Will be displayed in AppHud dashboard
      */
     @objc public static func paywallShown(_ paywall: ApphudPaywall?) {
-        ApphudLoggerService.paywallShown(paywall?.id)
+        ApphudLoggerService.shared.paywallShown(paywall?.id)
     }
     
     @objc public static func paywallClosed(_ paywall: ApphudPaywall?) {
-        ApphudLoggerService.paywallClosed(paywall?.id)
+        ApphudLoggerService.shared.paywallClosed(paywall?.id)
     }
     
     // MARK: - Promotionals
