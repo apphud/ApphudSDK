@@ -66,12 +66,12 @@ extension ApphudInternal {
 
     internal func createOrGetUser(shouldUpdateUserID: Bool, skipRegistration:Bool = false, callback: @escaping (Bool, Int) -> Void) {
         if skipRegistration {
-            apphudLog("Loading user from cache, because cache is not expired.", logLevel: .all)
+            apphudLog("Loading user from cache, because cache is not expired.")
             self.preparePaywalls(pwls: self.paywalls, writeToCache: false, completionBlock: nil)
             if self.requiresReceiptSubmission {
                 self.submitAppStoreReceipt()
             }
-            callback(true, 200)
+            callback(true, 0)
             return
         }
         
@@ -215,6 +215,48 @@ extension ApphudInternal {
         }
         return type
     }
+    
+    /*
+    private func valueToString(value: Any?) -> String {
+        if value == nil || value is NSNull {
+            return "nil"
+        } else if value is String || value is NSString {
+            return value as! String
+        } else if value is NSNumber {
+            return "\(value as! NSNumber)"
+        } else if value is Int {
+            return String(value as! Int)
+        } else if value is Float {
+            return String(value as! Float)
+        } else if value is Double {
+            return String(value as! Double)
+        } else if value is Bool {
+            return String(value as! Bool)
+        } else {
+            return UUID().uuidString
+        }
+    }
+     */
+    
+    private func arePropertyValuesEqual(value1: Any?, value2: Any?) -> Bool {
+        
+      //  return valueToString(value: value1) == valueToString(value: value2)
+        
+        let className1 = object_getClass(value1)?.description() ?? ""
+        let className2 = object_getClass(value2)?.description() ?? ""
+        
+        if className1 == "NSNull" && className2 == "NSNull" { return true }
+        if value1 is NSNull && value2 is NSNull { return true }
+        if value1 is String && value2 is String, value1 as? String == value2 as? String { return true }
+        if value1 is NSString && value2 is NSString, (value1 as! NSString).isEqual(value2 as! NSString) { return true }
+        if value1 is NSNumber && value2 is NSNumber, (value1 as! NSNumber).isEqual(value2 as! NSNumber) { return true }
+        if value1 is Int && value2 is Int, value1 as! Int == value2 as! Int { return true }
+        if value1 is Float && value2 is Float, value1 as! Float == value2 as! Float { return true }
+        if value1 is Double && value2 is Double, value1 as! Double == value2 as! Double { return true }
+        if value1 is Bool && value2 is Bool, value1 as! Bool == value2 as! Bool { return true }
+        
+        return false
+    }
 
     internal func setUserProperty(key: ApphudUserPropertyKey, value: Any?, setOnce: Bool, increment: Bool = false) {
 
@@ -244,19 +286,72 @@ extension ApphudInternal {
         var params = [String: Any]()
         params["device_id"] = self.currentDeviceID
 
+        var canSaveToCache = true
         var properties = [[String: Any?]]()
         pendingUserProperties.forEach { property in
             if let json = property.toJSON() {
                 properties.append(json)
+                if property.increment {
+                    canSaveToCache = false
+                }
             }
         }
         params["properties"] = properties
+        
+        if canSaveToCache == false {
+            // if new properties are not cacheable, then remove old cache and send new props to backend and not cache them
+            self.userPropertiesCache = nil
+        } else if let cachedProperties = self.userPropertiesCache {
+            var shouldSkipUpload = true
+            if cachedProperties.count == properties.count {
+                for cachedProp in cachedProperties {
+                    if let newProperty = properties.first(where: { $0["name"] as! String == cachedProp["name"] as! String }) {
+                        if !arePropertyValuesEqual(value1: newProperty["value"] as Any?, value2: cachedProp["value"] as Any?) {
+                            shouldSkipUpload = false
+                            // values are not equal
+                            break
+                        }
+                    } else {
+                        // not found a property
+                        shouldSkipUpload = false
+                        break
+                    }
+                    
+                }
+            } else {
+                shouldSkipUpload = false
+            }
+            
+            if shouldSkipUpload {
+                apphudLog("Skip uploading user properties, because values did not change") //:\n\n\(properties),\n\ncache:\n\n\(cachedProperties)")
+                self.pendingUserProperties.removeAll()
+                return
+            }
+        }
+        
         httpClient?.startRequest(path: "customers/properties", params: params, method: .post) { (result, _, _, error, code) in
             if result {
+                if canSaveToCache { self.userPropertiesCache = properties }
                 self.pendingUserProperties.removeAll()
                 apphudLog("User Properties successfully updated.")
             } else {
                 apphudLog("User Properties update failed: \(error?.localizedDescription ?? "") with code: \(code)")
+            }
+        }
+    }
+    
+    private var userPropertiesCache: [[String: Any?]]? {
+        get {
+            if let data = apphudDataFromCache(key: "ApphudUserPropertiesCache", cacheTimeout: 86_400*7),
+                let object = try? JSONSerialization.jsonObject(with: data, options: []) as? [[String: Any?]] {
+                return object
+            } else {
+                return nil
+            }
+        }
+        set {
+            if newValue != nil, let data = try? JSONSerialization.data(withJSONObject: newValue!, options: .prettyPrinted) {
+                apphudDataToCache(data: data, key: "ApphudUserPropertiesCache")
             }
         }
     }

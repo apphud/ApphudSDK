@@ -25,7 +25,7 @@ struct ApphudUserProperty {
 
         var jsonParams: [String: Any?] = ["name": key, "value": modifiedValue, "set_once": setOnce]
 
-        if value != nil {
+        if value != nil && !(value is NSNull) {
             jsonParams["kind"] = type
         }
 
