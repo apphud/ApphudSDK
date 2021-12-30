@@ -88,15 +88,15 @@ extension ApphudInternal {
             productIDs.append(contentsOf: group.products.map { $0.productId })
         }
         
-        ApphudStoreKitWrapper.shared.fetchProducts(identifiers: Set(productIDs)) { storeKitProducts in
+        ApphudStoreKitWrapper.shared.fetchProducts(identifiers: Set(productIDs)) { storeKitProducts, error in
             
             self.updateProductGroupsWithStoreKitProducts()
             ApphudInternal.shared.performAllStoreKitProductsFetchedCallbacks()
             NotificationCenter.default.post(name: Apphud.didFetchProductsNotification(), object: storeKitProducts)
-            ApphudInternal.shared.delegate?.apphudDidFetchStoreKitProducts?(storeKitProducts)
-            self.customProductsFetchedBlocks.forEach { block in block(storeKitProducts) }
+            ApphudInternal.shared.delegate?.apphudDidFetchStoreKitProducts?(storeKitProducts, error)
+            self.customProductsFetchedBlocks.forEach { block in block(storeKitProducts, error) }
             self.customProductsFetchedBlocks.removeAll()
-            
+            self.updatePaywallsWithStoreKitProducts(paywalls: self.paywalls) // double call, but it's okay, because user may call refreshStorKitProducts method
             self.continueToUpdateCurrencyIfNeeded()
         }
     }
@@ -111,7 +111,7 @@ extension ApphudInternal {
         }
     }
 
-    internal func refreshStoreKitProductsWithCallback(callback: (([SKProduct]) -> Void)?) {
+    internal func refreshStoreKitProductsWithCallback(callback: (([SKProduct], Error?) -> Void)?) {
         
         callback.map { self.customProductsFetchedBlocks.append($0) }
 
@@ -177,7 +177,6 @@ extension ApphudInternal {
         
         self.performWhenStoreKitProductFetched {
             self.updatePaywallsWithStoreKitProducts(paywalls: self.paywalls)
-            self.paywallsAreReady = true
             completionBlock?(self.paywalls, nil)
             self.customPaywallsLoadedCallbacks.forEach { block in block(self.paywalls) }
             self.customPaywallsLoadedCallbacks.removeAll()
@@ -224,6 +223,8 @@ extension ApphudInternal {
     }
     
     internal func updatePaywallsWithStoreKitProducts(paywalls: [ApphudPaywall]) {
+        self.paywallsAreReady = true
+        
         paywalls.forEach { paywall in
             paywall.products.forEach({ product in
                 product.paywallId = paywall.id

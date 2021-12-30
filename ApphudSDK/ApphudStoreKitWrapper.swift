@@ -10,7 +10,7 @@ import Foundation
 import StoreKit
 
 internal typealias ApphudPaywallsCallback = ([ApphudPaywall]) -> Void
-internal typealias ApphudStoreKitProductsCallback = ([SKProduct]) -> Void
+internal typealias ApphudStoreKitProductsCallback = ([SKProduct], Error?) -> Void
 internal typealias ApphudTransactionCallback = (SKPaymentTransaction, Error?) -> Void
 
 public let ApphudWillFinishTransactionNotification = Notification.Name(rawValue: "ApphudWillFinishTransactionNotification")
@@ -45,17 +45,17 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     }
 
     func fetchProducts(identifiers: Set<String>, callback: @escaping ApphudStoreKitProductsCallback) {
-        fetcher.fetchStoreKitProducts(identifiers: identifiers) { (products) in
+        fetcher.fetchStoreKitProducts(identifiers: identifiers) { products, error in
             let existingIDS = self.products.map { $0.productIdentifier }
             let uniqueProducts = products.filter { !existingIDS.contains($0.productIdentifier) }
             self.products.append(contentsOf: uniqueProducts)
             self.didFetch = true
-            callback(products)
+            callback(products, error)
         }
     }
 
     func fetchProduct(productId: String, callback: @escaping (SKProduct?) -> Void) {
-        singleFetcher.fetchStoreKitProducts(identifiers: Set([productId])) { (products) in
+        singleFetcher.fetchStoreKitProducts(identifiers: Set([productId])) { products, error in
             callback(products.first(where: { $0.productIdentifier == productId }))
         }
     }
@@ -237,7 +237,7 @@ private class ApphudProductsFetcher: NSObject, SKProductsRequestDelegate {
 
     public func productsRequest(_ request: SKProductsRequest, didReceive response: SKProductsResponse) {
         DispatchQueue.main.async {
-            self.callback?(response.products)
+            self.callback?(response.products, nil)
             if response.invalidProductIdentifiers.count > 0 {
                 apphudLog("Failed to load SKProducts from the App Store, because product identifiers are invalid:\n \(response.invalidProductIdentifiers)\n\tFor more details visit: https://docs.apphud.com/testing/ios#failed-to-load-skproducts-from-the-app-store-error", forceDisplay: true)
             }
@@ -257,7 +257,7 @@ private class ApphudProductsFetcher: NSObject, SKProductsRequestDelegate {
                 apphudLog("Failed to load SKProducts from the App Store, error: \(error)", forceDisplay: true)
             }
             
-            self.callback?([])
+            self.callback?([], error)
             self.callback = nil
             self.productsRequest = nil
         }

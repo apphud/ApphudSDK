@@ -437,7 +437,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.apphud.testapplication;
+				PRODUCT_BUNDLE_IDENTIFIER = com.apphud.testapplication2;
 				PRODUCT_NAME = ApphudDemoApp;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				"PROVISIONING_PROFILE_SPECIFIER[sdk=macosx*]" = "";

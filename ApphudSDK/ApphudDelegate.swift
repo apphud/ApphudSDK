@@ -42,9 +42,9 @@ import StoreKit
     /**
      Deprecated. Use `func getPaywalls` method instead.
         
-     This method gets called when products are fetched from App Store.
+     This method gets called when products are fetched from App Store. Returns optional Error from StoreKit, if exists.
      */
-    @objc optional func apphudDidFetchStoreKitProducts(_ products: [SKProduct])
+    @objc optional func apphudDidFetchStoreKitProducts(_ products: [SKProduct], _ error: Error?)
 
     /**
      Implements mechanism of purchasing In-App Purchase initiated directly from the App Store page.

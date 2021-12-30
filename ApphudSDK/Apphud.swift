@@ -197,7 +197,7 @@ final public class Apphud: NSObject {
     You can use `productsDidFetchCallback` callback or observe for `didFetchProductsNotification()` or implement `apphudDidFetchStoreKitProducts` delegate method. Use whatever you like most.
     */
     @available(*, deprecated, message: "Use `func paywallsDidLoadCallback` method instead.")
-    @objc public static func productsDidFetchCallback(_ callback: @escaping ([SKProduct]) -> Void) {
+    @objc public static func productsDidFetchCallback(_ callback: @escaping ([SKProduct], Error?) -> Void) {
         ApphudInternal.shared.customProductsFetchedBlocks.append(callback)
     }
     
@@ -207,7 +207,7 @@ final public class Apphud: NSObject {
      __Note__: You shouldn't call this method at app launch, because Apphud SDK automatically fetches products during initialization. Only use this method as a fallback.
      */
     @available(*, deprecated, message: "Use `func paywallsDidLoadCallback` method instead.")
-    @objc public static func refreshStoreKitProducts(_ callback: (([SKProduct]) -> Void)?) {
+    @objc public static func refreshStoreKitProducts(_ callback: (([SKProduct], Error?) -> Void)?) {
         ApphudInternal.shared.refreshStoreKitProductsWithCallback(callback: callback)
     }
 
