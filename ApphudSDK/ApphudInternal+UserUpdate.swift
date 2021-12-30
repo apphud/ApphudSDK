@@ -216,32 +216,7 @@ extension ApphudInternal {
         return type
     }
     
-    /*
-    private func valueToString(value: Any?) -> String {
-        if value == nil || value is NSNull {
-            return "nil"
-        } else if value is String || value is NSString {
-            return value as! String
-        } else if value is NSNumber {
-            return "\(value as! NSNumber)"
-        } else if value is Int {
-            return String(value as! Int)
-        } else if value is Float {
-            return String(value as! Float)
-        } else if value is Double {
-            return String(value as! Double)
-        } else if value is Bool {
-            return String(value as! Bool)
-        } else {
-            return UUID().uuidString
-        }
-    }
-     */
-    
     private func arePropertyValuesEqual(value1: Any?, value2: Any?) -> Bool {
-        
-      //  return valueToString(value: value1) == valueToString(value: value2)
-        
         let className1 = object_getClass(value1)?.description() ?? ""
         let className2 = object_getClass(value2)?.description() ?? ""
         
