@@ -5,6 +5,7 @@
 //  Created by ren6 on 30/08/2019.
 //  Copyright © 2019 Apphud Inc. All rights reserved.
 //
+import Foundation
 
 public class ApphudRule: NSObject {
 

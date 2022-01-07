@@ -4,6 +4,7 @@
 //
 //  Created by Renat Kurbanov on 29.04.2021.
 //
+import Foundation
 
 public class ApphudPaywall: NSObject, Codable {
     

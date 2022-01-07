@@ -5,6 +5,8 @@
 //  Created by Renat on 18.08.2020.
 //
 
+import Foundation
+
 /**
  Built-in property keys.
  */

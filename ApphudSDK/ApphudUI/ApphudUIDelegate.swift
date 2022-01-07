@@ -7,6 +7,10 @@
 //
 
 import StoreKit
+import Foundation
+#if canImport(UIKit)
+import UIKit
+#endif
 
 @objc public protocol ApphudUIDelegate {
     /**

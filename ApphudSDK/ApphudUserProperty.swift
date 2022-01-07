@@ -5,6 +5,8 @@
 //  Created by Renat on 15.08.2020.
 //
 
+import Foundation
+
 struct ApphudUserProperty {
     let key: String
     let value: Any?

@@ -155,18 +155,32 @@ final class ApphudInternal: NSObject {
     }
     internal var submittedAFData: [AnyHashable: Any]? {
         get {
-            UserDefaults.standard.object(forKey: submittedAFDataKey) as? [AnyHashable: Any]
+            if let data = apphudDataFromCache(key: submittedAFDataKey, cacheTimeout: 86_400*7),
+                let object = try? JSONSerialization.jsonObject(with: data, options: []) as? [AnyHashable: Any] {
+                return object
+            } else {
+                return nil
+            }
         }
         set {
-            UserDefaults.standard.set(newValue, forKey: submittedAFDataKey)
+            if newValue != nil, let data = try? JSONSerialization.data(withJSONObject: newValue!, options: .prettyPrinted) {
+                apphudDataToCache(data: data, key: submittedAFDataKey)
+            }
         }
     }
     internal var submittedAdjustData: [AnyHashable: Any]? {
         get {
-            UserDefaults.standard.object(forKey: submittedAdjustDataKey) as? [AnyHashable: Any]
+            if let data = apphudDataFromCache(key: submittedAdjustDataKey, cacheTimeout: 86_400*7),
+                let object = try? JSONSerialization.jsonObject(with: data, options: []) as? [AnyHashable: Any] {
+                return object
+            } else {
+                return nil
+            }
         }
         set {
-            UserDefaults.standard.set(newValue, forKey: submittedAdjustDataKey)
+            if newValue != nil, let data = try? JSONSerialization.data(withJSONObject: newValue!, options: .prettyPrinted) {
+                apphudDataToCache(data: data, key: submittedAdjustDataKey)
+            }
         }
     }
     internal var submittedFirebaseId: String? {
