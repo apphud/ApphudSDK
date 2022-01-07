@@ -7,6 +7,7 @@
 //
 
 import Security
+import Foundation
 
 // Constant Identifiers
 let userAccount = "ApphudUser"
