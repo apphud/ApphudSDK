@@ -61,7 +61,7 @@ class ViewController: UITableViewController{
     @objc func fetchRawReceipt() {
         Apphud.fetchRawReceiptInfo { receipt in
             if let receipt = receipt {
-                print("details = \(receipt.originalApplicationVersion), creation_date = \(String(describing: receipt.receiptCreationDate))")
+                print("details = \(String(describing: receipt.originalApplicationVersion)), creation_date = \(String(describing: receipt.receiptCreationDate))")
             } else {
                 print("could not fetch raw receipt")
             }

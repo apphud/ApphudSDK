@@ -80,7 +80,7 @@ extension ApphudInternal {
                 if let receipt = apphudReceiptDataString() {
                     block(receipt)
                 } else {
-                    if let transactionOid = transaction?.transactionIdentifier {
+                    if transaction?.transactionIdentifier != nil {
                         block(nil)
                     } else {
                         let message = "Failed to get App Store receipt"
