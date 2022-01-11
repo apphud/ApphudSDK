@@ -186,7 +186,7 @@ public class ApphudHttpClient {
             request?.setValue(platform, forHTTPHeaderField: "X-Platform")
             request?.setValue(self.sdkType, forHTTPHeaderField: "X-SDK")
             request?.setValue(self.sdkVersion, forHTTPHeaderField: "X-SDK-VERSION")
-            request?.setValue("Apphud \(platform) (Swift \(self.sdkVersion))", forHTTPHeaderField: "User-Agent")
+            request?.setValue("Apphud \(platform) (\(self.sdkType) \(self.sdkVersion))", forHTTPHeaderField: "User-Agent")
             request?.timeoutInterval = method == .get ? GET_TIMEOUT : POST_PUT_TIMEOUT
             if method != .get {
                 var finalParams: [String: Any] = ["api_key": apiKey]
