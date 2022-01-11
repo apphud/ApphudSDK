@@ -10,6 +10,7 @@
 import UIKit
 #endif
 import StoreKit
+import Foundation
 import UserNotifications
 
 internal let apphud_sdk_version = "2.5.2"
