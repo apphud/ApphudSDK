@@ -22,9 +22,9 @@ internal func apphudVisibleViewController() -> UIViewController? {
 }
 #endif
 
+@available(OSX 10.14.4, *)
 extension String {
     /// Helper method to parse date string into Date object
-    @available(OSX 10.14.4, *)
     internal var apphudIsoDate: Date? {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withFractionalSeconds,

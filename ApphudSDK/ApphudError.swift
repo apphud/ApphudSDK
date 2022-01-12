@@ -9,6 +9,7 @@
 #if canImport(UIKit)
 import UIKit
 #endif
+import Foundation
 
 public class ApphudError: NSError {
 

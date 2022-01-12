@@ -8,6 +8,7 @@
 #if canImport(UIKit)
 import UIKit
 #endif
+import Foundation
 
 @available(OSX 10.14.4, *)
 public class ApphudGroup: NSObject, Codable {
