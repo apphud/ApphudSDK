@@ -60,4 +60,8 @@ import StoreKit
         Implementing this delegate method gives you more reliabality on fetching products and a little more speed on loading due to skipping Apphud request, but also gives less flexibility because you have to hardcode product identifiers this way.
      */
     @objc optional func apphudProductIdentifiers() -> [String]
+    /**
+     Returns arrays of new subscriptions and purchases which activated without AppHud.purchase method. Empty array means - there are no new subscriptions or purchases.
+     */
+    @objc func didObservePurchase(_ subscriptions: [ApphudSubscription],_ purchases: [ApphudNonRenewingPurchase])
 }

@@ -19,13 +19,18 @@ extension ApphudInternal {
         self.submitReceiptRestore(allowsReceiptRefresh: true)
     }
 
-    internal func submitReceiptAutomaticPurchaseTracking(transaction: SKPaymentTransaction) {
-
+    internal func submitReceiptAutomaticPurchaseTracking(transaction: SKPaymentTransaction, outOfInstancePurchaseDelegate:Bool) {
         if isSubmittingReceipt {return}
 
         performWhenUserRegistered {
             guard let receiptString = apphudReceiptDataString() else { return }
-            self.submitReceipt(product: nil, apphudProduct: nil, transaction: transaction, receiptString: receiptString, notifyDelegate: true, callback: nil)
+            self.submitReceipt(product: nil,
+                               apphudProduct: nil,
+                               transaction: transaction,
+                               receiptString: receiptString,
+                               notifyDelegate: true,
+                               outOfInstancePurchaseDelegate: outOfInstancePurchaseDelegate,
+                               callback: nil)
         }
     }
 
@@ -92,7 +97,7 @@ extension ApphudInternal {
         }
     }
 
-    internal func submitReceipt(product: SKProduct?, apphudProduct: ApphudProduct?, transaction: SKPaymentTransaction?, receiptString: String?, notifyDelegate: Bool, eligibilityCheck: Bool = false, callback: ApphudErrorCallback?) {
+    internal func submitReceipt(product: SKProduct?, apphudProduct: ApphudProduct?, transaction: SKPaymentTransaction?, receiptString: String?, notifyDelegate: Bool, eligibilityCheck: Bool = false, outOfInstancePurchaseDelegate: Bool = false, callback: ApphudErrorCallback?) {
 
         if callback != nil {
             if eligibilityCheck {
@@ -156,15 +161,21 @@ extension ApphudInternal {
             
             self.forceSendAttributionDataIfNeeded()
             self.isSubmittingReceipt = false
-            self.handleSubmitReceiptCallback(result: result, response: response, error: error, notifyDelegate: notifyDelegate)
+            self.handleSubmitReceiptCallback(result: result, response: response, error: error, notifyDelegate: notifyDelegate, outOfInstancePurchaseDelegate: outOfInstancePurchaseDelegate)
         }
     }
 
-    internal func handleSubmitReceiptCallback(result: Bool, response: [String: Any]?, error: Error?, notifyDelegate: Bool) {
+    internal func handleSubmitReceiptCallback(result: Bool, response: [String: Any]?, error: Error?, notifyDelegate: Bool, outOfInstancePurchaseDelegate: Bool = false) {
 
         if result {
             self.requiresReceiptSubmission = false
             let hasChanges = self.parseUser(response)
+        
+            if outOfInstancePurchaseDelegate {
+                if hasChanges.newPurchases.count > 0 || hasChanges.newSubscriptions.count > 0 {
+                    self.delegate?.didObservePurchase(hasChanges.newSubscriptions, hasChanges.newPurchases)
+                }
+            }
             if notifyDelegate {
                 if hasChanges.hasSubscriptionChanges {
                     self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions)

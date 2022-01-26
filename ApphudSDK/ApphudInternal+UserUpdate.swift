@@ -15,13 +15,13 @@ import UIKit
 extension ApphudInternal {
 
     
-    @discardableResult internal func parseUser(_ dict: [String: Any]?) -> HasPurchasesChanges {
+    @discardableResult internal func parseUser(_ dict: [String: Any]?) -> PurchasesChanges {
 
         guard let dataDict = dict?["data"] as? [String: Any] else {
-            return (false, false)
+            return (false, false, [], [])
         }
         guard let userDict = dataDict["results"] as? [String: Any] else {
-            return (false, false)
+            return (false, false, [], [])
         }
         
         if let paywalls = userDict["paywalls"] as? [[String: Any]] {
@@ -30,8 +30,14 @@ extension ApphudInternal {
 
         let oldStates = self.currentUser?.subscriptionsStates()
         let oldPurchasesStates = self.currentUser?.purchasesStates()
+        
+        let oldSubscriptions = self.currentUser?.subscriptions
+        let oldPurchases = self.currentUser?.purchases
 
         self.currentUser = ApphudUser(dictionary: userDict)
+        
+        let newSubscriptions = self.currentUser?.subscriptions
+        let newPurchases = self.currentUser?.purchases
 
         let newStates = self.currentUser?.subscriptionsStates()
         let newPurchasesStates = self.currentUser?.purchasesStates()
@@ -43,9 +49,14 @@ extension ApphudInternal {
         /**
          If user previously didn't have subscriptions or subscriptions states don't match, or subscription product identifiers don't match
          */
+        
+        let changedSubscriptions = newSubscriptions!.filter({ item in !oldSubscriptions!.contains(where: { $0.id == item.id }) })
+        let changedPurchases = newPurchases!.filter({ item in !oldPurchases!.contains(where: { $0.productId == item.productId && $0.purchasedAt == item.purchasedAt  }) })
+    
         let hasSubscriptionChanges = (oldStates != newStates && self.currentUser?.subscriptions != nil)
         let hasPurchasesChanges = (oldPurchasesStates != newPurchasesStates && self.currentUser?.purchases != nil)
-        return (hasSubscriptionChanges, hasPurchasesChanges)
+
+        return (hasSubscriptionChanges, hasPurchasesChanges, changedSubscriptions, changedPurchases)
     }
         
     private func mappingPaywalls(_ pwls: [[String: Any]]) {

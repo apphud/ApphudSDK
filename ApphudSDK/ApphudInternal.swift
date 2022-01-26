@@ -9,7 +9,10 @@
 import Foundation
 import StoreKit
 
-internal typealias HasPurchasesChanges = (hasSubscriptionChanges: Bool, hasNonRenewingChanges: Bool)
+internal typealias PurchasesChanges = (hasSubscriptionChanges: Bool,
+                                       hasNonRenewingChanges: Bool,
+                                       newSubscriptions: [ApphudSubscription],
+                                       newPurchases: [ApphudNonRenewingPurchase])
 
 @available(OSX 10.14.4, *)
 @available(iOS 11.2, *)
