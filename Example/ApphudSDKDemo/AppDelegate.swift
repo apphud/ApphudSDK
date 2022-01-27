@@ -63,6 +63,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
 extension AppDelegate : ApphudDelegate {
     
+    func apphudDidFetchStoreKitProducts(_ products: [SKProduct]) {
+        // handle this if needed
+    }
+    
     func apphudDidFetchStoreKitProducts(_ products: [SKProduct], _ error: Error?) {
         // handle this if needed
     }

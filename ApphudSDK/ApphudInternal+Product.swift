@@ -93,7 +93,8 @@ extension ApphudInternal {
             self.updateProductGroupsWithStoreKitProducts()
             ApphudInternal.shared.performAllStoreKitProductsFetchedCallbacks()
             NotificationCenter.default.post(name: Apphud.didFetchProductsNotification(), object: storeKitProducts)
-            ApphudInternal.shared.delegate?.apphudDidFetchStoreKitProducts(storeKitProducts, error)
+            ApphudInternal.shared.delegate?.apphudDidFetchStoreKitProducts?(storeKitProducts, error)
+            ApphudInternal.shared.delegate?.apphudDidFetchStoreKitProducts?(storeKitProducts)
             self.customProductsFetchedBlocks.forEach { block in block(storeKitProducts, error) }
             self.customProductsFetchedBlocks.removeAll()
             self.updatePaywallsWithStoreKitProducts(paywalls: self.paywalls) // double call, but it's okay, because user may call refreshStorKitProducts method
