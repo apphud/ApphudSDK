@@ -60,4 +60,12 @@ import StoreKit
         Implementing this delegate method gives you more reliabality on fetching products and a little more speed on loading due to skipping Apphud request, but also gives less flexibility because you have to hardcode product identifiers this way.
      */
     @objc optional func apphudProductIdentifiers() -> [String]
+    
+    /**
+        Called when Apphud SDK detects a purchase that was made not by Apphud.purchase method. It is also useful to intercept purchases made using Promo Codes for in-app purchases. If user redeems promo code for in-app purchase in the App Store, then opens the app, this delegate method will be called, so you will be able to handle payment on your side.
+        
+        Return `true` if you would like Apphud SDK to finish this transaction. If you return `false`, then you must call `SKPaymentQueue.default().finishTransaction(transaction)`.
+        See optional `transaction` property of `result` object.
+     */
+    @objc optional func apphudDidObservePurchase(result: ApphudPurchaseResult) -> Bool
 }

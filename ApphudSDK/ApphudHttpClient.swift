@@ -193,23 +193,22 @@ public class ApphudHttpClient {
                 if params != nil {
                     finalParams.merge(params!, uniquingKeysWith: {$1})
                 }
-                let data = try JSONSerialization.data(withJSONObject: finalParams, options: [])
+                let data = try JSONSerialization.data(withJSONObject: finalParams, options: [.prettyPrinted])
                 request?.httpBody = data
             }
         } catch {
 
         }
 
-        do {
-            let string = String(data: try JSONSerialization.data(withJSONObject: params ?? [:], options: .prettyPrinted), encoding: .utf8)
-
-            if ApphudUtils.shared.logLevel == .all {
-                apphudLog("Start \(method) request \(request?.url?.absoluteString ?? "") params: \(string ?? "")", logLevel: .all)
-            } else {
-                apphudLog("Start \(method) request \(request?.url?.absoluteString ?? "")")
-            }
-
-        } catch {
+        var string: String = ""
+        if let data = request?.httpBody, let str = String(data: data, encoding: .utf8) {
+            string = str
+        }
+        
+        if ApphudUtils.shared.logLevel == .all {
+            apphudLog("Start \(method) request \(request?.url?.absoluteString ?? "") params: \(string)", logLevel: .all)
+        } else {
+            apphudLog("Start \(method) request \(request?.url?.absoluteString ?? "")")
         }
 
         return request

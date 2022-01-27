@@ -19,13 +19,18 @@ extension ApphudInternal {
         self.submitReceiptRestore(allowsReceiptRefresh: true)
     }
 
-    internal func submitReceiptAutomaticPurchaseTracking(transaction: SKPaymentTransaction) {
-
-        if isSubmittingReceipt {return}
+    internal func submitReceiptAutomaticPurchaseTracking(transaction: SKPaymentTransaction, callback: @escaping ((ApphudPurchaseResult) -> Void)) {
 
         performWhenUserRegistered {
-            guard let receiptString = apphudReceiptDataString() else { return }
-            self.submitReceipt(product: nil, apphudProduct: nil, transaction: transaction, receiptString: receiptString, notifyDelegate: true, callback: nil)
+            guard let receiptString = apphudReceiptDataString() else {
+                callback(ApphudPurchaseResult(nil, nil, transaction, ApphudError(message: "Failed to get App Store receipt")))
+                return
+            }
+                        
+            self.submitReceipt(product: nil, apphudProduct: nil, transaction: transaction, receiptString: receiptString, notifyDelegate: true, eligibilityCheck: true, callback: { error in
+                let result = self.purchaseResult(productId: transaction.payment.productIdentifier, transaction: transaction, error: error)
+                callback(result)
+            })
         }
     }
 
@@ -95,7 +100,7 @@ extension ApphudInternal {
     internal func submitReceipt(product: SKProduct?, apphudProduct: ApphudProduct?, transaction: SKPaymentTransaction?, receiptString: String?, notifyDelegate: Bool, eligibilityCheck: Bool = false, callback: ApphudErrorCallback?) {
 
         if callback != nil {
-            if eligibilityCheck {
+            if eligibilityCheck || self.submitReceiptCallbacks.count > 0 {
                 self.submitReceiptCallbacks.append(callback)
             } else {
                 self.submitReceiptCallbacks = [callback]

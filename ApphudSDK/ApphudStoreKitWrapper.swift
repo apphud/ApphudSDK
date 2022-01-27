@@ -131,11 +131,11 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
             self.paymentCallback = nil
         } else {
             if transaction.transactionState == .purchased || transaction.failedWithUnknownReason {
-                ApphudInternal.shared.submitReceiptAutomaticPurchaseTracking(transaction: transaction)
-            }
-            if !ApphudUtils.shared.storeKitObserverMode {
-                // force finish transaction
-                finishTransaction(transaction)
+                ApphudInternal.shared.submitReceiptAutomaticPurchaseTracking(transaction: transaction) { result in
+                    if let finish = ApphudInternal.shared.delegate?.apphudDidObservePurchase?(result: result), finish == true {
+                        self.finishTransaction(transaction)
+                    }
+                }
             }
         }
     }

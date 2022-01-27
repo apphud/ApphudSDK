@@ -19,9 +19,6 @@ class ViewController: UITableViewController{
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        Apphud.setDelegate(self)
-        Apphud.setUIDelegate(self)
-
         setupRowActions()
         
         if Apphud.paywalls != nil {
@@ -181,27 +178,5 @@ class ViewController: UITableViewController{
         let controller = UIAlertController(title: "Error", message: error.localizedDescription, preferredStyle: .alert)
         controller.addAction(UIAlertAction(title: "Ok", style: .default, handler: nil))
         present(controller, animated: true, completion: nil)
-    }
-}
-
-extension ViewController : ApphudDelegate {
-    
-    func apphudDidFetchStoreKitProducts(_ products: [SKProduct]) {
-        self.reload()
-    }
-    
-    func apphudSubscriptionsUpdated(_ subscriptions: [ApphudSubscription]) {
-        self.reload()
-    }
-}
-
-extension ViewController : ApphudUIDelegate {
-    
-    func apphudScreenPresentationStyle(controller: UIViewController) -> UIModalPresentationStyle {
-        if UIDevice.current.userInterfaceIdiom == .pad {
-            return .pageSheet
-        } else {
-            return .overFullScreen
-        }
     }
 }
