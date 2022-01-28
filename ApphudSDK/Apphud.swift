@@ -27,13 +27,13 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
     case appleAdsAttribution // For iOS 14.3+ devices only, Apple Search Ads attribution via AdServices.framework
     case facebook
     case firebase
-    
+
     /**
      case branch
      Branch integration doesn't require any additional code from Apphud SDK
      More details: https://docs.apphud.com/integrations/attribution/branch
      */
-    
+
     func toString() -> String {
         switch self {
         case .appsFlyer:
@@ -133,7 +133,7 @@ final public class Apphud: NSObject {
     }
 
     // MARK: - Make Purchase
-    
+
     /**
      Returns paywalls configured in Apphud Dashboard. Each paywall contains an array of `ApphudProduct` objects that you use for purchase.
      `ApphudProduct` is Apphud's wrapper around StoreKit's `SKProduct`.
@@ -149,7 +149,7 @@ final public class Apphud: NSObject {
             return nil
         }
     }
-    
+
     /**
      Returns paywalls configured in Apphud Dashboard. Each paywall contains an array of `ApphudProduct` objects that you use for purchase.
      `ApphudProduct` is Apphud's wrapper around StoreKit's `SKProduct`.
@@ -164,7 +164,7 @@ final public class Apphud: NSObject {
             ApphudInternal.shared.customPaywallsLoadedCallbacks.append(callback)
         }
     }
-    
+
     /**
      __Deprecated__. Fetches paywalls configured in Apphud dashboard. This makes an api request to Apphud. Always check if there are cached paywalls on device by using paywalls method below.
      */
@@ -174,7 +174,7 @@ final public class Apphud: NSObject {
             callback(paywalls, nil)
         }
     }
-    
+
     /**
      This notification is sent when `SKProduct`s are fetched from StoreKit. Note that you have to add all product identifiers in Apphud Dashboard > Product Hub > Products.
      
@@ -185,7 +185,7 @@ final public class Apphud: NSObject {
     @objc public static func didFetchProductsNotification() -> Notification.Name {
         return Notification.Name("ApphudDidFetchProductsNotification")
     }
-    
+
     /**
     This callback is called when `SKProduct`s are fetched from StoreKit. Note that you have to add all product identifiers in Apphud Dashboard > Product Hub > Products.
     
@@ -196,7 +196,7 @@ final public class Apphud: NSObject {
     @objc public static func productsDidFetchCallback(_ callback: @escaping ([SKProduct], Error?) -> Void) {
         ApphudInternal.shared.customProductsFetchedBlocks.append(callback)
     }
-    
+
     /**
     Refreshes `SKProduct`s from the App Store. You have to add all product identifiers in Apphud Dashboard > Product Hub > Products.
      
@@ -247,7 +247,7 @@ final public class Apphud: NSObject {
     public static func purchase(_ product: ApphudProduct, callback: ((ApphudPurchaseResult) -> Void)?) {
         ApphudInternal.shared.purchase(productId: product.productId, product: product, validate: true, callback: callback)
     }
-    
+
     /**
      Deprecated. Purchase product by product identifier. Use this method if you don't use Apphud Paywalls logic.
      
@@ -275,7 +275,7 @@ final public class Apphud: NSObject {
     public static func purchaseWithoutValidation(_ productId: String, callback: ((ApphudPurchaseResult) -> Void)?) {
         ApphudInternal.shared.purchase(productId: productId, product: nil, validate: false, callback: callback)
     }
-    
+
     /**
         Purchases subscription (promotional) offer and automatically submits App Store Receipt to Apphud. 
      
@@ -290,7 +290,7 @@ final public class Apphud: NSObject {
         let apphudProduct = ApphudInternal.shared.allAvailableProducts.first(where: { $0.productId == product.productIdentifier })
         ApphudInternal.shared.purchasePromo(skProduct: product, apphudProduct: apphudProduct, discountID: discountID, callback: callback)
     }
-    
+
     /**
      Displays an offer code redemption sheet.
      */
@@ -313,7 +313,7 @@ final public class Apphud: NSObject {
     @objc public static func grantPromotional(daysCount: Int, productId: String?, permissionGroup: ApphudGroup?, callback: ApphudBoolCallback?) {
         ApphudInternal.shared.grantPromotional(daysCount, permissionGroup, productId: productId, callback: callback)
     }
-    
+
     // MARK: - Paywall logs
     /**
      Will be displayed in AppHud dashboard
@@ -321,13 +321,13 @@ final public class Apphud: NSObject {
     @objc public static func paywallShown(_ paywall: ApphudPaywall?) {
         ApphudLoggerService.shared.paywallShown(paywall?.id)
     }
-    
+
     @objc public static func paywallClosed(_ paywall: ApphudPaywall?) {
         ApphudLoggerService.shared.paywallClosed(paywall?.id)
     }
-    
+
     // MARK: - Handle Purchases
-    
+
     /**
      Returns `true` if user has active subscription.
      
@@ -336,7 +336,7 @@ final public class Apphud: NSObject {
     @objc public static func hasActiveSubscription() -> Bool {
         return Apphud.subscription()?.isActive() ?? false
     }
-    
+
     /**
      Permission groups configured in Apphud dashboard > Product Hub > Products. Groups are cached on device.
      Note that this method may be `nil` at first launch of the app.
@@ -344,7 +344,7 @@ final public class Apphud: NSObject {
     @objc public static var permissionGroups: [ApphudGroup] {
         ApphudInternal.shared.productGroups
     }
-    
+
     /**
      Returns subscription object that current user has ever purchased. Subscriptions are cached on device.
      
@@ -382,7 +382,7 @@ final public class Apphud: NSObject {
     @objc public static func isNonRenewingPurchaseActive(productIdentifier: String) -> Bool {
         return ApphudInternal.shared.currentUser?.purchases.first(where: {$0.productId == productIdentifier})?.isActive() ?? false
     }
-    
+
     /**
      Basically the same as restoring purchases.
      */
@@ -425,14 +425,14 @@ final public class Apphud: NSObject {
             }
         }
     }
-    
+
     /**
      Returns base64 encoded App Store receipt string, if available.
      */
     @objc public static func appStoreReceipt() -> String? {
         apphudReceiptDataString()
     }
-    
+
     /**
      Fetches raw receipt info in a wrapped `ApphudReceipt` model class. This might be useful to get `original_application_version` value.
      */
@@ -578,12 +578,12 @@ final public class Apphud: NSObject {
             callback(false)
             return
         }
-        
+
         ApphudInternal.shared.checkEligibilitiesForIntroductoryOffers(products: [product]) { result in
             callback(result[product.productIdentifier] ?? true)
         }
     }
-    
+
     /**
         Checks whether the given product is eligible for purchasing any of it's promotional offers.
      

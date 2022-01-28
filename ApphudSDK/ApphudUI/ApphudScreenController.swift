@@ -13,7 +13,6 @@ import WebKit
 import StoreKit
 import SafariServices
 
-
 #if canImport(UIKit)
 @available(iOS 11.2, *)
 class ApphudScreenController: UIViewController {
@@ -295,7 +294,7 @@ class ApphudScreenController: UIViewController {
             self.startLoading()
 
             ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(product: product, offerID: nil, screenName: self.rule.screen_name)
-            
+
             ApphudInternal.shared.purchase(productId: product.productIdentifier, product: nil, validate: true) { result in
                 self.handlePurchaseResult(product: product, result: result)
             }
@@ -342,7 +341,7 @@ class ApphudScreenController: UIViewController {
     internal func thankForFeedbackAndClose(isSurvey: Bool) {
 
         let action = ApphudInternal.shared.uiDelegate?.apphudScreenDismissAction?(screenName: screen?.name ?? rule.screen_name, controller: self) ?? .thankAndClose
-        
+
         switch action {
         case .thankAndClose:
             thankAndClose(isSurvey: isSurvey)
@@ -361,7 +360,7 @@ class ApphudScreenController: UIViewController {
         }))
         present(alertController, animated: true, completion: nil)
     }
-    
+
     internal func handleBillingIssueTapped() {
         ApphudInternal.shared.trackEvent(params: ["rule_id": self.rule.id, "screen_id": self.screenID, "name": "$billing_issue"]) {}
         self.dismiss()

@@ -9,13 +9,13 @@
 import UIKit
 
 class PaywallCollectionViewCell: UICollectionViewCell {
-    
+
     @IBOutlet weak var purchaseTypeLabel: UILabel!
     @IBOutlet weak var purchasePriceLabel: UILabel!
     @IBOutlet weak var purchaseDescriptionLabel: UILabel!
-    
+
     var animatingHighlight = false
-    
+
     override var isHighlighted: Bool {
         didSet {
             if isHighlighted {
@@ -31,19 +31,19 @@ class PaywallCollectionViewCell: UICollectionViewCell {
             }
         }
     }
-        
-    func animate(highlight: Bool, completion: (()->())? = nil) {
+
+    func animate(highlight: Bool, completion: (()->Void)? = nil) {
         let duration = 0.1
         let scale: CGFloat = 0.92
-        
+
         UIView.animate(withDuration: duration,
                        delay: 0,
                        options: [.curveEaseInOut],
                        animations: {
                         self.transform = highlight ? CGAffineTransform(scaleX: scale, y: scale) : .identity
-        }) { finished in
+        }) { _ in
             completion?()
         }
     }
-    
+
 }

@@ -23,14 +23,14 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     internal var products = [SKProduct]()
     internal var didFetch: Bool = false
-    
+
     fileprivate let fetcher = ApphudProductsFetcher()
     fileprivate let singleFetcher = ApphudProductsFetcher()
 
     private var refreshReceiptCallback: (() -> Void)?
     private var paymentCallback: ApphudTransactionCallback?
     private var purchasingProductID: String?
-    
+
     private var refreshRequest: SKReceiptRefreshRequest?
 
     func setupObserver() {
@@ -55,7 +55,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     }
 
     func fetchProduct(productId: String, callback: @escaping (SKProduct?) -> Void) {
-        singleFetcher.fetchStoreKitProducts(identifiers: Set([productId])) { products, error in
+        singleFetcher.fetchStoreKitProducts(identifiers: Set([productId])) { products, _ in
             callback(products.first(where: { $0.productIdentifier == productId }))
         }
     }
@@ -88,12 +88,12 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     @available(OSX 10.14.4, *)
     func paymentQueue(_ queue: SKPaymentQueue, updatedTransactions transactions: [SKPaymentTransaction]) {
         DispatchQueue.main.async {
-            
+
             // order purchased state before any others
-            let sortedTransactions = transactions.sorted { first, second in
+            let sortedTransactions = transactions.sorted { first, _ in
                 first.transactionState == .purchased
             }
-            
+
             for trx in sortedTransactions {
                 switch trx.transactionState {
                 case .purchasing:
@@ -151,7 +151,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         NotificationCenter.default.post(name: ApphudWillFinishTransactionNotification, object: transaction)
         SKPaymentQueue.default().finishTransaction(transaction)
     }
-    
+
     func paymentQueue(_ queue: SKPaymentQueue, removedTransactions transactions: [SKPaymentTransaction]) {
         DispatchQueue.main.async {
             transactions.forEach { transaction in
@@ -205,7 +205,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
             }
         }
     }
-    
+
     func presentOfferCodeSheet() {
         if #available(iOS 14.0, *) {
             #if os(iOS)
@@ -242,7 +242,7 @@ private class ApphudProductsFetcher: NSObject, SKProductsRequestDelegate {
                 apphudLog("Failed to load SKProducts from the App Store, because product identifiers are invalid:\n \(response.invalidProductIdentifiers)\n\tFor more details visit: https://docs.apphud.com/testing/ios#failed-to-load-skproducts-from-the-app-store-error", forceDisplay: true)
             }
             if response.products.count > 0 {
-                apphudLog("Successfully fetched SKProducts from the App Store:\n \(response.products.map{ $0.productIdentifier })")
+                apphudLog("Successfully fetched SKProducts from the App Store:\n \(response.products.map { $0.productIdentifier })")
             }
             self.callback = nil
             self.productsRequest = nil
@@ -256,7 +256,7 @@ private class ApphudProductsFetcher: NSObject, SKProductsRequestDelegate {
             } else {
                 apphudLog("Failed to load SKProducts from the App Store, error: \(error)", forceDisplay: true)
             }
-            
+
             self.callback?([], error)
             self.callback = nil
             self.productsRequest = nil

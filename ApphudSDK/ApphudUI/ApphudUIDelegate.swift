@@ -16,13 +16,13 @@ import UIKit
  These are three types of actions that are returned in `apphudScreenDismissAction(screenName: String, controller: UIViewController)` delegate method
  */
 @objc public enum ApphudScreenDismissAction: Int {
-    
+
     // Displays "Thank you for feedback" or "Answer sent" alert message and dismisses
     case thankAndClose
-    
+
     // Just dismisses view controller
     case closeOnly
-    
+
     // Does nothing, in this case you can push your own view controller into hierarchy, use `navigationController` property of `controller` variable.
     case none
 }
@@ -39,7 +39,7 @@ import UIKit
         Controller will be kept in memory until you present it via `Apphud.showPendingScreen()` method. If you don't want to show screen at all, you should check `apphudShouldPerformRule` delegate method.
      */
     @objc optional func apphudShouldShowScreen(screenName: String) -> Bool
-    
+
     #if canImport(UIKit)
     /**
         Return `UIViewController` instance from which you want to present given Apphud controller. If you don't implement this method, then top visible viewcontroller from key window will be used.
@@ -59,7 +59,7 @@ import UIKit
      Called when user tapped on purchase button in Apphud purchase screen.
     */
     #endif
-    
+
     @objc optional func apphudWillPurchase(product: SKProduct, offerID: String?, screenName: String)
 
     /**
@@ -83,13 +83,13 @@ import UIKit
      Called when screen is about to dismiss.
      */
     @objc optional func apphudScreenWillDismiss(screenName: String, error: Error?)
-    
+
     #if canImport(UIKit)
     /**
      Notifies that Apphud Screen did dismiss
     */
     @objc optional func apphudDidDismissScreen(controller: UIViewController)
-    
+
     /**
      (New) Overrides action after survey option is selected or feeback sent is tapped. Default is "thankAndClose".
      This delegate method is only called if no other screen is selected as button action in Apphud Screens editor.
@@ -97,7 +97,7 @@ import UIKit
      */
     @objc optional func apphudScreenDismissAction(screenName: String, controller: UIViewController) -> ApphudScreenDismissAction
     #endif
-    
+
     /**
      (New) Called after survey answer is selected.
      */

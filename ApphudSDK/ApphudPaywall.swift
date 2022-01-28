@@ -7,7 +7,7 @@
 import Foundation
 
 public class ApphudPaywall: NSObject, Codable {
-    
+
     @objc public internal(set) var identifier: String
     @objc public internal(set) var isDefault: Bool
     /**
@@ -16,25 +16,25 @@ public class ApphudPaywall: NSObject, Codable {
     @objc public var experimentName: String?
     @objc public var variationName: String?
     @objc public var fromPaywall: String?
-    
+
     @objc public var json: [String: Any]? {
-        
+
         guard let string = jsonString, let data = string.data(using: .utf8) else {
             return [:]
         }
-        
+
         do {
             let dict = try JSONSerialization.jsonObject(with: data, options: .allowFragments) as? [String: Any]
             return dict
-        } catch  {
+        } catch {
             apphudLog("Failed to decode paywall JSON. Identifier: \(identifier), json: \(jsonString ?? "")")
         }
-        
+
         return [:]
     }
-    
+
     @objc public internal(set) var products: [ApphudProduct]
-    
+
     internal var id: String
     private var jsonString: String?
     internal var name: String
@@ -50,7 +50,7 @@ public class ApphudPaywall: NSObject, Codable {
         case jsonString = "json"
         case products = "items"
     }
-        
+
     init(dictionary: [String: Any]) {
         self.id = dictionary["id"] as? String ?? ""
         self.name = dictionary["name"] as? String ?? ""
@@ -61,12 +61,12 @@ public class ApphudPaywall: NSObject, Codable {
         self.variationName = dictionary["variation_name"] as? String
         self.jsonString = dictionary["json"] as? String
         self.products = []
-        
+
         if let products = dictionary["items"] as? [[String: Any]] {
             self.products = products.map { ApphudProduct(dictionary: $0) }
         }
     }
-    
+
     required public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         id = try values.decode(String.self, forKey: .id)
@@ -79,7 +79,7 @@ public class ApphudPaywall: NSObject, Codable {
         isDefault = try values.decode(Bool.self, forKey: .isDefault)
         products = try values.decode([ApphudProduct].self, forKey: .products)
     }
-    
+
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
@@ -92,7 +92,7 @@ public class ApphudPaywall: NSObject, Codable {
         try container.encode(isDefault, forKey: .isDefault)
         try container.encode(products, forKey: .products)
     }
-    
+
     static func clearCache() {
         guard let folderURLAppSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {return}
         guard let folderURLCaches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {return}

@@ -46,7 +46,7 @@ internal class ApphudRulesManager {
             apphudLog("Got APS info, but app is not yet active, waiting for app to be active, then will handle push notification.", forceDisplay: true)
             return
         }
-        
+
         guard let rule_id = apsInfo?["rule_id"] as? String else {
             return
         }
@@ -118,7 +118,7 @@ internal class ApphudRulesManager {
             return nil
         }
     }
-    
+
     internal func cacheActiveScreens() {
         ApphudInternal.shared.getActiveRuleScreens { ids in
             ids.forEach { id in
