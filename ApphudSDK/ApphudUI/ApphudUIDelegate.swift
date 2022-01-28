@@ -12,6 +12,21 @@ import Foundation
 import UIKit
 #endif
 
+/**
+ These are three types of actions that are returned in `apphudScreenDismissAction(screenName: String, controller: UIViewController)` delegate method
+ */
+@objc public enum ApphudScreenDismissAction: Int {
+    
+    // Displays "Thank you for feedback" or "Answer sent" alert message and dismisses
+    case thankAndClose
+    
+    // Just dismisses view controller
+    case closeOnly
+    
+    // Does nothing, in this case you can push your own view controller into hierarchy, use `navigationController` property of `controller` variable.
+    case none
+}
+
 @objc public protocol ApphudUIDelegate {
     /**
         You can return `false` to ignore this rule. You should only do this if you want to handle your rules by yourself. Default implementation is `true`.
