@@ -135,11 +135,10 @@ final public class Apphud: NSObject {
     // MARK: - Make Purchase
 
     /**
-     Returns paywalls configured in Apphud Dashboard. Each paywall contains an array of `ApphudProduct` objects that you use for purchase.
+     Returns paywalls configured in Apphud Dashboard > Product Hub > Paywalls. Each paywall contains an array of `ApphudProduct` objects that you use for purchase.
      `ApphudProduct` is Apphud's wrapper around StoreKit's `SKProduct`.
      
-     Returns `nil` if StoreKit products are not yet fetched from the App Store. To get notified when paywalls are ready to use, use `paywallsDidLoadCallback` – when it's called, paywalls are populated with their `SKProducts`. Each paywall contains an array of `ApphudProduct` objects that you use for purchase.
-     `ApphudProduct` is Apphud's wrapper around StoreKit's `SKProduct`.
+     Returns `nil` if paywalls are not yet populated with SKProducts from the App Store. To get notified when paywalls are ready to use, use `paywallsDidLoadCallback` – when it's called, paywalls are populated with their `SKProducts`.
      */
     @objc public static var paywalls: [ApphudPaywall]? {
         if ApphudInternal.shared.paywallsAreReady {
@@ -151,10 +150,10 @@ final public class Apphud: NSObject {
     }
 
     /**
-     Returns paywalls configured in Apphud Dashboard. Each paywall contains an array of `ApphudProduct` objects that you use for purchase.
+     Returns paywalls configured in Apphud Dashboard > Product Hub > Paywalls. Each paywall contains an array of `ApphudProduct` objects that you use for purchase.
      `ApphudProduct` is Apphud's wrapper around StoreKit's `SKProduct`.
      
-     This callback is called when paywalls are fully loaded with their StoreKit products. Callback is called immediately if paywalls are already loaded.
+     This callback is called when paywalls are populated with their StoreKit products. Callback is called immediately if paywalls are already loaded.
      It is safe to call this method multiple times – previous callback will not be overwritten, but will be added to array and once paywalls are loaded, all callbacks will be called.
     */
     @objc public static func paywallsDidLoadCallback(_ callback: @escaping ([ApphudPaywall]) -> Void) {
@@ -176,7 +175,7 @@ final public class Apphud: NSObject {
     }
 
     /**
-     This notification is sent when `SKProduct`s are fetched from StoreKit. Note that you have to add all product identifiers in Apphud Dashboard > Product Hub > Products.
+     This notification is sent when `SKProduct`s are fetched from the App Store. Note that you have to add all product identifiers in Apphud Dashboard > Product Hub > Products.
      
      You can use `productsDidFetchCallback` callback or observe for `didFetchProductsNotification()` or implement `apphudDidFetchStoreKitProducts` delegate method. Use whatever you like most.
      
@@ -187,7 +186,7 @@ final public class Apphud: NSObject {
     }
 
     /**
-    This callback is called when `SKProduct`s are fetched from StoreKit. Note that you have to add all product identifiers in Apphud Dashboard > Product Hub > Products.
+    This callback is called when `SKProduct`s are fetched from the App Store. Note that you have to add all product identifiers in Apphud Dashboard > Product Hub > Products.
     
     You can use `productsDidFetchCallback` callback or observe for `didFetchProductsNotification()` or implement `apphudDidFetchStoreKitProducts` delegate method. Use whatever you like most.
      
@@ -209,9 +208,9 @@ final public class Apphud: NSObject {
     }
 
     /**
-     Returns array of `SKProduct` objects that you added in Apphud. 
+     Returns array of `SKProduct` objects that you added in Apphud > Product Hub > Products.
      
-     Note that this method will return `nil` if products are not yet fetched. You should observe for `Apphud.didFetchProductsNotification()` notification or implement  `apphudDidFetchStoreKitProducts` delegate method or set `productsDidFetchCallback` block.
+     Note that this method will return `nil` if products are not yet fetched from the App Store. You should observe for `Apphud.didFetchProductsNotification()` notification or implement  `apphudDidFetchStoreKitProducts` delegate method or set `productsDidFetchCallback` block.
      
      Best practise is not to use this method, but implement paywalls logic by adding your paywall configuration in Apphud Dashboard > Product Hub > Paywalls.
      */
@@ -226,7 +225,7 @@ final public class Apphud: NSObject {
     /**
      Returns `SKProduct` object by product identifier. Note that you have to add this product identifier in Apphud Dashboard > Product Hub > Products.
      
-     Will return `nil` if product is not yet fetched from StoreKit.
+     Will return `nil` if product is not yet fetched from the App Store.
      
      Best practise is not to use this method, but implement paywalls logic by adding your paywall configuration in Apphud Dashboard > Product Hub > Paywalls.
      */
@@ -239,7 +238,7 @@ final public class Apphud: NSObject {
      
      __Note__:  You are not required to purchase product using Apphud SDK methods. You can purchase subscription or any in-app purchase using your own code. App Store receipt will be sent to Apphud anyway.
      
-     - parameter product: Required. `ApphudProduct` object from your `ApphudPaywall`. You must first configure paywalls in Apphud Dashboard > Product Hub.
+     - parameter product: Required. `ApphudProduct` object from your `ApphudPaywall`. You must first configure paywalls in Apphud Dashboard > Product Hub > Paywalls.
      
      - parameter callback: Optional. Returns `ApphudPurchaseResult` object.
      */
@@ -301,7 +300,7 @@ final public class Apphud: NSObject {
 
     // MARK: - Promotionals
     /**
-     You can grant free promotional subscription to user. Returns `true` in a callback if promotional was granted.
+     You can grant free promotional subscription to user. Returns `true` in a callback if promotional was granted. After this `hasActiveSubscription()` method will return `true`.
     
      __Note__: You should pass either `productId` (recommended) or `permissionGroup` OR both parameters `nil`. Sending both `productId` and `permissionGroup` parameters will result in `productId` being used.
     
