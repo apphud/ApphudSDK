@@ -18,6 +18,21 @@
       "productID" : "com.apphud.lifetime",
       "referenceName" : "Lifetime Purchase",
       "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "0.99",
+      "familyShareable" : false,
+      "internalID" : "C6469AC2",
+      "localizations" : [
+        {
+          "description" : "",
+          "displayName" : "",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.apphud.gold",
+      "referenceName" : "Gold",
+      "type" : "Consumable"
     }
   ],
   "settings" : {

@@ -44,7 +44,8 @@ import StoreKit
         
      This method gets called when products are fetched from App Store. Returns optional Error from StoreKit, if exists.
      */
-    @objc func apphudDidFetchStoreKitProducts(_ products: [SKProduct], _ error: Error?)
+    @objc optional func apphudDidFetchStoreKitProducts(_ products: [SKProduct], _ error: Error?)
+    @objc optional func apphudDidFetchStoreKitProducts(_ products: [SKProduct])
 
     /**
      Implements mechanism of purchasing In-App Purchase initiated directly from the App Store page.
@@ -52,7 +53,7 @@ import StoreKit
      You must return a callback block which will be called when a payment is finished. If you don't implement this method or return `nil` then a payment will not start; you can also save the product and return `nil` to initiate a payment later by yourself. Read Apple documentation for details: https://developer.apple.com/documentation/storekit/in-app_purchase/promoting_in-app_purchases
      */
     @objc optional func apphudShouldStartAppStoreDirectPurchase(_ product: SKProduct) -> ((ApphudPurchaseResult) -> Void)?
-    
+
     /**
         Optional. Specify a list of product identifiers to fetch from the App Store.
         If you don't implement this method, then product identifiers will be fetched from Apphud servers.
@@ -60,4 +61,12 @@ import StoreKit
         Implementing this delegate method gives you more reliabality on fetching products and a little more speed on loading due to skipping Apphud request, but also gives less flexibility because you have to hardcode product identifiers this way.
      */
     @objc optional func apphudProductIdentifiers() -> [String]
+
+    /**
+        Called when Apphud SDK detects a purchase that was made outside of Apphud SDK purchase methods. It is also useful to intercept purchases made using Promo Codes for in-app purchases. If user redeems promo code for in-app purchase in the App Store, then opens the app, this delegate method will be called, so you will be able to handle successful payment on your side.
+        
+        Return `true` if you would like Apphud SDK to finish this transaction. If you return `false`, then you must call `SKPaymentQueue.default().finishTransaction(transaction)`.
+        See optional `transaction` property of `result` object.
+     */
+    @objc optional func apphudDidObservePurchase(result: ApphudPurchaseResult) -> Bool
 }

@@ -33,21 +33,21 @@ extension String {
                                    .withColonSeparatorInTime]
         let date = formatter.date(from: self)
         if date != nil { return date }
-        
+
         // fallback
         return apphudStandardIsoDate
     }
-    
+
     internal var appleReceiptDate: Date? {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH:mm:ss VV"
         let date = formatter.date(from: self)
         if date != nil { return date }
-        
+
         // for local storekit receipts
         return apphudStandardIsoDate
     }
-    
+
     internal var apphudStandardIsoDate: Date? {
         ISO8601DateFormatter().date(from: self)
     }
@@ -94,7 +94,7 @@ internal func apphudDataToCache(data: Data, key: String) {
 internal func apphudDataFromCache(key: String, cacheTimeout: TimeInterval) -> Data? {
     if var url = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first {
         url.appendPathComponent(key)
-        
+
         if FileManager.default.fileExists(atPath: url.path),
            let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
            let creationDate = attrs[.creationDate] as? Date,
@@ -172,7 +172,7 @@ extension UIDevice {
 @available(OSX 10.14.4, *)
 internal func apphudCurrentDeviceParameters() -> [String: String] {
     let app_version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? ""
-    
+
     var params: [String: String] = ["locale": Locale.current.identifier,
                                       "time_zone": TimeZone.current.identifier,
                                       "device_type": "Mac",

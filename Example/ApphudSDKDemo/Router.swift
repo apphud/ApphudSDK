@@ -9,10 +9,10 @@
 import UIKit
 
 class Router: NSObject {
-    
+
     static let shared = Router()
-    
-    func showRepeatPaywall(completion: @escaping ()->()) {
+
+    func showRepeatPaywall(completion: @escaping ()->Void) {
         let storyBoard: UIStoryboard = UIStoryboard(name: "Main", bundle: nil)
         let paywallRepeatController = storyBoard.instantiateViewController(withIdentifier: "PaywallViewControllerid") as! PaywallViewController
         paywallRepeatController.dismissCompletion = completion
@@ -22,11 +22,11 @@ class Router: NSObject {
 
 // MARK: - Top Controller
 extension Router {
-    
+
     var topController: UIViewController! {
         return topController()
     }
-    
+
     func topController(controller: UIViewController? = UIApplication.shared.keyWindow?.rootViewController) -> UIViewController? {
         if let navigationController = controller as? UINavigationController {
             return topController(controller: navigationController.visibleViewController)

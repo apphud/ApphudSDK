@@ -37,9 +37,9 @@ public class ApphudHttpClient {
     }
 
     static let productionEndpoint = "https://api.apphud.com"
-    public var sdkType:String = "swift"
-    public var sdkVersion:String = apphud_sdk_version
-    
+    public var sdkType: String = "swift"
+    public var sdkVersion: String = apphud_sdk_version
+
     #if DEBUG
     public static let shared = ApphudHttpClient()
     public var domainUrlString = productionEndpoint
@@ -53,18 +53,18 @@ public class ApphudHttpClient {
     internal var canRetry: Bool {
         !invalidAPiKey && !unauthorized
     }
-    
+
     internal var invalidAPiKey: Bool = false
     internal var unauthorized: Bool = false
     internal var suspended: Bool = false
-    
+
     private let session: URLSession = {
         let config = URLSessionConfiguration.default
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
         config.urlCache = nil
         return URLSession.init(configuration: config)
     }()
-    
+
     private let GET_TIMEOUT: TimeInterval = 10.0
     private let POST_PUT_TIMEOUT: TimeInterval = 40.0
 
@@ -89,7 +89,7 @@ public class ApphudHttpClient {
             apphudLog("using cached html data for screen id = \(screenID)", logLevel: .all)
             return
         }
-        
+
         if let request = makeScreenRequest(screenID: screenID) {
 
             apphudLog("started loading screen html data:\(request)", logLevel: .all)
@@ -115,7 +115,7 @@ public class ApphudHttpClient {
     private func cachedScreenData(id: String) -> Data? {
         guard var url = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return nil }
         url = url.appendingPathComponent(id).appendingPathExtension("html")
-        
+
         if FileManager.default.fileExists(atPath: url.path),
            let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
            let creationDate = attrs[.creationDate] as? Date,
@@ -123,21 +123,21 @@ public class ApphudHttpClient {
            let data = try? Data(contentsOf: url) {
             return data
         }
-        
+
         return nil
     }
-    
+
     private func cacheScreenData(id: String, html: Data) {
         guard var url = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }
         url = url.appendingPathComponent(id).appendingPathExtension("html")
-        
+
         if FileManager.default.fileExists(atPath: url.path) {
             try? FileManager.default.removeItem(at: url)
         }
-        
+
         try? html.write(to: url)
     }
-    
+
     internal func makeScreenRequest(screenID: String) -> URLRequest? {
 
         let deviceID: String = ApphudInternal.shared.currentDeviceID
@@ -173,12 +173,12 @@ public class ApphudHttpClient {
             guard let finalURL = url else {
                 return nil
             }
-            
+
             var platform = "ios"
             #if os(macOS)
             platform = "macos"
             #endif
-            
+
             request = requestInstance(url: finalURL)
             request?.httpMethod = method.rawValue
             request?.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
@@ -193,23 +193,22 @@ public class ApphudHttpClient {
                 if params != nil {
                     finalParams.merge(params!, uniquingKeysWith: {$1})
                 }
-                let data = try JSONSerialization.data(withJSONObject: finalParams, options: [])
+                let data = try JSONSerialization.data(withJSONObject: finalParams, options: [.prettyPrinted])
                 request?.httpBody = data
             }
         } catch {
 
         }
 
-        do {
-            let string = String(data: try JSONSerialization.data(withJSONObject: params ?? [:], options: .prettyPrinted), encoding: .utf8)
+        var string: String = ""
+        if let data = request?.httpBody, let str = String(data: data, encoding: .utf8) {
+            string = str
+        }
 
-            if ApphudUtils.shared.logLevel == .all {
-                apphudLog("Start \(method) request \(request?.url?.absoluteString ?? "") params: \(string ?? "")", logLevel: .all)
-            } else {
-                apphudLog("Start \(method) request \(request?.url?.absoluteString ?? "")")
-            }
-
-        } catch {
+        if ApphudUtils.shared.logLevel == .all {
+            apphudLog("Start \(method) request \(request?.url?.absoluteString ?? "") params: \(string)", logLevel: .all)
+        } else {
+            apphudLog("Start \(method) request \(request?.url?.absoluteString ?? "")")
         }
 
         return request
@@ -234,7 +233,7 @@ public class ApphudHttpClient {
             var dictionary: [String: Any]?
 
             do {
-                if data != nil && (!useDecoder || apphudIsSandbox()){
+                if data != nil && (!useDecoder || apphudIsSandbox()) {
                     dictionary = try JSONSerialization.jsonObject(with: data!, options: []) as? [String: Any]
                 }
             } catch {
@@ -277,11 +276,11 @@ public class ApphudHttpClient {
                     }
 
                     var finalError = error
-                    
+
                     if code == 422 && dictionary != nil {
                         finalError = self.parseError(dictionary!)
                     }
-                    
+
                     callback?(false, nil, data, finalError, code)
                 } else {
                     let code = (error as NSError?)?.code ?? NSURLErrorUnknown
@@ -291,7 +290,7 @@ public class ApphudHttpClient {
         }
         task.resume()
     }
-    
+
     private func parseError(_ dictionary: [String: Any]) -> Error? {
         if let errors = dictionary["errors"] as? [[String: Any]], let errorDict = errors.first, let errorMessage = errorDict["title"] as? String {
             return ApphudError(message: errorMessage)

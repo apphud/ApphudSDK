@@ -48,7 +48,7 @@ public class ApphudPurchaseResult: NSObject {
         self.transaction = transaction
         self.error = error
     }
-    
+
     public override var description: String {
         """
             ApphudPurchaseResult:

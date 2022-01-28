@@ -14,7 +14,6 @@ import UIKit
 @available(OSX 10.14.4, *)
 extension ApphudInternal {
 
-    
     @discardableResult internal func parseUser(_ dict: [String: Any]?) -> HasPurchasesChanges {
 
         guard let dataDict = dict?["data"] as? [String: Any] else {
@@ -23,7 +22,7 @@ extension ApphudInternal {
         guard let userDict = dataDict["results"] as? [String: Any] else {
             return (false, false)
         }
-        
+
         if let paywalls = userDict["paywalls"] as? [[String: Any]] {
             self.mappingPaywalls(paywalls)
         }
@@ -47,7 +46,7 @@ extension ApphudInternal {
         let hasPurchasesChanges = (oldPurchasesStates != newPurchasesStates && self.currentUser?.purchases != nil)
         return (hasSubscriptionChanges, hasPurchasesChanges)
     }
-        
+
     private func mappingPaywalls(_ pwls: [[String: Any]]) {
         let finalPaywalls = pwls.map { ApphudPaywall(dictionary: $0) }
         self.preparePaywalls(pwls: finalPaywalls, writeToCache: true, completionBlock: nil)
@@ -64,7 +63,7 @@ extension ApphudInternal {
         }
     }
 
-    internal func createOrGetUser(shouldUpdateUserID: Bool, skipRegistration:Bool = false, callback: @escaping (Bool, Int) -> Void) {
+    internal func createOrGetUser(shouldUpdateUserID: Bool, skipRegistration: Bool = false, callback: @escaping (Bool, Int) -> Void) {
         if skipRegistration {
             apphudLog("Loading user from cache, because cache is not expired.")
             self.preparePaywalls(pwls: self.paywalls, writeToCache: false, completionBlock: nil)
@@ -74,20 +73,20 @@ extension ApphudInternal {
             callback(true, 0)
             return
         }
-        
+
         let fields = shouldUpdateUserID ? ["user_id": self.currentUserID] : [:]
         let startBench = Date()
-        
+
         self.updateUser(fields: fields) { (result, response, _, error, code) in
             let hasChanges = self.parseUser(response)
-            
+
             let finalResult = result && self.currentUser != nil
-            
+
             if finalResult {
                 ApphudLoggerService.lastUserUpdatedAt = Date()
                 let endBench = startBench.timeIntervalSinceNow * -1
                 ApphudLoggerService.shared.addDurationEvent(ApphudLoggerService.durationLog.customers.value(), endBench)
-                
+
                 if hasChanges.hasSubscriptionChanges {
                     self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions)
                 }
@@ -98,11 +97,11 @@ extension ApphudInternal {
                     self.submitAppStoreReceipt()
                 }
             }
-            
+
             if error != nil {
                 apphudLog("Failed to register or get user, error:\(error!.localizedDescription)", forceDisplay: true)
             }
-            
+
             callback(finalResult, code)
         }
     }
@@ -117,7 +116,7 @@ extension ApphudInternal {
 
         let params: [String: String] = ["country_code": countryCode, "currency_code": currencyCode]
 
-        updateUser(fields: params) { (result, response, _, _, code) in
+        updateUser(fields: params) { (result, response, _, _, _) in
             if result {
                 self.parseUser(response)
             }
@@ -133,7 +132,7 @@ extension ApphudInternal {
 
         let exist = performWhenUserRegistered {
 
-            self.updateUser(fields: ["user_id": userID]) { (result, response, _, _, code) in
+            self.updateUser(fields: ["user_id": userID]) { (result, response, _, _, _) in
                 if result {
                     self.parseUser(response)
                 }
@@ -143,8 +142,8 @@ extension ApphudInternal {
             apphudLog("Tried to make update user id: \(userID) request when user is not yet registered, addind to schedule..")
         }
     }
-    
-    internal func grantPromotional(_ duration: Int, _ permissionGroup:ApphudGroup?, productId:String?, callback: ApphudBoolCallback?) {
+
+    internal func grantPromotional(_ duration: Int, _ permissionGroup: ApphudGroup?, productId: String?, callback: ApphudBoolCallback?) {
         performWhenUserRegistered {
             self.grantPromotional(duration, permissionGroup, productId: productId) { (result, response, _, _, _) in
                 if result {
@@ -154,19 +153,19 @@ extension ApphudInternal {
             }
         }
     }
-        
-    private func grantPromotional(_ duration: Int, _ permissionGroup:ApphudGroup?, productId:String?, callback: @escaping ApphudHTTPResponseCallback) {
+
+    private func grantPromotional(_ duration: Int, _ permissionGroup: ApphudGroup?, productId: String?, callback: @escaping ApphudHTTPResponseCallback) {
         var params: [String: Any] = [:]
         params["duration"] = duration
         params["user_id"] = currentUserID
         params["device_id"] = currentDeviceID
-        
+
         if let productId = productId {
             params["product_id"] = productId
         } else if let permissionGroup = permissionGroup {
             params["product_group_id"] = permissionGroup.id
         }
-        
+
         httpClient?.startRequest(path: "promotions", params: params, method: .post, callback: callback)
     }
 
@@ -215,11 +214,11 @@ extension ApphudInternal {
         }
         return type
     }
-    
+
     private func arePropertyValuesEqual(value1: Any?, value2: Any?) -> Bool {
         let className1 = object_getClass(value1)?.description() ?? ""
         let className2 = object_getClass(value2)?.description() ?? ""
-        
+
         if className1 == "NSNull" && className2 == "NSNull" { return true }
         if value1 is NSNull && value2 is NSNull { return true }
         if value1 is String && value2 is String, value1 as? String == value2 as? String { return true }
@@ -229,7 +228,7 @@ extension ApphudInternal {
         if value1 is Float && value2 is Float, value1 as! Float == value2 as! Float { return true }
         if value1 is Double && value2 is Double, value1 as! Double == value2 as! Double { return true }
         if value1 is Bool && value2 is Bool, value1 as! Bool == value2 as! Bool { return true }
-        
+
         return false
     }
 
@@ -246,7 +245,7 @@ extension ApphudInternal {
             apphudLog("Invalid increment property type: (\(givenType)). Must be one of: [Int, Float, Double]", forceDisplay: true)
             return
         }
-        
+
         performWhenUserRegistered {
             let property = ApphudUserProperty(key: key.key, value: value, increment: increment, setOnce: setOnce, type: typeString)
             self.pendingUserProperties.removeAll { prop -> Bool in property.key == prop.key }
@@ -272,7 +271,7 @@ extension ApphudInternal {
             }
         }
         params["properties"] = properties
-        
+
         if canSaveToCache == false {
             // if new properties are not cacheable, then remove old cache and send new props to backend and not cache them
             self.userPropertiesCache = nil
@@ -291,19 +290,19 @@ extension ApphudInternal {
                         shouldSkipUpload = false
                         break
                     }
-                    
+
                 }
             } else {
                 shouldSkipUpload = false
             }
-            
+
             if shouldSkipUpload {
-                apphudLog("Skip uploading user properties, because values did not change") //:\n\n\(properties),\n\ncache:\n\n\(cachedProperties)")
+                apphudLog("Skip uploading user properties, because values did not change") //: \n\n\(properties),\n\ncache:\n\n\(cachedProperties)")
                 self.pendingUserProperties.removeAll()
                 return
             }
         }
-        
+
         httpClient?.startRequest(path: "customers/properties", params: params, method: .post) { (result, _, _, error, code) in
             if result {
                 if canSaveToCache { self.userPropertiesCache = properties }
@@ -314,7 +313,7 @@ extension ApphudInternal {
             }
         }
     }
-    
+
     private var userPropertiesCache: [[String: Any?]]? {
         get {
             if let data = apphudDataFromCache(key: "ApphudUserPropertiesCache", cacheTimeout: 86_400*7),

@@ -12,7 +12,7 @@ import StoreKit
 import ApphudSDK
 
 extension SKProduct {
-        
+
     func getProductDuration() -> String? {
         var unit = ""
         switch self.subscriptionPeriod?.unit {
@@ -29,7 +29,7 @@ extension SKProduct {
         }
         return unit
     }
-    
+
     func getProductPrice() -> String? {
         let numberFormatter = NumberFormatter()
         numberFormatter.numberStyle = .currency
@@ -39,7 +39,7 @@ extension SKProduct {
         let priceString = numberFormatter.string(from: price)
         return priceString ?? ""
     }
-    
+
     func getFullSubscriptionInfoString() -> String? {
 
         guard subscriptionPeriod != nil else {return nil}
@@ -119,9 +119,9 @@ extension SKProduct {
 struct LoaderDialog {
     static var alert = UIAlertController()
     static var progressView = UIProgressView()
-    static var progressPoint : Float = 0 {
+    static var progressPoint: Float = 0 {
         didSet {
-            if (progressPoint == 1) {
+            if progressPoint == 1 {
                 LoaderDialog.alert.dismiss(animated: true, completion: nil)
             }
         }
@@ -131,16 +131,16 @@ struct LoaderDialog {
 extension UIViewController {
     func showLoader() {
         LoaderDialog.alert = UIAlertController(title: nil, message: "Connect to Apple...", preferredStyle: .alert)
-        
+
         let loadingIndicator = UIActivityIndicatorView(frame: CGRect(x: 10, y: 5, width: 50, height: 50))
         loadingIndicator.hidesWhenStopped = true
         loadingIndicator.style = UIActivityIndicatorView.Style.white
         loadingIndicator.startAnimating()
-        
+
         LoaderDialog.alert.view.addSubview(loadingIndicator)
         present(LoaderDialog.alert, animated: true, completion: nil)
     }
-    
+
     func hideLoader() {
         LoaderDialog.alert.dismiss(animated: true, completion: nil)
     }
