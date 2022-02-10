@@ -180,7 +180,7 @@ internal func apphudCurrentDeviceParameters() -> [String: String] {
                                       "platform": "macOS",
                                       "app_version": app_version,
                                       "start_app_version": app_version,
-                                      "sdk_version": sdkVersion,
+                                      "sdk_version": ApphudHttpClient.shared.sdkVersion,
                                     "os_version": "\(ProcessInfo.processInfo.operatingSystemVersion.majorVersion).\(ProcessInfo.processInfo.operatingSystemVersion.minorVersion)"
     ]
 
