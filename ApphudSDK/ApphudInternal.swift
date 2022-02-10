@@ -200,7 +200,7 @@ final class ApphudInternal: NSObject {
             ApphudStoreKitWrapper.shared.setupObserver()
             httpClient = ApphudHttpClient.shared
             httpClient!.apiKey = apiKey
-            apphudLog("Started Apphud SDK (\(apphud_sdk_version))", forceDisplay: true)
+            apphudLog("Started Apphud SDK (\(ApphudHttpClient.shared.sdkVersion))", forceDisplay: true)
         }
 
         guard allowIdentifyUser == true else {
