@@ -109,6 +109,7 @@ final class ApphudInternal: NSObject {
     internal let submittedAFDataKey = "submittedAFDataKey"
     internal let submittedAdjustDataKey = "submittedAdjustDataKey"
     internal var didSubmitAppleAdsAttributionKey = "didSubmitAppleAdsAttributionKey"
+    internal let submittedPushTokenKey = "submittedPushTokenKey"
     internal var isSendingAppsFlyer = false
     internal var isSendingAdjust = false
     internal var isFreshInstall = true
@@ -189,6 +190,14 @@ final class ApphudInternal: NSObject {
         }
         set {
             UserDefaults.standard.set(newValue, forKey: submittedFirebaseIdKey)
+        }
+    }
+    internal var submittedPushToken: Data? {
+        get {
+            UserDefaults.standard.data(forKey: submittedPushTokenKey)
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: submittedPushTokenKey)
         }
     }
 
@@ -457,9 +466,16 @@ final class ApphudInternal: NSObject {
 
     internal func submitPushNotificationsToken(token: Data, callback: ApphudBoolCallback?) {
         performWhenUserRegistered {
+            guard self.submittedPushToken != token else {
+                callback?(false)
+                return
+            }
             let tokenString = token.map { String(format: "%02.2hhx", $0) }.joined()
             let params: [String: String] = ["device_id": self.currentDeviceID, "push_token": tokenString]
             self.httpClient?.startRequest(path: "customers/push_token", params: params, method: .put) { (result, _, _, _, _) in
+                if result {
+                    self.submittedPushToken = token
+                }
                 callback?(result)
             }
         }
