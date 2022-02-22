@@ -260,10 +260,6 @@ public class ApphudHttpClient {
 
                         callback?(true, dictionary, data, nil, code)
                         return
-                    } else if code == 401 {
-                        apphudLog("Unable to perform API requests, because your API Key is invalid.", forceDisplay: true)
-                    } else if code == 403 {
-                        apphudLog("Unable to perform API requests, because your account has been suspended.", forceDisplay: true)
                     }
 
                     if ApphudUtils.shared.logLevel == .all {

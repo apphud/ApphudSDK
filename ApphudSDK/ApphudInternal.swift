@@ -192,9 +192,9 @@ final class ApphudInternal: NSObject {
             UserDefaults.standard.set(newValue, forKey: submittedFirebaseIdKey)
         }
     }
-    internal var submittedPushToken: Data? {
+    internal var submittedPushToken: String? {
         get {
-            UserDefaults.standard.data(forKey: submittedPushTokenKey)
+            UserDefaults.standard.string(forKey: submittedPushTokenKey)
         }
         set {
             UserDefaults.standard.set(newValue, forKey: submittedPushTokenKey)
@@ -280,7 +280,7 @@ final class ApphudInternal: NSObject {
     }
 
     internal var cacheTimeout: TimeInterval {
-        apphudIsSandbox() ? 60 : 3600
+        apphudIsSandbox() ? 60 : 86400
     }
 
     private func isUserCacheExpired() -> Bool {
@@ -466,15 +466,16 @@ final class ApphudInternal: NSObject {
 
     internal func submitPushNotificationsToken(token: Data, callback: ApphudBoolCallback?) {
         performWhenUserRegistered {
-            guard self.submittedPushToken != token else {
+            
+            let tokenString = token.map { String(format: "%02.2hhx", $0) }.joined()
+            guard tokenString != "", self.submittedPushToken != tokenString else {
                 callback?(false)
                 return
             }
-            let tokenString = token.map { String(format: "%02.2hhx", $0) }.joined()
             let params: [String: String] = ["device_id": self.currentDeviceID, "push_token": tokenString]
             self.httpClient?.startRequest(path: "customers/push_token", params: params, method: .put) { (result, _, _, _, _) in
                 if result {
-                    self.submittedPushToken = token
+                    self.submittedPushToken = tokenString
                 }
                 callback?(result)
             }
