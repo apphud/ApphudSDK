@@ -109,6 +109,7 @@ final class ApphudInternal: NSObject {
     internal let submittedAFDataKey = "submittedAFDataKey"
     internal let submittedAdjustDataKey = "submittedAdjustDataKey"
     internal var didSubmitAppleAdsAttributionKey = "didSubmitAppleAdsAttributionKey"
+    internal let submittedPushTokenKey = "submittedPushTokenKey"
     internal var isSendingAppsFlyer = false
     internal var isSendingAdjust = false
     internal var isFreshInstall = true
@@ -191,6 +192,14 @@ final class ApphudInternal: NSObject {
             UserDefaults.standard.set(newValue, forKey: submittedFirebaseIdKey)
         }
     }
+    internal var submittedPushToken: String? {
+        get {
+            UserDefaults.standard.string(forKey: submittedPushTokenKey)
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: submittedPushTokenKey)
+        }
+    }
 
     // MARK: - Initialization
 
@@ -271,7 +280,7 @@ final class ApphudInternal: NSObject {
     }
 
     internal var cacheTimeout: TimeInterval {
-        apphudIsSandbox() ? 60 : 3600
+        apphudIsSandbox() ? 60 : 86400
     }
 
     private func isUserCacheExpired() -> Bool {
@@ -457,9 +466,18 @@ final class ApphudInternal: NSObject {
 
     internal func submitPushNotificationsToken(token: Data, callback: ApphudBoolCallback?) {
         performWhenUserRegistered {
+            
             let tokenString = token.map { String(format: "%02.2hhx", $0) }.joined()
+            guard tokenString != "", self.submittedPushToken != tokenString else {
+                apphudLog("Already submitted the same push token, exiting")
+                callback?(true)
+                return
+            }
             let params: [String: String] = ["device_id": self.currentDeviceID, "push_token": tokenString]
             self.httpClient?.startRequest(path: "customers/push_token", params: params, method: .put) { (result, _, _, _, _) in
+                if result {
+                    self.submittedPushToken = tokenString
+                }
                 callback?(result)
             }
         }

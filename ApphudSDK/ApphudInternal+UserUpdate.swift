@@ -178,7 +178,18 @@ extension ApphudInternal {
         params["is_new"] = isFreshInstall
         params["need_paywalls"] = !didRetrievePaywallsAtThisLaunch
         // do not automatically pass currentUserID here,because we have separate method updateUserID
-        httpClient?.startRequest(path: "customers", params: params, method: .post, callback: callback)
+        httpClient?.startRequest(path: "customers", params: params, method: .post) { done, response, data, error, errorCode in
+            if  errorCode == 403 {
+                apphudLog("Unable to perform API requests, because your account has been suspended.", forceDisplay: true)
+                ApphudHttpClient.shared.unauthorized = true
+                ApphudHttpClient.shared.suspended = true
+            }
+            if  errorCode == 401 {
+                apphudLog("Unable to perform API requests, because your API Key is invalid.", forceDisplay: true)
+                ApphudHttpClient.shared.invalidAPiKey = true
+            }
+            callback(done, response, data, error, errorCode)
+        }
     }
 
     @objc internal func updateCurrentUser() {
