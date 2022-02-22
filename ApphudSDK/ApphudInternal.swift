@@ -469,7 +469,8 @@ final class ApphudInternal: NSObject {
             
             let tokenString = token.map { String(format: "%02.2hhx", $0) }.joined()
             guard tokenString != "", self.submittedPushToken != tokenString else {
-                callback?(false)
+                apphudLog("Already submitted the same push token, exiting")
+                callback?(true)
                 return
             }
             let params: [String: String] = ["device_id": self.currentDeviceID, "push_token": tokenString]
