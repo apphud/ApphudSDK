@@ -12,16 +12,13 @@ import StoreKit
 @available(OSX 10.14.4, *)
 extension ApphudInternal {
 
-    @objc internal func continueToFetchProducts() {
+    @objc internal func continueToFetchProducts(needToUpdateProductGroups:Bool = false) {
         if let productIDs = delegate?.apphudProductIdentifiers?(), productIDs.count > 0 {
             let products = productIDs.map { ApphudProduct(id: $0, name: $0, productId: $0, store: "app_store", skProduct: nil) }
             let group = ApphudGroup(id: "Untitled", name: "Untitled", products: products)
             continueWithProductGroups([group], errorCode: nil, writeToCache: false)
         } else {
-            if productGroups.count > 0 {
-                apphudLog("Using cached product groups structure")
-                self.continueWithProductGroups(productGroups, errorCode: nil, writeToCache: false)
-            } else {
+            if needToUpdateProductGroups {
                 let startBench = Date()
                 getProductGroups { groups, error, code in
                     if error == nil {
@@ -30,6 +27,9 @@ extension ApphudInternal {
                     }
                     self.continueWithProductGroups(groups, errorCode: code, writeToCache: true)
                 }
+            } else {
+                apphudLog("Using cached product groups structure")
+                self.continueWithProductGroups(productGroups, errorCode: nil, writeToCache: false)
             }
         }
     }
@@ -263,17 +263,18 @@ extension ApphudInternal {
         }
     }
 
-    internal func cachedGroups() -> [ApphudGroup]? {
-
-        if let data = apphudDataFromCache(key: "ApphudProductGroups", cacheTimeout: cacheTimeout) {
+    internal func cachedGroups() -> (objects : [ApphudGroup]?, needToUpdate : Bool) {
+ 
+        let dataFromCache = apphudDataFromCache(key: "ApphudProductGroups", cacheTimeout: cacheTimeout)
+        if let data = dataFromCache.objectsData {
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase
             if let groups = try? decoder.decode([ApphudGroup].self, from: data) {
-                return groups
+                return (groups, dataFromCache.needToUpdate)
             }
         }
-
-        return nil
+        
+        return (nil, true)
     }
 
     internal func cachePaywalls(paywalls: [ApphudPaywall]) {
@@ -284,16 +285,17 @@ extension ApphudInternal {
         }
     }
 
-    internal func cachedPaywalls() -> [ApphudPaywall]? {
+    internal func cachedPaywalls() -> (objects : [ApphudPaywall]?, needToUpdate : Bool) {
 
-        if let data = apphudDataFromCache(key: "ApphudPaywalls", cacheTimeout: cacheTimeout) {
+        let dataFromCache = apphudDataFromCache(key: "ApphudPaywalls", cacheTimeout: cacheTimeout)
+        if let data = dataFromCache.objectsData {
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase
-            if let groups = try? decoder.decode([ApphudPaywall].self, from: data) {
-                return groups
+            if let paywalls = try? decoder.decode([ApphudPaywall].self, from: data) {
+                return (paywalls, dataFromCache.needToUpdate)
             }
         }
-
-        return nil
+        
+        return (nil, true)
     }
 }

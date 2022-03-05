@@ -339,10 +339,10 @@ final public class Apphud: NSObject {
     /**
      Returns `true` if user has active subscription or  non renewing purchase
      
-     Use this method to determine whether or not user has active premium access. Note that if you have consumable purchases, this method wouldn't be operate correctly,
+     Use this method to determine whether or not user has active premium access. Note: if you have consumable purchases, this method wouldn't be operate correctly,
      */
     @objc public static func hasPremiumAccess() -> Bool {
-    #warning("Note that if you have consumable purchases, this method wouldn't be operate correctly")
+    #warning("Note: if you have consumable purchases, this method wouldn't be operate correctly")
         return Apphud.subscription()?.isActive() ?? false || (ApphudInternal.shared.currentUser?.purchases.first(where: {$0.canceledAt == nil}) != nil)
     }
 

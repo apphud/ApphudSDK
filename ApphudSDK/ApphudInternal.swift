@@ -156,7 +156,7 @@ final class ApphudInternal: NSObject {
     }
     internal var submittedAFData: [AnyHashable: Any]? {
         get {
-            if let data = apphudDataFromCache(key: submittedAFDataKey, cacheTimeout: 86_400*7),
+            if let data = apphudDataFromCache(key: submittedAFDataKey, cacheTimeout: 86_400*7).objectsData,
                 let object = try? JSONSerialization.jsonObject(with: data, options: []) as? [AnyHashable: Any] {
                 return object
             } else {
@@ -171,7 +171,7 @@ final class ApphudInternal: NSObject {
     }
     internal var submittedAdjustData: [AnyHashable: Any]? {
         get {
-            if let data = apphudDataFromCache(key: submittedAdjustDataKey, cacheTimeout: 86_400*7),
+            if let data = apphudDataFromCache(key: submittedAdjustDataKey, cacheTimeout: 86_400*7).objectsData,
                 let object = try? JSONSerialization.jsonObject(with: data, options: []) as? [AnyHashable: Any] {
                 return object
             } else {
@@ -261,13 +261,14 @@ final class ApphudInternal: NSObject {
             ApphudKeychain.saveUserID(userID: self.currentUserID)
         }
 
-        self.productGroups = cachedGroups() ?? []
+        let cachedGroups = cachedGroups()
+        self.productGroups = cachedGroups.objects ?? []
 
         let cachedPwls = cachedPaywalls()
-        self.paywalls = cachedPwls ?? []
-
+        self.paywalls = cachedPwls.objects ?? []
+  
         DispatchQueue.main.async {
-            self.continueToRegisteringUser(skipRegistration: self.skipRegistration(isIdenticalUserIds: isIdenticalUserIds, hasCashedUser: self.currentUser != nil, hasCachedPaywalls: cachedPwls != nil))
+            self.continueToRegisteringUser(skipRegistration: self.skipRegistration(isIdenticalUserIds: isIdenticalUserIds, hasCashedUser: self.currentUser != nil, hasCachedPaywalls: !cachedPwls.needToUpdate), needToUpdateProductGroups: cachedGroups.needToUpdate)
         }
     }
 
@@ -298,10 +299,10 @@ final class ApphudInternal: NSObject {
         apphudLog("User logged out. Apphud SDK is uninitialized.", logLevel: .all)
     }
 
-    internal func continueToRegisteringUser(skipRegistration: Bool = false) {
+    internal func continueToRegisteringUser(skipRegistration: Bool = false, needToUpdateProductGroups: Bool = false) {
         guard !isRegisteringUser else {return}
         isRegisteringUser = true
-        continueToFetchProducts()
+        continueToFetchProducts(needToUpdateProductGroups: needToUpdateProductGroups)
         registerUser(skipRegistration: skipRegistration)
     }
 
