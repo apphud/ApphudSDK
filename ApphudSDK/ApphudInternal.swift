@@ -386,7 +386,9 @@ final class ApphudInternal: NSObject {
                 self.continueToRegisteringUser()
             } else if Date().timeIntervalSince(self.lastCheckDate) > minCheckInterval {
                 self.checkForUnreadNotifications()
-                self.updateCurrentUser()
+                if self.isUserCacheExpired() && self.isUserPaid() {
+                    self.updateCurrentUser()
+                }
             }
         }
     }
