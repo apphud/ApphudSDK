@@ -337,7 +337,7 @@ final public class Apphud: NSObject {
     }
     
     /**
-     Returns `true` if user has active subscription or  non renewing purchase
+     Returns `true` if user has active subscription or non renewing purchase
      
      Use this method to determine whether or not user has active premium access. Note: if you have consumable purchases, this method wouldn't be operate correctly,
      */
