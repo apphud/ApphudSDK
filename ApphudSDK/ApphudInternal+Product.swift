@@ -263,14 +263,14 @@ extension ApphudInternal {
         }
     }
 
-    internal func cachedGroups() -> (objects : [ApphudGroup]?, needToUpdate : Bool) {
+    internal func cachedGroups() -> (objects: [ApphudGroup]?, expired: Bool) {
  
         let dataFromCache = apphudDataFromCache(key: "ApphudProductGroups", cacheTimeout: cacheTimeout)
         if let data = dataFromCache.objectsData {
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase
             if let groups = try? decoder.decode([ApphudGroup].self, from: data) {
-                return (groups, dataFromCache.needToUpdate)
+                return (groups, dataFromCache.expired)
             }
         }
         
@@ -285,14 +285,14 @@ extension ApphudInternal {
         }
     }
 
-    internal func cachedPaywalls() -> (objects : [ApphudPaywall]?, needToUpdate : Bool) {
+    internal func cachedPaywalls() -> (objects : [ApphudPaywall]?, expired: Bool) {
 
         let dataFromCache = apphudDataFromCache(key: "ApphudPaywalls", cacheTimeout: cacheTimeout)
         if let data = dataFromCache.objectsData {
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase
             if let paywalls = try? decoder.decode([ApphudPaywall].self, from: data) {
-                return (paywalls, dataFromCache.needToUpdate)
+                return (paywalls, dataFromCache.expired)
             }
         }
         

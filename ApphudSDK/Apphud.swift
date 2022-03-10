@@ -328,22 +328,23 @@ final public class Apphud: NSObject {
     // MARK: - Handle Purchases
 
     /**
+     Returns `true` if user has active subscription or non renewing purchase (lifetime).
+     
+     __Note: You should not use this method if you have consumable in-app purchases, like coin packs.__
+     
+     Use this method to determine whether or not user has active premium access. If you have consumable purchases, this method won't operate correctly, because Apphud SDK doesn't differ consumables from non-consumables.
+     */
+    @objc public static func hasPremiumAccess() -> Bool {
+        hasActiveSubscription() || (nonRenewingPurchases()?.first(where: { $0.isActive() }) != nil)
+    }
+    
+    /**
      Returns `true` if user has active subscription.
      
      Use this method to determine whether or not user has active premium subscription. Note that if you have lifetime (nonconsumable) or consumable purchases, you must use another `isNonRenewingPurchaseActive` method.
      */
     @objc public static func hasActiveSubscription() -> Bool {
-        return Apphud.subscription()?.isActive() ?? false
-    }
-    
-    /**
-     Returns `true` if user has active subscription or non renewing purchase
-     
-     Use this method to determine whether or not user has active premium access. Note: if you have consumable purchases, this method wouldn't be operate correctly,
-     */
-    @objc public static func hasPremiumAccess() -> Bool {
-    #warning("Note: if you have consumable purchases, this method wouldn't be operate correctly")
-        return Apphud.subscription()?.isActive() ?? false || (ApphudInternal.shared.currentUser?.purchases.first(where: {$0.canceledAt == nil}) != nil)
+        Apphud.subscription()?.isActive() ?? false
     }
 
     /**

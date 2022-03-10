@@ -91,7 +91,7 @@ internal func apphudDataToCache(data: Data, key: String) {
     }
 }
 
-internal func apphudDataFromCache(key: String, cacheTimeout: TimeInterval) -> (objectsData : Data?, needToUpdate : Bool) {
+internal func apphudDataFromCache(key: String, cacheTimeout: TimeInterval) -> (objectsData: Data?, expired: Bool) {
     if var url = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first {
         url.appendPathComponent(key)
         
@@ -99,7 +99,7 @@ internal func apphudDataFromCache(key: String, cacheTimeout: TimeInterval) -> (o
            let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
            let creationDate = attrs[.creationDate] as? Date,
            let data = try? Data(contentsOf: url) {
-            return (data, !(Date().timeIntervalSince(creationDate) < cacheTimeout))
+            return (data, (Date().timeIntervalSince(creationDate) > cacheTimeout))
         }
     }
     return (nil, true)

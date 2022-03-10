@@ -156,7 +156,8 @@ final class ApphudInternal: NSObject {
     }
     internal var submittedAFData: [AnyHashable: Any]? {
         get {
-            if let data = apphudDataFromCache(key: submittedAFDataKey, cacheTimeout: 86_400*7).objectsData,
+            let cache = apphudDataFromCache(key: submittedAFDataKey, cacheTimeout: 86_400*7)
+            if let data = cache.objectsData, !cache.expired,
                 let object = try? JSONSerialization.jsonObject(with: data, options: []) as? [AnyHashable: Any] {
                 return object
             } else {
@@ -171,7 +172,8 @@ final class ApphudInternal: NSObject {
     }
     internal var submittedAdjustData: [AnyHashable: Any]? {
         get {
-            if let data = apphudDataFromCache(key: submittedAdjustDataKey, cacheTimeout: 86_400*7).objectsData,
+            let cache = apphudDataFromCache(key: submittedAdjustDataKey, cacheTimeout: 86_400*7)
+            if let data = cache.objectsData, !cache.expired,
                 let object = try? JSONSerialization.jsonObject(with: data, options: []) as? [AnyHashable: Any] {
                 return object
             } else {
@@ -268,7 +270,7 @@ final class ApphudInternal: NSObject {
         self.paywalls = cachedPwls.objects ?? []
   
         DispatchQueue.main.async {
-            self.continueToRegisteringUser(skipRegistration: self.skipRegistration(isIdenticalUserIds: isIdenticalUserIds, hasCashedUser: self.currentUser != nil, hasCachedPaywalls: !cachedPwls.needToUpdate), needToUpdateProductGroups: cachedGroups.needToUpdate)
+            self.continueToRegisteringUser(skipRegistration: self.skipRegistration(isIdenticalUserIds: isIdenticalUserIds, hasCashedUser: self.currentUser != nil, hasCachedPaywalls: !cachedPwls.expired), needToUpdateProductGroups: cachedGroups.expired)
         }
     }
 

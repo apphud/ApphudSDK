@@ -327,7 +327,8 @@ extension ApphudInternal {
 
     private var userPropertiesCache: [[String: Any?]]? {
         get {
-            if let data = apphudDataFromCache(key: "ApphudUserPropertiesCache", cacheTimeout: 86_400*7).objectsData,
+            let cache = apphudDataFromCache(key: "ApphudUserPropertiesCache", cacheTimeout: 86_400*7)
+            if let data = cache.objectsData, !cache.expired,
                 let object = try? JSONSerialization.jsonObject(with: data, options: []) as? [[String: Any?]] {
                 return object
             } else {
