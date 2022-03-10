@@ -32,7 +32,7 @@ class PaywallCollectionViewCell: UICollectionViewCell {
         }
     }
 
-    func animate(highlight: Bool, completion: (()->Void)? = nil) {
+    func animate(highlight: Bool, completion: (() -> Void)? = nil) {
         let duration = 0.1
         let scale: CGFloat = 0.92
 

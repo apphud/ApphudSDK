@@ -337,7 +337,7 @@ final public class Apphud: NSObject {
     @objc public static func hasPremiumAccess() -> Bool {
         hasActiveSubscription() || (nonRenewingPurchases()?.first(where: { $0.isActive() }) != nil)
     }
-    
+
     /**
      Returns `true` if user has active subscription.
      

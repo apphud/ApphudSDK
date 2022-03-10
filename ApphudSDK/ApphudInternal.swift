@@ -268,7 +268,7 @@ final class ApphudInternal: NSObject {
 
         let cachedPwls = cachedPaywalls()
         self.paywalls = cachedPwls.objects ?? []
-  
+
         DispatchQueue.main.async {
             self.continueToRegisteringUser(skipRegistration: self.skipRegistration(isIdenticalUserIds: isIdenticalUserIds, hasCashedUser: self.currentUser != nil, hasCachedPaywalls: !cachedPwls.expired), needToUpdateProductGroups: cachedGroups.expired)
         }
@@ -471,7 +471,7 @@ final class ApphudInternal: NSObject {
 
     internal func submitPushNotificationsToken(token: Data, callback: ApphudBoolCallback?) {
         performWhenUserRegistered {
-            
+
             let tokenString = token.map { String(format: "%02.2hhx", $0) }.joined()
             guard tokenString != "", self.submittedPushToken != tokenString else {
                 apphudLog("Already submitted the same push token, exiting")

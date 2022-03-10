@@ -14,7 +14,7 @@ class PaywallViewController: UIViewController {
     let currentPaywallIdentifier = "main_paywall"
     var products: [ApphudProduct]?
     var paywall: ApphudPaywall?
-    var dismissCompletion: (()->Void)?
+    var dismissCompletion: (() -> Void)?
 
     @IBOutlet weak var paywallCollectionView: UICollectionView!
 

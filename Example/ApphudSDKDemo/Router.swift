@@ -12,7 +12,7 @@ class Router: NSObject {
 
     static let shared = Router()
 
-    func showRepeatPaywall(completion: @escaping ()->Void) {
+    func showRepeatPaywall(completion: @escaping () -> Void) {
         let storyBoard: UIStoryboard = UIStoryboard(name: "Main", bundle: nil)
         let paywallRepeatController = storyBoard.instantiateViewController(withIdentifier: "PaywallViewControllerid") as! PaywallViewController
         paywallRepeatController.dismissCompletion = completion
