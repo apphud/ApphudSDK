@@ -149,6 +149,10 @@ public class ApphudHttpClient {
 
         return nil
     }
+    
+    private var requestID: String {
+        UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "") + "_" + String(Date().timeIntervalSince1970)
+    }
 
     private func makeRequest(path: String, apiVersion: ApphudApiVersion, params: [String: Any]?, method: ApphudHttpMethod) -> URLRequest? {
         var request: URLRequest?
@@ -159,7 +163,7 @@ public class ApphudHttpClient {
 
             if method == .get {
                 var components = URLComponents(string: urlString)
-                var items: [URLQueryItem] = [URLQueryItem(name: "api_key", value: apiKey)]
+                var items: [URLQueryItem] = [URLQueryItem(name: "api_key", value: apiKey), URLQueryItem(name: "request_id", value: requestID)]
                 if let requestParams = params {
                     for key in requestParams.keys {
                         items.append(URLQueryItem(name: key, value: requestParams[key] as? String))
@@ -189,7 +193,7 @@ public class ApphudHttpClient {
             request?.setValue("Apphud \(platform) (\(self.sdkType) \(sdkVersion))", forHTTPHeaderField: "User-Agent")
             request?.timeoutInterval = method == .get ? GET_TIMEOUT : POST_PUT_TIMEOUT
             if method != .get {
-                var finalParams: [String: Any] = ["api_key": apiKey]
+                var finalParams: [String: Any] = ["api_key": apiKey, "request_id": requestID]
                 if params != nil {
                     finalParams.merge(params!, uniquingKeysWith: {$1})
                 }
