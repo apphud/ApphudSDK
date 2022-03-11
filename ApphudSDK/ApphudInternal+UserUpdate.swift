@@ -177,7 +177,7 @@ extension ApphudInternal {
         params.merge(fields) { (current, _) in current}
         params["device_id"] = self.currentDeviceID
         params["is_debug"] = apphudIsSandbox()
-        params["is_new"] = isFreshInstall
+        params["is_new"] = isFreshInstall && currentUser == nil
         params["need_paywalls"] = !didRetrievePaywallsAtThisLaunch
         // do not automatically pass currentUserID here,because we have separate method updateUserID
         httpClient?.startRequest(path: "customers", params: params, method: .post) { done, response, data, error, errorCode in
