@@ -25,6 +25,8 @@ extension ApphudInternal {
 
         if let paywalls = userDict["paywalls"] as? [[String: Any]] {
             self.mappingPaywalls(paywalls)
+        } else {
+            didRetrievePaywallsAtThisLaunch = true
         }
 
         let oldStates = self.currentUser?.subscriptionsStates()

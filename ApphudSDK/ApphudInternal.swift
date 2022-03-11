@@ -388,6 +388,7 @@ final class ApphudInternal: NSObject {
             if self.currentUser == nil {
                 self.continueToRegisteringUser()
             } else if Date().timeIntervalSince(self.lastCheckDate) > minCheckInterval {
+                self.lastCheckDate = Date()
                 self.checkForUnreadNotifications()
                 if self.isUserCacheExpired() && self.isUserPaid() {
                     self.updateCurrentUser()
@@ -405,7 +406,7 @@ final class ApphudInternal: NSObject {
             return true
         } else {
             if userRegisterRetriesCount >= maxNumberOfUserRegisterRetries {
-                registerUser()
+                continueToRegisteringUser()
             }
             userRegisteredCallbacks.append(callback)
             return false
