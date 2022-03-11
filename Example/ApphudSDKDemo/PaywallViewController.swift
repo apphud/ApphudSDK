@@ -14,7 +14,7 @@ class PaywallViewController: UIViewController {
     let currentPaywallIdentifier = "main_paywall"
     var products: [ApphudProduct]?
     var paywall: ApphudPaywall?
-    var dismissCompletion: (()->Void)?
+    var dismissCompletion: (() -> Void)?
 
     @IBOutlet weak var paywallCollectionView: UICollectionView!
 
@@ -44,7 +44,7 @@ class PaywallViewController: UIViewController {
         self.products = self.paywall?.products
 
         // send Apphud log, that your paywall shown
-        Apphud.paywallShown(self.paywall)
+        self.paywall.map { Apphud.paywallShown($0) }
 
         // setup your UI
         self.setupViewConfiguration()
@@ -54,7 +54,7 @@ class PaywallViewController: UIViewController {
         super.viewWillDisappear(animated)
 
         // send Apphud log, that your paywall closed
-        Apphud.paywallClosed(self.paywall)
+        self.paywall.map { Apphud.paywallClosed($0) }
         dismissCompletion?()
     }
 

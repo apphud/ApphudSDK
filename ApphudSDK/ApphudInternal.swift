@@ -156,7 +156,8 @@ final class ApphudInternal: NSObject {
     }
     internal var submittedAFData: [AnyHashable: Any]? {
         get {
-            if let data = apphudDataFromCache(key: submittedAFDataKey, cacheTimeout: 86_400*7),
+            let cache = apphudDataFromCache(key: submittedAFDataKey, cacheTimeout: 86_400*7)
+            if let data = cache.objectsData, !cache.expired,
                 let object = try? JSONSerialization.jsonObject(with: data, options: []) as? [AnyHashable: Any] {
                 return object
             } else {
@@ -171,7 +172,8 @@ final class ApphudInternal: NSObject {
     }
     internal var submittedAdjustData: [AnyHashable: Any]? {
         get {
-            if let data = apphudDataFromCache(key: submittedAdjustDataKey, cacheTimeout: 86_400*7),
+            let cache = apphudDataFromCache(key: submittedAdjustDataKey, cacheTimeout: 86_400*7)
+            if let data = cache.objectsData, !cache.expired,
                 let object = try? JSONSerialization.jsonObject(with: data, options: []) as? [AnyHashable: Any] {
                 return object
             } else {
@@ -261,13 +263,14 @@ final class ApphudInternal: NSObject {
             ApphudKeychain.saveUserID(userID: self.currentUserID)
         }
 
-        self.productGroups = cachedGroups() ?? []
+        let cachedGroups = cachedGroups()
+        self.productGroups = cachedGroups.objects ?? []
 
         let cachedPwls = cachedPaywalls()
-        self.paywalls = cachedPwls ?? []
+        self.paywalls = cachedPwls.objects ?? []
 
         DispatchQueue.main.async {
-            self.continueToRegisteringUser(skipRegistration: self.skipRegistration(isIdenticalUserIds: isIdenticalUserIds, hasCashedUser: self.currentUser != nil, hasCachedPaywalls: cachedPwls != nil))
+            self.continueToRegisteringUser(skipRegistration: self.skipRegistration(isIdenticalUserIds: isIdenticalUserIds, hasCashedUser: self.currentUser != nil, hasCachedPaywalls: !cachedPwls.expired), needToUpdateProductGroups: cachedGroups.expired)
         }
     }
 
@@ -298,10 +301,10 @@ final class ApphudInternal: NSObject {
         apphudLog("User logged out. Apphud SDK is uninitialized.", logLevel: .all)
     }
 
-    internal func continueToRegisteringUser(skipRegistration: Bool = false) {
+    internal func continueToRegisteringUser(skipRegistration: Bool = false, needToUpdateProductGroups: Bool = false) {
         guard !isRegisteringUser else {return}
         isRegisteringUser = true
-        continueToFetchProducts()
+        continueToFetchProducts(needToUpdateProductGroups: needToUpdateProductGroups)
         registerUser(skipRegistration: skipRegistration)
     }
 
@@ -386,7 +389,9 @@ final class ApphudInternal: NSObject {
                 self.continueToRegisteringUser()
             } else if Date().timeIntervalSince(self.lastCheckDate) > minCheckInterval {
                 self.checkForUnreadNotifications()
-                self.updateCurrentUser()
+                if self.isUserCacheExpired() && self.isUserPaid() {
+                    self.updateCurrentUser()
+                }
             }
         }
     }
@@ -466,7 +471,7 @@ final class ApphudInternal: NSObject {
 
     internal func submitPushNotificationsToken(token: Data, callback: ApphudBoolCallback?) {
         performWhenUserRegistered {
-            
+
             let tokenString = token.map { String(format: "%02.2hhx", $0) }.joined()
             guard tokenString != "", self.submittedPushToken != tokenString else {
                 apphudLog("Already submitted the same push token, exiting")

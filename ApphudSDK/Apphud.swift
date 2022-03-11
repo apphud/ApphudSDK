@@ -13,7 +13,7 @@ import StoreKit
 import Foundation
 import UserNotifications
 
-internal let apphud_sdk_version = "2.5.7"
+internal let apphud_sdk_version = "2.6.0"
 
 public typealias ApphudEligibilityCallback = (([String: Bool]) -> Void)
 public typealias ApphudBoolCallback = ((Bool) -> Void)
@@ -328,12 +328,23 @@ final public class Apphud: NSObject {
     // MARK: - Handle Purchases
 
     /**
+     Returns `true` if user has active subscription or non renewing purchase (lifetime).
+     
+     __Note: You should not use this method if you have consumable in-app purchases, like coin packs.__
+     
+     Use this method to determine whether or not user has active premium access. If you have consumable purchases, this method won't operate correctly, because Apphud SDK doesn't differ consumables from non-consumables.
+     */
+    @objc public static func hasPremiumAccess() -> Bool {
+        hasActiveSubscription() || (nonRenewingPurchases()?.first(where: { $0.isActive() }) != nil)
+    }
+
+    /**
      Returns `true` if user has active subscription.
      
      Use this method to determine whether or not user has active premium subscription. Note that if you have lifetime (nonconsumable) or consumable purchases, you must use another `isNonRenewingPurchaseActive` method.
      */
     @objc public static func hasActiveSubscription() -> Bool {
-        return Apphud.subscription()?.isActive() ?? false
+        Apphud.subscription()?.isActive() ?? false
     }
 
     /**
