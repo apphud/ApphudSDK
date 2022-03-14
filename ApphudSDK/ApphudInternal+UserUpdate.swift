@@ -65,7 +65,7 @@ extension ApphudInternal {
         }
     }
 
-    internal func createOrGetUser(shouldUpdateUserID: Bool, skipRegistration: Bool = false, callback: @escaping (Bool, Int) -> Void) {
+    internal func createOrGetUser(shouldUpdateUserID: Bool, skipRegistration: Bool = false, delay:Double = 0, callback: @escaping (Bool, Int) -> Void) {
         if skipRegistration {
             apphudLog("Loading user from cache, because cache is not expired.")
             self.preparePaywalls(pwls: self.paywalls, writeToCache: false, completionBlock: nil)
@@ -79,7 +79,7 @@ extension ApphudInternal {
         let fields = shouldUpdateUserID ? ["user_id": self.currentUserID] : [:]
         let startBench = Date()
 
-        self.updateUser(fields: fields) { (result, response, _, error, code) in
+        self.updateUser(fields: fields, delay: delay) { (result, response, _, error, code) in
             let hasChanges = self.parseUser(response)
 
             let finalResult = result && self.currentUser != nil
@@ -118,7 +118,7 @@ extension ApphudInternal {
 
         let params: [String: String] = ["country_code": countryCode, "currency_code": currencyCode]
 
-        updateUser(fields: params) { (result, response, _, _, _) in
+        updateUser(fields: params, delay: 2.0) { (result, response, _, _, _) in
             if result {
                 self.parseUser(response)
             }
@@ -171,7 +171,7 @@ extension ApphudInternal {
         httpClient?.startRequest(path: "promotions", params: params, method: .post, callback: callback)
     }
 
-    private func updateUser(fields: [String: Any], callback: @escaping ApphudHTTPResponseCallback) {
+    private func updateUser(fields: [String: Any], delay:Double = 0, callback: @escaping ApphudHTTPResponseCallback) {
         setNeedsToUpdateUser = false
         var params = apphudCurrentDeviceParameters() as [String: Any]
         params.merge(fields) { (current, _) in current}
@@ -180,22 +180,25 @@ extension ApphudInternal {
         params["is_new"] = isFreshInstall && currentUser == nil
         params["need_paywalls"] = !didRetrievePaywallsAtThisLaunch
         // do not automatically pass currentUserID here,because we have separate method updateUserID
-        httpClient?.startRequest(path: "customers", params: params, method: .post) { done, response, data, error, errorCode in
-            if  errorCode == 403 {
-                apphudLog("Unable to perform API requests, because your account has been suspended.", forceDisplay: true)
-                ApphudHttpClient.shared.unauthorized = true
-                ApphudHttpClient.shared.suspended = true
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [self] in
+            httpClient?.startRequest(path: "customers", params: params, method: .post) { done, response, data, error, errorCode in
+                if  errorCode == 403 {
+                    apphudLog("Unable to perform API requests, because your account has been suspended.", forceDisplay: true)
+                    ApphudHttpClient.shared.unauthorized = true
+                    ApphudHttpClient.shared.suspended = true
+                }
+                if  errorCode == 401 {
+                    apphudLog("Unable to perform API requests, because your API Key is invalid.", forceDisplay: true)
+                    ApphudHttpClient.shared.invalidAPiKey = true
+                }
+                callback(done, response, data, error, errorCode)
             }
-            if  errorCode == 401 {
-                apphudLog("Unable to perform API requests, because your API Key is invalid.", forceDisplay: true)
-                ApphudHttpClient.shared.invalidAPiKey = true
-            }
-            callback(done, response, data, error, errorCode)
         }
     }
 
     @objc internal func updateCurrentUser() {
-        createOrGetUser(shouldUpdateUserID: false) { _, _ in
+        createOrGetUser(shouldUpdateUserID: false, delay: 2.0) { _, _ in
             self.lastCheckDate = Date()
         }
     }
