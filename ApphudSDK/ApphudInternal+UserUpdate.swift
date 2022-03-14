@@ -198,7 +198,7 @@ extension ApphudInternal {
     }
 
     @objc internal func updateCurrentUser() {
-        createOrGetUser(shouldUpdateUserID: false, delay: 2.0) { _, _ in
+        createOrGetUser(shouldUpdateUserID: false) { _, _ in
             self.lastCheckDate = Date()
         }
     }

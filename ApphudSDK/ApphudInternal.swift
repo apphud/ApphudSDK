@@ -49,7 +49,7 @@ final class ApphudInternal: NSObject {
     internal var setNeedsToUpdateUser: Bool = false {
         didSet {
             if setNeedsToUpdateUser {
-                self.perform(#selector(updateCurrentUser), with: nil)
+                self.perform(#selector(updateCurrentUser), with: nil, afterDelay: 2.0)
             } else {
                 NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(updateCurrentUser), object: nil)
             }
@@ -391,7 +391,7 @@ final class ApphudInternal: NSObject {
                 self.lastCheckDate = Date()
                 self.checkForUnreadNotifications()
                 if self.isUserCacheExpired() && self.isUserPaid() {
-                    self.updateCurrentUser()
+                    self.setNeedsToUpdateUser = true
                 }
             }
         }
