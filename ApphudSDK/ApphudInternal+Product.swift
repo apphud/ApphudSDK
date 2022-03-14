@@ -12,7 +12,7 @@ import StoreKit
 @available(OSX 10.14.4, *)
 extension ApphudInternal {
 
-    @objc internal func continueToFetchProducts(needToUpdateProductGroups: Bool = false) {
+    @objc internal func continueToFetchProducts(needToUpdateProductGroups: Bool = true) {
         if let productIDs = delegate?.apphudProductIdentifiers?(), productIDs.count > 0 {
             let products = productIDs.map { ApphudProduct(id: $0, name: $0, productId: $0, store: "app_store", skProduct: nil) }
             let group = ApphudGroup(id: "Untitled", name: "Untitled", products: products)

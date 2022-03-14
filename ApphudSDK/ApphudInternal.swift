@@ -301,7 +301,7 @@ final class ApphudInternal: NSObject {
         apphudLog("User logged out. Apphud SDK is uninitialized.", logLevel: .all)
     }
 
-    internal func continueToRegisteringUser(skipRegistration: Bool = false, needToUpdateProductGroups: Bool = false) {
+    internal func continueToRegisteringUser(skipRegistration: Bool = false, needToUpdateProductGroups: Bool = true) {
         guard !isRegisteringUser else {return}
         isRegisteringUser = true
         continueToFetchProducts(needToUpdateProductGroups: needToUpdateProductGroups)
@@ -391,7 +391,7 @@ final class ApphudInternal: NSObject {
                 self.lastCheckDate = Date()
                 self.checkForUnreadNotifications()
                 if self.isUserCacheExpired() && self.isUserPaid() {
-                    self.updateCurrentUser()
+                    self.setNeedsToUpdateUser = true
                 }
             }
         }
