@@ -113,10 +113,26 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
                         // force finish transaction
                         self.finishTransaction(trx)
                     }
+                case .deferred:
+                    self.handleDeferredTransaction(trx)
                 default:
                     break
                 }
             }
+        }
+    }
+    
+    func handleDeferredTransaction(_ transaction: SKPaymentTransaction) {
+        let userCancelled: Bool
+
+        if let error = transaction.error as NSError? {
+            userCancelled = error.code == SKError.paymentCancelled.rawValue
+        } else {
+            userCancelled = false
+        }
+        
+        if !userCancelled {
+            ApphudInternal.shared.delegate?.handleDeferredTransaction?(transaction: transaction)
         }
     }
 
