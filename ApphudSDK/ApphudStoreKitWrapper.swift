@@ -123,15 +123,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     }
     
     func handleDeferredTransaction(_ transaction: SKPaymentTransaction) {
-        let userCancelled: Bool
-
-        if let error = transaction.error as NSError? {
-            userCancelled = error.code == SKError.paymentCancelled.rawValue
-        } else {
-            userCancelled = false
-        }
-        
-        if !userCancelled {
+        if let error = transaction.error as? SKError, error.code != .paymentCancelled {
             ApphudInternal.shared.delegate?.handleDeferredTransaction?(transaction: transaction)
         }
     }
