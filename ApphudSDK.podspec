@@ -11,6 +11,7 @@ Pod::Spec.new do |s|
   s.ios.deployment_target = '11.2'
   s.osx.deployment_target  = '10.14.4'
   s.tvos.deployment_target = '12.2'
+  s.watchos.deployment_target = '6.2'
   s.swift_version = '5.0'
   s.source_files = 'ApphudSDK/**/*.{swift,h,m}'
 

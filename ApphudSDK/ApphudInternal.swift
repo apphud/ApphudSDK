@@ -355,19 +355,22 @@ final class ApphudInternal: NSObject {
     }
 
     // MARK: - Other
+    
+    var applicationDidBecomeActiveNotification: Notification.Name {
+        #if os(iOS) || os(tvOS)
+            UIApplication.didBecomeActiveNotification
+        #elseif os(macOS)
+            NSApplication.didBecomeActiveNotification
+        #elseif os(watchOS)
+            Notification.Name.NSExtensionHostDidBecomeActive
+        #endif
+    }
 
     private func setupObservers() {
-        #if os(macOS)
         if !addedObservers {
-            NotificationCenter.default.addObserver(self, selector: #selector(handleDidBecomeActive), name: NSApplication.didBecomeActiveNotification, object: nil)
+            NotificationCenter.default.addObserver(self, selector: #selector(handleDidBecomeActive), name: applicationDidBecomeActiveNotification, object: nil)
             addedObservers = true
         }
-        #else
-        if !addedObservers {
-            NotificationCenter.default.addObserver(self, selector: #selector(handleDidBecomeActive), name: UIApplication.didBecomeActiveNotification, object: nil)
-            addedObservers = true
-        }
-        #endif
     }
 
     private func checkPendingRules() {
