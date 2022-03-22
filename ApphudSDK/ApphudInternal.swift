@@ -371,7 +371,7 @@ final class ApphudInternal: NSObject {
     }
 
     private func checkPendingRules() {
-        #if canImport(UIKit)
+        #if os(iOS)
         performWhenUserRegistered {
             ApphudRulesManager.shared.handlePendingAPSInfo()
         }
@@ -607,7 +607,7 @@ final class ApphudInternal: NSObject {
     }
 
     internal func checkForUnreadNotifications() {
-        #if canImport(UIKit)
+        #if os(iOS)
         performWhenUserRegistered {
             let params = ["device_id": self.currentDeviceID] as [String: String]
             self.httpClient?.startRequest(path: "notifications", apiVersion: .APIV2, params: params, method: .get, callback: { (result, response, _, _, _) in

@@ -506,7 +506,7 @@ final public class Apphud: NSObject {
     }
 
     // MARK: - Rules & Screens Methods
-    #if canImport(UIKit)
+    #if os(iOS)
     /**
      Presents Apphud screen that was delayed for presentation, i.e. `false` was returned in `apphudShouldShowScreen` delegate method.
      */
@@ -544,7 +544,7 @@ final public class Apphud: NSObject {
      
      Returns `true` if push notification was successfully handled by Apphud.
      */
-    #if canImport(UIKit)
+    #if os(iOS)
     @discardableResult @objc public static func handlePushNotification(apsInfo: [AnyHashable: Any]) -> Bool {
         return ApphudRulesManager.shared.handleNotification(apsInfo)
     }

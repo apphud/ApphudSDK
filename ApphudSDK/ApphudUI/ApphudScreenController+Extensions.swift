@@ -6,11 +6,12 @@
 //  Copyright © 2020 Apphud Inc. All rights reserved.
 //
 
+#if os(iOS)
 import Foundation
 import WebKit
 import StoreKit
 import SafariServices
-#if canImport(UIKit)
+
 @available(iOS 11.2, *)
 
 extension ApphudScreenController: WKNavigationDelegate {
