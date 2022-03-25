@@ -69,4 +69,9 @@ import StoreKit
         See optional `transaction` property of `result` object.
      */
     @objc optional func apphudDidObservePurchase(result: ApphudPurchaseResult) -> Bool
+
+    /**
+        Called when Apphud SDK detects a deferred or interrupted purchase, this may happen when SCA confirmation is needed, in the case of parental control and some other cases
+     */
+    @objc optional func handleDeferredTransaction(transaction: SKPaymentTransaction)
 }
