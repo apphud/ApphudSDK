@@ -283,7 +283,7 @@ final class ApphudInternal: NSObject {
     }
 
     internal var cacheTimeout: TimeInterval {
-        apphudIsSandbox() ? 60 : 86400
+        apphudIsSandbox() ? 60 : 90000
     }
 
     private func isUserCacheExpired() -> Bool {
