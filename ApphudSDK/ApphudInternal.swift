@@ -41,6 +41,10 @@ final class ApphudInternal: NSObject {
     internal var submitReceiptCallbacks = [ApphudErrorCallback?]()
     internal var restorePurchasesCallback: (([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void)?
     internal var isSubmittingReceipt: Bool = false
+    
+    // MARK: - Paywalls Events
+    internal var lastUploadedPaywallEvent = [String: AnyHashable]()
+    internal var lastUploadedPaywallEventDate:Date?
 
     // MARK: - User registering properties
     internal var currentUser: ApphudUser?
@@ -522,6 +526,14 @@ final class ApphudInternal: NSObject {
     }
 
     @objc internal func trackPaywallEvent(params: [String: AnyHashable]) {
+        if self.lastUploadedPaywallEvent == params && Date().timeIntervalSince(lastUploadedPaywallEventDate ?? Date()) <= 2 {
+            apphudLog("Skip paywall event bacause the same event just been uploaded")
+            return
+        } else {
+            self.lastUploadedPaywallEvent = params
+            self.lastUploadedPaywallEventDate = Date()
+        }
+        
         submitPaywallEvent(params: params) { (result, _, _, _, code) in
             if !result {
                 self.schedulePaywallEvent(params, code == NSURLErrorNotConnectedToInternet)

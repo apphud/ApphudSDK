@@ -32,6 +32,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     private var purchasingProductID: String?
 
     private var refreshRequest: SKReceiptRefreshRequest?
+    internal var observerModePurchasePaywallId:String?
 
     func setupObserver() {
         SKPaymentQueue.default().add(self)

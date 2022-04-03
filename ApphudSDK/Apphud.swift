@@ -634,7 +634,7 @@ final public class Apphud: NSObject {
     // MARK: - Other
 
     /**
-     Enables debug logs. You should call this method before SDK initialization.
+        Enables debug logs. You should call this method before SDK initialization.
      */
     @objc public static func enableDebugLogs() {
         ApphudUtils.enableDebugLogs()
@@ -645,5 +645,15 @@ final public class Apphud: NSObject {
      */
     @objc public static func isSandbox() -> Bool {
         return apphudIsSandbox()
+    }
+    
+    /**
+        `Only for observer mode usage`
+     
+        If you want to use a/b tests in `observer mod` you should  send paywall identifier to Apphud from this method.
+        You shoud use this method before your purchase method.
+     */
+    @objc public static func willPurchaseProductFromPaywall(id: String?) {
+        ApphudInternal.shared.willPurchaseProductFromPaywall(id: id)
     }
 }
