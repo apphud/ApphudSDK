@@ -9,7 +9,6 @@
 import Foundation
 import StoreKit
 
-internal typealias ApphudPaywallsCallback = ([ApphudPaywall]) -> Void
 internal typealias ApphudStoreKitProductsCallback = ([SKProduct], Error?) -> Void
 internal typealias ApphudTransactionCallback = (SKPaymentTransaction, Error?) -> Void
 
@@ -32,7 +31,6 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     private var purchasingProductID: String?
 
     private var refreshRequest: SKReceiptRefreshRequest?
-    internal var observerModePurchasePaywallIdentifier: String?
 
     func setupObserver() {
         SKPaymentQueue.default().add(self)

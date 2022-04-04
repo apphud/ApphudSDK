@@ -10,6 +10,7 @@ import Foundation
 import StoreKit
 
 internal typealias HasPurchasesChanges = (hasSubscriptionChanges: Bool, hasNonRenewingChanges: Bool)
+internal typealias ApphudPaywallsCallback = ([ApphudPaywall]) -> Void
 
 @available(OSX 10.14.4, *)
 @available(iOS 11.2, *)
@@ -45,6 +46,7 @@ final class ApphudInternal: NSObject {
     // MARK: - Paywalls Events
     internal var lastUploadedPaywallEvent = [String: AnyHashable]()
     internal var lastUploadedPaywallEventDate: Date?
+    internal var observerModePurchasePaywallIdentifier: String?
 
     // MARK: - User registering properties
     internal var currentUser: ApphudUser?

@@ -140,7 +140,7 @@ extension ApphudInternal {
 
         apphudProduct?.id.map { params["product_bundle_id"] = $0 }
         
-        let paywall = paywalls.first(where: {$0.identifier == ApphudStoreKitWrapper.shared.observerModePurchasePaywallIdentifier})
+        let paywall = paywalls.first(where: {$0.identifier == observerModePurchasePaywallIdentifier})
         params["paywall_id"] = apphudProduct?.paywallId ?? paywall?.id
                 
         #if os(iOS)
@@ -259,7 +259,7 @@ extension ApphudInternal {
     }
     
     internal func willPurchaseProductFromPaywall(identifier: String?)  {
-        ApphudStoreKitWrapper.shared.observerModePurchasePaywallIdentifier = identifier
+        observerModePurchasePaywallIdentifier = identifier
     }
 
     private func handleTransaction(product: SKProduct, transaction: SKPaymentTransaction, error: Error?, apphudProduct: ApphudProduct?, callback: ((ApphudPurchaseResult) -> Void)?) {
