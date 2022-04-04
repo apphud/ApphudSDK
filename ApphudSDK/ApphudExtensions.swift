@@ -204,7 +204,7 @@ internal func apphudCurrentDeviceParameters() -> [String: String] {
 
     var params: [String: String] = ["locale": Locale.current.identifier,
                                       "time_zone": TimeZone.current.identifier,
-                                      "device_type": "Watch",
+                                      "device_type": WKInterfaceDevice.current().model,
                                       "device_family": family,
                                       "platform": "iOS",
                                       "app_version": app_version,
