@@ -659,7 +659,7 @@ final public class Apphud: NSObject {
         YourClass.purchase(someProduct)
         ````
      */
-    @objc public static func willPurchaseProductFromPaywall(identifier: String?) {
+    @objc public static func willPurchaseProductFromPaywall(_ identifier: String) {
         ApphudInternal.shared.willPurchaseProductFromPaywall(identifier: identifier)
     }
 }
