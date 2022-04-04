@@ -44,7 +44,7 @@ final class ApphudInternal: NSObject {
     
     // MARK: - Paywalls Events
     internal var lastUploadedPaywallEvent = [String: AnyHashable]()
-    internal var lastUploadedPaywallEventDate:Date?
+    internal var lastUploadedPaywallEventDate: Date?
 
     // MARK: - User registering properties
     internal var currentUser: ApphudUser?

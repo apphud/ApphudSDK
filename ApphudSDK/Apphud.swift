@@ -650,10 +650,12 @@ final public class Apphud: NSObject {
     /**
         `Only for observer mode usage`
      
-        If you want to use a/b tests in `observer mod` you should  send paywall identifier to Apphud from this method.
-        You shoud use this method before your purchase method.
+        If you want to use a/b tests in `observer mode` you should send paywall identifier to Apphud from this method.
+        You should use this method right before purchase method.
+     
+        Note that you have to add paywalls in Apphud Dashboard > Product Hub > Paywalls.
      */
-    @objc public static func willPurchaseProductFromPaywall(id: String?) {
-        ApphudInternal.shared.willPurchaseProductFromPaywall(id: id)
+    @objc public static func willPurchaseProductFromPaywall(identifier: String?) {
+        ApphudInternal.shared.willPurchaseProductFromPaywall(identifier: identifier)
     }
 }
