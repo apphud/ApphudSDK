@@ -539,6 +539,8 @@ final class ApphudInternal: NSObject {
         submitPaywallEvent(params: params) { (result, _, _, _, code) in
             if !result {
                 self.schedulePaywallEvent(params, code == NSURLErrorNotConnectedToInternet)
+            } else {
+                self.paywallEventsRetriesCount = 0
             }
         }
     }
