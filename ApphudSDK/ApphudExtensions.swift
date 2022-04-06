@@ -126,10 +126,78 @@ internal func apphudPerformOnMainThread(callback: @escaping () -> Void) {
     }
 }
 
-#if os(iOS) || os(tvOS)
+#if os(macOS)
+@available(OSX 10.14.4, *)
+internal func apphudCurrentDeviceParameters() -> [String: String] {
+    let app_version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? ""
+
+    var params: [String: String] = ["locale": Locale.current.identifier,
+                                      "time_zone": TimeZone.current.identifier,
+                                      "device_type": "Mac",
+                                      "device_family": "Mac",
+                                      "platform": "macOS",
+                                      "app_version": app_version,
+                                      "start_app_version": app_version,
+                                      "sdk_version": ApphudHttpClient.shared.sdkVersion,
+                                    "os_version": "\(ProcessInfo.processInfo.operatingSystemVersion.majorVersion).\(ProcessInfo.processInfo.operatingSystemVersion.minorVersion)"
+    ]
+
+    if let regionCode = Locale.current.regionCode {
+        params["country_iso_code"] = regionCode.uppercased()
+    }
+
+    if !ApphudUtils.shared.optOutOfIDFACollection, let idfa = apphudIdentifierForAdvertising() {
+        params["idfa"] = idfa
+    }
+
+    return params
+}
+
+#elseif os(watchOS)
 internal func apphudCurrentDeviceParameters() -> [String: String] {
 
-    let family: String = UIDevice.current.userInterfaceIdiom == .phone ? "iPhone" : "iPad"
+    let family: String = "Watch"
+    let app_version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? ""
+
+    var params: [String: String] = ["locale": Locale.current.identifier,
+                                      "time_zone": TimeZone.current.identifier,
+                                      "device_type": WKInterfaceDevice.current().model,
+                                      "device_family": family,
+                                      "platform": "iOS",
+                                      "app_version": app_version,
+                                      "start_app_version": app_version,
+                                      "sdk_version": ApphudHttpClient.shared.sdkVersion,
+                                    "os_version": WKInterfaceDevice.current().systemVersion
+    ]
+
+    if let regionCode = Locale.current.regionCode {
+        params["country_iso_code"] = regionCode.uppercased()
+    }
+
+    if let idfv = WKInterfaceDevice.current().identifierForVendor?.uuidString {
+        params["idfv"] = idfv
+    }
+
+    if !ApphudUtils.shared.optOutOfIDFACollection, let idfa = apphudIdentifierForAdvertising() {
+        params["idfa"] = idfa
+    }
+
+    return params
+}
+#else
+// os(iOS) || os(tvOS)
+internal func apphudCurrentDeviceParameters() -> [String: String] {
+
+    var family = ""
+    switch UIDevice.current.userInterfaceIdiom {
+    case .phone:
+        family = "iPhone"
+    case .tv:
+        family = "AppleTV"
+    default:
+        family = "iPad"
+    }
+    
     let app_version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? ""
 
     var params: [String: String] = ["locale": Locale.current.identifier,
@@ -170,65 +238,6 @@ extension UIDevice {
         return identifier
     }
 }
-#elseif os(macOS)
-@available(OSX 10.14.4, *)
-internal func apphudCurrentDeviceParameters() -> [String: String] {
-    let app_version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? ""
-
-    var params: [String: String] = ["locale": Locale.current.identifier,
-                                      "time_zone": TimeZone.current.identifier,
-                                      "device_type": "Mac",
-                                      "device_family": "Mac",
-                                      "platform": "macOS",
-                                      "app_version": app_version,
-                                      "start_app_version": app_version,
-                                      "sdk_version": ApphudHttpClient.shared.sdkVersion,
-                                    "os_version": "\(ProcessInfo.processInfo.operatingSystemVersion.majorVersion).\(ProcessInfo.processInfo.operatingSystemVersion.minorVersion)"
-    ]
-
-    if let regionCode = Locale.current.regionCode {
-        params["country_iso_code"] = regionCode.uppercased()
-    }
-
-    if !ApphudUtils.shared.optOutOfIDFACollection, let idfa = apphudIdentifierForAdvertising() {
-        params["idfa"] = idfa
-    }
-
-    return params
-}
-#elseif os(watchOS)
-internal func apphudCurrentDeviceParameters() -> [String: String] {
-
-    let family: String = "Watch"
-    let app_version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? ""
-
-    var params: [String: String] = ["locale": Locale.current.identifier,
-                                      "time_zone": TimeZone.current.identifier,
-                                      "device_type": WKInterfaceDevice.current().model,
-                                      "device_family": family,
-                                      "platform": "iOS",
-                                      "app_version": app_version,
-                                      "start_app_version": app_version,
-                                      "sdk_version": ApphudHttpClient.shared.sdkVersion,
-                                    "os_version": WKInterfaceDevice.current().systemVersion
-    ]
-
-    if let regionCode = Locale.current.regionCode {
-        params["country_iso_code"] = regionCode.uppercased()
-    }
-
-    if let idfv = WKInterfaceDevice.current().identifierForVendor?.uuidString {
-        params["idfv"] = idfv
-    }
-
-    if !ApphudUtils.shared.optOutOfIDFACollection, let idfa = apphudIdentifierForAdvertising() {
-        params["idfa"] = idfa
-    }
-
-    return params
-}
-
-
 #endif
 
 @available(OSX 10.14.4, *)
