@@ -56,6 +56,7 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
 
 @available(OSX 10.14.4, *)
 @available(iOS 11.2, *)
+@available(watchOS 6.2, *)
 final public class Apphud: NSObject {
 
     /**
