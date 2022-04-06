@@ -196,7 +196,7 @@ internal func apphudCurrentDeviceParameters() -> [String: String] {
 
     return params
 }
-#else
+#elseif os(watchOS)
 internal func apphudCurrentDeviceParameters() -> [String: String] {
 
     let family: String = "Watch"

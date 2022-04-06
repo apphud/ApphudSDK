@@ -8,7 +8,9 @@
 
 import Foundation
 import UserNotifications
+#if canImport(UIKit)
 import UIKit
+#endif
 
 #if os(iOS)
 @available(iOS 11.2, *)
