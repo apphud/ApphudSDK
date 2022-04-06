@@ -128,7 +128,7 @@ internal func apphudPerformOnMainThread(callback: @escaping () -> Void) {
 
 #if os(macOS)
 @available(OSX 10.14.4, *)
-internal func apphudCurrentDeviceParameters() -> [String: String] {
+internal func apphudCurrentDeviceMacParameters() -> [String: String] {
     let app_version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? ""
 
     var params: [String: String] = ["locale": Locale.current.identifier,
@@ -154,7 +154,7 @@ internal func apphudCurrentDeviceParameters() -> [String: String] {
 }
 
 #elseif os(watchOS)
-internal func apphudCurrentDeviceParameters() -> [String: String] {
+internal func apphudCurrentDeviceWatchParameters() -> [String: String] {
 
     let family: String = "Watch"
     let app_version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? ""
@@ -184,9 +184,9 @@ internal func apphudCurrentDeviceParameters() -> [String: String] {
 
     return params
 }
+
 #else
-// os(iOS) || os(tvOS)
-internal func apphudCurrentDeviceParameters() -> [String: String] {
+internal func apphudCurrentDeviceiOSParameters() -> [String: String] {
 
     var family = ""
     switch UIDevice.current.userInterfaceIdiom {

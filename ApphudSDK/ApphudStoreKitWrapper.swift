@@ -84,7 +84,6 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     // MARK: - SKPaymentTransactionObserver
 
-    @available(OSX 10.14.4, *)
     func paymentQueue(_ queue: SKPaymentQueue, updatedTransactions transactions: [SKPaymentTransaction]) {
         DispatchQueue.main.async {
 

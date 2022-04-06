@@ -173,7 +173,15 @@ extension ApphudInternal {
 
     private func updateUser(fields: [String: Any], delay:Double = 0, callback: @escaping ApphudHTTPResponseCallback) {
         setNeedsToUpdateUser = false
-        var params = apphudCurrentDeviceParameters() as [String: Any]
+        
+        #if os(macOS)
+        var params = apphudCurrentDeviceMacParameters() as [String: Any]
+        #elseif os(watchOS)
+        var params = apphudCurrentDeviceWatchParameters() as [String: Any]
+        #else
+        var params = apphudCurrentDeviceiOSParameters() as [String: Any]
+        #endif
+        
         params.merge(fields) { (current, _) in current}
         params["device_id"] = self.currentDeviceID
         params["is_debug"] = apphudIsSandbox()
