@@ -9,11 +9,15 @@
 #if canImport(UIKit)
 import UIKit
 #endif
+#if canImport(WebKit)
 import WebKit
-import StoreKit
+#endif
+#if canImport(SafariServices)
 import SafariServices
+#endif
+import StoreKit
 
-#if canImport(UIKit)
+#if os(iOS)
 @available(iOS 11.2, *)
 class ApphudScreenController: UIViewController {
 

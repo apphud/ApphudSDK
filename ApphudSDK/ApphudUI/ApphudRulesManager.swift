@@ -8,11 +8,9 @@
 
 import Foundation
 import UserNotifications
-#if canImport(UIKit)
 import UIKit
-#endif
 
-#if canImport(UIKit)
+#if os(iOS)
 @available(iOS 11.2, *)
 internal class ApphudRulesManager {
     static let shared = ApphudRulesManager()
@@ -127,5 +125,4 @@ internal class ApphudRulesManager {
         }
     }
 }
-
-    #endif
+#endif

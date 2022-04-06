@@ -10,6 +10,7 @@ import Foundation
 import StoreKit
 
 internal typealias HasPurchasesChanges = (hasSubscriptionChanges: Bool, hasNonRenewingChanges: Bool)
+internal typealias ApphudPaywallsCallback = ([ApphudPaywall]) -> Void
 
 @available(OSX 10.14.4, *)
 @available(iOS 11.2, *)
@@ -41,6 +42,11 @@ final class ApphudInternal: NSObject {
     internal var submitReceiptCallbacks = [ApphudErrorCallback?]()
     internal var restorePurchasesCallback: (([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void)?
     internal var isSubmittingReceipt: Bool = false
+    
+    // MARK: - Paywalls Events
+    internal var lastUploadedPaywallEvent = [String: AnyHashable]()
+    internal var lastUploadedPaywallEventDate: Date?
+    internal var observerModePurchasePaywallIdentifier: String?
 
     // MARK: - User registering properties
     internal var currentUser: ApphudUser?
@@ -283,7 +289,7 @@ final class ApphudInternal: NSObject {
     }
 
     internal var cacheTimeout: TimeInterval {
-        apphudIsSandbox() ? 60 : 86400
+        apphudIsSandbox() ? 60 : 90000
     }
 
     private func isUserCacheExpired() -> Bool {
@@ -355,23 +361,26 @@ final class ApphudInternal: NSObject {
     }
 
     // MARK: - Other
-
-    private func setupObservers() {
-        #if os(macOS)
-        if !addedObservers {
-            NotificationCenter.default.addObserver(self, selector: #selector(handleDidBecomeActive), name: NSApplication.didBecomeActiveNotification, object: nil)
-            addedObservers = true
-        }
-        #else
-        if !addedObservers {
-            NotificationCenter.default.addObserver(self, selector: #selector(handleDidBecomeActive), name: UIApplication.didBecomeActiveNotification, object: nil)
-            addedObservers = true
-        }
+    
+    var applicationDidBecomeActiveNotification: Notification.Name {
+        #if os(iOS) || os(tvOS)
+            UIApplication.didBecomeActiveNotification
+        #elseif os(macOS)
+            NSApplication.didBecomeActiveNotification
+        #elseif os(watchOS)
+            Notification.Name.NSExtensionHostDidBecomeActive
         #endif
     }
 
+    private func setupObservers() {
+        if !addedObservers {
+            NotificationCenter.default.addObserver(self, selector: #selector(handleDidBecomeActive), name: applicationDidBecomeActiveNotification, object: nil)
+            addedObservers = true
+        }
+    }
+
     private func checkPendingRules() {
-        #if canImport(UIKit)
+        #if os(iOS)
         performWhenUserRegistered {
             ApphudRulesManager.shared.handlePendingAPSInfo()
         }
@@ -519,9 +528,19 @@ final class ApphudInternal: NSObject {
     }
 
     @objc internal func trackPaywallEvent(params: [String: AnyHashable]) {
+        if self.lastUploadedPaywallEvent == params && Date().timeIntervalSince(lastUploadedPaywallEventDate ?? Date()) <= 2 {
+            apphudLog("Skip paywall event bacause the same event just been uploaded")
+            return
+        } else {
+            self.lastUploadedPaywallEvent = params
+            self.lastUploadedPaywallEventDate = Date()
+        }
+        
         submitPaywallEvent(params: params) { (result, _, _, _, code) in
             if !result {
                 self.schedulePaywallEvent(params, code == NSURLErrorNotConnectedToInternet)
+            } else {
+                self.paywallEventsRetriesCount = 0
             }
         }
     }
@@ -607,7 +626,7 @@ final class ApphudInternal: NSObject {
     }
 
     internal func checkForUnreadNotifications() {
-        #if canImport(UIKit)
+        #if os(iOS)
         performWhenUserRegistered {
             let params = ["device_id": self.currentDeviceID] as [String: String]
             self.httpClient?.startRequest(path: "notifications", apiVersion: .APIV2, params: params, method: .get, callback: { (result, response, _, _, _) in

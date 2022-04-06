@@ -12,7 +12,7 @@ import UIKit
 import Foundation
 import StoreKit
 
-#if canImport(UIKit)
+#if os(iOS)
 extension ApphudScreenController {
     func replaceStringFor(product: SKProduct, offerID: String? = nil) -> String {
         if offerID != nil {

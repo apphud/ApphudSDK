@@ -9,7 +9,6 @@
 import Foundation
 import StoreKit
 
-internal typealias ApphudPaywallsCallback = ([ApphudPaywall]) -> Void
 internal typealias ApphudStoreKitProductsCallback = ([SKProduct], Error?) -> Void
 internal typealias ApphudTransactionCallback = (SKPaymentTransaction, Error?) -> Void
 

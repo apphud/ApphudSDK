@@ -506,7 +506,7 @@ final public class Apphud: NSObject {
     }
 
     // MARK: - Rules & Screens Methods
-    #if canImport(UIKit)
+    #if os(iOS)
     /**
      Presents Apphud screen that was delayed for presentation, i.e. `false` was returned in `apphudShouldShowScreen` delegate method.
      */
@@ -544,7 +544,7 @@ final public class Apphud: NSObject {
      
      Returns `true` if push notification was successfully handled by Apphud.
      */
-    #if canImport(UIKit)
+    #if os(iOS)
     @discardableResult @objc public static func handlePushNotification(apsInfo: [AnyHashable: Any]) -> Bool {
         return ApphudRulesManager.shared.handleNotification(apsInfo)
     }
@@ -634,7 +634,7 @@ final public class Apphud: NSObject {
     // MARK: - Other
 
     /**
-     Enables debug logs. You should call this method before SDK initialization.
+        Enables debug logs. You should call this method before SDK initialization.
      */
     @objc public static func enableDebugLogs() {
         ApphudUtils.enableDebugLogs()
@@ -645,5 +645,21 @@ final public class Apphud: NSObject {
      */
     @objc public static func isSandbox() -> Bool {
         return apphudIsSandbox()
+    }
+    
+    /**
+        If you want to use A/B experiments while running SDK in `Observer Mode` you should manually send paywall identifier to Apphud using this method. Note that you have to add paywalls in Apphud Dashboard > Product Hub > Paywalls.
+         
+        __Note:__ You must call this method right before your own purchase method.
+         
+        Example:
+
+        ````
+        Apphud.willPurchaseProductFromPaywall("main_paywall")
+        YourClass.purchase(someProduct)
+        ````
+     */
+    @objc public static func willPurchaseProductFromPaywall(_ identifier: String) {
+        ApphudInternal.shared.willPurchaseProductFromPaywall(identifier: identifier)
     }
 }

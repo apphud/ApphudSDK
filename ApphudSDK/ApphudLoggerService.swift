@@ -61,6 +61,8 @@ class ApphudLoggerService {
     internal func paywallPaymentCancelled(_ paywallId: String?, _ productId: String?, _ error: SKError) {
         if error.code == SKError.Code.paymentCancelled {
             ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_payment_cancelled", "properties": ["paywall_id": paywallId ?? "", "product_id": productId ?? ""] ])
+        } else {
+            ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_payment_error", "properties": ["paywall_id": paywallId ?? "", "product_id": productId ?? "", "error_code": "\(error.code)"] ])
         }
     }
 

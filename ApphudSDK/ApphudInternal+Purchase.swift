@@ -139,9 +139,11 @@ extension ApphudInternal {
         }
 
         apphudProduct?.id.map { params["product_bundle_id"] = $0 }
-        apphudProduct?.paywallId.map { params["paywall_id"] = $0 }
-
-        #if !os(macOS)
+        
+        let paywall = paywalls.first(where: {$0.identifier == observerModePurchasePaywallIdentifier})
+        params["paywall_id"] = apphudProduct?.paywallId ?? paywall?.id
+                
+        #if os(iOS)
             if transaction?.transactionState == .purchased {
                 ApphudRulesManager.shared.cacheActiveScreens()
             }
@@ -254,6 +256,10 @@ extension ApphudInternal {
         ApphudStoreKitWrapper.shared.purchase(product: skProduct, discount: discount) { transaction, error in
             self.handleTransaction(product: skProduct, transaction: transaction, error: error, apphudProduct: product, callback: callback)
         }
+    }
+    
+    internal func willPurchaseProductFromPaywall(identifier: String?)  {
+        observerModePurchasePaywallIdentifier = identifier
     }
 
     private func handleTransaction(product: SKProduct, transaction: SKPaymentTransaction, error: Error?, apphudProduct: ApphudProduct?, callback: ((ApphudPurchaseResult) -> Void)?) {
