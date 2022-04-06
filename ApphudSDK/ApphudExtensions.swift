@@ -126,7 +126,7 @@ internal func apphudPerformOnMainThread(callback: @escaping () -> Void) {
     }
 }
 
-#if os(iOS)
+#if os(iOS) || os(tvOS)
 internal func apphudCurrentDeviceParameters() -> [String: String] {
 
     let family: String = UIDevice.current.userInterfaceIdiom == .phone ? "iPhone" : "iPad"
