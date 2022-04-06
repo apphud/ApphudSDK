@@ -184,8 +184,8 @@ internal func apphudCurrentDeviceWatchParameters() -> [String: String] {
 
     return params
 }
+
 #else
-// os(iOS) || os(tvOS)
 internal func apphudCurrentDeviceiOSParameters() -> [String: String] {
 
     var family = ""
