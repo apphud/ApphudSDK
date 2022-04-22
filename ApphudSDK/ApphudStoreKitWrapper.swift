@@ -32,6 +32,8 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     private var refreshRequest: SKReceiptRefreshRequest?
 
+    internal var productsLoadTime: TimeInterval = 0.0
+    
     func setupObserver() {
         SKPaymentQueue.default().add(self)
     }
@@ -44,7 +46,11 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     }
 
     func fetchProducts(identifiers: Set<String>, callback: @escaping ApphudStoreKitProductsCallback) {
+        let start = Date()
         fetcher.fetchStoreKitProducts(identifiers: identifiers) { products, error in
+            if products.count > 0 {
+                self.productsLoadTime = Date().timeIntervalSince(start)
+            }
             let existingIDS = self.products.map { $0.productIdentifier }
             let uniqueProducts = products.filter { !existingIDS.contains($0.productIdentifier) }
             self.products.append(contentsOf: uniqueProducts)

@@ -76,18 +76,20 @@ extension ApphudInternal {
             return
         }
 
+        let needLogging = shouldUpdateUserID
         let fields = shouldUpdateUserID ? ["user_id": self.currentUserID] : [:]
-        let startBench = Date()
-
-        self.updateUser(fields: fields, delay: delay) { (result, response, _, error, code) in
+        
+        self.updateUser(fields: fields, delay: delay) { (result, response, _, error, code, duration) in
             let hasChanges = self.parseUser(response)
 
             let finalResult = result && self.currentUser != nil
 
             if finalResult {
                 ApphudLoggerService.lastUserUpdatedAt = Date()
-                let endBench = startBench.timeIntervalSinceNow * -1
-                ApphudLoggerService.shared.addDurationEvent(ApphudLoggerService.durationLog.customers.value(), endBench)
+                
+                if needLogging {
+                    ApphudLoggerService.shared.add(key: .customers, value: duration, retryLog: self.userRegisterRetries)
+                }
 
                 if hasChanges.hasSubscriptionChanges {
                     self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions)
@@ -118,7 +120,7 @@ extension ApphudInternal {
 
         let params: [String: String] = ["country_code": countryCode, "currency_code": currencyCode]
 
-        updateUser(fields: params, delay: 2.0) { (result, response, _, _, _) in
+        updateUser(fields: params, delay: 2.0) { (result, response, _, _, _, _) in
             if result {
                 self.parseUser(response)
             }
@@ -134,7 +136,7 @@ extension ApphudInternal {
 
         let exist = performWhenUserRegistered {
 
-            self.updateUser(fields: ["user_id": userID]) { (result, response, _, _, _) in
+            self.updateUser(fields: ["user_id": userID]) { (result, response, _, _, _, _) in
                 if result {
                     self.parseUser(response)
                 }
@@ -147,7 +149,7 @@ extension ApphudInternal {
 
     internal func grantPromotional(_ duration: Int, _ permissionGroup: ApphudGroup?, productId: String?, callback: ApphudBoolCallback?) {
         performWhenUserRegistered {
-            self.grantPromotional(duration, permissionGroup, productId: productId) { (result, response, _, _, _) in
+            self.grantPromotional(duration, permissionGroup, productId: productId) { (result, response, _, _, _, _) in
                 if result {
                     self.parseUser(response)
                 }
@@ -168,7 +170,7 @@ extension ApphudInternal {
             params["product_group_id"] = permissionGroup.id
         }
 
-        httpClient?.startRequest(path: "promotions", params: params, method: .post, callback: callback)
+        httpClient?.startRequest(path: .promotions, params: params, method: .post, callback: callback)
     }
 
     private func updateUser(fields: [String: Any], delay:Double = 0, callback: @escaping ApphudHTTPResponseCallback) {
@@ -190,7 +192,7 @@ extension ApphudInternal {
         // do not automatically pass currentUserID here,because we have separate method updateUserID
 
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [self] in
-            httpClient?.startRequest(path: "customers", params: params, method: .post) { done, response, data, error, errorCode in
+            httpClient?.startRequest(path: .customers, params: params, method: .post) { done, response, data, error, errorCode, duration in
                 if  errorCode == 403 {
                     apphudLog("Unable to perform API requests, because your account has been suspended.", forceDisplay: true)
                     ApphudHttpClient.shared.unauthorized = true
@@ -200,7 +202,7 @@ extension ApphudInternal {
                     apphudLog("Unable to perform API requests, because your API Key is invalid.", forceDisplay: true)
                     ApphudHttpClient.shared.invalidAPiKey = true
                 }
-                callback(done, response, data, error, errorCode)
+                callback(done, response, data, error, errorCode, duration)
             }
         }
     }
@@ -327,7 +329,7 @@ extension ApphudInternal {
             }
         }
 
-        httpClient?.startRequest(path: "customers/properties", params: params, method: .post) { (result, _, _, error, code) in
+        httpClient?.startRequest(path: .properties, params: params, method: .post) { (result, _, _, error, code, _) in
             if result {
                 if canSaveToCache { self.userPropertiesCache = properties }
                 self.pendingUserProperties.removeAll()

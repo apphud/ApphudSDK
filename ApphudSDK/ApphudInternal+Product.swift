@@ -19,12 +19,7 @@ extension ApphudInternal {
             continueWithProductGroups([group], errorCode: nil, writeToCache: false)
         } else {
             if needToUpdateProductGroups {
-                let startBench = Date()
                 getProductGroups { groups, error, code in
-                    if error == nil {
-                        let endBench = startBench.timeIntervalSinceNow * -1
-                        ApphudLoggerService.shared.addDurationEvent(ApphudLoggerService.durationLog.products.value(), endBench)
-                    }
                     self.continueWithProductGroups(groups, errorCode: code, writeToCache: true)
                 }
             } else {
@@ -41,10 +36,11 @@ extension ApphudInternal {
 
         guard let groups = productGroups, groups.count > 0 else {
             let noInternetErrorCode = errorCode == NSURLErrorNotConnectedToInternet
-            self.scheduleProductsFetchRetry(noInternetErrorCode)
+            self.scheduleProductsFetchRetry(noInternetErrorCode, errorCode: errorCode ?? 0)
             return
         }
 
+        self.productsFetchRetries = (0, 0)
         self.productGroups = groups
 
         if writeToCache {
@@ -54,22 +50,23 @@ extension ApphudInternal {
         self.continueToFetchStoreKitProducts()
     }
 
-    fileprivate func scheduleProductsFetchRetry(_ noInternetError: Bool) {
+    fileprivate func scheduleProductsFetchRetry(_ noInternetError: Bool, errorCode: Int) {
         guard httpClient != nil, httpClient!.canRetry else {
             return
         }
-        guard productsFetchRetriesCount < maxNumberOfProductsFetchRetries else {
-            apphudLog("Reached max number of product fetch retries \(productsFetchRetriesCount). Exiting..", forceDisplay: true)
+        guard productsFetchRetries.count < maxNumberOfProductsFetchRetries else {
+            apphudLog("Reached max number of product fetch retries \(productsFetchRetries.count). Exiting..", forceDisplay: true)
             return
         }
 
         let delay: TimeInterval
 
         if noInternetError {
-            delay = 2.0
+            delay = 1.0
         } else {
-            delay = 5.0
-            userRegisterRetriesCount += 1
+            delay = 1.0
+            productsFetchRetries.count += 1
+            productsFetchRetries.errorCode = errorCode
         }
 
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(continueToFetchProducts), object: nil)
@@ -126,8 +123,12 @@ extension ApphudInternal {
     }
 
     private func getProductGroups(callback: @escaping ([ApphudGroup]?, Error?, Int?) -> Void) {
-        httpClient?.startRequest(path: "products", apiVersion: .APIV2, params: ["device_id": currentDeviceID], method: .get, useDecoder: true) { _, _, data, error, code in
+        httpClient?.startRequest(path: .products, apiVersion: .APIV2, params: ["device_id": currentDeviceID], method: .get, useDecoder: true) { _, _, data, error, code, duration in
 
+            if error == nil {
+                ApphudLoggerService.shared.add(key: .products, value: duration, retryLog: self.productsFetchRetries)
+            }
+            
             if let data = data {
                 typealias ApphudArrayResponse = ApphudAPIDataResponse<ApphudAPIArrayResponse <ApphudGroup> >
 
@@ -144,24 +145,6 @@ extension ApphudInternal {
                 }
             } else {
                 callback(nil, error, code)
-            }
-        }
-    }
-
-    internal func getPaywalls(forceRefresh: Bool = false, callback: @escaping ([ApphudPaywall]?, Error?) -> Void) {
-
-        self.performWhenUserRegistered {
-            let startBench = Date()
-
-            self.fetchPaywallsIfNeeded(forceRefresh: forceRefresh) { pwls, error, writeToCache in
-                guard let pwls = pwls else {
-                    callback(nil, error)
-                    return
-                }
-
-                let endBench = startBench.timeIntervalSinceNow * -1
-                ApphudLoggerService.shared.addDurationEvent(ApphudLoggerService.durationLog.paywallConfigs.value(), endBench)
-                self.preparePaywalls(pwls: pwls, writeToCache: writeToCache, completionBlock: callback)
             }
         }
     }
@@ -191,7 +174,7 @@ extension ApphudInternal {
             return
         }
 
-        httpClient?.startRequest(path: "paywall_configs", apiVersion: .APIV2, params: ["device_id": currentDeviceID], method: .get, useDecoder: true) { _, _, data, error, _ in
+        httpClient?.startRequest(path: .paywalls, apiVersion: .APIV2, params: ["device_id": currentDeviceID], method: .get, useDecoder: true) { _, _, data, error, _, _ in
 
             if let data = data {
                 typealias ApphudArrayResponse = ApphudAPIDataResponse<ApphudAPIArrayResponse <ApphudPaywall> >
@@ -224,7 +207,10 @@ extension ApphudInternal {
     }
 
     internal func updatePaywallsWithStoreKitProducts(paywalls: [ApphudPaywall]) {
-        self.paywallsAreReady = true
+        performWhenUserRegistered {
+            self.paywallsAreReady = true
+            self.paywallsLoadTime = Date().timeIntervalSince(self.initDate)
+        }
 
         paywalls.forEach { paywall in
             paywall.products.forEach({ product in

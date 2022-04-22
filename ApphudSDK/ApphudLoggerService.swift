@@ -20,24 +20,11 @@ class ApphudLoggerService {
         }
     }
 
-    enum durationLog {
-        case customers
-        case products
-        case paywallConfigs
-        case subscriptions
-
-        func value() -> String {
-            switch self {
-            case .customers:
-                return "/v1/customers"
-            case .products:
-                return "/v2/products"
-            case .paywallConfigs:
-                return "/v2/paywall_configs"
-            case .subscriptions:
-                return "/v1/subscriptions"
-            }
-        }
+    enum DurationLog: String {
+        case customers = "/v1/customers"
+        case products = "/v2/products"
+        case paywallConfigs = "/v2/paywall_configs"
+        case subscriptions = "/v1/subscriptions"
     }
 
     internal static let shared = ApphudLoggerService()
@@ -68,20 +55,31 @@ class ApphudLoggerService {
 
     // MARK: - Duration Logs
 
-    internal func addDurationEvent(_ key: String, _ value: Double) {
+    internal func add(key: DurationLog, value: Double, retryLog: ApphudRetryLog) {
         if durationLogs.count != 0 {
             durationLogsTimer.invalidate()
         }
         durationLogsTimer = Timer.scheduledTimer(timeInterval: 5.0, target: self, selector: #selector(durationTimerAction), userInfo: nil, repeats: false)
-        self.durationLogs.append(["path": key, "duration": Double(round(100 * value) / 100)])
+        
+        var params: [String: AnyHashable] = ["endpoint": key.rawValue, "duration": Double(round(100 * value) / 100)]
+        
+        params["retries"] = retryLog.count
+        params["error_code"] = retryLog.errorCode
+                
+        self.durationLogs.append(params)
     }
 
     @objc private func durationTimerAction() {
+        var service_logs: [String: AnyHashable] = [:]
+        service_logs["paywalls_load_time"] = ApphudInternal.shared.paywallsLoadTime
+        service_logs["skproducts_load_time"] = ApphudStoreKitWrapper.shared.productsLoadTime
+        durationLogs.append(service_logs)
         self.sendLogEvents(durationLogs)
     }
 
     private func sendLogEvents(_ logs: [[String: AnyHashable]]) {
-        self.durationLogs.removeAll()
-        ApphudInternal.shared.trackDurationLogs(params: logs) {}
+        ApphudInternal.shared.trackDurationLogs(params: logs) {
+            self.durationLogs.removeAll()
+        }
     }
 }

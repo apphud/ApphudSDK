@@ -16,7 +16,7 @@ internal struct ApphudAPIArrayResponse<T: Decodable>: Decodable {
     var results: [T]
 }
 
-typealias ApphudHTTPResponseCallback = (Bool, [String: Any]?, Data?, Error?, Int) -> Void
+typealias ApphudHTTPResponseCallback = (Bool, [String: Any]?, Data?, Error?, Int, Double) -> Void
 typealias ApphudStringCallback = (String?, Error?) -> Void
 /**
  This is Apphud's internal class.
@@ -34,6 +34,70 @@ public class ApphudHttpClient {
     enum ApphudApiVersion: String {
         case APIV1 = "v1"
         case APIV2 = "v2"
+        case APIV3 = "v3"
+    }
+    
+    enum JPEGCompressionLevel {
+      case custom(CGFloat)
+      case max, high, med, low
+
+      var value: CGFloat {
+        switch self {
+        case .max:
+          return 1.0
+        case .high:
+          return 0.9
+        case .med:
+          return 0.5
+        case .low:
+          return 0.2
+        case .custom(let customValue):
+          return customValue
+        }
+      }
+    }
+
+    
+    enum ApphudEndpoint: Equatable {
+        
+        case customers, push, logs, events, screens, attribution, products, paywalls, subscriptions, signOffer, promotions, properties, receipt, notifications, readNotifications, rule(String)
+        
+        var value: String {
+            switch self {
+            case .customers:
+                return "customers"
+            case .push:
+                return "customers/push_token"
+            case .logs:
+                return "logs"
+            case .events:
+                return "events"
+            case .screens:
+                return "rules/screens"
+            case .attribution:
+                return "customers/attribution"
+            case .products:
+                return "products"
+            case .paywalls:
+                return "paywall_configs"
+            case .subscriptions:
+                return "subscriptions"
+            case .signOffer:
+                return "sign_offer"
+            case .promotions:
+                return "promotions"
+            case .properties:
+                return "customers/properties"
+            case .receipt:
+                return "subscriptions/raw"
+            case .notifications:
+                return "notifications"
+            case .readNotifications:
+                return "notifications/read"
+            case .rule(let ruleID):
+                return "rules/\(ruleID)"
+            }
+        }
     }
 
     static let productionEndpoint = "https://api.apphud.com"
@@ -66,7 +130,8 @@ public class ApphudHttpClient {
     }()
 
     private let GET_TIMEOUT: TimeInterval = 10.0
-    private let POST_PUT_TIMEOUT: TimeInterval = 40.0
+    private let POST_CUSTOMERS_TIMEOUT: TimeInterval = 10.0
+    private let POST_TIMEOUT: TimeInterval = 30.0
 
     internal func requestInstance(url: URL) -> URLRequest? {
         var request = URLRequest(url: url)
@@ -74,8 +139,11 @@ public class ApphudHttpClient {
         return request
     }
 
-    internal func startRequest(path: String, apiVersion: ApphudApiVersion = .APIV1, params: [String: Any]?, method: ApphudHttpMethod, useDecoder: Bool = false, callback: ApphudHTTPResponseCallback?) {
-        if let request = makeRequest(path: path, apiVersion: apiVersion, params: params, method: method), !suspended {
+    internal func startRequest(path: ApphudEndpoint, apiVersion: ApphudApiVersion = .APIV1, params: [String: Any]?, method: ApphudHttpMethod, useDecoder: Bool = false, callback: ApphudHTTPResponseCallback?) {
+        
+        let timeout = path == .customers ? POST_CUSTOMERS_TIMEOUT : nil
+        
+        if let request = makeRequest(path: path.value, apiVersion: apiVersion, params: params, method: method, defaultTimeout: timeout), !suspended {
             start(request: request, useDecoder: useDecoder, callback: callback)
         } else {
             apphudLog("Unable to perform API requests, because your account has been suspended.", forceDisplay: true)
@@ -154,7 +222,7 @@ public class ApphudHttpClient {
         UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "") + "_" + String(Date().timeIntervalSince1970)
     }
 
-    private func makeRequest(path: String, apiVersion: ApphudApiVersion, params: [String: Any]?, method: ApphudHttpMethod) -> URLRequest? {
+    private func makeRequest(path: String, apiVersion: ApphudApiVersion, params: [String: Any]?, method: ApphudHttpMethod, defaultTimeout: TimeInterval? = nil) -> URLRequest? {
         var request: URLRequest?
         do {
             var url: URL?
@@ -191,7 +259,9 @@ public class ApphudHttpClient {
             request?.setValue(self.sdkType, forHTTPHeaderField: "X-SDK")
             request?.setValue(sdkVersion, forHTTPHeaderField: "X-SDK-VERSION")
             request?.setValue("Apphud \(platform) (\(self.sdkType) \(sdkVersion))", forHTTPHeaderField: "User-Agent")
-            request?.timeoutInterval = method == .get ? GET_TIMEOUT : POST_PUT_TIMEOUT
+            
+            request?.timeoutInterval = defaultTimeout ?? (method == .get ? GET_TIMEOUT : POST_TIMEOUT)
+                        
             if method != .get {
                 var finalParams: [String: Any] = ["api_key": apiKey, "request_id": requestID]
                 if params != nil {
@@ -210,7 +280,7 @@ public class ApphudHttpClient {
         }
 
         if ApphudUtils.shared.logLevel == .all {
-            apphudLog("Start \(method) request \(request?.url?.absoluteString ?? "") params: \(string)", logLevel: .all)
+            apphudLog("Start \(method) request \(request?.url?.absoluteString ?? "") timeout:\(String(request?.timeoutInterval ?? 0)) params: \(string)", logLevel: .all)
         } else {
             apphudLog("Start \(method) request \(request?.url?.absoluteString ?? "")")
         }
@@ -232,8 +302,13 @@ public class ApphudHttpClient {
     }
 
     private func start(request: URLRequest, useDecoder: Bool = false, callback: ApphudHTTPResponseCallback?) {
+        
+        let startDate = Date()
+        
         let task = session.dataTask(with: request) { (data, response, error) in
 
+            let requestDuration = Date().timeIntervalSince(startDate)
+            
             var dictionary: [String: Any]?
 
             do {
@@ -262,7 +337,7 @@ public class ApphudHttpClient {
                             }
                         }
 
-                        callback?(true, dictionary, data, nil, code)
+                        callback?(true, dictionary, data, nil, code, requestDuration)
                         return
                     }
 
@@ -278,10 +353,10 @@ public class ApphudHttpClient {
                         finalError = self.parseError(dictionary!)
                     }
 
-                    callback?(false, nil, data, finalError, code)
+                    callback?(false, nil, data, finalError, code, requestDuration)
                 } else {
                     let code = (error as NSError?)?.code ?? NSURLErrorUnknown
-                    callback?(false, nil, data, error, code)
+                    callback?(false, nil, data, error, code, requestDuration)
                 }
             }
         }

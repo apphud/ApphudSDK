@@ -11,6 +11,7 @@ import StoreKit
 
 internal typealias HasPurchasesChanges = (hasSubscriptionChanges: Bool, hasNonRenewingChanges: Bool)
 internal typealias ApphudPaywallsCallback = ([ApphudPaywall]) -> Void
+internal typealias ApphudRetryLog = (count: Int, errorCode: Int)
 
 @available(OSX 10.14.4, *)
 @available(iOS 11.2, *)
@@ -27,8 +28,6 @@ final class ApphudInternal: NSObject {
     private var allowIdentifyUser = true
 
     // MARK: - Receipt and products properties
-    internal var productsFetchRetriesCount: Int = 0
-    internal let maxNumberOfProductsFetchRetries: Int = 10
 
     internal var customPaywallsLoadedCallbacks = [ApphudPaywallsCallback]()
     internal var productGroupsFetchedCallbacks = [ApphudVoidCallback]()
@@ -38,7 +37,7 @@ final class ApphudInternal: NSObject {
     internal var productGroups = [ApphudGroup]()
     internal var paywalls = [ApphudPaywall]()
 
-    internal var submitReceiptRetriesCount: Int = 0
+    internal var submitReceiptRetries: ApphudRetryLog = (0, 0)
     internal var submitReceiptCallbacks = [ApphudErrorCallback?]()
     internal var restorePurchasesCallback: (([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void)?
     internal var isSubmittingReceipt: Bool = false
@@ -72,11 +71,15 @@ final class ApphudInternal: NSObject {
     }
     internal var pendingUserProperties = [ApphudUserProperty]()
     internal var lastCheckDate = Date()
-    internal var userRegisterRetriesCount: Int = 0
+    internal var userRegisterRetries: ApphudRetryLog = (0, 0)
     internal let maxNumberOfUserRegisterRetries: Int = 25
     internal var paywallEventsRetriesCount: Int = 0
     internal let maxNumberOfPaywallEventsRetries: Int = 25
+    internal var productsFetchRetries: ApphudRetryLog = (0, 0)
+    internal let maxNumberOfProductsFetchRetries: Int = 25
     internal var didRetrievePaywallsAtThisLaunch: Bool = false
+    internal var initDate = Date()
+    internal var paywallsLoadTime: TimeInterval = 0
     internal var isRegisteringUser = false {
         didSet {
             if isRegisteringUser {
@@ -322,6 +325,7 @@ final class ApphudInternal: NSObject {
             self.checkPendingRules()
 
             if success {
+                self.userRegisterRetries = (0, -1)
                 apphudLog("User successfully registered with id: \(self.currentUserID)", forceDisplay: true)
                 self.performAllUserRegisteredBlocks()
                 self.checkForUnreadNotifications()
@@ -336,8 +340,8 @@ final class ApphudInternal: NSObject {
         guard httpClient != nil, httpClient!.canRetry else {
             return
         }
-        guard userRegisterRetriesCount < maxNumberOfUserRegisterRetries else {
-            apphudLog("Reached max number of user register retries \(userRegisterRetriesCount). Exiting..", forceDisplay: true)
+        guard userRegisterRetries.count < maxNumberOfUserRegisterRetries else {
+            apphudLog("Reached max number of user register retries \(userRegisterRetries.count). Exiting..", forceDisplay: true)
             return
         }
 
@@ -347,12 +351,13 @@ final class ApphudInternal: NSObject {
         let delay: TimeInterval
 
         if retryImmediately.contains(errorCode) {
-            delay = 0.01
+            delay = 0.5
         } else if noInternetError.contains(errorCode) {
             delay = 2.0
         } else {
-            delay = 3.0
-            userRegisterRetriesCount += 1
+            delay = 2.0
+            userRegisterRetries.count += 1
+            userRegisterRetries.errorCode = errorCode
         }
 
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(registerUser), object: nil)
@@ -414,7 +419,7 @@ final class ApphudInternal: NSObject {
             callback()
             return true
         } else {
-            if userRegisterRetriesCount >= maxNumberOfUserRegisterRetries {
+            if userRegisterRetries.count >= maxNumberOfUserRegisterRetries {
                 continueToRegisteringUser()
             }
             userRegisteredCallbacks.append(callback)
@@ -489,7 +494,7 @@ final class ApphudInternal: NSObject {
                 return
             }
             let params: [String: String] = ["device_id": self.currentDeviceID, "push_token": tokenString]
-            self.httpClient?.startRequest(path: "customers/push_token", params: params, method: .put) { (result, _, _, _, _) in
+            self.httpClient?.startRequest(path: .push, params: params, method: .put) { (result, _, _, _, _, _) in
                 if result {
                     self.submittedPushToken = tokenString
                 }
@@ -506,7 +511,7 @@ final class ApphudInternal: NSObject {
                                                        "user_id": self.currentUserID,
                                                        "bundle_id": Bundle.main.bundleIdentifier,
                                                        "data": params]
-            self.httpClient?.startRequest(path: "logs", apiVersion: .APIV2, params: final_params, method: .post) { (_, _, _, _, _) in
+            self.httpClient?.startRequest(path: .logs, apiVersion: .APIV2, params: final_params, method: .post) { (_, _, _, _, _, _) in
                 callback()
             }
         }
@@ -518,7 +523,7 @@ final class ApphudInternal: NSObject {
     internal func trackEvent(params: [String: AnyHashable], callback: @escaping () -> Void) {
         let result = performWhenUserRegistered {
             let final_params: [String: AnyHashable] = ["device_id": self.currentDeviceID].merging(params, uniquingKeysWith: {(current, _) in current})
-            self.httpClient?.startRequest(path: "events", apiVersion: .APIV2, params: final_params, method: .post) { (_, _, _, _, _) in
+            self.httpClient?.startRequest(path: .events, apiVersion: .APIV2, params: final_params, method: .post) { (_, _, _, _, _, _) in
                 callback()
             }
         }
@@ -536,7 +541,7 @@ final class ApphudInternal: NSObject {
             self.lastUploadedPaywallEventDate = Date()
         }
         
-        submitPaywallEvent(params: params) { (result, _, _, _, code) in
+        submitPaywallEvent(params: params) { (result, _, _, _, code, _) in
             if !result {
                 self.schedulePaywallEvent(params, code == NSURLErrorNotConnectedToInternet)
             } else {
@@ -576,7 +581,7 @@ final class ApphudInternal: NSObject {
                                                        "timestamp": Date().currentTimestamp,
                                                        "environment": environment].merging(params, uniquingKeysWith: {(current, _) in current})
 
-            self.httpClient?.startRequest(path: "events", apiVersion: .APIV1, params: final_params, method: .post, callback: callback)
+            self.httpClient?.startRequest(path: .events, apiVersion: .APIV1, params: final_params, method: .post, callback: callback)
         }
         if !result {
             apphudLog("Tried to trackPaywallEvent, but user not yet registered, adding to schedule")
@@ -596,7 +601,7 @@ final class ApphudInternal: NSObject {
                 final_params["bundle_id"] = bundleID
             }
 
-            self.httpClient?.startRequest(path: "logs", apiVersion: .APIV1, params: final_params, method: .post) { (_, _, _, _, _) in
+            self.httpClient?.startRequest(path: .logs, apiVersion: .APIV1, params: final_params, method: .post) { (_, _, _, _, _, _) in
                 callback()
             }
         }
@@ -611,7 +616,7 @@ final class ApphudInternal: NSObject {
         let result = performWhenUserRegistered {
             let params = ["device_id": self.currentDeviceID] as [String: String]
 
-            self.httpClient?.startRequest(path: "rules/\(ruleID)", apiVersion: .APIV2, params: params, method: .get) { (result, response, _, _, _) in
+            self.httpClient?.startRequest(path: .rule(ruleID), apiVersion: .APIV2, params: params, method: .get) { (result, response, _, _, _, _) in
                 if result, let dataDict = response?["data"] as? [String: Any],
                     let ruleDict = dataDict["results"] as? [String: Any] {
                     callback(ApphudRule(dictionary: ruleDict))
@@ -629,7 +634,7 @@ final class ApphudInternal: NSObject {
         #if os(iOS)
         performWhenUserRegistered {
             let params = ["device_id": self.currentDeviceID] as [String: String]
-            self.httpClient?.startRequest(path: "notifications", apiVersion: .APIV2, params: params, method: .get, callback: { (result, response, _, _, _) in
+            self.httpClient?.startRequest(path: .notifications, apiVersion: .APIV2, params: params, method: .get, callback: { (result, response, _, _, _, _) in
 
                 if result, let dataDict = response?["data"] as? [String: Any], let notifArray = dataDict["results"] as? [[String: Any]], let notifDict = notifArray.first, var ruleDict = notifDict["rule"] as? [String: Any] {
                     let properties = notifDict["properties"] as? [String: Any]
@@ -645,14 +650,14 @@ final class ApphudInternal: NSObject {
     internal func readAllNotifications(for ruleID: String) {
         performWhenUserRegistered {
             let params = ["device_id": self.currentDeviceID, "rule_id": ruleID] as [String: String]
-            self.httpClient?.startRequest(path: "notifications/read", apiVersion: .APIV2, params: params, method: .post, callback: { (_, _, _, _, _) in
+            self.httpClient?.startRequest(path: .readNotifications, apiVersion: .APIV2, params: params, method: .post, callback: { (_, _, _, _, _, _) in
             })
         }
     }
 
     internal func getActiveRuleScreens(_ callback: @escaping ([String]) -> Void) {
         performWhenUserRegistered {
-            self.httpClient?.startRequest(path: "rules/screens", apiVersion: .APIV2, params: nil, method: .get) { result, response, _, _, _ in
+            self.httpClient?.startRequest(path: .screens, apiVersion: .APIV2, params: nil, method: .get) { result, response, _, _, _, _ in
                 if result, let dataDict = response?["data"] as? [String: Any], let screensIdsArray = dataDict["results"] as? [String] {
                     callback(screensIdsArray)
                 } else {

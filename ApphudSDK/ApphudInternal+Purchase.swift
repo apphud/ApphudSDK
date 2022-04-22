@@ -142,9 +142,11 @@ extension ApphudInternal {
         
         let paywall = paywalls.first(where: {$0.identifier == observerModePurchasePaywallIdentifier})
         params["paywall_id"] = apphudProduct?.paywallId ?? paywall?.id
-                
+        
+        let hasMadePurchase = transaction?.transactionState == .purchased
+        
         #if os(iOS)
-            if transaction?.transactionState == .purchased {
+            if hasMadePurchase {
                 ApphudRulesManager.shared.cacheActiveScreens()
             }
         #endif
@@ -153,46 +155,44 @@ extension ApphudInternal {
 
         apphudLog("Uploading App Store Receipt...")
 
-        let startBench = Date()
-        httpClient?.startRequest(path: "subscriptions", params: params, method: .post) { (result, response, _, error, _) in
-            if error == nil {
-                let endBench = startBench.timeIntervalSinceNow * -1
-                ApphudLoggerService.shared.addDurationEvent(ApphudLoggerService.durationLog.subscriptions.value(), endBench)
+        httpClient?.startRequest(path: .subscriptions, params: params, method: .post) { (result, response, _, error, errorCode, duration) in
+            if error == nil && hasMadePurchase {
+                ApphudLoggerService.shared.add(key: .subscriptions, value: duration, retryLog: self.submitReceiptRetries)
             }
 
             self.forceSendAttributionDataIfNeeded()
             self.isSubmittingReceipt = false
-            self.handleSubmitReceiptCallback(result: result, response: response, error: error, notifyDelegate: notifyDelegate)
-        }
-    }
-
-    internal func handleSubmitReceiptCallback(result: Bool, response: [String: Any]?, error: Error?, notifyDelegate: Bool) {
-
-        if result {
-            self.requiresReceiptSubmission = false
-            let hasChanges = self.parseUser(response)
-            if notifyDelegate {
-                if hasChanges.hasSubscriptionChanges {
-                    self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions)
+            
+            if result {
+                self.submitReceiptRetries = (0, 0)
+                self.requiresReceiptSubmission = false
+                let hasChanges = self.parseUser(response)
+                if notifyDelegate {
+                    if hasChanges.hasSubscriptionChanges {
+                        self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions)
+                    }
+                    if hasChanges.hasNonRenewingChanges {
+                        self.delegate?.apphudNonRenewingPurchasesUpdated?(self.currentUser!.purchases)
+                    }
                 }
-                if hasChanges.hasNonRenewingChanges {
-                    self.delegate?.apphudNonRenewingPurchasesUpdated?(self.currentUser!.purchases)
-                }
+            } else {
+                self.scheduleSubmitReceiptRetry(error: error, code: errorCode)
             }
-        } else {
-            scheduleSubmitReceiptRetry(error: error)
-        }
 
-        self.submitReceiptCallbacks.forEach { callback in callback?(error)}
-        self.submitReceiptCallbacks.removeAll()
+            self.submitReceiptCallbacks.forEach { callback in callback?(error)}
+            self.submitReceiptCallbacks.removeAll()
+        }
     }
 
-    internal func scheduleSubmitReceiptRetry(error: Error?) {
+    internal func scheduleSubmitReceiptRetry(error: Error?, code: Int) {
         guard httpClient != nil, httpClient!.canRetry else {
             return
         }
-        submitReceiptRetriesCount += 1
-        let delay: TimeInterval = TimeInterval(submitReceiptRetriesCount * 5)
+        
+        submitReceiptRetries.count += 1
+        submitReceiptRetries.errorCode = code
+        
+        let delay: TimeInterval = TimeInterval(submitReceiptRetries.count)
         perform(#selector(submitAppStoreReceipt), with: nil, afterDelay: delay)
         apphudLog("Failed to upload App Store Receipt with error: \(error?.localizedDescription ?? "null"). Will retry in \(Int(delay)) seconds.", forceDisplay: true)
     }
@@ -307,7 +307,7 @@ extension ApphudInternal {
     @available(iOS 12.2, *)
     private func signPromoOffer(productID: String, discountID: String, callback: ((SKPaymentDiscount?, Error?) -> Void)?) {
         let params: [String: Any] = ["product_id": productID, "offer_id": discountID ]
-        httpClient?.startRequest(path: "sign_offer", params: params, method: .post) { (result, dict, _, error, _) in
+        httpClient?.startRequest(path: .signOffer, params: params, method: .post) { (result, dict, _, error, _, _) in
             if result, let responseDict = dict, let dataDict = responseDict["data"] as? [String: Any], let resultsDict = dataDict["results"] as? [String: Any] {
 
                 let signatureData = resultsDict["data"] as? [String: Any]
