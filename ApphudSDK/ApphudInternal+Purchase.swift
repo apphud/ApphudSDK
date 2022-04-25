@@ -15,16 +15,21 @@ extension ApphudInternal {
     // MARK: - Main Purchase and Submit Receipt methods
 
     internal func restorePurchases(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {
-        self.restorePurchasesCallback = callback
-        self.submitReceiptRestore(allowsReceiptRefresh: true)
+        self.restorePurchasesCallback = { subs, purchases, error in
+            if error != nil { ApphudStoreKitWrapper.shared.restoreTransactions() }
+            callback(subs, purchases, error)
+        }
+        self.submitReceiptRestore(allowsReceiptRefresh: true, transaction: nil)
     }
 
     internal func submitReceiptAutomaticPurchaseTracking(transaction: SKPaymentTransaction, callback: @escaping ((ApphudPurchaseResult) -> Void)) {
 
         performWhenUserRegistered {
-            guard let receiptString = apphudReceiptDataString() else {
-                callback(ApphudPurchaseResult(nil, nil, transaction, ApphudError(message: "Failed to get App Store receipt")))
-                return
+            
+            let receiptString = apphudReceiptDataString()
+            
+            if receiptString == nil {
+                apphudLog("App Store receipt is missing, but got transaction. Will try to submit transaction instead..", forceDisplay: true)
             }
 
             self.submitReceipt(product: nil, apphudProduct: nil, transaction: transaction, receiptString: receiptString, notifyDelegate: true, eligibilityCheck: true, callback: { error in
@@ -35,25 +40,30 @@ extension ApphudInternal {
     }
 
     @objc internal func submitAppStoreReceipt() {
-        submitReceiptRestore(allowsReceiptRefresh: false)
+        submitReceiptRestore(allowsReceiptRefresh: false, transaction: nil)
     }
 
-    internal func submitReceiptRestore(allowsReceiptRefresh: Bool) {
-        guard let receiptString = apphudReceiptDataString() else {
-            if allowsReceiptRefresh {
-                apphudLog("App Store receipt is missing on device, will refresh first then retry")
-                ApphudStoreKitWrapper.shared.refreshReceipt(nil)
-            } else {
-                apphudLog("App Store receipt is missing on device and couldn't be refreshed.", forceDisplay: true)
-                self.restorePurchasesCallback?(nil, nil, nil)
-                self.restorePurchasesCallback = nil
-            }
+    internal func submitReceiptRestore(allowsReceiptRefresh: Bool, transaction: SKPaymentTransaction?) {
+        
+        let receiptString = apphudReceiptDataString()
+        
+        if receiptString == nil && allowsReceiptRefresh {
+            apphudLog("App Store receipt is missing on device, will refresh first then retry")
+            ApphudStoreKitWrapper.shared.refreshReceipt(nil)
             return
+        } else if receiptString == nil && transaction?.transactionIdentifier == nil && allowsReceiptRefresh == false {
+            let error = ApphudError(message: "Failed to restore purchases because App Store receipt is missing on device.")
+            apphudLog(error.localizedDescription, forceDisplay: true)
+            self.restorePurchasesCallback?(self.currentUser?.subscriptions, self.currentUser?.purchases, error)
+            self.restorePurchasesCallback = nil
+            return
+        } else if receiptString == nil && transaction?.transactionIdentifier != nil {
+            apphudLog("App Store receipt is missing, but got transaction. Will try to submit transaction instead..", forceDisplay: true)
         }
-
+        
         let exist = performWhenUserRegistered {
 
-            self.submitReceipt(product: nil, apphudProduct: nil, transaction: nil, receiptString: receiptString, notifyDelegate: true) { error in
+            self.submitReceipt(product: nil, apphudProduct: nil, transaction: transaction, receiptString: receiptString, notifyDelegate: true) { error in
                 self.restorePurchasesCallback?(self.currentUser?.subscriptions, self.currentUser?.purchases, error)
                 self.restorePurchasesCallback = nil
             }
@@ -86,6 +96,7 @@ extension ApphudInternal {
                     block(receipt)
                 } else {
                     if transaction?.transactionIdentifier != nil {
+                        apphudLog("App Store receipt is missing, but got transaction. Will try to submit transaction instead..", forceDisplay: true)
                         block(nil)
                     } else {
                         let message = "Failed to get App Store receipt"

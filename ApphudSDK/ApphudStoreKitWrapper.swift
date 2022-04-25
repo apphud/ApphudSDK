@@ -37,6 +37,12 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     func setupObserver() {
         SKPaymentQueue.default().add(self)
     }
+    
+    func restoreTransactions() {
+        DispatchQueue.main.async {
+            SKPaymentQueue.default().restoreCompletedTransactions()
+        }
+    }
 
     func refreshReceipt(_ callback: (() -> Void)?) {
         refreshReceiptCallback = callback
@@ -112,7 +118,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
                      Always handle restored transactions by sending App Store Receipt to Apphud.
                      Will not finish transaction, because we didn't start it. Developer should finish transaction manually.
                      */
-                    ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: true)
+                    ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: true, transaction: trx.original ?? trx)
                     if !ApphudUtils.shared.storeKitObserverMode {
                         // force finish transaction
                         self.finishTransaction(trx)
@@ -194,7 +200,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
                     self.refreshReceiptCallback?()
                     self.refreshReceiptCallback = nil
                 } else {
-                    ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: false)
+                    ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: false, transaction: nil)
                 }
                 self.refreshRequest = nil
             }
@@ -211,7 +217,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
                     self.refreshReceiptCallback?()
                     self.refreshReceiptCallback = nil
                 } else {
-                    ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: false)
+                    ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: false, transaction: nil)
                 }
                 self.refreshRequest = nil
             }
