@@ -36,28 +36,7 @@ public class ApphudHttpClient {
         case APIV2 = "v2"
         case APIV3 = "v3"
     }
-    
-    enum JPEGCompressionLevel {
-      case custom(CGFloat)
-      case max, high, med, low
-
-      var value: CGFloat {
-        switch self {
-        case .max:
-          return 1.0
-        case .high:
-          return 0.9
-        case .med:
-          return 0.5
-        case .low:
-          return 0.2
-        case .custom(let customValue):
-          return customValue
-        }
-      }
-    }
-
-    
+        
     enum ApphudEndpoint: Equatable {
         
         case customers, push, logs, events, screens, attribution, products, paywalls, subscriptions, signOffer, promotions, properties, receipt, notifications, readNotifications, rule(String)
