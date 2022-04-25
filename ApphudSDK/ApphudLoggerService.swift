@@ -70,10 +70,14 @@ class ApphudLoggerService {
     }
 
     @objc private func durationTimerAction() {
-        var service_logs: [String: AnyHashable] = [:]
-        service_logs["paywalls_load_time"] = ApphudInternal.shared.paywallsLoadTime
-        service_logs["skproducts_load_time"] = ApphudStoreKitWrapper.shared.productsLoadTime
-        durationLogs.append(service_logs)
+        if ApphudStoreKitWrapper.shared.productsLoadTime > 0 {
+            durationLogs.append(["endpoint": "skproducts", "duration": ApphudStoreKitWrapper.shared.productsLoadTime])
+            ApphudStoreKitWrapper.shared.productsLoadTime = 0
+        }
+        if ApphudInternal.shared.paywallsLoadTime > 0 {
+            durationLogs.append(["endpoint": "paywalls_total", "duration": ApphudInternal.shared.paywallsLoadTime])
+            ApphudInternal.shared.paywallsLoadTime = 0
+        }
         self.sendLogEvents(durationLogs)
     }
 
