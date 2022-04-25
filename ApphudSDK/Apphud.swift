@@ -173,6 +173,22 @@ final public class Apphud: NSObject {
             callback(paywalls, nil)
         }
     }
+    
+    /**
+        If you want to use A/B experiments while running SDK in `Observer Mode` you should manually send paywall identifier to Apphud using this method. Note that you have to add paywalls in Apphud Dashboard > Product Hub > Paywalls.
+         
+        __Note:__ You must call this method right before your own purchase method.
+         
+        Example:
+
+        ````
+        Apphud.willPurchaseProductFromPaywall("main_paywall")
+        YourClass.purchase(someProduct)
+        ````
+     */
+    @objc public static func willPurchaseProductFromPaywall(_ identifier: String) {
+        ApphudInternal.shared.willPurchaseProductFromPaywall(identifier: identifier)
+    }
 
     /**
      This notification is sent when `SKProduct`s are fetched from the App Store. Note that you have to add all product identifiers in Apphud Dashboard > Product Hub > Products.
@@ -645,21 +661,5 @@ final public class Apphud: NSObject {
      */
     @objc public static func isSandbox() -> Bool {
         return apphudIsSandbox()
-    }
-    
-    /**
-        If you want to use A/B experiments while running SDK in `Observer Mode` you should manually send paywall identifier to Apphud using this method. Note that you have to add paywalls in Apphud Dashboard > Product Hub > Paywalls.
-         
-        __Note:__ You must call this method right before your own purchase method.
-         
-        Example:
-
-        ````
-        Apphud.willPurchaseProductFromPaywall("main_paywall")
-        YourClass.purchase(someProduct)
-        ````
-     */
-    @objc public static func willPurchaseProductFromPaywall(_ identifier: String) {
-        ApphudInternal.shared.willPurchaseProductFromPaywall(identifier: identifier)
     }
 }

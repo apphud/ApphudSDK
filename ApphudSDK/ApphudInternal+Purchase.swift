@@ -150,11 +150,16 @@ extension ApphudInternal {
         }
 
         apphudProduct?.id.map { params["product_bundle_id"] = $0 }
-        
-        let paywall = paywalls.first(where: {$0.identifier == observerModePurchasePaywallIdentifier})
-        params["paywall_id"] = apphudProduct?.paywallId ?? paywall?.id
+        params["paywall_id"] = apphudProduct?.paywallId
         
         let hasMadePurchase = transaction?.transactionState == .purchased
+        
+        if hasMadePurchase && params["paywall_id"] == nil && observerModePurchasePaywallIdentifier != nil {
+            let paywall = paywalls.first(where: {$0.identifier == observerModePurchasePaywallIdentifier})
+            params["paywall_id"] = paywall?.id
+            let apphudP = paywall?.products.first(where: { $0.productId == transaction?.payment.productIdentifier })
+            apphudP?.id.map { params["product_bundle_id"] = $0 }
+        }
         
         #if os(iOS)
             if hasMadePurchase {
