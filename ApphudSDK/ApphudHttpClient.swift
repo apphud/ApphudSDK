@@ -100,7 +100,8 @@ public class ApphudHttpClient {
     internal var invalidAPiKey: Bool = false
     internal var unauthorized: Bool = false
     internal var suspended: Bool = false
-
+    internal var useGzip: Bool = false
+    
     private let session: URLSession = {
         let config = URLSessionConfiguration.default
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
@@ -202,63 +203,66 @@ public class ApphudHttpClient {
     }
 
     private func makeRequest(path: String, apiVersion: ApphudApiVersion, params: [String: Any]?, method: ApphudHttpMethod, defaultTimeout: TimeInterval? = nil) -> URLRequest? {
+       
         var request: URLRequest?
-        do {
-            var url: URL?
+       
+        var url: URL?
 
-            let urlString = "\(domainUrlString)/\(apiVersion.rawValue)/\(path)"
+        let urlString = "\(domainUrlString)/\(apiVersion.rawValue)/\(path)"
 
-            if method == .get {
-                var components = URLComponents(string: urlString)
-                var items: [URLQueryItem] = [URLQueryItem(name: "api_key", value: apiKey), URLQueryItem(name: "request_id", value: requestID)]
-                if let requestParams = params {
-                    for key in requestParams.keys {
-                        items.append(URLQueryItem(name: key, value: requestParams[key] as? String))
-                    }
+        if method == .get {
+            var components = URLComponents(string: urlString)
+            var items: [URLQueryItem] = [URLQueryItem(name: "api_key", value: apiKey), URLQueryItem(name: "request_id", value: requestID)]
+            if let requestParams = params {
+                for key in requestParams.keys {
+                    items.append(URLQueryItem(name: key, value: requestParams[key] as? String))
                 }
-                components?.queryItems = items
-                url = components?.url
-            } else {
-                url = URL(string: urlString)
             }
-            guard let finalURL = url else {
-                return nil
-            }
-
-            var platform = "ios"
-            #if os(macOS)
-            platform = "macos"
-            #endif
-
-            request = requestInstance(url: finalURL)
-            request?.httpMethod = method.rawValue
-            request?.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
-            request?.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Accept")
-            request?.setValue(platform, forHTTPHeaderField: "X-Platform")
-            request?.setValue(self.sdkType, forHTTPHeaderField: "X-SDK")
-            request?.setValue(sdkVersion, forHTTPHeaderField: "X-SDK-VERSION")
-            request?.setValue("Apphud \(platform) (\(self.sdkType) \(sdkVersion))", forHTTPHeaderField: "User-Agent")
-            
-            request?.timeoutInterval = defaultTimeout ?? (method == .get ? GET_TIMEOUT : POST_TIMEOUT)
-                        
-            if method != .get {
-                var finalParams: [String: Any] = ["api_key": apiKey, "request_id": requestID]
-                if params != nil {
-                    finalParams.merge(params!, uniquingKeysWith: {$1})
-                }
-                let data = try JSONSerialization.data(withJSONObject: finalParams, options: [.prettyPrinted])
-                request?.httpBody = data
-            }
-        } catch {
-
+            components?.queryItems = items
+            url = components?.url
+        } else {
+            url = URL(string: urlString)
+        }
+        guard let finalURL = url else {
+            return nil
         }
 
-        var string: String = ""
-        if let data = request?.httpBody, let str = String(data: data, encoding: .utf8) {
-            string = str
+        var platform = "ios"
+        #if os(macOS)
+        platform = "macos"
+        #endif
+
+        request = requestInstance(url: finalURL)
+        request?.httpMethod = method.rawValue
+        request?.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
+        request?.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Accept")
+        request?.setValue(platform, forHTTPHeaderField: "X-Platform")
+        request?.setValue(self.sdkType, forHTTPHeaderField: "X-SDK")
+        request?.setValue(sdkVersion, forHTTPHeaderField: "X-SDK-VERSION")
+        request?.setValue("Apphud \(platform) (\(self.sdkType) \(sdkVersion))", forHTTPHeaderField: "User-Agent")
+        
+        request?.timeoutInterval = defaultTimeout ?? (method == .get ? GET_TIMEOUT : POST_TIMEOUT)
+                    
+        if method != .get {
+            var finalParams: [String: Any] = ["api_key": apiKey, "request_id": requestID]
+            if params != nil {
+                finalParams.merge(params!, uniquingKeysWith: {$1})
+            }
+            if let data = try? JSONSerialization.data(withJSONObject: finalParams, options: [.prettyPrinted]) {
+                if #available(iOS 12.0, *), useGzip, let compressedData = data.gzipped() {
+                    request?.httpBody = compressedData
+                } else {
+                    request?.httpBody = data
+                }
+            }
         }
+       
 
         if ApphudUtils.shared.logLevel == .all {
+            var string: String = ""
+            if let data = request?.httpBody, let str = String(data: data, encoding: .utf8) {
+                string = str
+            }
             apphudLog("Start \(method) request \(request?.url?.absoluteString ?? "") timeout:\(String(request?.timeoutInterval ?? 0)) params: \(string)", logLevel: .all)
         } else {
             apphudLog("Start \(method) request \(request?.url?.absoluteString ?? "")")
@@ -286,6 +290,11 @@ public class ApphudHttpClient {
         
         let task = session.dataTask(with: request) { (data, response, error) in
 
+            if request.httpBody?.isGzipped ?? false && (response as? HTTPURLResponse)?.statusCode == 400 {
+                apphudLog("Got status code 400, removing gzip encoding.", logLevel: .all)
+                self.useGzip = false
+            }
+            
             let requestDuration = Date().timeIntervalSince(startDate)
             
             var dictionary: [String: Any]?

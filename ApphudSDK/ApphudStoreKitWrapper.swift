@@ -36,6 +36,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     
     func setupObserver() {
         SKPaymentQueue.default().add(self)
+        SKPayment.doSwizzle()
     }
     
     func restoreTransactions() {
@@ -73,7 +74,8 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     func purchase(product: SKProduct, callback: @escaping ApphudTransactionCallback) {
         ApphudUtils.shared.storeKitObserverMode = false
-        let payment = SKMutablePayment(product: product)
+        let url = URL.init(string: "https://apphud.com")
+        let payment = SKPayment(product: product)
         purchase(payment: payment, callback: callback)
     }
 
@@ -85,13 +87,21 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         purchase(payment: payment, callback: callback)
     }
 
-    func purchase(payment: SKMutablePayment, callback: @escaping ApphudTransactionCallback) {
+    func purchase(payment: SKPayment, callback: @escaping ApphudTransactionCallback) {
         finishCompletedTransactions(for: payment.productIdentifier)
-        payment.applicationUsername = ""
+        let userID = ApphudInternal.shared.currentUserID
+        let userIDIsUUID = UUID(uuidString: userID)
+//        payment.applicationUsername = (userIDIsUUID != nil) ? userID : ApphudInternal.shared.currentDeviceID
         paymentCallback = callback
         purchasingProductID = payment.productIdentifier
-        apphudLog("Starting payment for \(payment.productIdentifier), transactions in queue: \(SKPaymentQueue.default().transactions)")
+        apphudLog("Starting payment for \(payment.productIdentifier), transactions in queue: \(SKPaymentQueue.default().transactions), applicationUsername: \(payment.applicationUsername)")
         SKPaymentQueue.default().add(payment)
+    }
+    
+    var applicationUsername: String {
+        let userID = ApphudInternal.shared.currentUserID
+        let userIDIsUUID = UUID(uuidString: userID)
+        return (userIDIsUUID != nil) ? userID : ApphudInternal.shared.currentDeviceID
     }
 
     // MARK: - SKPaymentTransactionObserver
@@ -296,5 +306,31 @@ extension SKPaymentTransaction {
         @unknown default:
             return false
         }
+    }
+}
+
+private var hasSwizzledPayment = false
+extension SKPayment {
+    
+    public final class func doSwizzle() {
+        guard !hasSwizzledPayment else { return }
+
+        hasSwizzledPayment = true
+        
+        let original = #selector(SKPayment.init(product:))
+        let swizzled = #selector(SKPayment.apphudInitWithProduct(product:))
+
+        guard let swizzledMethod = class_getClassMethod(self, swizzled),
+              let originalMethod = class_getClassMethod(self, original) else {
+            print("invalid swizzle methods")
+                  return
+              }
+        method_exchangeImplementations(originalMethod, swizzledMethod)
+    }
+    
+    @objc internal class func apphudInitWithProduct(product aProduct: SKProduct) -> SKMutablePayment {
+        let payment = SKMutablePayment.apphudInitWithProduct(product: aProduct)
+        payment.applicationUsername = ApphudStoreKitWrapper.shared.applicationUsername
+        return payment
     }
 }
