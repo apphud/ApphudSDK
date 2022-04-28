@@ -23,3 +23,23 @@ public class ApphudError: NSError {
         fatalError("init(coder:) has not been implemented")
     }
 }
+
+extension NSError {
+    var apphudUnderlyingErrorCode: Int {
+        
+        if let error = userInfo["NSUnderlyingError"] as? NSError {
+            return error.code
+        }
+
+        return -1
+    }
+    
+    var apphudUnderlyingErrorDescription: String? {
+        
+        if let error = userInfo["NSUnderlyingError"] as? NSError {
+            return error.localizedFailureReason
+        }
+
+        return nil
+    }
+}

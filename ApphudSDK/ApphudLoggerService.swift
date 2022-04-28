@@ -49,7 +49,11 @@ class ApphudLoggerService {
         if error.code == SKError.Code.paymentCancelled {
             ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_payment_cancelled", "properties": ["paywall_id": paywallId ?? "", "product_id": productId ?? ""] ])
         } else {
-            ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_payment_error", "properties": ["paywall_id": paywallId ?? "", "product_id": productId ?? "", "error_code": "\(error.code)"] ])
+            
+            let underlying_error_code = (error as NSError?)?.apphudUnderlyingErrorCode ?? -1
+            let underlying_error_description = (error as NSError?)?.apphudUnderlyingErrorDescription
+            
+            ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_payment_error", "properties": ["paywall_id": paywallId ?? "", "product_id": productId ?? "", "error_code": "\(error.code)", "underlying_error_code": "\(underlying_error_code)", "underlying_error_description": "\(underlying_error_description ?? "")"] ])
         }
     }
 

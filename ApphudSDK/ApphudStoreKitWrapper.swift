@@ -36,7 +36,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     
     func setupObserver() {
         SKPaymentQueue.default().add(self)
-        SKPayment.doSwizzle()
+        SKPaymentQueue.doSwizzle()
     }
     
     func restoreTransactions() {
@@ -89,21 +89,12 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     func purchase(payment: SKPayment, callback: @escaping ApphudTransactionCallback) {
         finishCompletedTransactions(for: payment.productIdentifier)
-        let userID = ApphudInternal.shared.currentUserID
-        let userIDIsUUID = UUID(uuidString: userID)
-//        payment.applicationUsername = (userIDIsUUID != nil) ? userID : ApphudInternal.shared.currentDeviceID
         paymentCallback = callback
         purchasingProductID = payment.productIdentifier
-        apphudLog("Starting payment for \(payment.productIdentifier), transactions in queue: \(SKPaymentQueue.default().transactions), applicationUsername: \(payment.applicationUsername)")
+        apphudLog("Starting payment for \(payment.productIdentifier), transactions in queue: \(SKPaymentQueue.default().transactions)")
         SKPaymentQueue.default().add(payment)
     }
     
-    var applicationUsername: String {
-        let userID = ApphudInternal.shared.currentUserID
-        let userIDIsUUID = UUID(uuidString: userID)
-        return (userIDIsUUID != nil) ? userID : ApphudInternal.shared.currentDeviceID
-    }
-
     // MARK: - SKPaymentTransactionObserver
 
     func paymentQueue(_ queue: SKPaymentQueue, updatedTransactions transactions: [SKPaymentTransaction]) {
@@ -309,28 +300,39 @@ extension SKPaymentTransaction {
     }
 }
 
-private var hasSwizzledPayment = false
-extension SKPayment {
+private var hasSwizzledPaymentQueue = false
+extension SKPaymentQueue {
     
     public final class func doSwizzle() {
-        guard !hasSwizzledPayment else { return }
+        guard !hasSwizzledPaymentQueue else { return }
 
-        hasSwizzledPayment = true
+        hasSwizzledPaymentQueue = true
         
-        let original = #selector(SKPayment.init(product:))
-        let swizzled = #selector(SKPayment.apphudInitWithProduct(product:))
+        let original = #selector(self.add(_:) as (SKPaymentQueue) -> (SKPayment) -> Void)
+        let swizzled = #selector(SKPaymentQueue.apphudAdd(_:))
 
-        guard let swizzledMethod = class_getClassMethod(self, swizzled),
-              let originalMethod = class_getClassMethod(self, original) else {
+        guard let swizzledMethod = class_getInstanceMethod(self, swizzled),
+              let originalMethod = class_getInstanceMethod(self, original) else {
             print("invalid swizzle methods")
                   return
               }
         method_exchangeImplementations(originalMethod, swizzledMethod)
     }
     
-    @objc internal class func apphudInitWithProduct(product aProduct: SKProduct) -> SKMutablePayment {
-        let payment = SKMutablePayment.apphudInitWithProduct(product: aProduct)
-        payment.applicationUsername = ApphudStoreKitWrapper.shared.applicationUsername
-        return payment
+    @objc internal func apphudAdd(_ payment: SKPayment) {
+        print("Swizzle add payment")
+
+        let currentUsername = payment.applicationUsername
+        let currentUsernameIsUUID = (currentUsername != nil) && (UUID(uuidString: currentUsername!) != nil)
+        
+        if !currentUsernameIsUUID, let mutablePayment = payment as? SKMutablePayment ?? payment.mutableCopy() as? SKMutablePayment {
+            let userID = ApphudInternal.shared.currentUserID
+            let userIDIsUUID = UUID(uuidString: userID)
+            let betterUUID = (userIDIsUUID != nil) ? userID : ApphudInternal.shared.currentDeviceID
+            mutablePayment.applicationUsername = betterUUID
+            apphudAdd(mutablePayment)
+        } else {
+            apphudAdd(payment)
+        }
     }
 }
