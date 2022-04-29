@@ -119,6 +119,7 @@ final class ApphudInternal: NSObject {
     internal let submittedAdjustDataKey = "submittedAdjustDataKey"
     internal var didSubmitAppleAdsAttributionKey = "didSubmitAppleAdsAttributionKey"
     internal let submittedPushTokenKey = "submittedPushTokenKey"
+    internal let swizzlePaymentDisabledKey = "swizzlePaymentDisabledKey"
     internal var isSendingAppsFlyer = false
     internal var isSendingAdjust = false
     internal var isFreshInstall = true

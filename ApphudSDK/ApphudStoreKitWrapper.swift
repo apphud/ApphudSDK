@@ -36,6 +36,9 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     
     func setupObserver() {
         SKPaymentQueue.default().add(self)
+    }
+    
+    func enableSwizzle() {
         SKPaymentQueue.doSwizzle()
     }
     
@@ -108,6 +111,9 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
             for trx in sortedTransactions {
                 switch trx.transactionState {
                 case .purchasing:
+                    
+                    apphudLog("Payment is in purchasing state \(trx.payment.productIdentifier) for username: \(trx.payment.applicationUsername ?? "")")
+                    
                     if self.purchasingProductID == nil && ApphudUtils.shared.storeKitObserverMode == false {
                         apphudLog("Seems like Observer Mode is False however purchase is not being made through Apphud SDK. Please make sure you set ObserverMode to True when initialising Apphud SDK. As for now, force enabling observer mode..", logLevel: .off)
                         ApphudUtils.shared.storeKitObserverMode = true
@@ -313,15 +319,13 @@ extension SKPaymentQueue {
 
         guard let swizzledMethod = class_getInstanceMethod(self, swizzled),
               let originalMethod = class_getInstanceMethod(self, original) else {
-            print("invalid swizzle methods")
+                apphudLog("couldn't swizzle")
                   return
               }
         method_exchangeImplementations(originalMethod, swizzledMethod)
     }
     
     @objc internal func apphudAdd(_ payment: SKPayment) {
-        print("Swizzle add payment")
-
         let currentUsername = payment.applicationUsername
         let currentUsernameIsUUID = (currentUsername != nil) && (UUID(uuidString: currentUsername!) != nil)
         

@@ -22,7 +22,11 @@ extension ApphudInternal {
         guard let userDict = dataDict["results"] as? [String: Any] else {
             return (false, false)
         }
-
+        
+        if userDict["swizzle_disabled"] != nil {
+            UserDefaults.standard.set(true, forKey: swizzlePaymentDisabledKey)
+        }
+        
         if let paywalls = userDict["paywalls"] as? [[String: Any]] {
             self.mappingPaywalls(paywalls)
         } else {
