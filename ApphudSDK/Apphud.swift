@@ -25,8 +25,10 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
     case adjust
     case appleSearchAds // For iOS 14.2 or lower devices only, Apple Search Ads attribution via iAd.framework
     case appleAdsAttribution // For iOS 14.3+ devices only, Apple Search Ads attribution via AdServices.framework
-    case facebook
     case firebase
+    
+    @available(*, deprecated, message: "Facebook integration is no longer needed from SDK and has been voided. You can safely remove this line of code.")
+    case facebook
 
     /**
      case branch

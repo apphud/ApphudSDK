@@ -33,6 +33,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         Apphud.setUIDelegate(self)
 
         registerForNotifications()
+                
         return true
     }
 

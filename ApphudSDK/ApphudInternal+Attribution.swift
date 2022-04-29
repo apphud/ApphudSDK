@@ -86,18 +86,8 @@ extension ApphudInternal {
                 }
                 return
             case .facebook:
-                var hash: [AnyHashable: Any] = ["fb_device": true]
-
-                if apphudNeedsToCollectFBAnonID(), let anonID = apphudGetFBAnonID() {
-                    hash["anon_id"] = anonID
-                }
-                if let extInfo = apphudGetFBExtInfo() {
-                    hash["extinfo"] = extInfo
-                }
-                if data != nil {
-                    hash.merge(data!, uniquingKeysWith: {_, new in new})
-                }
-                params["facebook_data"] = hash
+                apphudLog("Facebook integration is no longer needed from SDK and has been voided. You can safely remove this line of code.", forceDisplay: true)
+                return
             }
 
             // to avoid 404 problems on backend
