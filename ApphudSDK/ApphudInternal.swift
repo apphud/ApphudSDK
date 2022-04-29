@@ -515,7 +515,7 @@ final class ApphudInternal: NSObject {
                                                        "connection_type": self.currentReachabilityStatus.rawValue,
                                                        "data": params]
             
-            self.httpClient?.startRequest(path: .logs, apiVersion: .APIV2, params: final_params, method: .post) { (_, _, _, _, _, _) in
+            self.httpClient?.startRequest(path: .logs, apiVersion: .APIV3, params: final_params, method: .post) { (_, _, _, _, _, _) in
                 callback()
             }
         }
@@ -605,7 +605,7 @@ final class ApphudInternal: NSObject {
                 final_params["bundle_id"] = bundleID
             }
 
-            self.httpClient?.startRequest(path: .logs, apiVersion: .APIV1, params: final_params, method: .post) { (_, _, _, _, _, _) in
+            self.httpClient?.startRequest(path: .logs, apiVersion: .APIV3, params: final_params, method: .post) { (_, _, _, _, _, _) in
                 callback()
             }
         }

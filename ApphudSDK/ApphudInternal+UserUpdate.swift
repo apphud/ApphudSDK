@@ -194,6 +194,7 @@ extension ApphudInternal {
         params["is_new"] = isFreshInstall && currentUser == nil
         params["need_paywalls"] = !didRetrievePaywallsAtThisLaunch
         appInstallationDate.map { params["first_seen"] = $0 }
+        Bundle.main.bundleIdentifier.map { params["bundle_id"] = $0 }
         // do not automatically pass currentUserID here,because we have separate method updateUserID
 
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [self] in
