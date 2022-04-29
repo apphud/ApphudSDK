@@ -512,7 +512,7 @@ final class ApphudInternal: NSObject {
             let final_params: [String: AnyHashable] = ["device_id": self.currentDeviceID,
                                                        "user_id": self.currentUserID,
                                                        "bundle_id": Bundle.main.bundleIdentifier,
-                                                       "internetStatus": self.currentReachabilityStatus.description(),
+                                                       "connection_type": self.currentReachabilityStatus.rawValue,
                                                        "data": params]
             
             self.httpClient?.startRequest(path: .logs, apiVersion: .APIV2, params: final_params, method: .post) { (_, _, _, _, _, _) in
@@ -680,24 +680,13 @@ extension Date {
 }
 
 extension ApphudInternal {
-    enum ReachabilityStatus {
+    enum ApphudConnectionType: String {
         case none
-        case mobileData
-        case WiFi
-        
-        func description() -> String {
-            switch self {
-            case .none:
-                return "no internet"
-            case .mobileData:
-                return "mobile Data"
-            case .WiFi:
-                return "WiFi"
-            }
-        }
+        case cellular
+        case wifi
     }
     
-    var currentReachabilityStatus: ReachabilityStatus {
+    var currentReachabilityStatus: ApphudConnectionType {
         var zeroAddress = sockaddr_in()
         zeroAddress.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
         zeroAddress.sin_family = sa_family_t(AF_INET)
@@ -718,13 +707,13 @@ extension ApphudInternal {
             return .none
         }
         else if flags.contains(.isWWAN) == true {
-            return .mobileData
+            return .cellular
         }
         else if flags.contains(.connectionRequired) == false {
-            return .WiFi
+            return .wifi
         }
         else if (flags.contains(.connectionOnDemand) == true || flags.contains(.connectionOnTraffic) == true) && flags.contains(.interventionRequired) == false {
-            return .WiFi
+            return .wifi
         }
         else {
             return .none
