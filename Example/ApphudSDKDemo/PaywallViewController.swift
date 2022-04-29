@@ -8,7 +8,6 @@
 
 import UIKit
 import ApphudSDK
-import StoreKit
 
 class PaywallViewController: UIViewController {
 

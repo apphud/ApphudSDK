@@ -77,8 +77,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     func purchase(product: SKProduct, callback: @escaping ApphudTransactionCallback) {
         ApphudUtils.shared.storeKitObserverMode = false
-        let url = URL.init(string: "https://apphud.com")
-        let payment = SKPayment(product: product)
+        let payment = SKMutablePayment(product: product)
         purchase(payment: payment, callback: callback)
     }
 

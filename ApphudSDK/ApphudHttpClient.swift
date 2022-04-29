@@ -100,7 +100,6 @@ public class ApphudHttpClient {
     internal var invalidAPiKey: Bool = false
     internal var unauthorized: Bool = false
     internal var suspended: Bool = false
-    internal var useGzip: Bool = false
     
     private let session: URLSession = {
         let config = URLSessionConfiguration.default
@@ -249,11 +248,7 @@ public class ApphudHttpClient {
                 finalParams.merge(params!, uniquingKeysWith: {$1})
             }
             if let data = try? JSONSerialization.data(withJSONObject: finalParams, options: [.prettyPrinted]) {
-                if #available(iOS 12.0, *), useGzip, let compressedData = data.gzipped() {
-                    request?.httpBody = compressedData
-                } else {
-                    request?.httpBody = data
-                }
+                request?.httpBody = data
             }
         }
        
@@ -289,11 +284,6 @@ public class ApphudHttpClient {
         let startDate = Date()
         
         let task = session.dataTask(with: request) { (data, response, error) in
-
-            if request.httpBody?.isGzipped ?? false && (response as? HTTPURLResponse)?.statusCode == 400 {
-                apphudLog("Got status code 400, removing gzip encoding.", logLevel: .all)
-                self.useGzip = false
-            }
             
             let requestDuration = Date().timeIntervalSince(startDate)
             

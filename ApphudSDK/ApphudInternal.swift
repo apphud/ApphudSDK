@@ -327,7 +327,7 @@ final class ApphudInternal: NSObject {
             self.checkPendingRules()
 
             if success {
-                self.userRegisterRetries = (0, -1)
+                self.userRegisterRetries = (0, 0)
                 apphudLog("User successfully registered with id: \(self.currentUserID)", forceDisplay: true)
                 self.performAllUserRegisteredBlocks()
                 self.checkForUnreadNotifications()
@@ -586,28 +586,6 @@ final class ApphudInternal: NSObject {
                                                        "environment": environment].merging(params, uniquingKeysWith: {(current, _) in current})
 
             self.httpClient?.startRequest(path: .events, apiVersion: .APIV1, params: final_params, method: .post, callback: callback)
-        }
-        if !result {
-            apphudLog("Tried to trackPaywallEvent, but user not yet registered, adding to schedule")
-        }
-    }
-
-    internal func logEvent(params: [String: AnyHashable], callback: @escaping () -> Void) {
-
-        let result = performWhenUserRegistered {
-            let environment = Apphud.isSandbox() ? "sandbox" : "production"
-            var final_params: [String: AnyHashable] = ["device_id": self.currentDeviceID,
-                                                       "user_id": self.currentUserID,
-                                                       "timestamp": Date().currentTimestamp,
-                                                       "environment": environment].merging(params, uniquingKeysWith: {(current, _) in current})
-
-            if let bundleID = Bundle.main.bundleIdentifier {
-                final_params["bundle_id"] = bundleID
-            }
-
-            self.httpClient?.startRequest(path: .logs, apiVersion: .APIV3, params: final_params, method: .post) { (_, _, _, _, _, _) in
-                callback()
-            }
         }
         if !result {
             apphudLog("Tried to trackPaywallEvent, but user not yet registered, adding to schedule")
