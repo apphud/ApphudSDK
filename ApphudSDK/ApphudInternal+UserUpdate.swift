@@ -193,7 +193,7 @@ extension ApphudInternal {
         params["is_debug"] = apphudIsSandbox()
         params["is_new"] = isFreshInstall && currentUser == nil
         params["need_paywalls"] = !didRetrievePaywallsAtThisLaunch
-        if (appInstallationDate != nil) { params["app_installation_date"] = appInstallationDate }
+        appInstallationDate.map { params["app_installation_date"] = $0 }
         // do not automatically pass currentUserID here,because we have separate method updateUserID
 
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [self] in
@@ -364,7 +364,7 @@ extension ApphudInternal {
 }
 
 extension ApphudInternal {
-    var appInstallationDate: String? {
+    var appInstallationDate: Int? {
         guard let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).last,
               let attributes = try? FileManager.default.attributesOfItem(atPath: documentsURL.path)
         else { return nil }
@@ -374,7 +374,7 @@ extension ApphudInternal {
         dateFormatter.timeStyle = .medium
         dateFormatter.locale = Locale.current
         if let date = attributes[.creationDate] as? Date {
-            return dateFormatter.string(from: date)
+            return Int(date.timeIntervalSince1970 * 1000)
         }
         return nil
     }
