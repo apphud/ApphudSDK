@@ -193,7 +193,7 @@ extension ApphudInternal {
         params["is_debug"] = apphudIsSandbox()
         params["is_new"] = isFreshInstall && currentUser == nil
         params["need_paywalls"] = !didRetrievePaywallsAtThisLaunch
-        appInstallationDate.map { params["app_installation_date"] = $0 }
+        appInstallationDate.map { params["first_seen"] = $0 }
         // do not automatically pass currentUserID here,because we have separate method updateUserID
 
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [self] in
@@ -374,7 +374,7 @@ extension ApphudInternal {
         dateFormatter.timeStyle = .medium
         dateFormatter.locale = Locale.current
         if let date = attributes[.creationDate] as? Date {
-            return Int(date.timeIntervalSince1970 * 1000)
+            return Int(date.timeIntervalSince1970)
         }
         return nil
     }
