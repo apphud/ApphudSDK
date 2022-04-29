@@ -8,7 +8,9 @@
 
 import Foundation
 import StoreKit
+#if os(iOS)
 import SystemConfiguration
+#endif
 
 internal typealias HasPurchasesChanges = (hasSubscriptionChanges: Bool, hasNonRenewingChanges: Bool)
 internal typealias ApphudPaywallsCallback = ([ApphudPaywall]) -> Void
@@ -509,11 +511,14 @@ final class ApphudInternal: NSObject {
 
     internal func trackDurationLogs(params: [[String: AnyHashable]], callback: @escaping () -> Void) {
         let result = performWhenUserRegistered {
-            let final_params: [String: AnyHashable] = ["device_id": self.currentDeviceID,
+            var final_params: [String: AnyHashable] = ["device_id": self.currentDeviceID,
                                                        "user_id": self.currentUserID,
                                                        "bundle_id": Bundle.main.bundleIdentifier,
-                                                       "connection_type": self.currentReachabilityStatus.rawValue,
                                                        "data": params]
+            
+            #if os(iOS)
+            final_params["connection_type"] = self.currentReachabilityStatus.rawValue
+            #endif
             
             self.httpClient?.startRequest(path: .logs, apiVersion: .APIV3, params: final_params, method: .post) { (_, _, _, _, _, _) in
                 callback()
@@ -657,6 +662,7 @@ extension Date {
     }
 }
 
+#if os(iOS)
 extension ApphudInternal {
     enum ApphudConnectionType: String {
         case none
@@ -698,3 +704,4 @@ extension ApphudInternal {
         }
     }
 }
+#endif
