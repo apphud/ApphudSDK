@@ -87,6 +87,7 @@ extension ApphudInternal {
                 return
             case .facebook:
                 apphudLog("Facebook integration is no longer needed from SDK and has been voided. You can safely remove this line of code.", forceDisplay: true)
+                callback?(false)
                 return
             }
 
