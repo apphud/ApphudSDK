@@ -8,6 +8,7 @@
 
 import Foundation
 import StoreKit
+import SystemConfiguration
 
 internal typealias HasPurchasesChanges = (hasSubscriptionChanges: Bool, hasNonRenewingChanges: Bool)
 internal typealias ApphudPaywallsCallback = ([ApphudPaywall]) -> Void
@@ -511,7 +512,9 @@ final class ApphudInternal: NSObject {
             let final_params: [String: AnyHashable] = ["device_id": self.currentDeviceID,
                                                        "user_id": self.currentUserID,
                                                        "bundle_id": Bundle.main.bundleIdentifier,
+                                                       "internetStatus": self.currentReachabilityStatus.description(),
                                                        "data": params]
+            
             self.httpClient?.startRequest(path: .logs, apiVersion: .APIV2, params: final_params, method: .post) { (_, _, _, _, _, _) in
                 callback()
             }
@@ -673,5 +676,58 @@ extension Date {
     /// Returns current Timestamp
     var currentTimestamp: Int64 {
       Int64(self.timeIntervalSince1970 * 1000)
+    }
+}
+
+extension ApphudInternal {
+    enum ReachabilityStatus {
+        case none
+        case mobileData
+        case WiFi
+        
+        func description() -> String {
+            switch self {
+            case .none:
+                return "no internet"
+            case .mobileData:
+                return "mobile Data"
+            case .WiFi:
+                return "WiFi"
+            }
+        }
+    }
+    
+    var currentReachabilityStatus: ReachabilityStatus {
+        var zeroAddress = sockaddr_in()
+        zeroAddress.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+        zeroAddress.sin_family = sa_family_t(AF_INET)
+        guard let defaultRouteReachability = withUnsafePointer(to: &zeroAddress, {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                SCNetworkReachabilityCreateWithAddress(nil, $0)
+            }
+        }) else {
+            return .none
+        }
+        
+        var flags: SCNetworkReachabilityFlags = []
+        if !SCNetworkReachabilityGetFlags(defaultRouteReachability, &flags) {
+            return .none
+        }
+        
+        if flags.contains(.reachable) == false {
+            return .none
+        }
+        else if flags.contains(.isWWAN) == true {
+            return .mobileData
+        }
+        else if flags.contains(.connectionRequired) == false {
+            return .WiFi
+        }
+        else if (flags.contains(.connectionOnDemand) == true || flags.contains(.connectionOnTraffic) == true) && flags.contains(.interventionRequired) == false {
+            return .WiFi
+        }
+        else {
+            return .none
+        }
     }
 }
