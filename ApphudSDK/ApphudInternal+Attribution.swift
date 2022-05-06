@@ -35,10 +35,10 @@ extension ApphudInternal {
                     return
                 }
                 params["appsflyer_id"] = identifer
-
+                
                 if data != nil {
                     params["appsflyer_data"] = data
-
+                    
                     guard self.submittedPreviouslyAF(data: data!) else {
                         apphudLog("Already submitted AppsFlyer attribution, skipping", forceDisplay: true)
                         callback?(false)
@@ -54,7 +54,7 @@ extension ApphudInternal {
                 }
                 if data != nil {
                     params["adjust_data"] = data
-
+                    
                     guard self.submittedPreviouslyAdjust(data: data!) else {
                         apphudLog("Already submitted Adjust attribution, skipping", forceDisplay: true)
                         callback?(false)
@@ -76,15 +76,8 @@ extension ApphudInternal {
                     callback?(false)
                     return
                 }
-                self.getAppleAttribution(identifer!) {(appleAttributionData) in
-                    if appleAttributionData != nil {
-                        params["search_ads_data"] = appleAttributionData
-                        self.startAttributionRequest(params: params, provider: provider, identifer: identifer) { result in
-                            callback?(result)
-                        }
-                    }
-                }
-                return
+                
+                params["search_ads_data"] = identifer
             case .facebook:
                 apphudLog("Facebook integration is no longer needed from SDK and has been voided. You can safely remove this line of code.", forceDisplay: true)
                 callback?(false)
@@ -169,28 +162,6 @@ extension ApphudInternal {
 
             callback?(result)
         }
-    }
-
-    @objc internal func getAppleAttribution(_ appleAttibutionToken: String, completion: @escaping ([AnyHashable: Any]?) -> Void) {
-        let request = NSMutableURLRequest(url: URL(string: "https://api-adservices.apple.com/api/v1/")!)
-        request.httpMethod = "POST"
-        request.setValue("text/plain", forHTTPHeaderField: "Content-Type")
-        request.httpBody = Data(appleAttibutionToken.utf8)
-
-        let task = URLSession.shared.dataTask(with: request as URLRequest) { (data, _, _) in
-
-            if let data = data,
-               let result = try? JSONSerialization.jsonObject(with: data, options: .allowFragments) as? [String: Any],
-               let campaignId = result["campaignId"] as? Int,
-               campaignId != 1234567890,
-               let attribution = result["attribution"] as? Bool,
-               attribution == true {
-                    completion(result)
-                    return
-                }
-            completion(nil)
-        }
-        task.resume()
     }
 
     @objc internal func forceSendAttributionDataIfNeeded() {
