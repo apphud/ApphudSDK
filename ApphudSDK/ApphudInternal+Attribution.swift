@@ -77,13 +77,9 @@ extension ApphudInternal {
                     return
                 }
                 self.getAppleAttribution(identifer!) {(appleAttributionData) in
-                    if appleAttributionData != nil {
-                        params["search_ads_data"] = appleAttributionData
-                        self.startAttributionRequest(params: params, provider: provider, identifer: identifer) { result in
-                            callback?(result)
-                        }
-                    } else {
-                        params["search_ads_data"] = ["token": identifer]
+                    params["search_ads_data"] = appleAttributionData != nil ? appleAttributionData : ["token": identifer]
+                    self.startAttributionRequest(params: params, provider: provider, identifer: identifer) { result in
+                        callback?(result)
                     }
                 }
                 return
