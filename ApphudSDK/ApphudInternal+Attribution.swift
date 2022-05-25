@@ -244,7 +244,5 @@ extension ApphudInternal {
         guard !didSubmitFacebookAttribution && apphudIsFBSDKIntegrated() else {
             return
         }
-
-        addAttribution(data: [:], from: .facebook, callback: nil)
     }
 }
