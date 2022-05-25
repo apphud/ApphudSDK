@@ -83,9 +83,7 @@ extension ApphudInternal {
                     }
                 }
                 return
-            case .facebook:
-                apphudLog("Facebook integration is no longer needed from SDK and has been voided. You can safely remove this line of code.", forceDisplay: true)
-                callback?(false)
+            default:
                 return
             }
 
@@ -142,10 +140,6 @@ extension ApphudInternal {
                 if result {
                     self.didSubmitAppsFlyerAttribution = true
                 }
-            case .facebook:
-                if result {
-                    self.didSubmitFacebookAttribution = true
-                }
             case .firebase:
                 if result {
                     self.submittedFirebaseId = identifer
@@ -173,7 +167,6 @@ extension ApphudInternal {
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(forceSendAttributionDataIfNeeded), object: nil)
         automaticallySubmitAppsFlyerAttributionIfNeeded()
         automaticallySubmitAdjustAttributionIfNeeded()
-        automaticallySubmitFacebookAttributionIfNeeded()
     }
     
     @objc internal func getAppleAttribution(_ appleAttibutionToken: String, completion: @escaping ([AnyHashable: Any]?) -> Void) {
@@ -237,12 +230,6 @@ extension ApphudInternal {
             })
         } else {
             apphudLog("Couldn't automatically resubmit Adjust attribution, exiting.", forceDisplay: true)
-        }
-    }
-
-    @objc internal func automaticallySubmitFacebookAttributionIfNeeded() {
-        guard !didSubmitFacebookAttribution && apphudIsFBSDKIntegrated() else {
-            return
         }
     }
 }
