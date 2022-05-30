@@ -76,8 +76,17 @@ extension ApphudInternal {
                     callback?(false)
                     return
                 }
-                self.getAppleAttribution(identifer!) {(appleAttributionData) in
-                    params["search_ads_data"] = appleAttributionData != nil ? appleAttributionData : ["token": identifer]
+                self.getAppleAttribution(identifer!) {(appleAttributionData, isAttributionExist) in
+                    if let data = appleAttributionData {
+                        if isAttributionExist {
+                            params["search_ads_data"] = data
+                        } else {
+                            return
+                        }
+                    } else {
+                        params["search_ads_data"] = ["token": identifer]
+                    }
+                                        
                     self.startAttributionRequest(params: params, provider: provider, identifer: identifer) { result in
                         callback?(result)
                     }
@@ -169,24 +178,20 @@ extension ApphudInternal {
         automaticallySubmitAdjustAttributionIfNeeded()
     }
     
-    @objc internal func getAppleAttribution(_ appleAttibutionToken: String, completion: @escaping ([AnyHashable: Any]?) -> Void) {
+    @objc internal func getAppleAttribution(_ appleAttibutionToken: String, completion: @escaping ([AnyHashable: Any]?, Bool) -> Void) {
         let request = NSMutableURLRequest(url: URL(string: "https://api-adservices.apple.com/api/v1/")!)
         request.httpMethod = "POST"
         request.setValue("text/plain", forHTTPHeaderField: "Content-Type")
         request.httpBody = Data(appleAttibutionToken.utf8)
-
+        
         let task = URLSession.shared.dataTask(with: request as URLRequest) { (data, _, _) in
-
+            
             if let data = data,
                let result = try? JSONSerialization.jsonObject(with: data, options: .allowFragments) as? [String: Any],
-               let campaignId = result["campaignId"] as? Int,
-               campaignId != 1234567890,
-               let attribution = result["attribution"] as? Bool,
-               attribution == true {
-                    completion(result)
-                    return
-                }
-            completion(nil)
+               let attribution = result["attribution"] as? Bool {
+                completion(result, attribution)
+            }
+            completion(nil, false)
         }
         task.resume()
     }
