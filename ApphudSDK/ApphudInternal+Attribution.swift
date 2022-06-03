@@ -81,7 +81,7 @@ extension ApphudInternal {
                         if isAttributionExist {
                             params["search_ads_data"] = data
                         } else {
-                            return
+                            callback?(false)
                         }
                     } else {
                         params["search_ads_data"] = ["token": identifer]
