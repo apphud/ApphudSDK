@@ -6,15 +6,27 @@
 //
 import Foundation
 
+/**
+ An object associated with purchases container(Paywall).
+ 
+ Paywalls configured in Apphud Dashboard > Product Hub > Paywalls. Each paywall contains an array of `ApphudProduct` objects that you use for purchase.
+ */
+
 public class ApphudPaywall: NSObject, Codable {
 
     @objc public internal(set) var identifier: String
     @objc public internal(set) var isDefault: Bool
     /**
-     A/B test functional properties
+     A/B test experiment name
      */
     @objc public var experimentName: String?
+    /**
+     A/B test variation Name
+     */
     @objc public var variationName: String?
+    /**
+     A/B test Paywall identifier
+     */
     @objc public var fromPaywall: String?
 
     @objc public var json: [String: Any]? {

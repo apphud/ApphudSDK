@@ -15,7 +15,15 @@ import UserNotifications
 
 internal let apphud_sdk_version = "2.8.1"
 
+/**
+ Public Callback object provide -> [String: Bool]
+ */
+
 public typealias ApphudEligibilityCallback = (([String: Bool]) -> Void)
+/**
+ Public Callback object provide -> Bool
+ */
+
 public typealias ApphudBoolCallback = ((Bool) -> Void)
 
 /// List of available attribution providers
@@ -55,6 +63,11 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
 }
 
 // MARK: - Initialization
+
+/**
+ Entry point of the Apphud SDK. It provides access to all its features.
+ */
+
 
 @available(OSX 10.14.4, *)
 @available(iOS 11.2, *)

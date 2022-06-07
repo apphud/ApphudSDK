@@ -6,6 +6,12 @@
 //  Copyright © 2019 Apphud Inc. All rights reserved.
 //
 import Foundation
+/**
+ An object containing all incoming Rule info
+ 
+ Using class instead of struct in order to support Objective-C
+*/
+
 
 public class ApphudRule: NSObject {
 

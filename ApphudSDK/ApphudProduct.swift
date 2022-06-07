@@ -8,6 +8,13 @@
 import Foundation
 import StoreKit
 
+/**
+ An object associated with purchase.
+ 
+ Purchase configured in App Store Connect and should be added to Apphud Dashboard > Product Hub > Products.
+ `ApphudProduct` is Apphud's wrapper around StoreKit's `SKProduct`.
+ */
+
 public class ApphudProduct: NSObject, Codable {
 
     /**

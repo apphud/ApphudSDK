@@ -12,8 +12,8 @@ import StoreKit
 internal typealias ApphudStoreKitProductsCallback = ([SKProduct], Error?) -> Void
 internal typealias ApphudTransactionCallback = (SKPaymentTransaction, Error?) -> Void
 
-public let ApphudWillFinishTransactionNotification = Notification.Name(rawValue: "ApphudWillFinishTransactionNotification")
-public let ApphudDidFinishTransactionNotification = Notification.Name(rawValue: "ApphudDidFinishTransactionNotification")
+public let _ApphudWillFinishTransactionNotification = Notification.Name(rawValue: "ApphudWillFinishTransactionNotification")
+public let _ApphudDidFinishTransactionNotification = Notification.Name(rawValue: "ApphudDidFinishTransactionNotification")
 
 @available(OSX 10.14.4, *)
 @available(iOS 11.2, *)
@@ -172,14 +172,14 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     internal func finishTransaction(_ transaction: SKPaymentTransaction) {
         apphudLog("Finish Transaction: \(transaction.payment.productIdentifier), state: \(transaction.transactionState.rawValue), id: \(transaction.transactionIdentifier ?? "")")
-        NotificationCenter.default.post(name: ApphudWillFinishTransactionNotification, object: transaction)
+        NotificationCenter.default.post(name: _ApphudWillFinishTransactionNotification, object: transaction)
         SKPaymentQueue.default().finishTransaction(transaction)
     }
 
     func paymentQueue(_ queue: SKPaymentQueue, removedTransactions transactions: [SKPaymentTransaction]) {
         DispatchQueue.main.async {
             transactions.forEach { transaction in
-                NotificationCenter.default.post(name: ApphudDidFinishTransactionNotification, object: transaction)
+                NotificationCenter.default.post(name: _ApphudDidFinishTransactionNotification, object: transaction)
             }
         }
     }

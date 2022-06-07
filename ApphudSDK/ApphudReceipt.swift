@@ -7,6 +7,10 @@
 
 import Foundation
 
+/**
+ `ApphudReceipt` is Apphud's wrapper around StoreKit's `Receipt` with more customer information .
+ */
+
 @available(OSX 10.14.4, *)
 public class ApphudReceipt: NSObject, Codable {
 
