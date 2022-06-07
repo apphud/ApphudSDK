@@ -18,12 +18,11 @@ internal let apphud_sdk_version = "2.8.1"
 /**
  Public Callback object provide -> [String: Bool]
  */
-
 public typealias ApphudEligibilityCallback = (([String: Bool]) -> Void)
+
 /**
  Public Callback object provide -> Bool
  */
-
 public typealias ApphudBoolCallback = ((Bool) -> Void)
 
 /// List of available attribution providers
@@ -67,7 +66,6 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
 /**
  Entry point of the Apphud SDK. It provides access to all its features.
  */
-
 
 @available(OSX 10.14.4, *)
 @available(iOS 11.2, *)
@@ -170,6 +168,9 @@ final public class Apphud: NSObject {
      
      This callback is called when paywalls are populated with their StoreKit products. Callback is called immediately if paywalls are already loaded.
      It is safe to call this method multiple times – previous callback will not be overwritten, but will be added to array and once paywalls are loaded, all callbacks will be called.
+     
+     - Note: An alternative way of getting ``ApphudPaywall`` updates
+     is using ``Apphud/paywallsDidLoadCallback(_:)``.
     */
     @objc public static func paywallsDidLoadCallback(_ callback: @escaping ([ApphudPaywall]) -> Void) {
         if ApphudInternal.shared.paywallsAreReady {
@@ -345,13 +346,17 @@ final public class Apphud: NSObject {
     }
 
     // MARK: - Paywall logs
+    
     /**
-     Will be displayed in AppHud dashboard
+     Will be displayed in AppHud dashboard "paywall shown"
      */
     @objc public static func paywallShown(_ paywall: ApphudPaywall) {
         ApphudLoggerService.shared.paywallShown(paywall.id)
     }
-
+    
+    /**
+     Will be displayed in AppHud dashboard "paywall closed"
+     */
     @objc public static func paywallClosed(_ paywall: ApphudPaywall) {
         ApphudLoggerService.shared.paywallClosed(paywall.id)
     }
