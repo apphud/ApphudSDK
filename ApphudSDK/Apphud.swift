@@ -65,6 +65,14 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
 
 /**
  Entry point of the Apphud SDK. It provides access to all its features.
+
+ OVERVIEW HERE
+ 
+ #### Related Articles
+ -  [Init SDK Docs](https://docs.apphud.com/getting-started/sdk-integration/ios#initialise-sdk)
+ -  [Observer Mode Docs](https://docs.apphud.com/getting-started/observer-mode)
+ -  [Get Products Docs](https://docs.apphud.com/getting-started/sdk-integration/ios#get-paywalls-version-2.3.0-or-above)
+ -  [Check Subscription Status](https://docs.apphud.com/getting-started/sdk-integration/ios#check-subscription-status)
  */
 
 @available(OSX 10.14.4, *)
@@ -191,16 +199,15 @@ final public class Apphud: NSObject {
     }
     
     /**
-        If you want to use A/B experiments while running SDK in `Observer Mode` you should manually send paywall identifier to Apphud using this method. Note that you have to add paywalls in Apphud Dashboard > Product Hub > Paywalls.
-         
-        __Note:__ You must call this method right before your own purchase method.
+        If you want to use A/B experiments while running SDK in `Observer Mode` you should manually send paywall identifier to Apphud using this method.
          
         Example:
-
-        ````
+     ```swift
         Apphud.willPurchaseProductFromPaywall("main_paywall")
         YourClass.purchase(someProduct)
-        ````
+     ```
+     - Note: You have to add paywalls in Apphud Dashboard > Product Hub > Paywalls.
+     - Important: You must call this method right before your own purchase method.
      */
     @objc public static func willPurchaseProductFromPaywall(_ identifier: String) {
         ApphudInternal.shared.willPurchaseProductFromPaywall(identifier: identifier)
@@ -227,13 +234,13 @@ final public class Apphud: NSObject {
     @objc public static func productsDidFetchCallback(_ callback: @escaping ([SKProduct], Error?) -> Void) {
         ApphudInternal.shared.customProductsFetchedBlocks.append(callback)
     }
-
+    
     /**
-    Refreshes `SKProduct`s from the App Store. You have to add all product identifiers in Apphud Dashboard > Product Hub > Products.
-     
-     __Note__: You shouldn't call this method at app launch, because Apphud SDK automatically fetches products during initialization. Only use this method as a fallback.
+     Refreshes `SKProduct`s from the App Store. You have to add all product identifiers in Apphud Dashboard > Product Hub > Products.
      
      Best practise is not to use this method, but implement paywalls logic by adding your paywall configuration in Apphud Dashboard > Product Hub > Paywalls.
+     
+     - Note: You shouldn't call this method at app launch, because Apphud SDK automatically fetches products during initialization. Only use this method as a fallback.
      */
     @objc public static func refreshStoreKitProducts(_ callback: (([SKProduct], Error?) -> Void)?) {
         ApphudInternal.shared.refreshStoreKitProductsWithCallback(callback: callback)
@@ -244,7 +251,7 @@ final public class Apphud: NSObject {
      
      Note that this method will return `nil` if products are not yet fetched from the App Store. You should observe for `Apphud.didFetchProductsNotification()` notification or implement  `apphudDidFetchStoreKitProducts` delegate method or set `productsDidFetchCallback` block.
      
-     Best practise is not to use this method, but implement paywalls logic by adding your paywall configuration in Apphud Dashboard > Product Hub > Paywalls.
+     - Important: Best practise is not to use this method, but implement paywalls logic by adding your paywall configuration in Apphud Dashboard > Product Hub > Paywalls.
      */
     @objc(storeKitProducts)
     public static var products: [SKProduct]? {
@@ -257,9 +264,9 @@ final public class Apphud: NSObject {
     /**
      Returns `SKProduct` object by product identifier. Note that you have to add this product identifier in Apphud Dashboard > Product Hub > Products.
      
-     Will return `nil` if product is not yet fetched from the App Store.
+     - Note: Will return `nil` if product is not yet fetched from the App Store.
      
-     Best practise is not to use this method, but implement paywalls logic by adding your paywall configuration in Apphud Dashboard > Product Hub > Paywalls.
+     - Important: Best practise is not to use this method, but implement paywalls logic by adding your paywall configuration in Apphud Dashboard > Product Hub > Paywalls.
      */
     @objc public static func product(productIdentifier: String) -> SKProduct? {
         return ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == productIdentifier})
@@ -268,11 +275,11 @@ final public class Apphud: NSObject {
     /**
      Initiates purchase of `ApphudProduct` object from your `ApphudPaywall` and automatically submits App Store Receipt to Apphud.
      
-     __Note__:  You are not required to purchase product using Apphud SDK methods. You can purchase subscription or any in-app purchase using your own code. App Store receipt will be sent to Apphud anyway.
-     
      - parameter product: Required. `ApphudProduct` object from your `ApphudPaywall`. You must first configure paywalls in Apphud Dashboard > Product Hub > Paywalls.
      
      - parameter callback: Optional. Returns `ApphudPurchaseResult` object.
+     
+     - Note: You are not required to purchase product using Apphud SDK methods. You can purchase subscription or any in-app purchase using your own code. App Store receipt will be sent to Apphud anyway.
      */
     @objc(purchaseApphudProduct:callback:)
     public static func purchase(_ product: ApphudProduct, callback: ((ApphudPurchaseResult) -> Void)?) {
@@ -282,13 +289,13 @@ final public class Apphud: NSObject {
     /**
      Deprecated. Purchase product by product identifier. Use this method if you don't use Apphud Paywalls logic.
      
-     __Note__:  A/B Experiments feature will not work if you purchase products by your own code or by using this method. If you want to use A/B experiments, you must use Apphud Paywalls and initiate purchase of  `ApphudProduct` object instead.
-     
      - parameter product: Required. Identifier of the product that user wants to purchase. If you don't use Apphud paywalls, you can use this purchase method.
      
      - parameter callback: Optional. Returns `ApphudPurchaseResult` object.
      
-     Best practise is not to use this method, but implement paywalls logic by adding your paywall configuration in Apphud Dashboard > Product Hub > Paywalls.
+     - Note: A/B Experiments feature will not work if you purchase products by your own code or by using this method. If you want to use A/B experiments, you must use Apphud Paywalls and initiate purchase of  `ApphudProduct` object instead.
+     
+     - Important: Best practise is not to use this method, but implement paywalls logic by adding your paywall configuration in Apphud Dashboard > Product Hub > Paywalls.
      */
     @objc(purchaseById:callback:)
     public static func purchase(_ productId: String, callback: ((ApphudPurchaseResult) -> Void)?) {
@@ -297,24 +304,25 @@ final public class Apphud: NSObject {
 
     /**
      Purchases product and automatically submits App Store Receipt to Apphud. This method doesn't wait until Apphud validates receipt from Apple and immediately returns transaction object. This method may be useful if you don't care about receipt validation in callback.
-     __Note__: When using this method properties `subscription` and `nonRenewingPurchase` in `ApphudPurchaseResult` will always be `nil` !
      
      - parameter productId: Required. Identifier of the product that user wants to purchase.
      - parameter callback: Optional. Returns `ApphudPurchaseResult` object.
-    */
+     
+     - Note: When using this method properties `subscription` and `nonRenewingPurchase` in `ApphudPurchaseResult` will always be `nil` !
+     */
     @objc(purchaseWithoutValidationById:callback:)
     public static func purchaseWithoutValidation(_ productId: String, callback: ((ApphudPurchaseResult) -> Void)?) {
         ApphudInternal.shared.purchase(productId: productId, product: nil, validate: false, callback: callback)
     }
 
     /**
-        Purchases subscription (promotional) offer and automatically submits App Store Receipt to Apphud. 
+     Purchases subscription (promotional) offer and automatically submits App Store Receipt to Apphud.
      
-        __Note__: This method automatically sends in-app purchase receipt to Apphud, so you don't need to call `submitReceipt` method.    
-
-        - parameter product: Required. This is an `SKProduct` object that user wants to purchase.
-        - parameter discountID: Required. This is a `SKProductDiscount` Identifier String object that you would like to apply.
-        - parameter callback: Optional. Returns `ApphudPurchaseResult` object.
+     - parameter product: Required. This is an `SKProduct` object that user wants to purchase.
+     - parameter discountID: Required. This is a `SKProductDiscount` Identifier String object that you would like to apply.
+     - parameter callback: Optional. Returns `ApphudPurchaseResult` object.
+     
+     - Note: This method automatically sends in-app purchase receipt to Apphud, so you don't need to call `submitReceipt` method.
      */
     @available(iOS 12.2, *)
     @objc public static func purchasePromo(_ product: SKProduct, discountID: String, _ callback: ((ApphudPurchaseResult) -> Void)?) {
@@ -333,13 +341,13 @@ final public class Apphud: NSObject {
     // MARK: - Promotionals
     /**
      You can grant free promotional subscription to user. Returns `true` in a callback if promotional was granted. After this `hasActiveSubscription()` method will return `true`.
-    
-     __Note__: You should pass either `productId` (recommended) or `permissionGroup` OR both parameters `nil`. Sending both `productId` and `permissionGroup` parameters will result in `productId` being used.
-    
+     
      - parameter daysCount: Required. Number of days of free premium usage. For lifetime promotionals just pass extremely high value, like 10000.
      - parameter productId: Optional*. Recommended. Product Id of promotional subscription. See __Note__ message above for details.
      - parameter permissionGroup: Optional*. Permission Group of promotional subscription. Use this parameter in case you have multiple permission groups. See __Note__ message above for details.
      - parameter callback: Optional. Returns `true` if promotional subscription was granted.
+     
+     - Note: You should pass either `productId` (recommended) or `permissionGroup` OR both parameters `nil`. Sending both `productId` and `permissionGroup` parameters will result in `productId` being used. Docs](https://docs.apphud.com/getting-started/product-hub/products)
      */
     @objc public static func grantPromotional(daysCount: Int, productId: String?, permissionGroup: ApphudGroup?, callback: ApphudBoolCallback?) {
         ApphudInternal.shared.grantPromotional(daysCount, permissionGroup, productId: productId, callback: callback)
@@ -349,6 +357,8 @@ final public class Apphud: NSObject {
     
     /**
      Will be displayed in AppHud dashboard "paywall shown"
+     
+     - Note: For more information  - [Displaying Apphud Docs](https://docs.apphud.com/events/events#paywall-shown)
      */
     @objc public static func paywallShown(_ paywall: ApphudPaywall) {
         ApphudLoggerService.shared.paywallShown(paywall.id)
@@ -356,6 +366,8 @@ final public class Apphud: NSObject {
     
     /**
      Will be displayed in AppHud dashboard "paywall closed"
+     
+     - Note: For more information  - [Displaying Apphud Docs](https://docs.apphud.com/events/events#paywall-closed)
      */
     @objc public static func paywallClosed(_ paywall: ApphudPaywall) {
         ApphudLoggerService.shared.paywallClosed(paywall.id)
@@ -366,18 +378,20 @@ final public class Apphud: NSObject {
     /**
      Returns `true` if user has active subscription or non renewing purchase (lifetime).
      
-     __Note: You should not use this method if you have consumable in-app purchases, like coin packs.__
-     
      Use this method to determine whether or not user has active premium access. If you have consumable purchases, this method won't operate correctly, because Apphud SDK doesn't differ consumables from non-consumables.
+     
+     - Important: You should not use this method if you have consumable in-app purchases, like coin packs.
      */
     @objc public static func hasPremiumAccess() -> Bool {
         hasActiveSubscription() || (nonRenewingPurchases()?.first(where: { $0.isActive() }) != nil)
     }
-
+    
     /**
      Returns `true` if user has active subscription.
      
-     Use this method to determine whether or not user has active premium subscription. Note that if you have lifetime (nonconsumable) or consumable purchases, you must use another `isNonRenewingPurchaseActive` method.
+     Use this method to determine whether or not user has active premium subscription.
+     
+     - Important: Note that if you have lifetime (nonconsumable) or consumable purchases, you must use another ``Apphud/isNonRenewingPurchaseActive(productIdentifier:)`` method.
      */
     @objc public static func hasActiveSubscription() -> Bool {
         Apphud.subscription()?.isActive() ?? false
@@ -385,7 +399,8 @@ final public class Apphud: NSObject {
 
     /**
      Permission groups configured in Apphud dashboard > Product Hub > Products. Groups are cached on device.
-     Note that this method may be `nil` at first launch of the app.
+     
+     - Important: Note that this method may be `nil` at first launch of the app.
      */
     @objc public static var permissionGroups: [ApphudGroup] {
         ApphudInternal.shared.productGroups
@@ -394,11 +409,11 @@ final public class Apphud: NSObject {
     /**
      Returns subscription object that current user has ever purchased. Subscriptions are cached on device.
      
-     __Note__: If returned object is not `nil`, it doesn't mean that subsription is active.
      You should check `Apphud.hasActiveSubscription()` method or `subscription.isActive()` value to determine whether or not to unlock premium functionality to the user.
      
      If you have more than one subscription group in your app, use `subscriptions()` method and get `isActive` value for your desired subscription.
      
+     - Note: If returned object is not `nil`, it doesn't mean that subsription is active.
      */
     @objc public static func subscription() -> ApphudSubscription? {
         return ApphudInternal.shared.currentUser?.subscriptions.first
@@ -423,7 +438,7 @@ final public class Apphud: NSObject {
     /**
      Returns `true` if current user has purchased standard in-app purchase with given product identifier. Returns `false` if this product is refunded or never purchased. Includes consumables, nonconsumables or non-renewing subscriptions. Apphud only tracks consumables if they were purchased after integrating Apphud SDK.
      
-     __Note__: Purchases are sorted by purchase date, so it returns Bool value for the most recent purchase by given product identifier.
+     - Note: Purchases are sorted by purchase date, so it returns Bool value for the most recent purchase by given product identifier.
      */
     @objc public static func isNonRenewingPurchaseActive(productIdentifier: String) -> Bool {
         return ApphudInternal.shared.currentUser?.purchases.first(where: {$0.productId == productIdentifier})?.isActive() ?? false
@@ -439,9 +454,9 @@ final public class Apphud: NSObject {
     /**
      Implements `Restore Purchases` mechanism. Basically it just sends current App Store Receipt to Apphud and returns subscriptions info.
      
-     __Note__: Even if callback returns some subscription, it doesn't mean that subscription is active. You should check `subscription.isActive()` value.
-     
      - parameter callback: Required. Returns array of subscription (or subscriptions in case you have more than one subscription group), array of standard in-app purchases and an error. All of three parameters are optional.
+     
+     - Note: Even if callback returns some subscription, it doesn't mean that subscription is active. You should check `subscription.isActive()` value.
      */     
     @objc public static func restorePurchases(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {
         ApphudInternal.shared.restorePurchases(callback: callback)
@@ -452,14 +467,14 @@ final public class Apphud: NSObject {
      
      Example:
      
-        ````
+     ```swift
         // hasPurchases - is your own boolean value indicating that current user is paying user.
         if hasPurchases {
             Apphud.migratePurchasesIfNeeded { _, _, _ in}
         }
-        ````
+     ```
      
-    __Note__: You can remove this method after a some period of time, i.e. when you are sure that all paying users are already synced with Apphud.
+     - Note: You can remove this method after a some period of time, i.e. when you are sure that all paying users are already synced with Apphud.
      */
     @objc public static func migratePurchasesIfNeeded(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {
         if apphudShouldMigrate() {
@@ -493,15 +508,14 @@ final public class Apphud: NSObject {
      Set custom user property. Value must be one of: `Int`, `Float`, `Double`, `Bool`, `String`, `NSNumber`, `NSString`, `NSNull`, `nil`.
 
      Example:
-     ````
+     ```swift
      // use built-in property key
      Apphud.setUserProperty(key: .email, value: "user4@example.com", setOnce: true)
      // use custom property key
      Apphud.setUserProperty(key: .init("custom_test_property_1"), value: 0.5)
-     ````
-
-     __Note__: You can use several built-in keys with their value types:
-
+     ```
+     #### You can use several built-in keys with their value types:
+     
      `.email`: User email. Value must be String.
 
      `.name`: User name. Value must be String.
@@ -529,9 +543,9 @@ final public class Apphud: NSObject {
     Increment custom user property. Value must be one of: `Int`, `Float`, `Double` or `NSNumber`.
 
     Example:
-    ````
+     ```swift
     Apphud.incrementUserProperty(key: .init("progress"), by: 0.5)
-    ````
+     ```
 
     - parameter key: Required. Use your custom string key or some of built-in keys.
     - parameter by: Required/Optional. You can pass negative value to decrement.
