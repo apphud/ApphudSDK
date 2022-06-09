@@ -33,6 +33,7 @@ Apphud.purchase(product) { result in })
 ### Apphud main methods
 - ``Apphud/start(apiKey:userID:observerMode:)``
 - ``Apphud/paywalls``
+- ``Apphud/paywallsDidLoadCallback(_:)``
 - ``Apphud/purchase(_:callback:)-6dhy3``
 
 - ``Apphud/willPurchaseProductFromPaywall(_:)``
