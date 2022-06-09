@@ -7,7 +7,7 @@
 import Foundation
 
 /**
- An object associated with purchases container(Paywall).
+ An object associated with purchases container (Paywall).
  
  Paywalls configured in Apphud Dashboard > Product Hub > Paywalls. Each paywall contains an array of `ApphudProduct` objects that you use for purchase. A paywall is a product array with custom JSON. The array is ordered and may be used to display products on your in-app purchase screen.
  
@@ -21,16 +21,21 @@ import Foundation
  
  - Note: An alternative way of getting ``Apphud/paywalls``
  
- - Important: For more information  - [Displaying Apphud Docs](https://docs.apphud.com/getting-started/product-hub/paywalls)
+ - Important: For more information  - [Paywalls Documentation](https://docs.apphud.com/getting-started/product-hub/paywalls)
  */
 
 public class ApphudPaywall: NSObject, Codable {
+    
     /**
-     Unic paywall id that you insert in "Paywall identifier" when you create paywall
+     Array of products
+     */
+    @objc public internal(set) var products: [ApphudProduct]
+    /**
+     Your custom paywall identifier from Apphud Dashboard
      */
     @objc public internal(set) var identifier: String
     /**
-     It's possible to make a paywall default – it's a special alias name, that can be assigned to only ONE paywall at one time. There can be no default paywalls at all. It's up to you whether you want to have them or not.
+     It's possible to make a paywall default – it's a special alias name, that can be assigned to only ONE paywall at a time. There can be no default paywalls at all. It's up to you whether you want to have them or not.
      */
     @objc public internal(set) var isDefault: Bool
     /**
@@ -38,11 +43,11 @@ public class ApphudPaywall: NSObject, Codable {
      */
     @objc public var experimentName: String?
     /**
-     A/B test variation Name
+     A/B test variation name
      */
     @objc public var variationName: String?
     /**
-     A/B test Paywall identifier
+     A/B test paywall identifier
      */
     @objc public var fromPaywall: String?
     /**
@@ -63,10 +68,6 @@ public class ApphudPaywall: NSObject, Codable {
 
         return [:]
     }
-    /**
-     Array of product for purchasing available in current paywall
-     */
-    @objc public internal(set) var products: [ApphudProduct]
 
     internal var id: String
     private var jsonString: String?

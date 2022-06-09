@@ -29,7 +29,7 @@ public let _ApphudUserPropertyKeyAge = "$age"
 public let _ApphudUserPropertyKeyGender = "$gender"
 
 /**
- An object containing ApphudUser properties attributes and identifiers.
+ User property initializer class with reserved property names.
  */
 
 @objc public class ApphudUserPropertyKey: NSObject {

@@ -66,12 +66,12 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
 /**
  Entry point of the Apphud SDK. It provides access to all its features.
 
- OVERVIEW HERE
+ Main class of Apphud SDK.
  
  #### Related Articles
- -  [Init SDK Docs](https://docs.apphud.com/getting-started/sdk-integration/ios#initialise-sdk)
- -  [Observer Mode Docs](https://docs.apphud.com/getting-started/observer-mode)
- -  [Get Products Docs](https://docs.apphud.com/getting-started/sdk-integration/ios#get-paywalls-version-2.3.0-or-above)
+ -  [Apphud SDK Initialization](https://docs.apphud.com/getting-started/sdk-integration/ios#initialise-sdk)
+ -  [Observer Mode](https://docs.apphud.com/getting-started/observer-mode)
+ -  [Fetch Products](https://docs.apphud.com/getting-started/sdk-integration/ios#get-paywalls-version-2.3.0-or-above)
  -  [Check Subscription Status](https://docs.apphud.com/getting-started/sdk-integration/ios#check-subscription-status)
  */
 
@@ -176,9 +176,6 @@ final public class Apphud: NSObject {
      
      This callback is called when paywalls are populated with their StoreKit products. Callback is called immediately if paywalls are already loaded.
      It is safe to call this method multiple times – previous callback will not be overwritten, but will be added to array and once paywalls are loaded, all callbacks will be called.
-     
-     - Note: An alternative way of getting ``ApphudPaywall`` updates
-     is using ``Apphud/paywallsDidLoadCallback(_:)``.
     */
     @objc public static func paywallsDidLoadCallback(_ callback: @escaping ([ApphudPaywall]) -> Void) {
         if ApphudInternal.shared.paywallsAreReady {
@@ -189,7 +186,7 @@ final public class Apphud: NSObject {
     }
 
     /**
-     __Deprecated__. Fetches paywalls configured in Apphud dashboard. This makes an api request to Apphud. Always check if there are cached paywalls on device by using paywalls method below.
+     __Deprecated__. Fetches paywalls configured in Apphud dashboard. This makes an API request to Apphud. Always check if there are cached paywalls on device by using paywalls method.
      */
     @available(*, deprecated, message: "Use `func paywallsDidLoadCallback` method instead.")
     @objc public static func getPaywalls(callback: @escaping ([ApphudPaywall]?, Error?) -> Void) {
@@ -356,18 +353,18 @@ final public class Apphud: NSObject {
     // MARK: - Paywall logs
     
     /**
-     Will be displayed in AppHud dashboard "paywall shown"
+     Logs "Paywall Shown" event that will be used in Apphud Dashboard.
      
-     - Note: For more information  - [Displaying Apphud Docs](https://docs.apphud.com/events/events#paywall-shown)
+     - Note: For more information  - [Paywall Shown Event Documentation](https://docs.apphud.com/events/events#paywall-shown)
      */
     @objc public static func paywallShown(_ paywall: ApphudPaywall) {
         ApphudLoggerService.shared.paywallShown(paywall.id)
     }
     
     /**
-     Will be displayed in AppHud dashboard "paywall closed"
+     Logs "Paywall Closed" event that will be used in Apphud Dashboard.
      
-     - Note: For more information  - [Displaying Apphud Docs](https://docs.apphud.com/events/events#paywall-closed)
+     - Note: For more information  - [Paywall Closed Event Documentation](https://docs.apphud.com/events/events#paywall-closed)
      */
     @objc public static func paywallClosed(_ paywall: ApphudPaywall) {
         ApphudLoggerService.shared.paywallClosed(paywall.id)

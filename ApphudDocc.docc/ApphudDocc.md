@@ -22,7 +22,7 @@ Apphud provides ready-to-use infrastructure for all kinds of in-app purchases. I
 Apphud.start(apiKey: "api_key")
 
 // Get Paywalls
-let paywalls = Apphud.paywalls
+let paywalls = Apphud.paywallsDidLoadCallback { paywalls in }
 
 // Purchase product
 Apphud.purchase(product) { result in })

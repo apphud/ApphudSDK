@@ -12,7 +12,7 @@ import UIKit
 import Foundation
 
 /**
- Custom Apphud notice for NSError
+ Custom Apphud wrapper around NSError.
  */
 
 public class ApphudError: NSError {

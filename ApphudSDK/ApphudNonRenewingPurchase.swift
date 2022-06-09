@@ -9,7 +9,7 @@
 import Foundation
 
 /**
- Custom Apphud class containing all information about customer non renewing purchase
+ Custom Apphud class containing all information about customer non-renewing purchase
  */
 
 public class ApphudNonRenewingPurchase: NSObject {
