@@ -8,6 +8,10 @@
 
 import StoreKit
 
+/**
+ A public protocol that provides access to Apphud's main public methods, describing the behavior of the user and the state of his subscriptions.
+ */
+
 @available(macOS 10.14.4, *)
 @objc public protocol ApphudDelegate {
     /**

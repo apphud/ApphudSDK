@@ -10,11 +10,15 @@ import UIKit
 #endif
 import Foundation
 
+/**
+ Apphud class which describes products permission groups
+ */
+
 @available(OSX 10.14.4, *)
 public class ApphudGroup: NSObject, Codable {
 
     /**
-     Name of permission group configured in Apphud dashboard.
+     Name of permission group configured in Apphud Dashboard.
      */
     public var name: String
 

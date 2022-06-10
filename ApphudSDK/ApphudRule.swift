@@ -6,16 +6,20 @@
 //  Copyright © 2019 Apphud Inc. All rights reserved.
 //
 import Foundation
+/**
+ An object containing all incoming Rule information.
+*/
+
 
 public class ApphudRule: NSObject {
 
     /**
-     Rule name that is visible in Apphud Rules dashboard
+     Rule name that is visible in Apphud Rules Dashboard
      */
     @objc public let rule_name: String
 
     /**
-     Screen name that is visible in Apphud Screens dashboard
+     Screen name that is visible in Apphud Screens Dashboard
      */
     @objc public let screen_name: String
 

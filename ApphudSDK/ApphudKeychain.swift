@@ -27,6 +27,9 @@ let kSecAttrServiceValue = NSString(format: kSecAttrService)
 let kSecMatchLimitValue = NSString(format: kSecMatchLimit)
 let kSecReturnDataValue = NSString(format: kSecReturnData)
 let kSecMatchLimitOneValue = NSString(format: kSecMatchLimitOne)
+/**
+ Class for storing user data
+ */
 
 public class ApphudKeychain: NSObject {
 

@@ -11,6 +11,10 @@ import UIKit
 #endif
 import Foundation
 
+/**
+ Custom Apphud wrapper around NSError.
+ */
+
 public class ApphudError: NSError {
 
     private let codeDomain = "com.apphud.error"

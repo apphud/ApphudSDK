@@ -76,14 +76,13 @@ extension ApphudInternal {
     internal func submitReceipt(product: SKProduct, transaction: SKPaymentTransaction?, apphudProduct: ApphudProduct? = nil, callback: ((ApphudPurchaseResult) -> Void)?) {
 
         let block: (String?) -> Void = { receiptStr in
-            let exist = self.performWhenUserRegistered {
+            if transaction != nil {
                 self.submitReceipt(product: product, apphudProduct: apphudProduct, transaction: transaction, receiptString: receiptStr, notifyDelegate: true) { error in
                     let result = self.purchaseResult(productId: product.productIdentifier, transaction: transaction, error: error)
                     callback?(result)
                 }
-            }
-            if !exist {
-                apphudLog("Tried to make submitReceipt: \(product.productIdentifier) request when user is not yet registered, addind to schedule..")
+            } else {
+                apphudLog("Tried to make submitReceipt: \(product.productIdentifier) request but transaction doesn't exist, addind to schedule..")
             }
         }
 
@@ -136,6 +135,8 @@ extension ApphudInternal {
         if let bundleID = Bundle.main.bundleIdentifier {
             params["bundle_id"] = bundleID
         }
+        
+        params["user_id"] = Apphud.userID()
 
         if let product = product {
             params["product_info"] = product.apphudSubmittableParameters()

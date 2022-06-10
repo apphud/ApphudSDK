@@ -8,10 +8,19 @@
 import Foundation
 import StoreKit
 
+/**
+ Apphud's wrapper around `SKProduct`.
+ 
+ In-App Purchase must configured in App Store Connect and should be added to Apphud Dashboard > Product Hub > Products.
+ `ApphudProduct` is Apphud's wrapper around StoreKit's `SKProduct`.
+ 
+ - Note: For more information  - [Product Hub Documentation](https://docs.apphud.com/getting-started/product-hub/products)
+ */
+
 public class ApphudProduct: NSObject, Codable {
 
     /**
-     Product Identifier from App Store Connect.
+     Product identifier from App Store Connect.
      */
     @objc public internal(set) var productId: String
 
@@ -33,7 +42,7 @@ public class ApphudProduct: NSObject, Codable {
     @objc public internal(set) var skProduct: SKProduct?
 
     /**
-     Current product's Paywall identifier, if available.
+     Current product's paywall identifier, if available.
      */
     @objc public internal(set) var paywallIdentifier: String?
 

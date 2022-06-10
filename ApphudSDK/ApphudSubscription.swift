@@ -30,10 +30,9 @@ import Foundation
     case expired
 }
 
-/*
- To be visible in Objective-C this has to be an NSObject inherited class
+/**
+ Custom Apphud class containing all information about customer subscription.
  */
-
 @available(OSX 10.14.4, *)
 public class ApphudSubscription: NSObject {
 

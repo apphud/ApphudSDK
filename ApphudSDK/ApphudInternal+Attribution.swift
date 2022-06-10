@@ -76,11 +76,23 @@ extension ApphudInternal {
                     callback?(false)
                     return
                 }
-                
-                params["search_ads_data"] = ["token": identifer]
-            case .facebook:
-                apphudLog("Facebook integration is no longer needed from SDK and has been voided. You can safely remove this line of code.", forceDisplay: true)
-                callback?(false)
+                self.getAppleAttribution(identifer!) {(appleAttributionData, isAttributionExist) in
+                    if let data = appleAttributionData {
+                        if isAttributionExist {
+                            params["search_ads_data"] = data
+                        } else {
+                            callback?(false)
+                        }
+                    } else {
+                        params["search_ads_data"] = ["token": identifer]
+                    }
+                                        
+                    self.startAttributionRequest(params: params, provider: provider, identifer: identifer) { result in
+                        callback?(result)
+                    }
+                }
+                return
+            default:
                 return
             }
 
@@ -137,10 +149,6 @@ extension ApphudInternal {
                 if result {
                     self.didSubmitAppsFlyerAttribution = true
                 }
-            case .facebook:
-                if result {
-                    self.didSubmitFacebookAttribution = true
-                }
             case .firebase:
                 if result {
                     self.submittedFirebaseId = identifer
@@ -168,8 +176,26 @@ extension ApphudInternal {
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(forceSendAttributionDataIfNeeded), object: nil)
         automaticallySubmitAppsFlyerAttributionIfNeeded()
         automaticallySubmitAdjustAttributionIfNeeded()
-        automaticallySubmitFacebookAttributionIfNeeded()
     }
+    
+    @objc internal func getAppleAttribution(_ appleAttibutionToken: String, completion: @escaping ([AnyHashable: Any]?, Bool) -> Void) {
+        let request = NSMutableURLRequest(url: URL(string: "https://api-adservices.apple.com/api/v1/")!)
+        request.httpMethod = "POST"
+        request.setValue("text/plain", forHTTPHeaderField: "Content-Type")
+        request.httpBody = Data(appleAttibutionToken.utf8)
+        
+        let task = URLSession.shared.dataTask(with: request as URLRequest) { (data, _, _) in
+            
+            if let data = data,
+               let result = try? JSONSerialization.jsonObject(with: data, options: .allowFragments) as? [String: Any],
+               let attribution = result["attribution"] as? Bool {
+                completion(result, attribution)
+            }
+            completion(nil, false)
+        }
+        task.resume()
+    }
+
 
     @objc internal func automaticallySubmitAppsFlyerAttributionIfNeeded() {
 
@@ -210,13 +236,5 @@ extension ApphudInternal {
         } else {
             apphudLog("Couldn't automatically resubmit Adjust attribution, exiting.", forceDisplay: true)
         }
-    }
-
-    @objc internal func automaticallySubmitFacebookAttributionIfNeeded() {
-        guard !didSubmitFacebookAttribution && apphudIsFBSDKIntegrated() else {
-            return
-        }
-
-        addAttribution(data: [:], from: .facebook, callback: nil)
     }
 }

@@ -6,17 +6,53 @@
 //
 import Foundation
 
-public class ApphudPaywall: NSObject, Codable {
+/**
+ An object associated with purchases container (Paywall).
+ 
+ Paywalls configured in Apphud Dashboard > Product Hub > Paywalls. Each paywall contains an array of `ApphudProduct` objects that you use for purchase. A paywall is a product array with custom JSON. The array is ordered and may be used to display products on your in-app purchase screen.
+ 
+ #### Related Articles:
+ To get paywall by identifier :
+  ```swift
+ Apphud.paywallsDidLoadCallback { paywalls in
+     let paywall = paywalls.first(where: {$0.identifier == "custom_paywall_identifier"})
+ }
+  ```
+ 
+ - Note: An alternative way of getting ``Apphud/paywalls``
+ 
+ - Important: For more information  - [Paywalls Documentation](https://docs.apphud.com/getting-started/product-hub/paywalls)
+ */
 
+public class ApphudPaywall: NSObject, Codable {
+    
+    /**
+     Array of products
+     */
+    @objc public internal(set) var products: [ApphudProduct]
+    /**
+     Your custom paywall identifier from Apphud Dashboard
+     */
     @objc public internal(set) var identifier: String
+    /**
+     It's possible to make a paywall default – it's a special alias name, that can be assigned to only ONE paywall at a time. There can be no default paywalls at all. It's up to you whether you want to have them or not.
+     */
     @objc public internal(set) var isDefault: Bool
     /**
-     A/B test functional properties
+     A/B test experiment name
      */
     @objc public var experimentName: String?
+    /**
+     A/B test variation name
+     */
     @objc public var variationName: String?
+    /**
+     A/B test paywall identifier
+     */
     @objc public var fromPaywall: String?
-
+    /**
+     Insert any parameters you need into custom JSON. It could be titles, descriptions, localisations, font, background and color parameters, URLs to media content, etc. Parameters count are not limited.
+     */
     @objc public var json: [String: Any]? {
 
         guard let string = jsonString, let data = string.data(using: .utf8) else {
@@ -32,8 +68,6 @@ public class ApphudPaywall: NSObject, Codable {
 
         return [:]
     }
-
-    @objc public internal(set) var products: [ApphudProduct]
 
     internal var id: String
     private var jsonString: String?

@@ -27,6 +27,10 @@ import UIKit
     case none
 }
 
+/**
+ A public protocol that provides access to Apphud's main public methods, describing the behavior of the Rules state and custom Rules view presentation
+ */
+
 @objc public protocol ApphudUIDelegate {
     /**
         You can return `false` to ignore this rule. You should only do this if you want to handle your rules by yourself. Default implementation is `true`.
@@ -55,11 +59,10 @@ import UIKit
      */
     @objc optional func apphudScreenPresentationStyle(controller: UIViewController) -> UIModalPresentationStyle
 
+    #endif
     /**
      Called when user tapped on purchase button in Apphud purchase screen.
     */
-    #endif
-
     @objc optional func apphudWillPurchase(product: SKProduct, offerID: String?, screenName: String)
 
     /**

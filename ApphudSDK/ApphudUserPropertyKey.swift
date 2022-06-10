@@ -11,47 +11,51 @@ import Foundation
  Built-in property keys.
  */
 /** User email. Value must be String. */
-public let ApphudUserPropertyKeyEmail = "$email"
+public let _ApphudUserPropertyKeyEmail = "$email"
 
 /** User name. Value must be String. */
-public let ApphudUserPropertyKeyName = "$name"
+public let _ApphudUserPropertyKeyName = "$name"
 
 /** User phone number. Value must be String. */
-public let ApphudUserPropertyKeyPhone = "$phone"
+public let _ApphudUserPropertyKeyPhone = "$phone"
 
 /** User install cohort. Value must be String. */
-public let ApphudUserPropertyKeyCohort = "$cohort"
+public let _ApphudUserPropertyKeyCohort = "$cohort"
 
 /** User email. Value must be Int. */
-public let ApphudUserPropertyKeyAge = "$age"
+public let _ApphudUserPropertyKeyAge = "$age"
 
 /** User email. Value must be one of: "male", "female", "other". */
-public let ApphudUserPropertyKeyGender = "$gender"
+public let _ApphudUserPropertyKeyGender = "$gender"
+
+/**
+ User property initializer class with reserved property names.
+ */
 
 @objc public class ApphudUserPropertyKey: NSObject {
 
     @objc public static var email: ApphudUserPropertyKey {
-        .init(ApphudUserPropertyKeyEmail)
+        .init(_ApphudUserPropertyKeyEmail)
     }
 
     @objc public static var age: ApphudUserPropertyKey {
-        .init(ApphudUserPropertyKeyAge)
+        .init(_ApphudUserPropertyKeyAge)
     }
 
     @objc public static var phone: ApphudUserPropertyKey {
-        .init(ApphudUserPropertyKeyPhone)
+        .init(_ApphudUserPropertyKeyPhone)
     }
 
     @objc public static var name: ApphudUserPropertyKey {
-        .init(ApphudUserPropertyKeyName)
+        .init(_ApphudUserPropertyKeyName)
     }
 
     @objc public static var gender: ApphudUserPropertyKey {
-        .init(ApphudUserPropertyKeyGender)
+        .init(_ApphudUserPropertyKeyGender)
     }
 
     @objc public static var cohort: ApphudUserPropertyKey {
-        .init(ApphudUserPropertyKeyCohort)
+        .init(_ApphudUserPropertyKeyCohort)
     }
 
     /**
