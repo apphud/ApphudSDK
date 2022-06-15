@@ -78,4 +78,10 @@ import StoreKit
         Called when Apphud SDK detects a deferred or interrupted purchase, this may happen when SCA confirmation is needed, in the case of parental control and some other cases
      */
     @objc optional func handleDeferredTransaction(transaction: SKPaymentTransaction)
+    
+    /// Called when paywalls are fully loaded with their SKProducts
+    @objc optional func paywallsDidFullyLoad(paywalls: [ApphudPaywall])
+
+    /// Called when paywalls are loaded, however SKProducts may still be `nil` at the moment.
+    @objc optional func paywallsDidLoad(paywalls: [ApphudPaywall])
 }

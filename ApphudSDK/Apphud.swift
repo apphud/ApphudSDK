@@ -13,7 +13,7 @@ import StoreKit
 import Foundation
 import UserNotifications
 
-internal let apphud_sdk_version = "2.8.2"
+internal let apphud_sdk_version = "2.8.3"
 
 /**
  Public Callback object provide -> [String: Bool]
@@ -176,6 +176,8 @@ final public class Apphud: NSObject {
      
      This callback is called when paywalls are populated with their StoreKit products. Callback is called immediately if paywalls are already loaded.
      It is safe to call this method multiple times – previous callback will not be overwritten, but will be added to array and once paywalls are loaded, all callbacks will be called.
+     
+     - Note: You can also use ApphudDelegate's `paywallsDidFullyLoad(paywalls: [ApphudPaywall])` or `paywallsLoad(paywalls: [ApphudPaywall])`
     */
     @objc public static func paywallsDidLoadCallback(_ callback: @escaping ([ApphudPaywall]) -> Void) {
         if ApphudInternal.shared.paywallsAreReady {
