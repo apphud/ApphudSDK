@@ -79,9 +79,9 @@ import StoreKit
      */
     @objc optional func handleDeferredTransaction(transaction: SKPaymentTransaction)
     
-    /// Called when paywalls are fully loaded with their SKProducts
+    /// Called when paywalls are fully loaded with their SKProducts.
     @objc optional func paywallsDidFullyLoad(paywalls: [ApphudPaywall])
 
-    /// Called when paywalls are loaded, however SKProducts may still be `nil` at the moment.
+    /// Called when paywalls are loaded, however SKProducts may still be `nil` at the moment. You should use this method only to fetch experimentName and variationName from your paywalls, since price information may be unavailable yet.
     @objc optional func paywallsDidLoad(paywalls: [ApphudPaywall])
 }
