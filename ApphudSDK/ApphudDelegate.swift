@@ -82,6 +82,8 @@ import StoreKit
     /// Called when paywalls are fully loaded with their SKProducts.
     @objc optional func paywallsDidFullyLoad(paywalls: [ApphudPaywall])
 
-    /// Called when paywalls are loaded, however SKProducts may still be `nil` at the moment. You should use this method only to fetch experimentName and variationName from your paywalls, since price information may be unavailable yet.
+    /// Called when paywalls are loaded, however SKProducts may still be `nil` at the moment. Use for A/B testing only.
+    ///
+    /// - Note:  You should only use this method for A/B testing purposes, i.e. fetching `experimentName` and `variationName` from your test paywalls, since price information may be unavailable yet.
     @objc optional func paywallsDidLoad(paywalls: [ApphudPaywall])
 }
