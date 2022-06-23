@@ -117,6 +117,14 @@ public class ApphudHttpClient {
         request.setValue(apiKey, forHTTPHeaderField: "APPHUD-API-KEY")
         return request
     }
+    
+    internal func canSwizzlePayment() -> Bool {
+        if ApphudUtils.shared.storeKitObserverMode == true && sdkType.lowercased() == "flutter" {
+            return false
+        } else {
+            return true
+        }
+    }
 
     internal func startRequest(path: ApphudEndpoint, apiVersion: ApphudApiVersion = .APIV1, params: [String: Any]?, method: ApphudHttpMethod, useDecoder: Bool = false, callback: ApphudHTTPResponseCallback?) {
         

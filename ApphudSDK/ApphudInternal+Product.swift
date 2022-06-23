@@ -151,7 +151,7 @@ extension ApphudInternal {
 
     internal func preparePaywalls(pwls: [ApphudPaywall], writeToCache: Bool = true, completionBlock: (([ApphudPaywall]?, Error?) -> Void)?) {
         
-        if UserDefaults.standard.bool(forKey: swizzlePaymentDisabledKey) != true {
+        if UserDefaults.standard.bool(forKey: swizzlePaymentDisabledKey) != true && httpClient!.canSwizzlePayment() {
             ApphudStoreKitWrapper.shared.enableSwizzle()
         } else {
             apphudLog("Payment swizzle has been disabled remotely, skipping", logLevel: .debug)
