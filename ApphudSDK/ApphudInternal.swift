@@ -388,11 +388,11 @@ final class ApphudInternal: NSObject {
     }
 
     @objc private func handleDidBecomeActive() {
-
         let minCheckInterval: Double = 60
-
+        
         checkPendingRules()
-
+        checkTransactions()
+    
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             if self.currentUser == nil {
                 self.continueToRegisteringUser()

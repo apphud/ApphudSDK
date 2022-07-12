@@ -21,6 +21,44 @@ extension ApphudInternal {
         }
         self.submitReceiptRestore(allowsReceiptRefresh: true, transaction: nil)
     }
+    
+    internal func checkTransactions() {
+        if #available(iOS 15.0, tvOS 15.0, watchOS 8.0, macOS 12.0, *) {
+            Task {
+                for await result in StoreKit.Transaction.currentEntitlements {
+                    if case .verified(let transaction) = result {
+                        let transactionId = transaction.id
+                        let refundDate = transaction.revocationDate
+                        let expirationDate = transaction.expirationDate
+                        let purchaseDate = transaction.purchaseDate
+                        let upgrade = transaction.isUpgraded
+                                                
+                        var isActive = false
+                        switch transaction.productType {
+                        case .autoRenewable:
+                            isActive = expirationDate != nil && expirationDate! > Date() && refundDate == nil && upgrade == false
+                        default:
+                            isActive = purchaseDate > Date().addingTimeInterval(-86_400*10)
+                        }
+                        
+                        if isActive && !Apphud.hasPremiumAccess() {
+                            apphudLog("found transaction with ID: \(transactionId), purchase date: \(purchaseDate)", logLevel: .debug)
+
+                            self.submitReceipt(product: nil,
+                                               apphudProduct: nil,
+                                               transactionIdentifier: String(transactionId),
+                                               transactionProductIdentifier: transaction.productID,
+                                               transactionState: nil,
+                                               receiptString: apphudReceiptDataString(),
+                                               notifyDelegate: true,
+                                               callback: nil)
+                            
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     internal func submitReceiptAutomaticPurchaseTracking(transaction: SKPaymentTransaction, callback: @escaping ((ApphudPurchaseResult) -> Void)) {
 
@@ -106,8 +144,27 @@ extension ApphudInternal {
             }
         }
     }
-
+    
     internal func submitReceipt(product: SKProduct?, apphudProduct: ApphudProduct?, transaction: SKPaymentTransaction?, receiptString: String?, notifyDelegate: Bool, eligibilityCheck: Bool = false, callback: ApphudErrorCallback?) {
+        self.submitReceipt(product: product,
+                           apphudProduct: apphudProduct,
+                           transactionIdentifier: transaction?.transactionIdentifier,
+                           transactionProductIdentifier: transaction?.payment.productIdentifier,
+                           transactionState: transaction?.transactionState,
+                           receiptString: receiptString,
+                           notifyDelegate: eligibilityCheck,
+                           callback: callback)
+    }
+    
+    internal func submitReceipt(product: SKProduct?,
+                                apphudProduct: ApphudProduct?,
+                                transactionIdentifier: String?,
+                                transactionProductIdentifier: String?,
+                                transactionState: SKPaymentTransactionState?,
+                                receiptString: String?,
+                                notifyDelegate: Bool,
+                                eligibilityCheck: Bool = false,
+                                callback: ApphudErrorCallback?) {
 
         if callback != nil {
             if eligibilityCheck || self.submitReceiptCallbacks.count > 0 {
@@ -129,7 +186,7 @@ extension ApphudInternal {
         if let receipt = receiptString {
             params["receipt_data"] = receipt
         }
-        if let transactionID = transaction?.transactionIdentifier {
+        if let transactionID = transactionIdentifier {
             params["transaction_id"] = transactionID
         }
         if let bundleID = Bundle.main.bundleIdentifier {
@@ -140,12 +197,12 @@ extension ApphudInternal {
 
         if let product = product {
             params["product_info"] = product.apphudSubmittableParameters()
-        } else if let productID = transaction?.payment.productIdentifier, let product = ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == productID}) {
+        } else if let productID = transactionProductIdentifier, let product = ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == productID}) {
             params["product_info"] = product.apphudSubmittableParameters()
         }
 
         if !eligibilityCheck {
-            let mainProductID: String? = product?.productIdentifier ?? transaction?.payment.productIdentifier
+            let mainProductID: String? = product?.productIdentifier ?? transactionProductIdentifier
             let other_products = ApphudStoreKitWrapper.shared.products.filter { $0.productIdentifier != mainProductID }
             params["other_products_info"] = other_products.map { $0.apphudSubmittableParameters() }
         }
@@ -153,12 +210,12 @@ extension ApphudInternal {
         apphudProduct?.id.map { params["product_bundle_id"] = $0 }
         params["paywall_id"] = apphudProduct?.paywallId
         
-        let hasMadePurchase = transaction?.transactionState == .purchased
+        let hasMadePurchase = transactionState == .purchased
         
         if hasMadePurchase && params["paywall_id"] == nil && observerModePurchasePaywallIdentifier != nil {
             let paywall = paywalls.first(where: {$0.identifier == observerModePurchasePaywallIdentifier})
             params["paywall_id"] = paywall?.id
-            let apphudP = paywall?.products.first(where: { $0.productId == transaction?.payment.productIdentifier })
+            let apphudP = paywall?.products.first(where: { $0.productId == transactionProductIdentifier })
             apphudP?.id.map { params["product_bundle_id"] = $0 }
         }
         
