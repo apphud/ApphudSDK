@@ -32,7 +32,15 @@ extension ApphudInternal {
                         let expirationDate = transaction.expirationDate
                         let purchaseDate = transaction.purchaseDate
                         let upgrade = transaction.isUpgraded
-                                                
+                        let productID = transaction.productID
+                        
+                        guard !self.lastUploadedTransactions.contains(String(transactionId)) else {
+                            continue
+                        }
+                        guard ApphudStoreKitWrapper.shared.purchasingProductID != productID else {
+                            continue
+                        }
+                                
                         var isActive = false
                         switch transaction.productType {
                         case .autoRenewable:
@@ -43,16 +51,18 @@ extension ApphudInternal {
                         
                         if isActive && !Apphud.hasPremiumAccess() {
                             apphudLog("found transaction with ID: \(transactionId), purchase date: \(purchaseDate)", logLevel: .debug)
-
+                            self.isSubmittingReceipt = false
                             self.submitReceipt(product: nil,
                                                apphudProduct: nil,
                                                transactionIdentifier: String(transactionId),
                                                transactionProductIdentifier: transaction.productID,
                                                transactionState: nil,
                                                receiptString: apphudReceiptDataString(),
-                                               notifyDelegate: true,
-                                               callback: nil)
-                            
+                                               notifyDelegate: true) { [self] error in
+                                if error == nil {
+                                    self.lastUploadedTransactions.append(String(transactionId))
+                                }
+                            }
                         }
                     }
                 }
@@ -338,7 +348,7 @@ extension ApphudInternal {
 
     private func handleTransaction(product: SKProduct, transaction: SKPaymentTransaction, error: Error?, apphudProduct: ApphudProduct?, callback: ((ApphudPurchaseResult) -> Void)?) {
         if transaction.transactionState == .purchased || transaction.failedWithUnknownReason {
-            self.submitReceipt(product: product, transaction: transaction, apphudProduct: apphudProduct) { (result) in
+            self.submitReceipt(product: product, transaction: transaction, apphudProduct: apphudProduct) { [self] (result) in
                 ApphudStoreKitWrapper.shared.finishTransaction(transaction)
                 callback?(result)
             }

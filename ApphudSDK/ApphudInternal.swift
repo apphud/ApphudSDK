@@ -44,6 +44,7 @@ final class ApphudInternal: NSObject {
     internal var submitReceiptCallbacks = [ApphudErrorCallback?]()
     internal var restorePurchasesCallback: (([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void)?
     internal var isSubmittingReceipt: Bool = false
+    internal var lastUploadedTransactions = [String]()
     
     // MARK: - Paywalls Events
     internal var lastUploadedPaywallEvent = [String: AnyHashable]()

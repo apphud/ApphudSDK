@@ -28,7 +28,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     private var refreshReceiptCallback: (() -> Void)?
     private var paymentCallback: ApphudTransactionCallback?
-    private var purchasingProductID: String?
+    var purchasingProductID: String?
 
     private var refreshRequest: SKReceiptRefreshRequest?
 
@@ -174,6 +174,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         apphudLog("Finish Transaction: \(transaction.payment.productIdentifier), state: \(transaction.transactionState.rawValue), id: \(transaction.transactionIdentifier ?? "")")
         NotificationCenter.default.post(name: _ApphudWillFinishTransactionNotification, object: transaction)
         SKPaymentQueue.default().finishTransaction(transaction)
+        self.purchasingProductID = nil
     }
 
     func paymentQueue(_ queue: SKPaymentQueue, removedTransactions transactions: [SKPaymentTransaction]) {
