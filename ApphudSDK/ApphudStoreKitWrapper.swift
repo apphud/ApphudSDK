@@ -28,7 +28,9 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     private var refreshReceiptCallback: (() -> Void)?
     private var paymentCallback: ApphudTransactionCallback?
+    
     var purchasingProductID: String?
+    var purchasingTransactionOids: [String] = []
 
     private var refreshRequest: SKReceiptRefreshRequest?
 
@@ -110,7 +112,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
             for trx in sortedTransactions {
                 switch trx.transactionState {
                 case .purchasing:
-                    
+                    self.purchasingTransactionOids.append(trx.payment.productIdentifier)
                     apphudLog("Payment is in purchasing state \(trx.payment.productIdentifier) for username: \(trx.payment.applicationUsername ?? "")")
                     
                     if self.purchasingProductID == nil && ApphudUtils.shared.storeKitObserverMode == false {
@@ -118,20 +120,24 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
                         ApphudUtils.shared.storeKitObserverMode = true
                     }
                 case .purchased, .failed:
+                    self.purchasingTransactionOids = self.purchasingTransactionOids.filter{$0 != trx.payment.productIdentifier}
                     self.handleTransactionIfStarted(trx)
                 case .restored:
                     /*
                      Always handle restored transactions by sending App Store Receipt to Apphud.
                      Will not finish transaction, because we didn't start it. Developer should finish transaction manually.
                      */
+                    self.purchasingTransactionOids = self.purchasingTransactionOids.filter{$0 != trx.payment.productIdentifier}
                     ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: true, transaction: trx.original ?? trx)
                     if !ApphudUtils.shared.storeKitObserverMode {
                         // force finish transaction
                         self.finishTransaction(trx)
                     }
                 case .deferred:
+                    self.purchasingTransactionOids = self.purchasingTransactionOids.filter{$0 != trx.payment.productIdentifier}
                     self.handleDeferredTransaction(trx)
                 default:
+                    self.purchasingTransactionOids = self.purchasingTransactionOids.filter{$0 != trx.payment.productIdentifier}
                     break
                 }
             }

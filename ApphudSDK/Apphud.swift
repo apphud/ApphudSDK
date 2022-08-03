@@ -391,7 +391,7 @@ final public class Apphud: NSObject {
      - Important: Note that if you have lifetime (nonconsumable) or consumable purchases, you must use another ``Apphud/isNonRenewingPurchaseActive(productIdentifier:)`` method.
      */
     @objc public static func hasActiveSubscription() -> Bool {
-        Apphud.subscription()?.isActive() ?? false
+        Apphud.subscriptions()?.first(where: { $0.isActive() == true }) != nil
     }
 
     /**

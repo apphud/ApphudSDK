@@ -392,7 +392,6 @@ final class ApphudInternal: NSObject {
         let minCheckInterval: Double = 60
         
         checkPendingRules()
-        checkTransactions()
     
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             if self.currentUser == nil {
@@ -405,6 +404,9 @@ final class ApphudInternal: NSObject {
                 }
             }
         }
+        
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(checkTransactions), object: nil)
+        perform(#selector(checkTransactions), with: nil, afterDelay: 3)
     }
 
     // MARK: - Perform Blocks

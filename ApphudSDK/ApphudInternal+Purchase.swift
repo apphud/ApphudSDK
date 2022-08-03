@@ -22,7 +22,7 @@ extension ApphudInternal {
         self.submitReceiptRestore(allowsReceiptRefresh: true, transaction: nil)
     }
     
-    internal func checkTransactions() {
+    @objc internal func checkTransactions() {
         if #available(iOS 15.0, tvOS 15.0, watchOS 8.0, macOS 12.0, *) {
             Task {
                 for await result in StoreKit.Transaction.currentEntitlements {
@@ -37,7 +37,7 @@ extension ApphudInternal {
                         guard !self.lastUploadedTransactions.contains(String(transactionId)) else {
                             continue
                         }
-                        guard ApphudStoreKitWrapper.shared.purchasingProductID != productID else {
+                        guard !ApphudStoreKitWrapper.shared.purchasingTransactionOids.contains(productID) else {
                             continue
                         }
                                 
@@ -63,6 +63,8 @@ extension ApphudInternal {
                                     self.lastUploadedTransactions.append(String(transactionId))
                                 }
                             }
+                            
+                            break
                         }
                     }
                 }
@@ -338,6 +340,9 @@ extension ApphudInternal {
     private func purchasePromo(skProduct: SKProduct, product: ApphudProduct?, discount: SKPaymentDiscount, callback: ((ApphudPurchaseResult) -> Void)?) {
 
         ApphudStoreKitWrapper.shared.purchase(product: skProduct, discount: discount) { transaction, error in
+            if let error = error as? SKError {
+                ApphudLoggerService.shared.paywallPaymentCancelled(product?.paywallId, skProduct.productIdentifier, error)
+            }
             self.handleTransaction(product: skProduct, transaction: transaction, error: error, apphudProduct: product, callback: callback)
         }
     }
