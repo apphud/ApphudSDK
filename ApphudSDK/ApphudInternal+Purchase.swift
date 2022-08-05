@@ -22,7 +22,17 @@ extension ApphudInternal {
         self.submitReceiptRestore(allowsReceiptRefresh: true, transaction: nil)
     }
     
-    @objc internal func checkTransactions() {
+    internal func setNeedToCheckTransactions() {
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(checkTransactionsNow), object: nil)
+        perform(#selector(checkTransactionsNow), with: nil, afterDelay: 3)
+    }
+    
+    @objc private func checkTransactionsNow() {
+        
+        guard !Apphud.hasPremiumAccess() && !ApphudStoreKitWrapper.shared.isPurchasing else {
+            return
+        }
+        
         if #available(iOS 15.0, tvOS 15.0, watchOS 8.0, macOS 12.0, *) {
             Task {
                 for await result in StoreKit.Transaction.currentEntitlements {
@@ -34,10 +44,7 @@ extension ApphudInternal {
                         let upgrade = transaction.isUpgraded
                         let productID = transaction.productID
                         
-                        guard !self.lastUploadedTransactions.contains(String(transactionId)) else {
-                            continue
-                        }
-                        guard !ApphudStoreKitWrapper.shared.purchasingTransactionOids.contains(productID) else {
+                        guard !self.lastUploadedTransactions.contains(transactionId) else {
                             continue
                         }
                                 
@@ -46,21 +53,21 @@ extension ApphudInternal {
                         case .autoRenewable:
                             isActive = expirationDate != nil && expirationDate! > Date() && refundDate == nil && upgrade == false
                         default:
-                            isActive = purchaseDate > Date().addingTimeInterval(-86_400*10)
+                            isActive = purchaseDate > Date().addingTimeInterval(-86_400) && refundDate == nil
                         }
                         
-                        if isActive && !Apphud.hasPremiumAccess() {
+                        if isActive {
                             apphudLog("found transaction with ID: \(transactionId), purchase date: \(purchaseDate)", logLevel: .debug)
                             self.isSubmittingReceipt = false
                             self.submitReceipt(product: nil,
                                                apphudProduct: nil,
                                                transactionIdentifier: String(transactionId),
-                                               transactionProductIdentifier: transaction.productID,
+                                               transactionProductIdentifier: productID,
                                                transactionState: nil,
                                                receiptString: apphudReceiptDataString(),
                                                notifyDelegate: true) { [self] error in
                                 if error == nil {
-                                    self.lastUploadedTransactions.append(String(transactionId))
+                                    self.lastUploadedTransactions.append(transactionId)
                                 }
                             }
                             

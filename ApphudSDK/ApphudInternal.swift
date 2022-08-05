@@ -44,7 +44,7 @@ final class ApphudInternal: NSObject {
     internal var submitReceiptCallbacks = [ApphudErrorCallback?]()
     internal var restorePurchasesCallback: (([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void)?
     internal var isSubmittingReceipt: Bool = false
-    internal var lastUploadedTransactions = [String]()
+    internal var lastUploadedTransactions = [UInt64]()
     
     // MARK: - Paywalls Events
     internal var lastUploadedPaywallEvent = [String: AnyHashable]()
@@ -405,9 +405,10 @@ final class ApphudInternal: NSObject {
             }
         }
         
-        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(checkTransactions), object: nil)
-        perform(#selector(checkTransactions), with: nil, afterDelay: 3)
+        setNeedToCheckTransactions()
     }
+    
+    
 
     // MARK: - Perform Blocks
 
