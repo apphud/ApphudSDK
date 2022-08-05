@@ -248,6 +248,14 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
             apphudLog("Method unavailable on current iOS version (minimum 14.0).", forceDisplay: true)
         }
     }
+    
+    internal func appropriateApplicationUsername() -> String? {
+        if !hasSwizzledPaymentQueue { return nil }
+        let userID = ApphudInternal.shared.currentUserID
+        let userIDIsUUID = UUID(uuidString: userID)
+        let betterUUID = (userIDIsUUID != nil) ? userID : ApphudInternal.shared.currentDeviceID
+        return betterUUID
+    }
 }
 
 /*
@@ -338,10 +346,7 @@ extension SKPaymentQueue {
         let currentUsernameIsUUID = (currentUsername != nil) && (UUID(uuidString: currentUsername!) != nil)
         
         if !currentUsernameIsUUID, let mutablePayment = payment as? SKMutablePayment ?? payment.mutableCopy() as? SKMutablePayment {
-            let userID = ApphudInternal.shared.currentUserID
-            let userIDIsUUID = UUID(uuidString: userID)
-            let betterUUID = (userIDIsUUID != nil) ? userID : ApphudInternal.shared.currentDeviceID
-            mutablePayment.applicationUsername = betterUUID
+            mutablePayment.applicationUsername = ApphudStoreKitWrapper.shared.appropriateApplicationUsername()
             apphudAdd(mutablePayment)
         } else {
             apphudAdd(payment)
