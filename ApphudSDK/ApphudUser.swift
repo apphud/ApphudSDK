@@ -48,8 +48,22 @@ internal struct ApphudUser {
                 }
             }
         }
-        self.subscriptions = subs.sorted { return $0.expiresDate > $1.expiresDate }
-        self.purchases = inapps.sorted { return $0.purchasedAt > $1.purchasedAt }
+        
+        self.subscriptions = subs.sorted {
+            if ($0.isActive() && $1.isActive()) || (!$0.isActive() && !$1.isActive()) {
+                return $0.expiresDate > $1.expiresDate
+            } else {
+                return $0.isActive()
+            }
+        }
+        
+        self.purchases = inapps.sorted {
+            if ($0.isActive() && $1.isActive()) || (!$0.isActive() && !$1.isActive()) {
+                return $0.purchasedAt > $1.purchasedAt
+            } else {
+                return $0.isActive()
+            }
+        }
     }
 
     func subscriptionsStates() -> [[String: AnyHashable]] {

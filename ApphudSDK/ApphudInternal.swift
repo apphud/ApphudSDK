@@ -44,6 +44,7 @@ final class ApphudInternal: NSObject {
     internal var submitReceiptCallbacks = [ApphudErrorCallback?]()
     internal var restorePurchasesCallback: (([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void)?
     internal var isSubmittingReceipt: Bool = false
+    internal var lastUploadedTransactions = [UInt64]()
     
     // MARK: - Paywalls Events
     internal var lastUploadedPaywallEvent = [String: AnyHashable]()
@@ -388,11 +389,10 @@ final class ApphudInternal: NSObject {
     }
 
     @objc private func handleDidBecomeActive() {
-
         let minCheckInterval: Double = 60
-
+        
         checkPendingRules()
-
+    
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             if self.currentUser == nil {
                 self.continueToRegisteringUser()
@@ -404,7 +404,11 @@ final class ApphudInternal: NSObject {
                 }
             }
         }
+        
+        setNeedToCheckTransactions()
     }
+    
+    
 
     // MARK: - Perform Blocks
 

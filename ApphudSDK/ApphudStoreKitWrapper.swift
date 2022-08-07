@@ -28,7 +28,9 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     private var refreshReceiptCallback: (() -> Void)?
     private var paymentCallback: ApphudTransactionCallback?
-    private var purchasingProductID: String?
+    
+    var purchasingProductID: String?
+    var isPurchasing: Bool = false
 
     private var refreshRequest: SKReceiptRefreshRequest?
 
@@ -110,7 +112,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
             for trx in sortedTransactions {
                 switch trx.transactionState {
                 case .purchasing:
-                    
+                    self.isPurchasing = true
                     apphudLog("Payment is in purchasing state \(trx.payment.productIdentifier) for username: \(trx.payment.applicationUsername ?? "")")
                     
                     if self.purchasingProductID == nil && ApphudUtils.shared.storeKitObserverMode == false {
@@ -118,20 +120,24 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
                         ApphudUtils.shared.storeKitObserverMode = true
                     }
                 case .purchased, .failed:
+                    self.isPurchasing = false
                     self.handleTransactionIfStarted(trx)
                 case .restored:
                     /*
                      Always handle restored transactions by sending App Store Receipt to Apphud.
                      Will not finish transaction, because we didn't start it. Developer should finish transaction manually.
                      */
+                    self.isPurchasing = false
                     ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: true, transaction: trx.original ?? trx)
                     if !ApphudUtils.shared.storeKitObserverMode {
                         // force finish transaction
                         self.finishTransaction(trx)
                     }
                 case .deferred:
+                    self.isPurchasing = false
                     self.handleDeferredTransaction(trx)
                 default:
+                    self.isPurchasing = false
                     break
                 }
             }
@@ -154,12 +160,14 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
             }
             self.paymentCallback = nil
         } else {
-            if transaction.transactionState == .purchased || transaction.failedWithUnknownReason {
+            if transaction.transactionState == .purchased {
                 ApphudInternal.shared.submitReceiptAutomaticPurchaseTracking(transaction: transaction) { result in
                     if let finish = ApphudInternal.shared.delegate?.apphudDidObservePurchase?(result: result), finish == true {
                         self.finishTransaction(transaction)
                     }
                 }
+            } else if transaction.failedWithUnknownReason {
+                ApphudInternal.shared.setNeedToCheckTransactions()
             }
         }
     }
@@ -174,6 +182,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         apphudLog("Finish Transaction: \(transaction.payment.productIdentifier), state: \(transaction.transactionState.rawValue), id: \(transaction.transactionIdentifier ?? "")")
         NotificationCenter.default.post(name: _ApphudWillFinishTransactionNotification, object: transaction)
         SKPaymentQueue.default().finishTransaction(transaction)
+        self.purchasingProductID = nil
     }
 
     func paymentQueue(_ queue: SKPaymentQueue, removedTransactions transactions: [SKPaymentTransaction]) {
@@ -238,6 +247,14 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         } else {
             apphudLog("Method unavailable on current iOS version (minimum 14.0).", forceDisplay: true)
         }
+    }
+    
+    internal func appropriateApplicationUsername() -> String? {
+        if !hasSwizzledPaymentQueue { return nil }
+        let userID = ApphudInternal.shared.currentUserID
+        let userIDIsUUID = UUID(uuidString: userID)
+        let betterUUID = (userIDIsUUID != nil) ? userID : ApphudInternal.shared.currentDeviceID
+        return betterUUID
     }
 }
 
@@ -329,10 +346,7 @@ extension SKPaymentQueue {
         let currentUsernameIsUUID = (currentUsername != nil) && (UUID(uuidString: currentUsername!) != nil)
         
         if !currentUsernameIsUUID, let mutablePayment = payment as? SKMutablePayment ?? payment.mutableCopy() as? SKMutablePayment {
-            let userID = ApphudInternal.shared.currentUserID
-            let userIDIsUUID = UUID(uuidString: userID)
-            let betterUUID = (userIDIsUUID != nil) ? userID : ApphudInternal.shared.currentDeviceID
-            mutablePayment.applicationUsername = betterUUID
+            mutablePayment.applicationUsername = ApphudStoreKitWrapper.shared.appropriateApplicationUsername()
             apphudAdd(mutablePayment)
         } else {
             apphudAdd(payment)

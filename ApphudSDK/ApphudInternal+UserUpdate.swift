@@ -23,9 +23,7 @@ extension ApphudInternal {
             return (false, false)
         }
         
-        if userDict["swizzle_disabled"] != nil {
-            UserDefaults.standard.set(true, forKey: swizzlePaymentDisabledKey)
-        }
+        UserDefaults.standard.set(userDict["swizzle_disabled"] != nil, forKey: swizzlePaymentDisabledKey)
         
         if let paywalls = userDict["paywalls"] as? [[String: Any]] {
             self.mappingPaywalls(paywalls)
