@@ -391,7 +391,7 @@ final public class Apphud: NSObject {
      - Important: Note that if you have lifetime (nonconsumable) or consumable purchases, you must use another ``Apphud/isNonRenewingPurchaseActive(productIdentifier:)`` method.
      */
     @objc public static func hasActiveSubscription() -> Bool {
-        Apphud.subscriptions()?.first(where: { $0.isActive() == true }) != nil
+        subscriptions()?.first(where: { $0.isActive() }) != nil
     }
 
     /**
@@ -445,7 +445,7 @@ final public class Apphud: NSObject {
      Basically the same as restoring purchases.
      */
     @objc public static func validateReceipt(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {
-        Apphud.restorePurchases(callback: callback)
+        restorePurchases(callback: callback)
     }
 
     /**

@@ -81,7 +81,7 @@ final class ApphudInternal: NSObject {
     internal let maxNumberOfPaywallEventsRetries: Int = 25
     internal var productsFetchRetries: ApphudRetryLog = (0, 0)
     internal let maxNumberOfProductsFetchRetries: Int = 25
-    internal var didRetrievePaywallsAtThisLaunch: Bool = false
+    internal var didLoadUserAtThisLaunch: Bool = false
     internal var initDate = Date()
     internal var paywallsLoadTime: TimeInterval = 0
     internal var isRegisteringUser = false {

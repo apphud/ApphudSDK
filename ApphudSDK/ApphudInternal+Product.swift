@@ -159,10 +159,11 @@ extension ApphudInternal {
         
         self.paywalls = pwls
 
-        didRetrievePaywallsAtThisLaunch = true
-
-        if writeToCache {
-            self.cachePaywalls(paywalls: paywalls)
+        if writeToCache { self.cachePaywalls(paywalls: paywalls) }
+        
+        if !didLoadUserAtThisLaunch {
+            delegate?.userDidLoad?(rawPaywalls: paywalls)
+            didLoadUserAtThisLaunch = true
         }
 
         self.performWhenStoreKitProductFetched {
@@ -170,6 +171,7 @@ extension ApphudInternal {
             completionBlock?(self.paywalls, nil)
             self.customPaywallsLoadedCallbacks.forEach { block in block(self.paywalls) }
             self.customPaywallsLoadedCallbacks.removeAll()
+            self.delegate?.paywallsDidFullyLoad?(paywalls: self.paywalls)
         }
     }
     private func fetchPaywallsIfNeeded(forceRefresh: Bool = false, callback: @escaping ([ApphudPaywall]?, Error?, Bool) -> Void) {
