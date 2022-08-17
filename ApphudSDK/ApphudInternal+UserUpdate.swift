@@ -28,7 +28,7 @@ extension ApphudInternal {
         if let paywalls = userDict["paywalls"] as? [[String: Any]] {
             self.mappingPaywalls(paywalls)
         } else {
-            didRetrievePaywallsAtThisLaunch = true
+            didLoadUserAtThisLaunch = true
         }
 
         let oldStates = self.currentUser?.subscriptionsStates()
@@ -190,7 +190,7 @@ extension ApphudInternal {
         params["device_id"] = self.currentDeviceID
         params["is_debug"] = apphudIsSandbox()
         params["is_new"] = isFreshInstall && currentUser == nil
-        params["need_paywalls"] = !didRetrievePaywallsAtThisLaunch
+        params["need_paywalls"] = !didLoadUserAtThisLaunch
         appInstallationDate.map { params["first_seen"] = $0 }
         Bundle.main.bundleIdentifier.map { params["bundle_id"] = $0 }
         // do not automatically pass currentUserID here,because we have separate method updateUserID
