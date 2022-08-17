@@ -99,10 +99,22 @@ class ViewController: UITableViewController {
             let paywall = paywalls[indexPath.section - 1]
             let product = paywall.products[indexPath.item]
 
-            let text = product.skProduct?.getFullSubscriptionInfoString() ?? "PRODUCT UNAVAILABLE: \(product.productId)"
-            cell.textLabel?.text = text
+            let skProduct = product.skProduct
+            
+            if skProduct == nil {
+                let text = "PRODUCT UNAVAILABLE: \(product.productId)"
+                cell.textLabel?.text = text
+            } else {
+                let text = product.skProduct?.getFullProductInfoString()
+                cell.textLabel?.text = text
+            }
+            
             if let subscription = Apphud.subscriptions()?.first(where: {$0.productId == product.productId}) {
                 cell.detailTextLabel?.text = subscription.expiresDate.description(with: Locale.current) + "\nState: \(subscription.status.toStringDuplicate())\nIntroductory used:\(subscription.isIntroductoryActivated)".uppercased()
+            } else if let nonRenewingPurchases = Apphud.nonRenewingPurchases()?.filter( { $0.productId == product.productId } ), nonRenewingPurchases.count > 0 {
+                
+                cell.detailTextLabel?.text = "Purchases: \(nonRenewingPurchases.count), Last Purchased: \(nonRenewingPurchases.first!.purchasedAt.description(with: Locale.current)) "
+                
             } else {
                 cell.detailTextLabel?.text = "Not active"
             }

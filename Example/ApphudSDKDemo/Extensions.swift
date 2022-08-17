@@ -40,13 +40,15 @@ extension SKProduct {
         return priceString ?? ""
     }
 
-    func getFullSubscriptionInfoString() -> String? {
-
-        guard subscriptionPeriod != nil else {return nil}
-
-        let unit = unitStringFrom(unitValue: subscriptionPeriod!.unit)
+    func getFullProductInfoString() -> String? {
 
         let priceString = localizedPriceFrom(price: price)
+        
+        guard subscriptionPeriod != nil else {
+            return localizedTitle + ": \(price)" + " (\(productIdentifier))"
+        }
+
+        let unit = unitStringFrom(unitValue: subscriptionPeriod!.unit)
 
         var string = localizedTitle + ": \(priceString)" + ", \(subscriptionPeriod!.numberOfUnits) " + "\(unit)"
 

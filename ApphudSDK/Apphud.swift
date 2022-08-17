@@ -172,7 +172,7 @@ final public class Apphud: NSObject {
 
     /**
      Returns paywalls configured in Apphud Dashboard > Product Hub > Paywalls. Each paywall contains an array of `ApphudProduct` objects that you use for purchase.
-     `ApphudProduct` is Apphud's wrapper around StoreKit's `SKProduct`.
+     `ApphudProduct` is Apphud's wrapper around StoreKit's `SKProduct`. This is a duplicate for `paywallsDidFullyLoad` method of ApphudDelegate.
      
      This callback is called when paywalls are populated with their StoreKit products. Callback is called immediately if paywalls are already loaded.
      It is safe to call this method multiple times – previous callback will not be overwritten, but will be added to array and once paywalls are loaded, all callbacks will be called.
@@ -391,7 +391,7 @@ final public class Apphud: NSObject {
      - Important: Note that if you have lifetime (nonconsumable) or consumable purchases, you must use another ``Apphud/isNonRenewingPurchaseActive(productIdentifier:)`` method.
      */
     @objc public static func hasActiveSubscription() -> Bool {
-        Apphud.subscriptions()?.first(where: { $0.isActive() == true }) != nil
+        subscriptions()?.first(where: { $0.isActive() }) != nil
     }
 
     /**
@@ -445,7 +445,7 @@ final public class Apphud: NSObject {
      Basically the same as restoring purchases.
      */
     @objc public static func validateReceipt(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {
-        Apphud.restorePurchases(callback: callback)
+        restorePurchases(callback: callback)
     }
 
     /**
