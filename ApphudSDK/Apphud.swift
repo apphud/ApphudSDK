@@ -13,7 +13,7 @@ import StoreKit
 import Foundation
 import UserNotifications
 
-internal let apphud_sdk_version = "2.8.5"
+internal let apphud_sdk_version = "2.8.6"
 
 /**
  Public Callback object provide -> [String: Bool]
