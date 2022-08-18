@@ -360,7 +360,7 @@ extension ApphudInternal {
 
     private func handleTransaction(product: SKProduct, transaction: SKPaymentTransaction, error: Error?, apphudProduct: ApphudProduct?, callback: ((ApphudPurchaseResult) -> Void)?) {
         if transaction.transactionState == .purchased || transaction.failedWithUnknownReason {
-            self.submitReceipt(product: product, transaction: transaction, apphudProduct: apphudProduct) { [self] (result) in
+            self.submitReceipt(product: product, transaction: transaction, apphudProduct: apphudProduct) { (result) in
                 ApphudStoreKitWrapper.shared.finishTransaction(transaction)
                 callback?(result)
             }
