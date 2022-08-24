@@ -119,7 +119,7 @@ public class ApphudHttpClient {
     }
     
     internal func canSwizzlePayment() -> Bool {
-        if ApphudUtils.shared.storeKitObserverMode == true && sdkType.lowercased() == "flutter" {
+        if ApphudUtils.shared.storeKitObserverMode == true && ApphudUtils.shared.isFlutter {
             return false
         } else {
             return true

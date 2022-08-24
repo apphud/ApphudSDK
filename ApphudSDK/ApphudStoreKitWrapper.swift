@@ -114,9 +114,10 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
                 case .purchasing:
                     self.isPurchasing = true
                     
-                    let username = trx.payment.applicationUsername as? NSString ?? ""
-                    
-                    apphudLog("Payment is in purchasing state \(trx.payment.productIdentifier) for username: \(username)")
+                    if !ApphudUtils.shared.isFlutter {
+                        // Do not access applicationUsername on Flutter to avoid crash
+                        apphudLog("Payment is in purchasing state \(trx.payment.productIdentifier) for username: \(trx.payment.applicationUsername ?? "")")
+                    }
                     
                     if self.purchasingProductID == nil && ApphudUtils.shared.storeKitObserverMode == false {
                         apphudLog("Seems like Observer Mode is False however purchase is not being made through Apphud SDK. Please make sure you set ObserverMode to True when initialising Apphud SDK. As for now, force enabling observer mode..", logLevel: .off)

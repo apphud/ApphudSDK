@@ -34,6 +34,10 @@ public class ApphudUtils: NSObject {
     private(set) var logLevel: ApphudLogLevel = .off
     internal var storeKitObserverMode = false
     internal var optOutOfIDFACollection = false
+    
+    internal var isFlutter: Bool {
+        ApphudHttpClient.shared.sdkType.lowercased() == "flutter"
+    }
 }
 
 internal func apphudLog(_ text: String, forceDisplay: Bool = false) {
