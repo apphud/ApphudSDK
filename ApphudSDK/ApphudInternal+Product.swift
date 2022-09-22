@@ -280,7 +280,6 @@ extension ApphudInternal {
     }
 
     internal func cachedPaywalls() -> (objects: [ApphudPaywall]?, expired: Bool) {
-
         let dataFromCache = apphudDataFromCache(key: "ApphudPaywalls", cacheTimeout: cacheTimeout)
         if let data = dataFromCache.objectsData {
             let decoder = JSONDecoder()

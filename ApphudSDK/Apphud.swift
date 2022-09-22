@@ -282,6 +282,14 @@ final public class Apphud: NSObject {
     public static func purchase(_ product: ApphudProduct, callback: ((ApphudPurchaseResult) -> Void)?) {
         ApphudInternal.shared.purchase(productId: product.productId, product: product, validate: true, callback: callback)
     }
+    
+    /**
+        Experimental `purchase` method for internal usage
+     */
+    @objc(purchaseApphudProduct:value:callback:)
+    public static func purchase(_ product: ApphudProduct, value:Int, callback: ((ApphudPurchaseResult) -> Void)?) {
+        ApphudInternal.shared.purchase(productId: product.productId, product: product, validate: true, value: value, callback: callback)
+    }
 
     /**
      Deprecated. Purchase product by product identifier. Use this method if you don't use Apphud Paywalls logic.

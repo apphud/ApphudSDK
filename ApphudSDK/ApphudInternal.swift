@@ -55,6 +55,7 @@ final class ApphudInternal: NSObject {
     internal var currentUser: ApphudUser?
     internal var currentDeviceID: String = ""
     internal var currentUserID: String = ""
+    internal var reinstallTracked: Bool = false
     internal var setNeedsToUpdateUser: Bool = false {
         didSet {
             if setNeedsToUpdateUser {
@@ -291,6 +292,7 @@ final class ApphudInternal: NSObject {
         apphudIsSandbox() ? 60 : 90000
     }
 
+
     private func isUserCacheExpired() -> Bool {
         if let lastUserUpdatedDate = ApphudLoggerService.lastUserUpdatedAt, Date().timeIntervalSince(lastUserUpdatedDate) < cacheTimeout {
             return false
@@ -302,6 +304,7 @@ final class ApphudInternal: NSObject {
     internal func logout() {
         ApphudUser.clearCache()
         ApphudKeychain.resetValues()
+        ApphudPaywall.clearCache()
         allowIdentifyUser = true
         apphudLog("User logged out. Apphud SDK is uninitialized.", logLevel: .all)
     }

@@ -442,6 +442,10 @@ extension SKProduct {
         if let introData = apphudIntroParameters() {
             params.merge(introData, uniquingKeysWith: {$1})
         }
+        
+        if let value = ApphudStoreKitWrapper.shared.purchasingValue {
+            params["custom_purchase_value"] = value
+        }
 
         if subscriptionPeriod != nil && subscriptionPeriod!.numberOfUnits > 0 {
             let units_count = subscriptionPeriod!.numberOfUnits

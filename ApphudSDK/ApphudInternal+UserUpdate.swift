@@ -186,6 +186,11 @@ extension ApphudInternal {
         var params = apphudCurrentDeviceiOSParameters() as [String: Any]
         #endif
         
+        if currentUser == nil && !reinstallTracked {
+           params["redownload"] = true
+           reinstallTracked = true
+        }
+        
         params.merge(fields) { (current, _) in current}
         params["device_id"] = self.currentDeviceID
         params["is_debug"] = apphudIsSandbox()

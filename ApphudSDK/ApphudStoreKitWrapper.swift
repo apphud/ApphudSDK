@@ -30,6 +30,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     private var paymentCallback: ApphudTransactionCallback?
     
     var purchasingProductID: String?
+    var purchasingValue: Int?
     var isPurchasing: Bool = false
 
     private var refreshRequest: SKReceiptRefreshRequest?
@@ -77,10 +78,10 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         }
     }
 
-    func purchase(product: SKProduct, callback: @escaping ApphudTransactionCallback) {
+    func purchase(product: SKProduct, value:Int? = nil, callback: @escaping ApphudTransactionCallback) {
         ApphudUtils.shared.storeKitObserverMode = false
         let payment = SKMutablePayment(product: product)
-        purchase(payment: payment, callback: callback)
+        purchase(payment: payment, value: value, callback: callback)
     }
 
     @available(iOS 12.2, *)
@@ -91,10 +92,11 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         purchase(payment: payment, callback: callback)
     }
 
-    func purchase(payment: SKPayment, callback: @escaping ApphudTransactionCallback) {
+    func purchase(payment: SKPayment, value:Int? = nil, callback: @escaping ApphudTransactionCallback) {
         finishCompletedTransactions(for: payment.productIdentifier)
         paymentCallback = callback
         purchasingProductID = payment.productIdentifier
+        purchasingValue = value
         apphudLog("Starting payment for \(payment.productIdentifier), transactions in queue: \(SKPaymentQueue.default().transactions)")
         SKPaymentQueue.default().add(payment)
     }
@@ -187,6 +189,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         NotificationCenter.default.post(name: _ApphudWillFinishTransactionNotification, object: transaction)
         SKPaymentQueue.default().finishTransaction(transaction)
         self.purchasingProductID = nil
+        self.purchasingValue = nil
     }
 
     func paymentQueue(_ queue: SKPaymentQueue, removedTransactions transactions: [SKPaymentTransaction]) {
