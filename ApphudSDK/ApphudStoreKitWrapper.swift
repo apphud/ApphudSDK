@@ -30,7 +30,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     private var paymentCallback: ApphudTransactionCallback?
     
     var purchasingProductID: String?
-    var purchasingValue: Int?
+    var purchasingValue: Double?
     var isPurchasing: Bool = false
 
     private var refreshRequest: SKReceiptRefreshRequest?
@@ -78,7 +78,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         }
     }
 
-    func purchase(product: SKProduct, value:Int? = nil, callback: @escaping ApphudTransactionCallback) {
+    func purchase(product: SKProduct, value:Double? = nil, callback: @escaping ApphudTransactionCallback) {
         ApphudUtils.shared.storeKitObserverMode = false
         let payment = SKMutablePayment(product: product)
         purchase(payment: payment, value: value, callback: callback)
@@ -92,7 +92,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         purchase(payment: payment, callback: callback)
     }
 
-    func purchase(payment: SKPayment, value:Int? = nil, callback: @escaping ApphudTransactionCallback) {
+    func purchase(payment: SKPayment, value:Double? = nil, callback: @escaping ApphudTransactionCallback) {
         finishCompletedTransactions(for: payment.productIdentifier)
         paymentCallback = callback
         purchasingProductID = payment.productIdentifier

@@ -293,7 +293,7 @@ extension ApphudInternal {
 
     // MARK: - Internal purchase methods
 
-    internal func purchase(productId: String, product: ApphudProduct?, validate: Bool, value:Int? = nil, callback: ((ApphudPurchaseResult) -> Void)?) {
+    internal func purchase(productId: String, product: ApphudProduct?, validate: Bool, value:Double? = nil, callback: ((ApphudPurchaseResult) -> Void)?) {
         if let apphudProduct = product, let skProduct = apphudProduct.skProduct {
             purchase(product: skProduct, apphudProduct: apphudProduct, validate: validate, value: value, callback: callback)
         } else {
@@ -329,7 +329,7 @@ extension ApphudInternal {
 
     // MARK: - Private purchase methods
 
-    private func purchase(product: SKProduct, apphudProduct: ApphudProduct?, validate: Bool, value:Int? = nil, callback: ((ApphudPurchaseResult) -> Void)?) {
+    private func purchase(product: SKProduct, apphudProduct: ApphudProduct?, validate: Bool, value:Double? = nil, callback: ((ApphudPurchaseResult) -> Void)?) {
         ApphudLoggerService.shared.paywallCheckoutInitiated(apphudProduct?.paywallId, product.productIdentifier)
         ApphudStoreKitWrapper.shared.purchase(product: product, value: value) { transaction, error in
             if let error = error as? SKError {

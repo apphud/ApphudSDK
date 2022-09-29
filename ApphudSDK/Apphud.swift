@@ -287,7 +287,7 @@ final public class Apphud: NSObject {
         Experimental `purchase` method for internal usage
      */
     @objc(purchaseApphudProduct:value:callback:)
-    public static func purchase(_ product: ApphudProduct, value:Int, callback: ((ApphudPurchaseResult) -> Void)?) {
+    public static func purchase(_ product: ApphudProduct, value:Double, callback: ((ApphudPurchaseResult) -> Void)?) {
         ApphudInternal.shared.purchase(productId: product.productId, product: product, validate: true, value: value, callback: callback)
     }
 

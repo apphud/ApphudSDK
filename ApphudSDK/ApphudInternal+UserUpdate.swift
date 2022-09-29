@@ -153,7 +153,13 @@ extension ApphudInternal {
         performWhenUserRegistered {
             self.grantPromotional(duration, permissionGroup, productId: productId) { (result, response, _, _, _, _) in
                 if result {
-                    self.parseUser(response)
+                    let hasChanges = self.parseUser(response)
+                    if hasChanges.hasSubscriptionChanges {
+                        self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions)
+                    }
+                    if hasChanges.hasNonRenewingChanges {
+                        self.delegate?.apphudNonRenewingPurchasesUpdated?(self.currentUser!.purchases)
+                    }
                 }
                 callback?(result)
             }

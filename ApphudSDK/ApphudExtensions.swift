@@ -443,7 +443,7 @@ extension SKProduct {
             params.merge(introData, uniquingKeysWith: {$1})
         }
         
-        if let value = ApphudStoreKitWrapper.shared.purchasingValue {
+        if let value = ApphudStoreKitWrapper.shared.purchasingValue, ApphudStoreKitWrapper.shared.purchasingProductID == productIdentifier  {
             params["custom_purchase_value"] = value
         }
 
