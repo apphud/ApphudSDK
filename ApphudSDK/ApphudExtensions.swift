@@ -42,18 +42,27 @@ extension String {
     }
 
     internal var appleReceiptDate: Date? {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss VV"
-        let date = formatter.date(from: self)
-        if date != nil { return date }
-
-        // for local storekit receipts
-        return apphudStandardIsoDate
+        if let date = DateFormatter.appleReceipt.date(from: self) {
+            return date
+        } else {
+            // for local storekit receipts
+            return apphudStandardIsoDate
+        }
     }
 
     internal var apphudStandardIsoDate: Date? {
         ISO8601DateFormatter().date(from: self)
     }
+}
+
+private extension DateFormatter {
+    static let appleReceipt: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss VV"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        return formatter
+    }()
 }
 
 internal func apphudIsSandbox() -> Bool {
