@@ -190,6 +190,7 @@ extension ApphudInternal {
         params["device_id"] = self.currentDeviceID
         params["is_debug"] = apphudIsSandbox()
         params["is_new"] = isFreshInstall && currentUser == nil
+        params["redownload"] = currentUser == nil
         params["need_paywalls"] = !didLoadUserAtThisLaunch
         appInstallationDate.map { params["first_seen"] = $0 }
         Bundle.main.bundleIdentifier.map { params["bundle_id"] = $0 }

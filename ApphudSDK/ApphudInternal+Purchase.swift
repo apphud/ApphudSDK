@@ -171,7 +171,8 @@ extension ApphudInternal {
                            transactionProductIdentifier: transaction?.payment.productIdentifier,
                            transactionState: transaction?.transactionState,
                            receiptString: receiptString,
-                           notifyDelegate: eligibilityCheck,
+                           notifyDelegate: notifyDelegate,
+                           eligibilityCheck: eligibilityCheck,
                            callback: callback)
     }
     

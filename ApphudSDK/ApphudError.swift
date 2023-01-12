@@ -28,15 +28,15 @@ public class ApphudError: NSError {
     }
 }
 
-extension NSError {
-    var apphudUnderlyingErrorCode: Int {
-        
-        if let error = userInfo["NSUnderlyingError"] as? NSError {
-            return error.code
-        }
+    extension NSError {
+        var apphudUnderlyingErrorCode: Int {
+            
+            if let error = userInfo["NSUnderlyingError"] as? NSError {
+                return error.code
+            }
 
-        return -1
-    }
+            return -1
+        }
     
     var apphudUnderlyingErrorDescription: String? {
         
