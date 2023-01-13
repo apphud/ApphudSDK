@@ -13,7 +13,7 @@ import StoreKit
 import Foundation
 import UserNotifications
 
-internal let apphud_sdk_version = "2.8.8"
+internal let apphud_sdk_version = "2.8.9"
 
 /**
  Public Callback object provide -> [String: Bool]
@@ -344,7 +344,7 @@ final public class Apphud: NSObject {
     }
 
     /*
-     Sets custom value for free trial purchases. You should call this method before starting a purchase.
+     Sets custom value in USD for free trial purchases. You should call this method before starting a purchase.
      Custom value will be sent to AppsFlyer and Facebook for trial started events.
      */
     @objc public static func setCustomValueForTrial(_ value: Double, productId: String) {
