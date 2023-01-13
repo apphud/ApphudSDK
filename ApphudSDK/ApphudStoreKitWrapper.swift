@@ -93,12 +93,14 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         purchase(payment: payment, callback: callback)
     }
 
-    func purchase(payment: SKPayment, value:Double? = nil, callback: @escaping ApphudTransactionCallback) {
+    func purchase(payment: SKPayment, value: Double? = nil, callback: @escaping ApphudTransactionCallback) {
         finishCompletedTransactions(for: payment.productIdentifier)
         paymentCallback = callback
         purchasingProductID = payment.productIdentifier
         if let v = value {
             purchasingValue = ApphudCustomPurchaseValue(payment.productIdentifier, v)
+        } else {
+            purchasingValue = nil
         }
         apphudLog("Starting payment for \(payment.productIdentifier), transactions in queue: \(SKPaymentQueue.default().transactions)")
         SKPaymentQueue.default().add(payment)
