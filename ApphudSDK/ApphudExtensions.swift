@@ -424,7 +424,7 @@ internal func apphudReceiptDataString() -> String? {
 @available(iOS 11.2, *)
 extension SKProduct {
 
-    func apphudSubmittableParameters() -> [String: Any] {
+    func apphudSubmittableParameters(_ purchased: Bool = false) -> [String: Any] {
 
         var params: [String: Any] = [
             "product_id": productIdentifier,
@@ -443,8 +443,8 @@ extension SKProduct {
             params.merge(introData, uniquingKeysWith: {$1})
         }
         
-        if let value = ApphudStoreKitWrapper.shared.purchasingValue, ApphudStoreKitWrapper.shared.purchasingProductID == productIdentifier  {
-            params["custom_purchase_value"] = value
+        if let value = ApphudStoreKitWrapper.shared.purchasingValue, value.productId == productIdentifier, purchased == true {
+            params["custom_purchase_value"] = value.value
         }
 
         if subscriptionPeriod != nil && subscriptionPeriod!.numberOfUnits > 0 {

@@ -212,14 +212,14 @@ extension ApphudInternal {
         if let bundleID = Bundle.main.bundleIdentifier {
             params["bundle_id"] = bundleID
         }
-        
+
+        let hasMadePurchase = transactionState == .purchased
+
         params["user_id"] = Apphud.userID()
 
-        if let product = product {
-            params["product_info"] = product.apphudSubmittableParameters()
-        } else if let productID = transactionProductIdentifier, let product = ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == productID}) {
-            params["product_info"] = product.apphudSubmittableParameters()
-        }
+        let mainProduct = product ?? ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == transactionProductIdentifier ?? "."})
+
+        mainProduct.map { params["product_info"] = $0.apphudSubmittableParameters(hasMadePurchase) }
 
         if !eligibilityCheck {
             let mainProductID: String? = product?.productIdentifier ?? transactionProductIdentifier
@@ -229,8 +229,6 @@ extension ApphudInternal {
 
         apphudProduct?.id.map { params["product_bundle_id"] = $0 }
         params["paywall_id"] = apphudProduct?.paywallId
-        
-        let hasMadePurchase = transactionState == .purchased
         
         if hasMadePurchase && params["paywall_id"] == nil && observerModePurchasePaywallIdentifier != nil {
             let paywall = paywalls.first(where: {$0.identifier == observerModePurchasePaywallIdentifier})

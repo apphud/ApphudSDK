@@ -343,6 +343,14 @@ final public class Apphud: NSObject {
         ApphudStoreKitWrapper.shared.presentOfferCodeSheet()
     }
 
+    /*
+     Sets custom value for free trial purchases. You should call this method before starting a purchase.
+     Custom value will be sent to AppsFlyer and Facebook for trial started events.
+     */
+    @objc public static func setCustomValueForTrial(_ value: Double, productId: String) {
+        ApphudStoreKitWrapper.shared.purchasingValue = ApphudCustomPurchaseValue(productId, value)
+    }
+
     // MARK: - Promotionals
     /**
      You can grant free promotional subscription to user. Returns `true` in a callback if promotional was granted. After this `hasActiveSubscription()` method will return `true`.

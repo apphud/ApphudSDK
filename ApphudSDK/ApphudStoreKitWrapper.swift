@@ -9,6 +9,7 @@
 import Foundation
 import StoreKit
 
+internal typealias ApphudCustomPurchaseValue = (productId: String, value: Double)
 internal typealias ApphudStoreKitProductsCallback = ([SKProduct], Error?) -> Void
 internal typealias ApphudTransactionCallback = (SKPaymentTransaction, Error?) -> Void
 
@@ -30,7 +31,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     private var paymentCallback: ApphudTransactionCallback?
     
     var purchasingProductID: String?
-    var purchasingValue: Double?
+    var purchasingValue: ApphudCustomPurchaseValue?
     var isPurchasing: Bool = false
 
     private var refreshRequest: SKReceiptRefreshRequest?
@@ -96,7 +97,9 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         finishCompletedTransactions(for: payment.productIdentifier)
         paymentCallback = callback
         purchasingProductID = payment.productIdentifier
-        purchasingValue = value
+        if let v = value {
+            purchasingValue = ApphudCustomPurchaseValue(payment.productIdentifier, v)
+        }
         apphudLog("Starting payment for \(payment.productIdentifier), transactions in queue: \(SKPaymentQueue.default().transactions)")
         SKPaymentQueue.default().add(payment)
     }
