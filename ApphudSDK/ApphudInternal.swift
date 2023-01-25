@@ -311,6 +311,7 @@ final class ApphudInternal: NSObject {
 
     internal func continueToRegisteringUser(skipRegistration: Bool = false, needToUpdateProductGroups: Bool = true) {
         guard !isRegisteringUser else {return}
+        guard self.httpClient != nil else {return}
         isRegisteringUser = true
         continueToFetchProducts(needToUpdateProductGroups: needToUpdateProductGroups)
         registerUser(skipRegistration: skipRegistration)

@@ -291,6 +291,15 @@ extension ApphudInternal {
 
     // MARK: - Internal purchase methods
 
+    @available(iOS 13.0.0, *)
+    internal func purchase(productId: String, product: ApphudProduct?, validate: Bool, value:Double? = nil) async -> ApphudPurchaseResult {
+        await withCheckedContinuation { continuation in
+            purchase(productId: productId, product: product, validate: validate, callback: { result in
+                continuation.resume(returning: result)
+            })
+        }
+    }
+
     internal func purchase(productId: String, product: ApphudProduct?, validate: Bool, value:Double? = nil, callback: ((ApphudPurchaseResult) -> Void)?) {
         if let apphudProduct = product, let skProduct = apphudProduct.skProduct {
             purchase(product: skProduct, apphudProduct: apphudProduct, validate: validate, value: value, callback: callback)

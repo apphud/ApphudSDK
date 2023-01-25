@@ -123,6 +123,12 @@ extension ApphudInternal {
     }
 
     private func getProductGroups(callback: @escaping ([ApphudGroup]?, Error?, Int?) -> Void) {
+
+        guard httpClient != nil else {
+            apphudLog("Attempted to use Apphud SDK method earlier than initialization. You should initialize SDK first.", forceDisplay: true)
+            return
+        }
+
         httpClient?.startRequest(path: .products, apiVersion: .APIV2, params: ["device_id": currentDeviceID], method: .get, useDecoder: true) { _, _, data, error, code, duration in
 
             if error == nil {

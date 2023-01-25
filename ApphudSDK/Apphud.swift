@@ -282,7 +282,21 @@ final public class Apphud: NSObject {
     public static func purchase(_ product: ApphudProduct, callback: ((ApphudPurchaseResult) -> Void)?) {
         ApphudInternal.shared.purchase(productId: product.productId, product: product, validate: true, callback: callback)
     }
-    
+
+    /**
+     Initiates async purchase of `ApphudProduct` object from your `ApphudPaywall` and automatically submits App Store Receipt to Apphud.
+
+     - parameter product: Required. `ApphudProduct` object from your `ApphudPaywall`. You must first configure paywalls in Apphud Dashboard > Product Hub > Paywalls.
+
+     - returns: `ApphudPurchaseResult` object.
+
+     - Note: You are not required to purchase product using Apphud SDK methods. You can purchase subscription or any in-app purchase using your own code. App Store receipt will be sent to Apphud anyway.
+     */
+    @available(iOS 13.0.0, *)
+    public static func purchase(_ product: ApphudProduct) async -> ApphudPurchaseResult {
+        await ApphudInternal.shared.purchase(productId: product.productId, product: product, validate: true)
+    }
+
     /**
         Experimental `purchase` method for internal usage
      */
