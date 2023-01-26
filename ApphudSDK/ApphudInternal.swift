@@ -16,6 +16,8 @@ internal typealias HasPurchasesChanges = (hasSubscriptionChanges: Bool, hasNonRe
 internal typealias ApphudPaywallsCallback = ([ApphudPaywall]) -> Void
 internal typealias ApphudRetryLog = (count: Int, errorCode: Int)
 
+internal let ApphudInitializeGuardText = "Attempted to use Apphud SDK method earlier than initialization. You should initialize SDK first."
+
 @available(OSX 10.14.4, *)
 @available(iOS 11.2, *)
 final class ApphudInternal: NSObject {
@@ -128,6 +130,10 @@ final class ApphudInternal: NSObject {
     internal var isSendingAdjust = false
     internal var isFreshInstall = true
 
+    internal var isInitialized: Bool {
+        httpClient != nil
+    }
+
     internal var didSubmitAppsFlyerAttribution: Bool {
         get {
             UserDefaults.standard.bool(forKey: didSubmitAppsFlyerAttributionKey)
@@ -210,6 +216,10 @@ final class ApphudInternal: NSObject {
     }
 
     // MARK: - Initialization
+
+    private func canInitializeInBackground() -> Bool {
+        ApphudKeychain.hasLocalStorageData && ApphudKeychain.canUseKeychain
+    }
 
     internal func initialize(apiKey: String, inputUserID: String?, inputDeviceID: String? = nil, observerMode: Bool) {
 

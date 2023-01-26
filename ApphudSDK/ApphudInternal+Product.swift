@@ -124,8 +124,8 @@ extension ApphudInternal {
 
     private func getProductGroups(callback: @escaping ([ApphudGroup]?, Error?, Int?) -> Void) {
 
-        guard httpClient != nil else {
-            apphudLog("Attempted to use Apphud SDK method earlier than initialization. You should initialize SDK first.", forceDisplay: true)
+        guard isInitialized else {
+            apphudLog(ApphudInitializeGuardText, forceDisplay: true)
             return
         }
 

@@ -37,43 +37,50 @@ extension ApphudInternal {
             Task {
                 for await result in StoreKit.Transaction.currentEntitlements {
                     if case .verified(let transaction) = result {
-                        let transactionId = transaction.id
-                        let refundDate = transaction.revocationDate
-                        let expirationDate = transaction.expirationDate
-                        let purchaseDate = transaction.purchaseDate
-                        let upgrade = transaction.isUpgraded
-                        let productID = transaction.productID
-                        
-                        guard !self.lastUploadedTransactions.contains(transactionId) else {
-                            continue
-                        }
-                                
-                        var isActive = false
-                        switch transaction.productType {
-                        case .autoRenewable:
-                            isActive = expirationDate != nil && expirationDate! > Date() && refundDate == nil && upgrade == false
-                        default:
-                            isActive = purchaseDate > Date().addingTimeInterval(-86_400) && refundDate == nil
-                        }
-                        
-                        if isActive {
-                            apphudLog("found transaction with ID: \(transactionId), purchase date: \(purchaseDate)", logLevel: .debug)
-                            self.isSubmittingReceipt = false
-                            self.submitReceipt(product: nil,
-                                               apphudProduct: nil,
-                                               transactionIdentifier: String(transactionId),
-                                               transactionProductIdentifier: productID,
-                                               transactionState: nil,
-                                               receiptString: apphudReceiptDataString(),
-                                               notifyDelegate: true) { [self] error in
-                                if error == nil {
-                                    self.lastUploadedTransactions.append(transactionId)
-                                }
-                            }
-                            
-                            break
-                        }
+                        await handleTransaction(transaction)
                     }
+                }
+            }
+        }
+    }
+
+    @available(iOS 15.0, *)
+    internal func handleTransaction(_ transaction: Transaction) async {
+        let transactionId = transaction.id
+        let refundDate = transaction.revocationDate
+        let expirationDate = transaction.expirationDate
+        let purchaseDate = transaction.purchaseDate
+        let upgrade = transaction.isUpgraded
+        let productID = transaction.productID
+
+        guard !self.lastUploadedTransactions.contains(transactionId) else {
+            return
+        }
+
+        var isActive = false
+        switch transaction.productType {
+        case .autoRenewable:
+            isActive = expirationDate != nil && expirationDate! > Date() && refundDate == nil && upgrade == false
+        default:
+            isActive = purchaseDate > Date().addingTimeInterval(-86_400) && refundDate == nil
+        }
+
+        if isActive {
+            apphudLog("found transaction with ID: \(transactionId), purchase date: \(purchaseDate)", logLevel: .debug)
+            self.isSubmittingReceipt = false
+
+            return await withCheckedContinuation { continuation in
+                self.submitReceipt(product: nil,
+                                   apphudProduct: nil,
+                                   transactionIdentifier: String(transactionId),
+                                   transactionProductIdentifier: productID,
+                                   transactionState: nil,
+                                   receiptString: apphudReceiptDataString(),
+                                   notifyDelegate: true) { [self] error in
+                    if error == nil {
+                        self.lastUploadedTransactions.append(transactionId)
+                    }
+                    continuation.resume(returning: ())
                 }
             }
         }

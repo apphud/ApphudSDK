@@ -33,51 +33,62 @@ let kSecMatchLimitOneValue = NSString(format: kSecMatchLimitOne)
 
 public class ApphudKeychain: NSObject {
 
+    internal static var canUseKeychain: Bool {
+        UIApplication.shared.isProtectedDataAvailable
+    }
+
+    internal static var hasLocalStorageData: Bool {
+        loadDeviceID(onlyFromDefaults: true) != nil && loadUserID(onlyFromDefaults: true) != nil
+    }
+
     internal class func generateUUID() -> String {
         let uuid = NSUUID.init().uuidString
         return uuid
     }
 
-    internal class func loadDeviceID() -> String? {
+    internal class func loadDeviceID(onlyFromDefaults: Bool = false) -> String? {
         if let deviceID = UserDefaults.standard.value(forKey: defaultsDeviceIdKey) as? String, deviceID.count > 0 {
             return deviceID
         }
-        return self.load(deviceIdKey)
+
+        if canUseKeychain && !onlyFromDefaults {
+            return self.load(deviceIdKey)
+        } else {
+            return nil
+        }
     }
 
-    internal class func loadUserID() -> String? {
+    internal class func loadUserID(onlyFromDefaults: Bool = false) -> String? {
         if let userID = UserDefaults.standard.value(forKey: defaultsUserIdKey) as? String, userID.count > 0 {
             return userID
         }
-        return self.load(userIdKey)
+        if canUseKeychain && !onlyFromDefaults {
+            return self.load(userIdKey)
+        } else {
+            return nil
+        }
     }
 
     internal class func resetValues() {
-        saveUserID(userID: "")
-        saveDeviceID(deviceID: "")
+        if canUseKeychain {
+            saveUserID(userID: "")
+            saveDeviceID(deviceID: "")
+        }
     }
 
-    #if DEBUG
-    public class func saveUserID(userID: String) {
-        UserDefaults.standard.set(userID, forKey: defaultsUserIdKey)
-        self.save(userIdKey, data: userID)
-    }
-
-    public class func saveDeviceID(deviceID: String) {
-        UserDefaults.standard.set(deviceID, forKey: defaultsDeviceIdKey)
-        self.save(deviceIdKey, data: deviceID)
-    }
-    #else
     internal class func saveUserID(userID: String) {
         UserDefaults.standard.set(userID, forKey: defaultsUserIdKey)
-        self.save(userIdKey, data: userID)
+        if canUseKeychain {
+            self.save(userIdKey, data: userID)
+        }
     }
 
     internal class func saveDeviceID(deviceID: String) {
         UserDefaults.standard.set(deviceID, forKey: defaultsDeviceIdKey)
-        self.save(deviceIdKey, data: deviceID)
+        if canUseKeychain {
+            self.save(deviceIdKey, data: deviceID)
+        }
     }
-    #endif
 
     private class func save(_ service: NSString, data: String) {
         if let dataFromString = data.data(using: .utf8, allowLossyConversion: false) {

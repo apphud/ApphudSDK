@@ -31,6 +31,7 @@ public class ApphudPurchaseResult: NSObject {
      Transaction from StoreKit. May be nil, if no transaction made. For example, if couldn't sign promo offer or couldn't get App Store receipt.
      */
     @objc public let transaction: SKPaymentTransaction?
+    
 
     /**
      This error can be of three types. Check for error class.

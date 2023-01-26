@@ -83,13 +83,8 @@ public class ApphudHttpClient {
     public var sdkType: String = "swift"
     public var sdkVersion: String = apphud_sdk_version
 
-    #if DEBUG
     public static let shared = ApphudHttpClient()
     public var domainUrlString = productionEndpoint
-    #else
-    public static let shared = ApphudHttpClient()
-    public var domainUrlString = productionEndpoint
-    #endif
 
     internal var apiKey: String = ""
 

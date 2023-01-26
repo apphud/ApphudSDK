@@ -8,6 +8,7 @@
 
 import UIKit
 import ApphudSDK
+import StoreKit
 
 class PaywallViewController: UIViewController {
 
@@ -21,19 +22,21 @@ class PaywallViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        // First option
-        // Returns nil if StoreKit products are not yet fetched from the App Store.
-        Apphud.paywalls.map { (paywalls) in
-            handlePaywallsReady(paywalls: paywalls)
+        if #available(iOS 13.0, *) {
+            Task {
+                await loadPaywalls()
+            }
+        } else {
+            Apphud.paywallsDidLoadCallback { pwls in
+                self.handlePaywallsReady(paywalls: pwls)
+            }
         }
+    }
 
-        // Second option
-        // To get notified when paywalls are ready to use, use
-        // paywallsDidLoadCallback – when it’s called,
-        // paywalls are populated with their SKProducts.
-        Apphud.paywallsDidLoadCallback { [weak self] (paywalls) in
-            self?.handlePaywallsReady(paywalls: paywalls)
-        }
+    @available(iOS 13.0.0, *)
+    private func loadPaywalls() async {
+        let paywalls = await Apphud.paywalls()
+        self.handlePaywallsReady(paywalls: paywalls)
     }
 
     private func handlePaywallsReady(paywalls: [ApphudPaywall]) {
@@ -56,6 +59,18 @@ class PaywallViewController: UIViewController {
         // send Apphud log, that your paywall closed
         self.paywall.map { Apphud.paywallClosed($0) }
         dismissCompletion?()
+    }
+
+    @available(iOS 13.0.0, *)
+    func purchaseProduct(_ product: ApphudProduct) async {
+        self.showLoader()
+        let result = await Apphud.purchase(product)
+        self.hideLoader()
+
+
+        if result.error == nil {
+            self.dismiss(animated: true, completion: nil)
+        }
     }
 
     func setupViewConfiguration() {
@@ -86,11 +101,17 @@ extension PaywallViewController: UICollectionViewDelegate, UICollectionViewDataS
 
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         if let product = products?[indexPath.item] {
-            self.showLoader()
-            Apphud.purchase(product) { (result) in
-                self.hideLoader()
-                if result.error == nil {
-                    self.dismiss(animated: true, completion: nil)
+            if #available(iOS 13.0.0, *) {
+                Task {
+                    await purchaseProduct(product)
+                }
+            } else {
+                self.showLoader()
+                Apphud.purchase(product) { (result) in
+                    self.hideLoader()
+                    if result.error == nil {
+                        self.dismiss(animated: true, completion: nil)
+                    }
                 }
             }
         }

@@ -8,7 +8,6 @@
 
 import Foundation
 import StoreKit
-
 internal typealias ApphudCustomPurchaseValue = (productId: String, value: Double)
 internal typealias ApphudStoreKitProductsCallback = ([SKProduct], Error?) -> Void
 internal typealias ApphudTransactionCallback = (SKPaymentTransaction, Error?) -> Void
@@ -77,6 +76,40 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         singleFetcher.fetchStoreKitProducts(identifiers: Set([productId])) { products, _ in
             callback(products.first(where: { $0.productIdentifier == productId }))
         }
+    }
+
+    @available(iOS 15.0, *)
+    func fetchStoreKit2Products(identifiers: Set<String>) async -> [Product]? {
+        let products = try? await Product.products(for: identifiers)
+        return products
+    }
+
+    @available(iOS 15.0, *)
+    func purchase(product: Product) async throws -> Product.PurchaseResult {
+        self.isPurchasing = true
+        var options = Set<Product.PurchaseOption>()
+        if let uuidString = appropriateApplicationUsername(), let uuid = UUID(uuidString: uuidString) {
+            options.insert(.appAccountToken(uuid))
+        }
+
+        let result = try await product.purchase(options: options)
+
+        switch result {
+        case .success(.verified(let trx)):
+            await trx.finish()
+            await ApphudInternal.shared.handleTransaction(trx)
+        case .success(.unverified(let trx, _)):
+            await ApphudInternal.shared.handleTransaction(trx)
+        case .pending, .userCancelled:
+            // do nothing
+            break
+        default:
+            break
+        }
+
+        self.isPurchasing = false
+
+        return result
     }
 
     func purchase(product: SKProduct, value:Double? = nil, callback: @escaping ApphudTransactionCallback) {
