@@ -21,6 +21,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     static var shared = ApphudStoreKitWrapper()
 
     internal var products = [SKProduct]()
+
     internal var didFetch: Bool = false
 
     fileprivate let fetcher = ApphudProductsFetcher()
@@ -32,6 +33,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     var purchasingProductID: String?
     var purchasingValue: ApphudCustomPurchaseValue?
     var isPurchasing: Bool = false
+    var isPurchasingAsync: Bool = false
 
     private var refreshRequest: SKReceiptRefreshRequest?
 
@@ -78,40 +80,6 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         }
     }
 
-    @available(iOS 15.0, *)
-    func fetchStoreKit2Products(identifiers: Set<String>) async -> [Product]? {
-        let products = try? await Product.products(for: identifiers)
-        return products
-    }
-
-    @available(iOS 15.0, *)
-    func purchase(product: Product) async throws -> Product.PurchaseResult {
-        self.isPurchasing = true
-        var options = Set<Product.PurchaseOption>()
-        if let uuidString = appropriateApplicationUsername(), let uuid = UUID(uuidString: uuidString) {
-            options.insert(.appAccountToken(uuid))
-        }
-
-        let result = try await product.purchase(options: options)
-
-        switch result {
-        case .success(.verified(let trx)):
-            await trx.finish()
-            await ApphudInternal.shared.handleTransaction(trx)
-        case .success(.unverified(let trx, _)):
-            await ApphudInternal.shared.handleTransaction(trx)
-        case .pending, .userCancelled:
-            // do nothing
-            break
-        default:
-            break
-        }
-
-        self.isPurchasing = false
-
-        return result
-    }
-
     func purchase(product: SKProduct, value:Double? = nil, callback: @escaping ApphudTransactionCallback) {
         ApphudUtils.shared.storeKitObserverMode = false
         let payment = SKMutablePayment(product: product)
@@ -138,7 +106,54 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         apphudLog("Starting payment for \(payment.productIdentifier), transactions in queue: \(SKPaymentQueue.default().transactions)")
         SKPaymentQueue.default().add(payment)
     }
-    
+
+    // MARK: - Async/Await Purchase
+    @available(iOS 15.0, *)
+    func purchase(product: Product, apphudProduct: ApphudProduct?) async -> ApphudAsyncPurchaseResult {
+        self.isPurchasing = true
+        var options = Set<Product.PurchaseOption>()
+        if let uuidString = appropriateApplicationUsername(), let uuid = UUID(uuidString: uuidString) {
+            options.insert(.appAccountToken(uuid))
+        }
+
+        do {
+            ApphudLoggerService.shared.paywallCheckoutInitiated(apphudProduct?.paywallId, product.id)
+            self.isPurchasingAsync = true
+            let result = try await product.purchase(options: options)
+            var transaction: Transaction?
+
+            switch result {
+            case .success(.verified(let trx)):
+                transaction = trx
+            case .success(.unverified(let trx, _)):
+                transaction = trx
+            case .pending:
+                break
+            case .userCancelled:
+                ApphudLoggerService.shared.paywallPaymentCancelled(apphudProduct?.paywallId, product: product)
+                break
+            default:
+                break
+            }
+
+            self.isPurchasing = false
+
+            if let tr = transaction {
+                _ = await ApphudInternal.shared.handleTransaction(tr)
+                await tr.finish()
+            }
+
+            self.isPurchasingAsync = false
+
+            return ApphudInternal.shared.asyncPurchaseResult(product: product, transaction: transaction, error: nil)
+
+        } catch {
+            self.isPurchasing = false
+            self.isPurchasingAsync = false
+            return ApphudInternal.shared.asyncPurchaseResult(product: product, transaction: nil, error: error)
+        }
+    }
+
     // MARK: - SKPaymentTransactionObserver
 
     func paymentQueue(_ queue: SKPaymentQueue, updatedTransactions transactions: [SKPaymentTransaction]) {
@@ -195,6 +210,8 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     }
 
     private func handleTransactionIfStarted(_ transaction: SKPaymentTransaction) {
+
+        if isPurchasingAsync {return}
 
         if transaction.payment.productIdentifier == self.purchasingProductID {
             if self.paymentCallback != nil {

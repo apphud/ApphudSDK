@@ -157,6 +157,88 @@ final public class Apphud: NSObject {
         ApphudInternal.shared.uiDelegate = delegate
     }
 
+    // MARK: - Async/Await Syntax Methods
+
+    /**
+     Returns async paywalls configured in Apphud Dashboard > Product Hub > Paywalls. Each paywall contains an array of `ApphudProduct` objects that you use for purchase.
+     `ApphudProduct` is Apphud's wrapper around StoreKit's `SKProduct`.
+
+     Async method returns when paywalls are populated with their StoreKit products. Method returns immediately if paywalls are already loaded.
+    */
+    @available(iOS 13.0.0, macOS 11.0, *)
+    @objc public static func fetchPaywalls() async -> [ApphudPaywall] {
+        if ApphudInternal.shared.paywallsAreReady {
+            return ApphudInternal.shared.paywalls
+        } else {
+            return await withCheckedContinuation { continuation in
+                let callback: (([ApphudPaywall]) -> Void) = { pwls in
+                    continuation.resume(returning: pwls)
+                }
+                ApphudInternal.shared.customPaywallsLoadedCallbacks.append(callback)
+            }
+        }
+    }
+
+    /**
+     Async method that fetches SKProduct from the App Store. It's basically a classic method wrapped into checked continuation.
+        If you need modern `Product` struct, you have to fetch it yourself and then call `await Apphud.purchase(_ product: Product)` method.
+     - returns: Array of `SKProduct` objects that you added in Apphud > Product Hub > Products.
+     */
+    @available(iOS 13.0.0, macOS 11.0, *)
+    @objc public static func fetchProducts() async -> [SKProduct] {
+        return await withCheckedContinuation { continuation in
+            productsDidFetchCallback { prds, _ in
+                continuation.resume(returning: prds)
+            }
+        }
+    }
+
+    /**
+     A simple async method that fetches Product structs from the App Store. Keep in mind that paywalls functionality and A/B testing are not currently supported using modern Product structs.
+
+     - returns: Array of `Product` structs. Note that you have to add product identifiers in Apphud > Product Hub > Products.
+     */
+    @available(iOS 15.0, macOS 12.0, *)
+    public static func fetchProducts() async throws -> [Product] {
+        try await Product.products(for: ApphudInternal.shared.allAvailableProductIDs())
+    }
+
+    /**
+     Returns corresponding ApphudProduct that matches `Product` struct, if found.
+
+     - returns: `ApphudProduct` struct.
+     */
+    @available(iOS 15.0, macOS 12.0, *)
+    public static func apphudProductFor(_ product: Product) -> ApphudProduct? {
+        ApphudInternal.shared.allAvailableProducts.first(where: { $0.productId == product.id })
+    }
+
+    /**
+     Initiates async purchase of `Product` struct and automatically submits transaction to Apphud.
+
+     - parameter product: Required. A `Product` struct from async/await StoreKit.
+
+     - returns: `ApphudAsyncPurchaseResult` struct.
+     */
+
+    @available(iOS 15.0, macOS 12.0, *)
+    public static func purchase(_ product: Product) async -> ApphudAsyncPurchaseResult {
+        await ApphudStoreKitWrapper.shared.purchase(product: product, apphudProduct: apphudProductFor(product))
+    }
+
+    /**
+     Initiates async purchase of `ApphudProduct` object from your `ApphudPaywall` and automatically submits App Store Receipt to Apphud. It's basically a classic purchase method wrapped into checked continuation.
+
+     - parameter product: Required. `ApphudProduct` object from your `ApphudPaywall`. You must first configure paywalls in Apphud Dashboard > Product Hub > Paywalls.
+
+     - returns: `ApphudPurchaseResult` object.
+     */
+    @available(iOS 13.0.0, macOS 11.0, *)
+    @objc public static func purchase(_ product: ApphudProduct) async -> ApphudPurchaseResult {
+        await ApphudInternal.shared.purchase(productId: product.productId, product: product, validate: true)
+    }
+
+
     // MARK: - Make Purchase
 
     /**
@@ -187,26 +269,6 @@ final public class Apphud: NSObject {
             callback(ApphudInternal.shared.paywalls)
         } else {
             ApphudInternal.shared.customPaywallsLoadedCallbacks.append(callback)
-        }
-    }
-
-    /**
-     Returns async paywalls configured in Apphud Dashboard > Product Hub > Paywalls. Each paywall contains an array of `ApphudProduct` objects that you use for purchase.
-     `ApphudProduct` is Apphud's wrapper around StoreKit's `SKProduct`. This is a duplicate for `paywallsDidFullyLoad` method of ApphudDelegate.
-
-     Async method returns when paywalls are populated with their StoreKit products. Method returns immediately if paywalls are already loaded.
-    */
-    @available(iOS 13.0.0, *)
-    @objc public static func paywalls() async -> [ApphudPaywall] {
-        if ApphudInternal.shared.paywallsAreReady {
-            return ApphudInternal.shared.paywalls
-        } else {
-            return await withCheckedContinuation { continuation in
-                let callback: (([ApphudPaywall]) -> Void) = { pwls in
-                    continuation.resume(returning: pwls)
-                }
-                ApphudInternal.shared.customPaywallsLoadedCallbacks.append(callback)
-            }
         }
     }
 
@@ -255,19 +317,6 @@ final public class Apphud: NSObject {
     */
     @objc public static func productsDidFetchCallback(_ callback: @escaping ([SKProduct], Error?) -> Void) {
         ApphudInternal.shared.customProductsFetchedBlocks.append(callback)
-    }
-
-    /**
-     Async method that fetches StoreKit products from the App Store.
-     - returns: Array of `SKProduct` objects that you added in Apphud > Product Hub > Products.
-     */
-    @available(iOS 13.0.0, *)
-    @objc public static func products() async -> [SKProduct] {
-        return await withCheckedContinuation { continuation in
-            productsDidFetchCallback { prds, _ in
-                continuation.resume(returning: prds)
-            }
-        }
     }
     
     /**
@@ -319,25 +368,6 @@ final public class Apphud: NSObject {
     @objc(purchaseApphudProduct:callback:)
     public static func purchase(_ product: ApphudProduct, callback: ((ApphudPurchaseResult) -> Void)?) {
         ApphudInternal.shared.purchase(productId: product.productId, product: product, validate: true, callback: callback)
-    }
-
-    /**
-     Initiates async purchase of `ApphudProduct` object from your `ApphudPaywall` and automatically submits App Store Receipt to Apphud.
-
-     - parameter product: Required. `ApphudProduct` object from your `ApphudPaywall`. You must first configure paywalls in Apphud Dashboard > Product Hub > Paywalls.
-
-     - returns: `ApphudPurchaseResult` object.
-
-     - Note: You are not required to purchase product using Apphud SDK methods. You can purchase subscription or any in-app purchase using your own code. App Store receipt will be sent to Apphud anyway.
-     */
-    @available(iOS 13.0.0, *)
-    public static func purchase(_ product: ApphudProduct) async -> ApphudPurchaseResult {
-        await ApphudInternal.shared.purchase(productId: product.productId, product: product, validate: true)
-    }
-
-    @available(iOS 15.0.0, *)
-    public static func purchase(_ product: Product) async throws -> Product.PurchaseResult {
-        try await ApphudStoreKitWrapper.shared.purchase(product: product)
     }
 
     /**

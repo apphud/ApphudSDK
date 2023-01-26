@@ -45,7 +45,15 @@ class ApphudLoggerService {
         ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_checkout_initiated", "properties": ["paywall_id": paywallId ?? "", "product_id": productId ?? ""] ])
     }
 
-    internal func paywallPaymentCancelled(_ paywallId: String?, _ productId: String?, _ error: SKError) {
+    @available(iOS 15.0, *)
+    internal func paywallPaymentCancelled(_ paywallId: String?, product: Product) {
+        ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_payment_cancelled", "properties": ["paywall_id": paywallId ?? "", "product_id": product.id]])
+    }
+
+    internal func paywallPaymentCancelled(_ paywallId: String?, _ productId: String?, _ error: SKError?) {
+
+        guard let error = error else {return}
+
         if error.code == SKError.Code.paymentCancelled {
             ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_payment_cancelled", "properties": ["paywall_id": paywallId ?? "", "product_id": productId ?? ""] ])
         } else {

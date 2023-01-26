@@ -74,18 +74,21 @@ extension ApphudInternal {
         apphudLog("No Product Identifiers found in Apphud. Probably you forgot to add products in Apphud Settings? Scheduled products fetch retry in \(delay) seconds.", forceDisplay: true)
     }
 
+    internal func allAvailableProductIDs() -> Set<String> {
+        var productIDs = [String]()
+        productGroups.forEach { group in
+            productIDs.append(contentsOf: group.products.map { $0.productId })
+        }
+        return Set(productIDs)
+    }
+
     internal func continueToFetchStoreKitProducts() {
 
         guard self.productGroups.count > 0 else {
             return
         }
 
-        var productIDs = [String]()
-        productGroups.forEach { group in
-            productIDs.append(contentsOf: group.products.map { $0.productId })
-        }
-
-        ApphudStoreKitWrapper.shared.fetchProducts(identifiers: Set(productIDs)) { storeKitProducts, error in
+        ApphudStoreKitWrapper.shared.fetchProducts(identifiers: allAvailableProductIDs()) { storeKitProducts, error in
 
             self.updateProductGroupsWithStoreKitProducts()
             ApphudInternal.shared.performAllStoreKitProductsFetchedCallbacks()

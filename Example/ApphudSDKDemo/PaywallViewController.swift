@@ -22,7 +22,7 @@ class PaywallViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        if #available(iOS 13.0, *) {
+        if #available(iOS 13.0, macOS 11.0, *) {
             Task {
                 await loadPaywalls()
             }
@@ -33,9 +33,9 @@ class PaywallViewController: UIViewController {
         }
     }
 
-    @available(iOS 13.0.0, *)
+    @available(iOS 13.0.0, macOS 11.0, *)
     private func loadPaywalls() async {
-        let paywalls = await Apphud.paywalls()
+        let paywalls = await Apphud.fetchPaywalls()
         self.handlePaywallsReady(paywalls: paywalls)
     }
 
@@ -61,7 +61,7 @@ class PaywallViewController: UIViewController {
         dismissCompletion?()
     }
 
-    @available(iOS 13.0.0, *)
+    @available(iOS 13.0.0, macOS 11.0, *)
     func purchaseProduct(_ product: ApphudProduct) async {
         self.showLoader()
         let result = await Apphud.purchase(product)
@@ -101,7 +101,7 @@ extension PaywallViewController: UICollectionViewDelegate, UICollectionViewDataS
 
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         if let product = products?[indexPath.item] {
-            if #available(iOS 13.0.0, *) {
+            if #available(iOS 13.0.0, macOS 11.0, *) {
                 Task {
                     await purchaseProduct(product)
                 }

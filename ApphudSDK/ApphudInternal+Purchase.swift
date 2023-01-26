@@ -45,7 +45,7 @@ extension ApphudInternal {
     }
 
     @available(iOS 15.0, *)
-    internal func handleTransaction(_ transaction: Transaction) async {
+    internal func handleTransaction(_ transaction: Transaction, forceSubmit: Bool = false) async -> Bool {
         let transactionId = transaction.id
         let refundDate = transaction.revocationDate
         let expirationDate = transaction.expirationDate
@@ -53,8 +53,8 @@ extension ApphudInternal {
         let upgrade = transaction.isUpgraded
         let productID = transaction.productID
 
-        guard !self.lastUploadedTransactions.contains(transactionId) else {
-            return
+        if self.lastUploadedTransactions.contains(transactionId) && !forceSubmit {
+            return false
         }
 
         var isActive = false
@@ -65,7 +65,7 @@ extension ApphudInternal {
             isActive = purchaseDate > Date().addingTimeInterval(-86_400) && refundDate == nil
         }
 
-        if isActive {
+        if isActive || forceSubmit {
             apphudLog("found transaction with ID: \(transactionId), purchase date: \(purchaseDate)", logLevel: .debug)
             self.isSubmittingReceipt = false
 
@@ -80,10 +80,11 @@ extension ApphudInternal {
                     if error == nil {
                         self.lastUploadedTransactions.append(transactionId)
                     }
-                    continuation.resume(returning: ())
+                    continuation.resume(returning: true)
                 }
             }
         }
+        return false
     }
 
     internal func submitReceiptAutomaticPurchaseTracking(transaction: SKPaymentTransaction, callback: @escaping ((ApphudPurchaseResult) -> Void)) {
@@ -298,7 +299,7 @@ extension ApphudInternal {
 
     // MARK: - Internal purchase methods
 
-    @available(iOS 13.0.0, *)
+    @available(iOS 13.0.0, macOS 11.0, *)
     internal func purchase(productId: String, product: ApphudProduct?, validate: Bool, value:Double? = nil) async -> ApphudPurchaseResult {
         await withCheckedContinuation { continuation in
             purchase(productId: productId, product: product, validate: validate, callback: { result in
@@ -383,6 +384,34 @@ extension ApphudInternal {
             callback?(purchaseResult(productId: product.productIdentifier, transaction: transaction, error: error))
             ApphudStoreKitWrapper.shared.finishTransaction(transaction)
         }
+    }
+
+    @available(iOS 15.0, *)
+    internal func asyncPurchaseResult(product: Product, transaction: Transaction?, error: Error?) -> ApphudAsyncPurchaseResult {
+
+        // 1. try to find in app purchase by product id
+        var purchase = currentUser?.purchases.first(where: {$0.productId == product.id})
+
+        // 2. try to find subscription by product id
+        var subscription = currentUser?.subscriptions.first(where: {$0.productId == product.id})
+        // 3. try to find subscription by Product's subscription group id
+
+        if purchase == nil, subscription == nil {
+            for sub in currentUser?.subscriptions ?? [] {
+                if let targetProduct = ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == sub.productId}),
+                   targetProduct.subscriptionGroupIdentifier == product.subscription?.subscriptionGroupID && product.subscription != nil {
+                    subscription = sub
+                    break
+                }
+            }
+        }
+
+        // 4. Try to find subscription by Apphud Product Group ID
+        if subscription == nil, let groupID = self.groupID(productId: product.id) {
+            subscription = currentUser?.subscriptions.first(where: { self.groupID(productId: $0.productId) == groupID})
+        }
+
+        return ApphudAsyncPurchaseResult(subscription: subscription, nonRenewingPurchase: purchase, transaction: transaction, error: error)
     }
 
     private func purchaseResult(productId: String, transaction: SKPaymentTransaction?, error: Error?) -> ApphudPurchaseResult {
