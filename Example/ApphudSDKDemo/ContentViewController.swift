@@ -2,7 +2,7 @@
 //  ContentViewController.swift
 //  ApphudSDKDemo
 //
-//  Created by Валерий Левшин on 15.06.2021.
+//  Created by Valery on 15.06.2021.
 //  Copyright © 2021 softeam. All rights reserved.
 //
 
@@ -16,21 +16,28 @@ class ContentViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        self.reloadUiIfNedeed()
+        title = "Apphud Content"
+
+        reloadUI()
     }
 
-    func reloadUiIfNedeed() {
-        self.statusLabel.text = isPremium ? "PRO status is ON" : "Default status"
-    }
-
-    var isPremium: Bool {
-        Apphud.hasActiveSubscription() ||
-        Apphud.isNonRenewingPurchaseActive(productIdentifier: "com.apphud.lifetime")
+    func reloadUI() {
+        self.statusLabel.text = AppVariables.isPremium ? "Premium is ON" : "No Premium Access"
     }
 
     @IBAction func showPaywallPressed(_ sender: Any) {
-        Router.shared.showRepeatPaywall {
-            self.reloadUiIfNedeed()
+        Router.shared.showRepeatPaywall(.main) { result in
+            print("Purchase Result: \(result)")
+        } completion: { [weak self] in
+            self?.reloadUI()
+        }
+    }
+
+    @IBAction func redeemTapped() {
+        if #available(iOS 14.0, *) {
+            Apphud.presentOfferCodeRedemptionSheet()
+        } else {
+            // Fallback on earlier versions
         }
     }
 }

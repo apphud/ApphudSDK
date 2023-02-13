@@ -1,0 +1,282 @@
+{
+  "identifier" : "D47D553D",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "0.99",
+      "familyShareable" : false,
+      "internalID" : "1639862775",
+      "localizations" : [
+        {
+          "description" : "Free",
+          "displayName" : "Free",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.apphud.consumable.free",
+      "referenceName" : "Free Consumable",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "0.99",
+      "familyShareable" : false,
+      "internalID" : "1589036829",
+      "localizations" : [
+        {
+          "description" : "Gold for farm",
+          "displayName" : "PRO Gold for farm",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.apphud.gold",
+      "referenceName" : "PRO Gold",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "0.0",
+      "familyShareable" : false,
+      "internalID" : "1588959148",
+      "localizations" : [
+        {
+          "description" : "All options, no limits",
+          "displayName" : "PRO lifetime",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.apphud.lifetime",
+      "referenceName" : "PRO lifetime",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "1588941280",
+    "_developerTeamID" : "JLG6CF288G",
+    "_lastSynchronizedDate" : 697955872.64341402
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "20888787",
+      "localizations" : [
+
+      ],
+      "name" : "PRO",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "17.99",
+          "familyShareable" : false,
+          "groupNumber" : 6,
+          "internalID" : "6445169818",
+          "introductoryOffer" : {
+            "internalID" : "EA24D953",
+            "numberOfPeriods" : 1,
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1Y"
+          },
+          "localizations" : [
+
+          ],
+          "productID" : "com.apphud.monthly.trial",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Monthly Trial",
+          "subscriptionGroupID" : "20888787",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "9.99",
+          "familyShareable" : false,
+          "groupNumber" : 7,
+          "internalID" : "6445170040",
+          "introductoryOffer" : {
+            "internalID" : "047E62D0",
+            "numberOfPeriods" : 1,
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P6M"
+          },
+          "localizations" : [
+            {
+              "description" : "weqrtgtherggg",
+              "displayName" : "qwerfgf",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.apphud.monthly.trial2",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Monthly With Trial",
+          "subscriptionGroupID" : "20888787",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "2.99",
+          "familyShareable" : false,
+          "groupNumber" : 3,
+          "internalID" : "1610303003",
+          "introductoryOffer" : {
+            "internalID" : "218834C2",
+            "numberOfPeriods" : 1,
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P3D"
+          },
+          "localizations" : [
+            {
+              "description" : "intro 3 days free",
+              "displayName" : "PRO Intro",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.apphud.intro",
+          "recurringSubscriptionPeriod" : "P1W",
+          "referenceName" : "PRO Intro",
+          "subscriptionGroupID" : "20888787",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+            {
+              "displayPrice" : "0.99",
+              "internalID" : "7DD073A6",
+              "numberOfPeriods" : 1,
+              "offerID" : "com.apphud.monthly_promo_skidos",
+              "paymentMode" : "payUpFront",
+              "referenceName" : "Skidos",
+              "subscriptionPeriod" : "P3M"
+            }
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "9.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "1593224632",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "PRO Monthly Promo for month",
+              "displayName" : "PRO Monthly Promo",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.apphud.monthly_promo",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "PRO Monthly Promo",
+          "subscriptionGroupID" : "20888787",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "4.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "1589062315",
+          "introductoryOffer" : {
+            "internalID" : "20C310CD",
+            "numberOfPeriods" : 1,
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P3D"
+          },
+          "localizations" : [
+            {
+              "description" : "All options weekly",
+              "displayName" : "PRO Weekly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.apphud.weekly",
+          "recurringSubscriptionPeriod" : "P1W",
+          "referenceName" : "PRO Weekly",
+          "subscriptionGroupID" : "20888787",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "29.99",
+          "familyShareable" : false,
+          "groupNumber" : 4,
+          "internalID" : "1617257833",
+          "introductoryOffer" : {
+            "internalID" : "B2E82614",
+            "numberOfPeriods" : 1,
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1Y"
+          },
+          "localizations" : [
+            {
+              "description" : "annual subscription",
+              "displayName" : "PRO Year",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.apphud.year",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "PRO Year",
+          "subscriptionGroupID" : "20888787",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "49.99",
+          "familyShareable" : false,
+          "groupNumber" : 5,
+          "internalID" : "6445169842",
+          "introductoryOffer" : {
+            "internalID" : "BCDE7B37",
+            "numberOfPeriods" : 1,
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1Y"
+          },
+          "localizations" : [
+            {
+              "description" : "Pro Year with trial",
+              "displayName" : "Yearly Trial",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.apphud.year.trial",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Yearly Trial",
+          "subscriptionGroupID" : "20888787",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 2,
+    "minor" : 0
+  }
+}

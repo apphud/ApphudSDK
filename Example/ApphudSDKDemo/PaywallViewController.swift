@@ -2,7 +2,7 @@
 //  PaywallViewController.swift
 //  ApphudSDKDemo
 //
-//  Created by Валерий Левшин on 15.06.2021.
+//  Created by Valery on 15.06.2021.
 //  Copyright © 2021 softeam. All rights reserved.
 //
 
@@ -10,114 +10,127 @@ import UIKit
 import ApphudSDK
 import StoreKit
 
+enum PaywallID: String {
+    case main
+}
+
 class PaywallViewController: UIViewController {
 
-    let currentPaywallIdentifier = "main_paywall"
-    var products: [ApphudProduct]?
-    var paywall: ApphudPaywall?
+    var paywallID: PaywallID!
     var dismissCompletion: (() -> Void)?
+    var purchaseCallback: ((Bool) -> Void)? // callback style
 
-    @IBOutlet weak var paywallCollectionView: UICollectionView!
+    private var products = [ApphudProduct]()
+    private var paywall: ApphudPaywall?
+
+    @IBOutlet private var optionsStackView: UIStackView!
+    private var selectedProduct: ApphudProduct?
 
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        if #available(iOS 13.0, macOS 11.0, *) {
-            Task {
-                await loadPaywalls()
-            }
-        } else {
-            Apphud.paywallsDidLoadCallback { pwls in
-                self.handlePaywallsReady(paywalls: pwls)
-            }
+        setupNavBar()
+        Task {
+            await loadPaywalls()
         }
     }
 
-    @available(iOS 13.0.0, macOS 11.0, *)
+    // MARK: - ViewModel Methods
+
     private func loadPaywalls() async {
-        let paywalls = await Apphud.fetchPaywalls()
+        let paywalls = await Apphud.paywalls()
         self.handlePaywallsReady(paywalls: paywalls)
     }
 
     private func handlePaywallsReady(paywalls: [ApphudPaywall]) {
         // retrieve current paywall with identifier
-        self.paywall = paywalls.first(where: { $0.identifier == self.currentPaywallIdentifier })
+        self.paywall = paywalls.first(where: { $0.identifier == paywallID.rawValue })
+
+        if paywall == nil {
+            print("Couldn't find Paywall with Identifier: \(paywallID.rawValue)")
+        }
 
         // retrieve the products [ApphudProduct] from current paywall
-        self.products = self.paywall?.products
+        self.products = self.paywall?.products ?? []
 
         // send Apphud log, that your paywall shown
         self.paywall.map { Apphud.paywallShown($0) }
 
         // setup your UI
-        self.setupViewConfiguration()
+        self.updateUI()
     }
 
-    override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
+    // MARK: - UI
+
+    func updateUI() {
+        if optionsStackView.arrangedSubviews.count == 0 {
+            products.forEach { product in
+                let optionView = PaywallOptionView.viewWith(product: product)
+                optionsStackView.addArrangedSubview(optionView)
+                optionView.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(optionSelected)))
+            }
+        }
+
+        optionsStackView.arrangedSubviews.forEach { v in
+            if let optionView = v as? PaywallOptionView {
+                optionView.isSelected = selectedProduct == optionView.product
+            }
+        }
+    }
+
+    @objc func optionSelected(gesture: UITapGestureRecognizer) {
+        if let view = gesture.view as? PaywallOptionView {
+            selectedProduct = view.product
+            updateUI()
+        }
+    }
+
+    private func setupNavBar() {
+        navigationItem.leftBarButtonItem = UIBarButtonItem(barButtonSystemItem: .close, target: self, action: #selector(closeAction))
+        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Restore", style: .done, target: self, action: #selector(restoreAction))
+    }
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
 
         // send Apphud log, that your paywall closed
         self.paywall.map { Apphud.paywallClosed($0) }
         dismissCompletion?()
     }
 
-    @available(iOS 13.0.0, macOS 11.0, *)
+    // MARK: - Actions
+
     func purchaseProduct(_ product: ApphudProduct) async {
         self.showLoader()
         let result = await Apphud.purchase(product)
+        self.purchaseCallback?(result.error == nil)
         self.hideLoader()
 
-
         if result.error == nil {
-            self.dismiss(animated: true, completion: nil)
+            self.closeAction()
         }
     }
 
-    func setupViewConfiguration() {
-        self.paywallCollectionView.reloadData()
-    }
-    @IBAction func closeView(_ sender: Any) {
-        self.dismiss(animated: true, completion: nil)
-    }
-}
-
-// MARK: - UICollectionViewDataSource, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout
-extension PaywallViewController: UICollectionViewDelegate, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
-
-    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return products?.count ?? 0
-    }
-
-    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "PaywallCollectionViewCellid", for: indexPath) as! PaywallCollectionViewCell
-
-        let product = products?[indexPath.item]
-        cell.purchaseTypeLabel.text = product?.skProduct?.getProductDuration()
-        cell.purchasePriceLabel.text = product?.skProduct?.getProductPrice()
-        cell.purchaseDescriptionLabel.text = product?.skProduct?.localizedTitle
-
-        return cell
-    }
-
-    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
-        if let product = products?[indexPath.item] {
-            if #available(iOS 13.0.0, macOS 11.0, *) {
-                Task {
-                    await purchaseProduct(product)
-                }
-            } else {
-                self.showLoader()
-                Apphud.purchase(product) { (result) in
-                    self.hideLoader()
-                    if result.error == nil {
-                        self.dismiss(animated: true, completion: nil)
-                    }
-                }
+    @objc private func restoreAction() {
+        Task {
+            showLoader()
+            await Apphud.restorePurchases()
+            hideLoader()
+            if AppVariables.isPremium {
+                closeAction()
             }
         }
     }
 
-    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
-        return CGSize(width: UIScreen.main.bounds.size.width, height: 150)
+    @objc private func closeAction() {
+        dismiss(animated: true, completion: nil)
+    }
+
+    @IBAction private func buttonAction() {
+        guard let product = selectedProduct else {return}
+
+        Task {
+            await purchaseProduct(product)
+        }
     }
 }

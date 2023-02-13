@@ -34,7 +34,7 @@ let kSecMatchLimitOneValue = NSString(format: kSecMatchLimitOne)
 public class ApphudKeychain: NSObject {
 
     internal static var canUseKeychain: Bool {
-        UIApplication.shared.isProtectedDataAvailable
+        return UIApplication.shared.isProtectedDataAvailable
     }
 
     internal static var hasLocalStorageData: Bool {

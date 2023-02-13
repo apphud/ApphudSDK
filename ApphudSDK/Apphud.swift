@@ -13,7 +13,7 @@ import StoreKit
 import Foundation
 import UserNotifications
 
-internal let apphud_sdk_version = "2.8.9"
+internal let apphud_sdk_version = "3.0.0"
 
 /**
  Public Callback object provide -> [String: Bool]
@@ -30,7 +30,10 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
 @objc public enum ApphudAttributionProvider: Int {
     case appsFlyer
     case adjust
-    case appleSearchAds // For iOS 14.2 or lower devices only, Apple Search Ads attribution via iAd.framework
+
+    @available(*, unavailable, message: "Apple Search Ads attribution via iAd framework is no longer supported by Apple. Just remove this code and use appleAdsAttribution provider via AdServices framework. For more information visit: https://docs.apphud.com/docs/apple-search-ads")
+    case appleSearchAds
+
     case appleAdsAttribution // For iOS 14.3+ devices only, Apple Search Ads attribution via AdServices.framework
     case firebase
     
@@ -51,12 +54,12 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
             return "Adjust"
         case .facebook:
             return "Facebook"
-        case .appleSearchAds:
-            return "Apple Search Ads"
         case .appleAdsAttribution:
             return "Apple Ads Attribution"
         case .firebase:
             return "Firebase"
+        default:
+            return "Unavailable"
         }
     }
 }
@@ -75,8 +78,6 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
  -  [Check Subscription Status](https://docs.apphud.com/getting-started/sdk-integration/ios#check-subscription-status)
  */
 
-@available(OSX 10.14.4, *)
-@available(iOS 11.2, *)
 final public class Apphud: NSObject {
 
     /**
@@ -157,7 +158,7 @@ final public class Apphud: NSObject {
         ApphudInternal.shared.uiDelegate = delegate
     }
 
-    // MARK: - Async/Await Syntax Methods
+    // MARK: - Async/Await Concurrency Methods
 
     /**
      Returns async paywalls configured in Apphud Dashboard > Product Hub > Paywalls. Each paywall contains an array of `ApphudProduct` objects that you use for purchase.
@@ -165,17 +166,9 @@ final public class Apphud: NSObject {
 
      Async method returns when paywalls are populated with their StoreKit products. Method returns immediately if paywalls are already loaded.
     */
-    @available(iOS 13.0.0, macOS 11.0, *)
-    @objc public static func fetchPaywalls() async -> [ApphudPaywall] {
-        if ApphudInternal.shared.paywallsAreReady {
-            return ApphudInternal.shared.paywalls
-        } else {
-            return await withCheckedContinuation { continuation in
-                let callback: (([ApphudPaywall]) -> Void) = { pwls in
-                    continuation.resume(returning: pwls)
-                }
-                ApphudInternal.shared.customPaywallsLoadedCallbacks.append(callback)
-            }
+    @objc public static func paywalls() async -> [ApphudPaywall] {
+        await withCheckedContinuation { continuation in
+            Apphud.paywallsDidLoadCallback { pwls in continuation.resume(returning: pwls) }
         }
     }
 
@@ -184,12 +177,9 @@ final public class Apphud: NSObject {
         If you need modern `Product` struct, you have to fetch it yourself and then call `await Apphud.purchase(_ product: Product)` method.
      - returns: Array of `SKProduct` objects that you added in Apphud > Product Hub > Products.
      */
-    @available(iOS 13.0.0, macOS 11.0, *)
     @objc public static func fetchProducts() async -> [SKProduct] {
-        return await withCheckedContinuation { continuation in
-            productsDidFetchCallback { prds, _ in
-                continuation.resume(returning: prds)
-            }
+        await withCheckedContinuation { continuation in
+            Apphud.fetchProducts { prds, _ in continuation.resume(returning: prds) }
         }
     }
 
@@ -200,8 +190,14 @@ final public class Apphud: NSObject {
      */
     @available(iOS 15.0, macOS 12.0, *)
     public static func fetchProducts() async throws -> [Product] {
-        try await Product.products(for: ApphudInternal.shared.allAvailableProductIDs())
+        if let products = ApphudAsyncStoreKit.shared.products {
+            return products
+        } else {
+            return try await ApphudAsyncStoreKit.shared.fetchProducts()
+        }
     }
+
+
 
     /**
      Returns corresponding ApphudProduct that matches `Product` struct, if found.
@@ -223,7 +219,7 @@ final public class Apphud: NSObject {
 
     @available(iOS 15.0, macOS 12.0, *)
     public static func purchase(_ product: Product) async -> ApphudAsyncPurchaseResult {
-        await ApphudStoreKitWrapper.shared.purchase(product: product, apphudProduct: apphudProductFor(product))
+        await ApphudAsyncStoreKit.shared.purchase(product: product, apphudProduct: apphudProductFor(product))
     }
 
     /**
@@ -233,29 +229,24 @@ final public class Apphud: NSObject {
 
      - returns: `ApphudPurchaseResult` object.
      */
-    @available(iOS 13.0.0, macOS 11.0, *)
     @objc public static func purchase(_ product: ApphudProduct) async -> ApphudPurchaseResult {
         await ApphudInternal.shared.purchase(productId: product.productId, product: product, validate: true)
     }
 
+    /**
+     Implements `Restore Purchases` async mechanism. Basically it just sends current App Store Receipt to Apphud and returns subscriptions info. You should call this method when user taps "Restore" button in your app.
+
+     - returns: Optional error. If error is nil, then you can check premium status by using `Apphud.hasActiveSubscription()` or `Apphud.hasPremiumAccess()` methods.
+     */
+    @objc @discardableResult public static func restorePurchases() async -> Error? {
+        return await withCheckedContinuation({ continunation in
+            ApphudInternal.shared.restorePurchases { _, _, error in
+                continunation.resume(returning: error)
+            }
+        })
+    }
 
     // MARK: - Make Purchase
-
-    /**
-     Returns paywalls configured in Apphud Dashboard > Product Hub > Paywalls. Each paywall contains an array of `ApphudProduct` objects that you use for purchase.
-     `ApphudProduct` is Apphud's wrapper around StoreKit's `SKProduct`.
-     
-     Returns `nil` if paywalls are not yet populated with SKProducts from the App Store. To get notified when paywalls are ready to use, use `paywallsDidLoadCallback` – when it's called, paywalls are populated with their `SKProducts`.
-     */
-    @available(*, deprecated, message: "Use `async paywalls()` method instead.")
-    @objc public static var paywalls: [ApphudPaywall]? {
-        if ApphudInternal.shared.paywallsAreReady {
-            // only return paywalls when their SKProducts are fetched from the App Store.
-            return ApphudInternal.shared.paywalls
-        } else {
-            return nil
-        }
-    }
 
     /**
      Returns paywalls configured in Apphud Dashboard > Product Hub > Paywalls. Each paywall contains an array of `ApphudProduct` objects that you use for purchase.
@@ -269,16 +260,6 @@ final public class Apphud: NSObject {
             callback(ApphudInternal.shared.paywalls)
         } else {
             ApphudInternal.shared.customPaywallsLoadedCallbacks.append(callback)
-        }
-    }
-
-    /**
-     __Deprecated__. Fetches paywalls configured in Apphud dashboard. This makes an API request to Apphud. Always check if there are cached paywalls on device by using paywalls method.
-     */
-    @available(*, deprecated, message: "Use `func paywallsDidLoadCallback` method instead.")
-    @objc public static func getPaywalls(callback: @escaping ([ApphudPaywall]?, Error?) -> Void) {
-        self.paywallsDidLoadCallback { (paywalls) in
-            callback(paywalls, nil)
         }
     }
     
@@ -298,36 +279,20 @@ final public class Apphud: NSObject {
     }
 
     /**
-     This notification is sent when `SKProduct`s are fetched from the App Store. Note that you have to add all product identifiers in Apphud Dashboard > Product Hub > Products.
-     
-     You can use `productsDidFetchCallback` callback or observe for `didFetchProductsNotification()` or implement `apphudDidFetchStoreKitProducts` delegate method. Use whatever you like most.
-     
-     Best practise is not to use this method, but implement paywalls logic by adding your paywall configuration in Apphud Dashboard > Product Hub > Paywalls.
-     */
-    @objc public static func didFetchProductsNotification() -> Notification.Name {
-        return Notification.Name("ApphudDidFetchProductsNotification")
-    }
+    Returns existing `SKProduct` array or fetches products from the App Store. Note that you have to add all product identifiers in Apphud Dashboard > Product Hub > Products.
 
-    /**
-    This callback is called when `SKProduct`s are fetched from the App Store. Note that you have to add all product identifiers in Apphud Dashboard > Product Hub > Products.
-    
-    You can use `productsDidFetchCallback` callback or observe for `didFetchProductsNotification()` or implement `apphudDidFetchStoreKitProducts` delegate method. Use whatever you like most.
-     
-     Best practise is not to use this method, but implement paywalls logic by adding your paywall configuration in Apphud Dashboard > Product Hub > Paywalls.
+     - Important: Best practise is not to use this method, but implement paywalls logic by adding your paywall configuration in Apphud Dashboard > Product Hub > Paywalls.
     */
-    @objc public static func productsDidFetchCallback(_ callback: @escaping ([SKProduct], Error?) -> Void) {
-        ApphudInternal.shared.customProductsFetchedBlocks.append(callback)
-    }
-    
-    /**
-     Refreshes `SKProduct`s from the App Store. You have to add all product identifiers in Apphud Dashboard > Product Hub > Products.
-     
-     Best practise is not to use this method, but implement paywalls logic by adding your paywall configuration in Apphud Dashboard > Product Hub > Paywalls.
-     
-     - Note: You shouldn't call this method at app launch, because Apphud SDK automatically fetches products during initialization. Only use this method as a fallback.
-     */
-    @objc public static func refreshStoreKitProducts(_ callback: (([SKProduct], Error?) -> Void)?) {
-        ApphudInternal.shared.refreshStoreKitProductsWithCallback(callback: callback)
+    @objc public static func fetchProducts(_ callback: @escaping ([SKProduct], Error?) -> Void) {
+        if ApphudStoreKitWrapper.shared.products.count > 0 {
+            callback(ApphudStoreKitWrapper.shared.products, nil)
+        } else if ApphudStoreKitWrapper.shared.didFetch {
+            // already fetched but empty, refresh
+            ApphudInternal.shared.refreshStoreKitProductsWithCallback(callback: callback)
+        } else {
+            // not yet fetched, can add to blocks array
+            ApphudInternal.shared.customProductsFetchedBlocks.append(callback)
+        }
     }
 
     /**
@@ -342,6 +307,7 @@ final public class Apphud: NSObject {
         guard ApphudStoreKitWrapper.shared.products.count > 0 else {
             return nil
         }
+
         return ApphudStoreKitWrapper.shared.products
     }
 
@@ -353,7 +319,7 @@ final public class Apphud: NSObject {
      - Important: Best practise is not to use this method, but implement paywalls logic by adding your paywall configuration in Apphud Dashboard > Product Hub > Paywalls.
      */
     @objc public static func product(productIdentifier: String) -> SKProduct? {
-        return ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == productIdentifier})
+        ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == productIdentifier})
     }
 
     /**
@@ -416,7 +382,6 @@ final public class Apphud: NSObject {
      
      - Note: This method automatically sends in-app purchase receipt to Apphud, so you don't need to call `submitReceipt` method.
      */
-    @available(iOS 12.2, *)
     @objc public static func purchasePromo(_ product: SKProduct, discountID: String, _ callback: ((ApphudPurchaseResult) -> Void)?) {
         let apphudProduct = ApphudInternal.shared.allAvailableProducts.first(where: { $0.productId == product.productIdentifier })
         ApphudInternal.shared.purchasePromo(skProduct: product, apphudProduct: apphudProduct, discountID: discountID, callback: callback)
@@ -498,9 +463,9 @@ final public class Apphud: NSObject {
     }
 
     /**
-     Permission groups configured in Apphud dashboard > Product Hub > Products. Groups are cached on device.
+     Permission groups configured in Apphud dashboard > Product Hub > Products. Note that this method may be empty at the first launch of the app until prloducts are loaded. Groups are cached on device.
      
-     - Important: Note that this method may be `nil` at first launch of the app.
+     - Important:In Observer Mode always returns empty array.
      */
     @objc public static var permissionGroups: [ApphudGroup] {
         ApphudInternal.shared.productGroups
@@ -761,7 +726,6 @@ final public class Apphud: NSObject {
         - parameter callback: Returns true if product is eligible for purchasing promotional any of it's promotional offers.
         */    
 
-    @available(iOS 12.2, *)
     @objc public static func checkEligibilityForPromotionalOffer(product: SKProduct, callback: @escaping ApphudBoolCallback) {
         ApphudInternal.shared.checkEligibilitiesForPromotionalOffers(products: [product]) { result in
             callback(result[product.productIdentifier] ?? false)
@@ -774,7 +738,6 @@ final public class Apphud: NSObject {
      - parameter products: Required. This is an array of `SKProduct` objects for which you want to check promo offers eligibilities.
      - parameter callback: Returns dictionary with product identifiers and boolean values.
      */ 
-    @available(iOS 12.2, *)
     @objc public static func checkEligibilitiesForPromotionalOffers(products: [SKProduct], callback: @escaping ApphudEligibilityCallback) {
         ApphudInternal.shared.checkEligibilitiesForPromotionalOffers(products: products, callback: callback)
     }

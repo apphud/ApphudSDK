@@ -92,7 +92,6 @@ extension ApphudInternal {
 
             self.updateProductGroupsWithStoreKitProducts()
             ApphudInternal.shared.performAllStoreKitProductsFetchedCallbacks()
-            NotificationCenter.default.post(name: Apphud.didFetchProductsNotification(), object: storeKitProducts)
             ApphudInternal.shared.delegate?.apphudDidFetchStoreKitProducts?(storeKitProducts, error)
             ApphudInternal.shared.delegate?.apphudDidFetchStoreKitProducts?(storeKitProducts)
             self.customProductsFetchedBlocks.forEach { block in block(storeKitProducts, error) }

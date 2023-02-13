@@ -16,17 +16,12 @@ import StoreKit
 extension ApphudScreenController {
     func replaceStringFor(product: SKProduct, offerID: String? = nil) -> String {
         if offerID != nil {
-            if #available(iOS 12.2, *) {
                 if let discount = product.discounts.first(where: {$0.identifier == offerID!}) {
                     return product.apphudLocalizedDiscountPrice(discount: discount)
                 } else {
                     apphudLog("Couldn't find promo offer with id: \(offerID!) in product: \(product.productIdentifier), available promo offer ids: \(product.apphudPromoIdentifiers())", forceDisplay: true)
                     return ""
                 }
-            } else {
-                apphudLog("Promo offers are not available under iOS 12.2, offerID: \(offerID!) in product: \(product.productIdentifier)", forceDisplay: true)
-                return ""
-            }
         } else {
             return product.apphudLocalizedPrice()
         }

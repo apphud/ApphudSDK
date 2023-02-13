@@ -420,8 +420,6 @@ internal func apphudReceiptDataString() -> String? {
     return string
 }
 
-@available(OSX 10.14.4, *)
-@available(iOS 11.2, *)
 extension SKProduct {
 
     func apphudSubmittableParameters(_ purchased: Bool = false) -> [String: Any] {
@@ -453,16 +451,15 @@ extension SKProduct {
             params["units_count"] = units_count
         }
 
-        if #available(iOS 12.2, *) {
-            var discount_params = [[String: Any]]()
-            for discount in discounts {
-                let promo_params = apphudPromoParameters(discount: discount)
-                discount_params.append(promo_params)
-            }
-            if discount_params.count > 0 {
-                params["promo_offers"] = discount_params
-            }
+        var discount_params = [[String: Any]]()
+        for discount in discounts {
+            let promo_params = apphudPromoParameters(discount: discount)
+            discount_params.append(promo_params)
         }
+        if discount_params.count > 0 {
+            params["promo_offers"] = discount_params
+        }
+
 
         return params
     }
@@ -484,7 +481,6 @@ extension SKProduct {
         return unit
     }
 
-    @available(iOS 12.2, *)
     private func apphudPromoParameters(discount: SKProductDiscount) -> [String: Any] {
 
         let periods_count = discount.numberOfPeriods
@@ -508,7 +504,6 @@ extension SKProduct {
         return ["unit": unit, "units_count": unit_count, "periods_count": periods_count, "mode": mode, "price": discount.price.floatValue, "offer_id": discount.identifier ?? ""]
     }
 
-    @available(iOS 12.2, *)
     func apphudPromoIdentifiers() -> [String] {
         var array = [String]()
         for discount in discounts {

@@ -18,8 +18,6 @@ internal typealias ApphudRetryLog = (count: Int, errorCode: Int)
 
 internal let ApphudInitializeGuardText = "Attempted to use Apphud SDK method earlier than initialization. You should initialize SDK first."
 
-@available(OSX 10.14.4, *)
-@available(iOS 11.2, *)
 final class ApphudInternal: NSObject {
 
     internal static let shared = ApphudInternal()
@@ -58,6 +56,7 @@ final class ApphudInternal: NSObject {
     internal var currentDeviceID: String = ""
     internal var currentUserID: String = ""
     internal var reinstallTracked: Bool = false
+    internal var delayedInitilizationParams: (apiKey: String, userID: String?, device: String?, observerMode: Bool)?
     internal var setNeedsToUpdateUser: Bool = false {
         didSet {
             if setNeedsToUpdateUser {
@@ -217,11 +216,15 @@ final class ApphudInternal: NSObject {
 
     // MARK: - Initialization
 
-    private func canInitializeInBackground() -> Bool {
-        ApphudKeychain.hasLocalStorageData && ApphudKeychain.canUseKeychain
-    }
 
     internal func initialize(apiKey: String, inputUserID: String?, inputDeviceID: String? = nil, observerMode: Bool) {
+
+        if !ApphudKeychain.canUseKeychain && !ApphudKeychain.hasLocalStorageData && UIApplication.shared.applicationState != .active {
+            setupObservers()
+            apphudLog("Unable to initialize right now, will wait until app becomes active", forceDisplay: true)
+            self.delayedInitilizationParams = (apiKey, inputUserID, inputDeviceID, observerMode)
+            return
+        }
 
         if httpClient == nil {
             ApphudStoreKitWrapper.shared.setupObserver()
@@ -403,6 +406,14 @@ final class ApphudInternal: NSObject {
     }
 
     @objc private func handleDidBecomeActive() {
+
+        apphudLog("App did become active")
+
+        if let delayedParams = delayedInitilizationParams {
+            initialize(apiKey: delayedParams.apiKey, inputUserID: delayedParams.userID, inputDeviceID: delayedParams.device,  observerMode: delayedParams.observerMode)
+            delayedInitilizationParams = nil
+        }
+
         let minCheckInterval: Double = 60
         
         checkPendingRules()

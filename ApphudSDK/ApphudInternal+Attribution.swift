@@ -62,10 +62,6 @@ extension ApphudInternal {
                     }
                 }
                 self.isSendingAdjust = true
-            case .appleSearchAds:
-                if data != nil {
-                    params["search_ads_data"] = data
-                }
             case .appleAdsAttribution:
                 guard identifer != nil else {
                     callback?(false)

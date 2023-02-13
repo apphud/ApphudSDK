@@ -22,7 +22,7 @@ public struct ApphudAsyncPurchaseResult {
     public let nonRenewingPurchase: ApphudNonRenewingPurchase?
 
     /**
-     Transaction from StoreKit 2. A transaction represents a successful in-app purchase.
+     Transaction from modern StoreKit. A transaction represents a successful in-app purchase.
      */
     public let transaction: Transaction?
 

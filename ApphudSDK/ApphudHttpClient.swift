@@ -21,8 +21,6 @@ typealias ApphudStringCallback = (String?, Error?) -> Void
 /**
  This is Apphud's internal class.
  */
-@available(OSX 10.14.4, *)
-@available(iOS 11.2, *)
 public class ApphudHttpClient {
 
     enum ApphudHttpMethod: String {

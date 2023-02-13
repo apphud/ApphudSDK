@@ -2,7 +2,7 @@
 //  ApphudLoggerService.swift
 //  ApphudSDK
 //
-//  Created by Валерий Левшин on 27.05.2021.
+//  Created by Valery on 27.05.2021.
 //
 
 import Foundation

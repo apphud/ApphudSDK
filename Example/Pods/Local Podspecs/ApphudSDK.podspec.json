@@ -1,6 +1,6 @@
 {
   "name": "ApphudSDK",
-  "version": "0.18.1",
+  "version": "3.0.0",
   "summary": "Track and control iOS auto-renewable subscriptions.",
   "description": "Track, control and analyze iOS auto-renewable subscriptions with Apphud.",
   "homepage": "https://github.com/apphud/ApphudSDK",
@@ -13,11 +13,14 @@
   },
   "source": {
     "git": "https://github.com/apphud/ApphudSDK.git",
-    "tag": "0.18.1"
+    "tag": "3.0.0"
   },
   "frameworks": "StoreKit",
   "platforms": {
-    "ios": "11.2"
+    "ios": "13.0",
+    "osx": "10.15",
+    "tvos": "13.0",
+    "watchos": "6.2"
   },
   "swift_versions": "5.0",
   "source_files": "ApphudSDK/**/*.{swift,h,m}",

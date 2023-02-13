@@ -14,7 +14,6 @@ extension ApphudInternal {
 
     // MARK: - Eligibilities API
 
-    @available(iOS 12.2, *)
     internal func checkEligibilitiesForPromotionalOffers(products: [SKProduct], callback: @escaping ApphudEligibilityCallback) {
 
         let result = performWhenUserRegistered {
@@ -49,7 +48,6 @@ extension ApphudInternal {
         }
     }
 
-    @available(iOS 12.2, *)
     private func _checkPromoEligibilitiesForRegisteredUser(products: [SKProduct], callback: @escaping ApphudEligibilityCallback) {
 
         var response = [String: Bool]()

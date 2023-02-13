@@ -2,7 +2,7 @@
 //  Router.swift
 //  ApphudSDKDemo
 //
-//  Created by Валерий Левшин on 15.06.2021.
+//  Created by Valery on 15.06.2021.
 //  Copyright © 2021 softeam. All rights reserved.
 //
 
@@ -12,11 +12,14 @@ class Router: NSObject {
 
     static let shared = Router()
 
-    func showRepeatPaywall(completion: @escaping () -> Void) {
+    func showRepeatPaywall(_ id: PaywallID, purchaseCallback: @escaping (Bool) -> Void, completion: @escaping () -> Void) {
         let storyBoard: UIStoryboard = UIStoryboard(name: "Main", bundle: nil)
-        let paywallRepeatController = storyBoard.instantiateViewController(withIdentifier: "PaywallViewControllerid") as! PaywallViewController
+        let paywallRepeatController = storyBoard.instantiateViewController(withIdentifier: "PaywallViewController") as! PaywallViewController
+        paywallRepeatController.paywallID = id
+        paywallRepeatController.purchaseCallback = purchaseCallback
         paywallRepeatController.dismissCompletion = completion
-        topController.present(paywallRepeatController, animated: true)
+        let nc = UINavigationController(rootViewController: paywallRepeatController)
+        topController.present(nc, animated: true)
     }
 }
 
