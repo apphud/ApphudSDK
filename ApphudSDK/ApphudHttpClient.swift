@@ -34,11 +34,11 @@ public class ApphudHttpClient {
         case APIV2 = "v2"
         case APIV3 = "v3"
     }
-        
+
     enum ApphudEndpoint: Equatable {
-        
+
         case customers, push, logs, events, screens, attribution, products, paywalls, subscriptions, signOffer, promotions, properties, receipt, notifications, readNotifications, rule(String)
-        
+
         var value: String {
             switch self {
             case .customers:
@@ -93,7 +93,7 @@ public class ApphudHttpClient {
     internal var invalidAPiKey: Bool = false
     internal var unauthorized: Bool = false
     internal var suspended: Bool = false
-    
+
     private let session: URLSession = {
         let config = URLSessionConfiguration.default
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
@@ -110,7 +110,7 @@ public class ApphudHttpClient {
         request.setValue(apiKey, forHTTPHeaderField: "APPHUD-API-KEY")
         return request
     }
-    
+
     internal func canSwizzlePayment() -> Bool {
         if ApphudUtils.shared.storeKitObserverMode == true && ApphudUtils.shared.isFlutter {
             return false
@@ -120,9 +120,9 @@ public class ApphudHttpClient {
     }
 
     internal func startRequest(path: ApphudEndpoint, apiVersion: ApphudApiVersion = .APIV1, params: [String: Any]?, method: ApphudHttpMethod, useDecoder: Bool = false, callback: ApphudHTTPResponseCallback?) {
-        
+
         let timeout = path == .customers ? POST_CUSTOMERS_TIMEOUT : nil
-        
+
         if let request = makeRequest(path: path.value, apiVersion: apiVersion, params: params, method: method, defaultTimeout: timeout), !suspended {
             start(request: request, useDecoder: useDecoder, callback: callback)
         } else {
@@ -197,15 +197,15 @@ public class ApphudHttpClient {
 
         return nil
     }
-    
+
     private var requestID: String {
         UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "") + "_" + String(Date().timeIntervalSince1970)
     }
 
     private func makeRequest(path: String, apiVersion: ApphudApiVersion, params: [String: Any]?, method: ApphudHttpMethod, defaultTimeout: TimeInterval? = nil) -> URLRequest? {
-       
+
         var request: URLRequest?
-       
+
         var url: URL?
 
         let urlString = "\(domainUrlString)/\(apiVersion.rawValue)/\(path)"
@@ -215,7 +215,7 @@ public class ApphudHttpClient {
             var items: [URLQueryItem] = [URLQueryItem(name: "api_key", value: apiKey), URLQueryItem(name: "request_id", value: requestID)]
             if let requestParams = params {
                 for key in requestParams.keys {
-                    items.append(URLQueryItem(name: key, value: requestParams[key] as? String))
+                    items.append(URLQueryItem(name: key, value: (requestParams[key] as? LosslessStringConvertible)?.description))
                 }
             }
             components?.queryItems = items
@@ -240,9 +240,9 @@ public class ApphudHttpClient {
         request?.setValue(self.sdkType, forHTTPHeaderField: "X-SDK")
         request?.setValue(sdkVersion, forHTTPHeaderField: "X-SDK-VERSION")
         request?.setValue("Apphud \(platform) (\(self.sdkType) \(sdkVersion))", forHTTPHeaderField: "User-Agent")
-        
+
         request?.timeoutInterval = defaultTimeout ?? (method == .get ? GET_TIMEOUT : POST_TIMEOUT)
-                    
+
         if method != .get {
             var finalParams: [String: Any] = ["api_key": apiKey, "request_id": requestID]
             if params != nil {
@@ -252,7 +252,6 @@ public class ApphudHttpClient {
                 request?.httpBody = data
             }
         }
-       
 
         if ApphudUtils.shared.logLevel == .all {
             var string: String = ""
@@ -281,13 +280,13 @@ public class ApphudHttpClient {
     }
 
     private func start(request: URLRequest, useDecoder: Bool = false, callback: ApphudHTTPResponseCallback?) {
-        
+
         let startDate = Date()
-        
+
         let task = session.dataTask(with: request) { (data, response, error) in
-            
+
             let requestDuration = Date().timeIntervalSince(startDate)
-            
+
             var dictionary: [String: Any]?
 
             do {

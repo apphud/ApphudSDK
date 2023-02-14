@@ -36,7 +36,7 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
 
     case appleAdsAttribution // For iOS 14.3+ devices only, Apple Search Ads attribution via AdServices.framework
     case firebase
-    
+
     @available(*, deprecated, message: "Facebook integration is no longer needed from SDK and has been voided. You can safely remove this line of code.")
     case facebook
 
@@ -162,7 +162,7 @@ final public class Apphud: NSObject {
 
     /**
      Returns async paywalls configured in Apphud Dashboard > Product Hub > Paywalls. Each paywall contains an array of `ApphudProduct` objects that you use for purchase.
-     `ApphudProduct` is Apphud's wrapper around StoreKit's `SKProduct`.
+     `ApphudProduct` is Apphud's wrapper around StoreKit's `SKProduct`/ `Product` models.
 
      Async method returns when paywalls are populated with their StoreKit products. Method returns immediately if paywalls are already loaded.
     */
@@ -170,6 +170,16 @@ final public class Apphud: NSObject {
         await withCheckedContinuation { continuation in
             Apphud.paywallsDidLoadCallback { pwls in continuation.resume(returning: pwls) }
         }
+    }
+
+    /**
+     Returns async paywall with provided identifier that is configured in Apphud Dashboard > Product Hub > Paywalls. Paywall contains an array of `ApphudProduct` objects that you use for purchase.
+     `ApphudProduct` is Apphud's wrapper around StoreKit's `SKProduct`/ `Product` models.
+
+     Async method returns when paywalls are populated with their StoreKit products. Method returns immediately if paywalls are already loaded.
+    */
+    @objc public static func paywall(_ identifier: String) async -> ApphudPaywall? {
+        await paywalls().first(where: { $0.identifier == identifier })
     }
 
     /**
@@ -184,20 +194,18 @@ final public class Apphud: NSObject {
     }
 
     /**
-     A simple async method that fetches Product structs from the App Store. Keep in mind that paywalls functionality and A/B testing are not currently supported using modern Product structs.
+     A simple async method that fetches Product structs from the App Store.
 
      - returns: Array of `Product` structs. Note that you have to add product identifiers in Apphud > Product Hub > Products.
      */
     @available(iOS 15.0, macOS 12.0, *)
     public static func fetchProducts() async throws -> [Product] {
-        if let products = ApphudAsyncStoreKit.shared.products {
-            return products
+        if ApphudAsyncStoreKit.shared.productsLoaded {
+            return Array(ApphudAsyncStoreKit.shared.products)
         } else {
             return try await ApphudAsyncStoreKit.shared.fetchProducts()
         }
     }
-
-
 
     /**
      Returns corresponding ApphudProduct that matches `Product` struct, if found.
@@ -210,7 +218,7 @@ final public class Apphud: NSObject {
     }
 
     /**
-     Initiates async purchase of `Product` struct and automatically submits transaction to Apphud.
+     Initiates async purchase of `Product` struct and automatically submits transaction to Apphud. Keep in mind that A/B testing functionality will not work if purchase is made using this method. Please use `purchase(_ product: ApphudProduct)` instead, or call .
 
      - parameter product: Required. A `Product` struct from async/await StoreKit.
 
@@ -250,7 +258,7 @@ final public class Apphud: NSObject {
 
     /**
      Returns paywalls configured in Apphud Dashboard > Product Hub > Paywalls. Each paywall contains an array of `ApphudProduct` objects that you use for purchase.
-     `ApphudProduct` is Apphud's wrapper around StoreKit's `SKProduct`. This is a duplicate for `paywallsDidFullyLoad` method of ApphudDelegate.
+     `ApphudProduct` is Apphud's wrapper around `SKProduct`/ `Product` models. This is a duplicate for `paywallsDidFullyLoad` method of ApphudDelegate.
      
      This callback is called when paywalls are populated with their StoreKit products. Callback is called immediately if paywalls are already loaded.
      It is safe to call this method multiple times – previous callback will not be overwritten, but will be added to array and once paywalls are loaded, all callbacks will be called.
@@ -262,7 +270,7 @@ final public class Apphud: NSObject {
             ApphudInternal.shared.customPaywallsLoadedCallbacks.append(callback)
         }
     }
-    
+
     /**
         If you want to use A/B experiments while running SDK in `Observer Mode` you should manually send paywall identifier to Apphud using this method.
          
@@ -284,7 +292,7 @@ final public class Apphud: NSObject {
      - Important: Best practise is not to use this method, but implement paywalls logic by adding your paywall configuration in Apphud Dashboard > Product Hub > Paywalls.
     */
     @objc public static func fetchProducts(_ callback: @escaping ([SKProduct], Error?) -> Void) {
-        if ApphudStoreKitWrapper.shared.products.count > 0 {
+        if ApphudStoreKitWrapper.shared.products.count > 0 && ApphudStoreKitWrapper.shared.didFetch {
             callback(ApphudStoreKitWrapper.shared.products, nil)
         } else if ApphudStoreKitWrapper.shared.didFetch {
             // already fetched but empty, refresh
@@ -293,6 +301,17 @@ final public class Apphud: NSObject {
             // not yet fetched, can add to blocks array
             ApphudInternal.shared.customProductsFetchedBlocks.append(callback)
         }
+    }
+
+    /**
+     This notification is sent when `SKProduct`s are fetched from the App Store. Note that you have to add all product identifiers in Apphud Dashboard > Product Hub > Products.
+
+     You can use `productsDidFetchCallback` callback or observe for `didFetchProductsNotification()` or implement `apphudDidFetchStoreKitProducts` delegate method. Use whatever you like most.
+
+     Best practise is not to use this method, but implement paywalls logic by adding your paywall configuration in Apphud Dashboard > Product Hub > Paywalls.
+    */
+    @objc public static func didFetchProductsNotification() -> Notification.Name {
+        return Notification.Name("ApphudDidFetchProductsNotification")
     }
 
     /**
@@ -340,7 +359,7 @@ final public class Apphud: NSObject {
         Experimental `purchase` method for internal usage
      */
     @objc(purchaseApphudProduct:value:callback:)
-    public static func purchase(_ product: ApphudProduct, value:Double, callback: ((ApphudPurchaseResult) -> Void)?) {
+    public static func purchase(_ product: ApphudProduct, value: Double, callback: ((ApphudPurchaseResult) -> Void)?) {
         ApphudInternal.shared.purchase(productId: product.productId, product: product, validate: true, value: value, callback: callback)
     }
 
@@ -419,7 +438,7 @@ final public class Apphud: NSObject {
     }
 
     // MARK: - Paywall logs
-    
+
     /**
      Logs "Paywall Shown" event that will be used in Apphud Dashboard.
      
@@ -428,7 +447,7 @@ final public class Apphud: NSObject {
     @objc public static func paywallShown(_ paywall: ApphudPaywall) {
         ApphudLoggerService.shared.paywallShown(paywall.id)
     }
-    
+
     /**
      Logs "Paywall Closed" event that will be used in Apphud Dashboard.
      
@@ -450,7 +469,7 @@ final public class Apphud: NSObject {
     @objc public static func hasPremiumAccess() -> Bool {
         hasActiveSubscription() || (nonRenewingPurchases()?.first(where: { $0.isActive() }) != nil)
     }
-    
+
     /**
      Returns `true` if user has active subscription.
      
@@ -460,6 +479,13 @@ final public class Apphud: NSObject {
      */
     @objc public static func hasActiveSubscription() -> Bool {
         subscriptions()?.first(where: { $0.isActive() }) != nil
+    }
+
+    /**
+     This notification is called when any subscription is purchased or updated (for example, status changed from `trial` to `expired` or `isAutorenewEnabled` changed to `false`). SDK also checks for subscription updates when app becomes active.
+    */
+    @objc public static func didUpdateSubscriptionsNotification() -> Notification.Name {
+        return Notification.Name("ApphudDidUpdateSubscriptionsNotification")
     }
 
     /**
@@ -753,6 +779,13 @@ final public class Apphud: NSObject {
     }
 
     // MARK: - Other
+
+    /**
+        Must be called before SDK initialization. If called, some user parameters like IDFA, IDFV, IP address will not be tracked by Apphud.
+     */
+    @objc public static func optOutOfTracking() {
+        ApphudUtils.shared.optOutOfTracking = true
+    }
 
     /**
         Enables debug logs. You should call this method before SDK initialization.

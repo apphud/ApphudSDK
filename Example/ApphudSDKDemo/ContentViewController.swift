@@ -19,9 +19,11 @@ class ContentViewController: UIViewController {
         title = "Apphud Content"
 
         reloadUI()
+
+        NotificationCenter.default.addObserver(self, selector: #selector(reloadUI), name: Apphud.didUpdateSubscriptionsNotification(), object: nil)
     }
 
-    func reloadUI() {
+    @objc func reloadUI() {
         self.statusLabel.text = AppVariables.isPremium ? "Premium is ON" : "No Premium Access"
     }
 

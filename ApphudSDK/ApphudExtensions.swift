@@ -155,7 +155,7 @@ internal func apphudCurrentDeviceMacParameters() -> [String: String] {
         params["country_iso_code"] = regionCode.uppercased()
     }
 
-    if !ApphudUtils.shared.optOutOfIDFACollection, let idfa = apphudIdentifierForAdvertising() {
+    if !ApphudUtils.shared.optOutOfTracking, let idfa = apphudIdentifierForAdvertising() {
         params["idfa"] = idfa
     }
 
@@ -168,26 +168,26 @@ internal func apphudCurrentDeviceWatchParameters() -> [String: String] {
     let family: String = "Watch"
     let app_version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? ""
 
-    var params: [String: String] = ["locale": Locale.current.identifier,
-                                      "time_zone": TimeZone.current.identifier,
-                                      "device_type": WKInterfaceDevice.current().model,
-                                      "device_family": family,
-                                      "platform": "iOS",
-                                      "app_version": app_version,
-                                      "start_app_version": app_version,
-                                      "sdk_version": ApphudHttpClient.shared.sdkVersion,
-                                    "os_version": WKInterfaceDevice.current().systemVersion
+    var params: [String: String] = [    "locale": Locale.current.identifier,
+                                        "time_zone": TimeZone.current.identifier,
+                                        "device_type": ApphudUtils.shared.optOutOfTracking ? "Restricted" : WKInterfaceDevice.current().model,
+                                        "device_family": family,
+                                        "platform": "iOS",
+                                        "app_version": app_version,
+                                        "start_app_version": app_version,
+                                        "sdk_version": ApphudHttpClient.shared.sdkVersion,
+                                        "os_version": WKInterfaceDevice.current().systemVersion
     ]
 
     if let regionCode = Locale.current.regionCode {
         params["country_iso_code"] = regionCode.uppercased()
     }
 
-    if let idfv = WKInterfaceDevice.current().identifierForVendor?.uuidString {
+    if !ApphudUtils.shared.optOutOfTracking, let idfv = WKInterfaceDevice.current().identifierForVendor?.uuidString {
         params["idfv"] = idfv
     }
 
-    if !ApphudUtils.shared.optOutOfIDFACollection, let idfa = apphudIdentifierForAdvertising() {
+    if !ApphudUtils.shared.optOutOfTracking, let idfa = apphudIdentifierForAdvertising() {
         params["idfa"] = idfa
     }
 
@@ -206,12 +206,12 @@ internal func apphudCurrentDeviceiOSParameters() -> [String: String] {
     default:
         family = "iPad"
     }
-    
+
     let app_version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? ""
 
     var params: [String: String] = ["locale": Locale.current.identifier,
                                       "time_zone": TimeZone.current.identifier,
-                                      "device_type": UIDevice.current.apphudModelName,
+                                    "device_type": ApphudUtils.shared.optOutOfTracking ? "Restricted" : UIDevice.current.apphudModelName,
                                       "device_family": family,
                                       "platform": "iOS",
                                       "app_version": app_version,
@@ -224,11 +224,11 @@ internal func apphudCurrentDeviceiOSParameters() -> [String: String] {
         params["country_iso_code"] = regionCode.uppercased()
     }
 
-    if let idfv = UIDevice.current.identifierForVendor?.uuidString {
+    if !ApphudUtils.shared.optOutOfTracking, let idfv = UIDevice.current.identifierForVendor?.uuidString {
         params["idfv"] = idfv
     }
 
-    if !ApphudUtils.shared.optOutOfIDFACollection, let idfa = apphudIdentifierForAdvertising() {
+    if !ApphudUtils.shared.optOutOfTracking, let idfa = apphudIdentifierForAdvertising() {
         params["idfa"] = idfa
     }
 
@@ -440,7 +440,7 @@ extension SKProduct {
         if let introData = apphudIntroParameters() {
             params.merge(introData, uniquingKeysWith: {$1})
         }
-        
+
         if let value = ApphudStoreKitWrapper.shared.purchasingValue, value.productId == productIdentifier, purchased == true {
             params["custom_purchase_value"] = value.value
         }
@@ -459,7 +459,6 @@ extension SKProduct {
         if discount_params.count > 0 {
             params["promo_offers"] = discount_params
         }
-
 
         return params
     }

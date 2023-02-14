@@ -20,10 +20,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
 
-        Apphud.enableDebugLogs()
-        Apphud.start(apiKey: "app_4sY9cLggXpMDDQMmvc5wXUPGReMp8G")
-
-
+        ApphudUtils.enableAllLogs()
+        Apphud.start(apiKey: "app_4sY9cLggXpMDDQMmvc5wXUPGReMp8G", observerMode: true)
 
         /** Custom User Properties Examples */
 //        Apphud.setUserProperty(key: .email, value: "user@example.com", setOnce: true)
@@ -34,7 +32,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         Apphud.setUIDelegate(self)
 
         registerForNotifications()
-                
+
         return true
     }
 

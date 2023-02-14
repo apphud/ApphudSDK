@@ -22,9 +22,9 @@ extension ApphudInternal {
         guard let userDict = dataDict["results"] as? [String: Any] else {
             return (false, false)
         }
-        
+
         UserDefaults.standard.set(userDict["swizzle_disabled"] != nil, forKey: swizzlePaymentDisabledKey)
-        
+
         if let paywalls = userDict["paywalls"] as? [[String: Any]] {
             self.mappingPaywalls(paywalls)
         } else {
@@ -67,7 +67,7 @@ extension ApphudInternal {
         }
     }
 
-    internal func createOrGetUser(shouldUpdateUserID: Bool, skipRegistration: Bool = false, delay:Double = 0, callback: @escaping (Bool, Int) -> Void) {
+    internal func createOrGetUser(shouldUpdateUserID: Bool, skipRegistration: Bool = false, delay: Double = 0, callback: @escaping (Bool, Int) -> Void) {
         if skipRegistration {
             apphudLog("Loading user from cache, because cache is not expired.")
             self.preparePaywalls(pwls: self.paywalls, writeToCache: false, completionBlock: nil)
@@ -80,7 +80,7 @@ extension ApphudInternal {
 
         let needLogging = shouldUpdateUserID
         let fields = shouldUpdateUserID ? ["user_id": self.currentUserID] : [:]
-        
+
         self.updateUser(fields: fields, delay: delay) { (result, response, _, error, code, duration) in
             let hasChanges = self.parseUser(response)
 
@@ -88,17 +88,13 @@ extension ApphudInternal {
 
             if finalResult {
                 ApphudLoggerService.lastUserUpdatedAt = Date()
-                
+
                 if needLogging {
                     ApphudLoggerService.shared.add(key: .customers, value: duration, retryLog: self.userRegisterRetries)
                 }
 
-                if hasChanges.hasSubscriptionChanges {
-                    self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions)
-                }
-                if hasChanges.hasNonRenewingChanges {
-                    self.delegate?.apphudNonRenewingPurchasesUpdated?(self.currentUser!.purchases)
-                }
+                self.notifyAboutUpdates(hasChanges)
+
                 if self.requiresReceiptSubmission {
                     self.submitAppStoreReceipt()
                 }
@@ -154,12 +150,7 @@ extension ApphudInternal {
             self.grantPromotional(duration, permissionGroup, productId: productId) { (result, response, _, _, _, _) in
                 if result {
                     let hasChanges = self.parseUser(response)
-                    if hasChanges.hasSubscriptionChanges {
-                        self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions)
-                    }
-                    if hasChanges.hasNonRenewingChanges {
-                        self.delegate?.apphudNonRenewingPurchasesUpdated?(self.currentUser!.purchases)
-                    }
+                    self.notifyAboutUpdates(hasChanges)
                 }
                 callback?(result)
             }
@@ -181,9 +172,9 @@ extension ApphudInternal {
         httpClient?.startRequest(path: .promotions, params: params, method: .post, callback: callback)
     }
 
-    private func updateUser(fields: [String: Any], delay:Double = 0, callback: @escaping ApphudHTTPResponseCallback) {
+    private func updateUser(fields: [String: Any], delay: Double = 0, callback: @escaping ApphudHTTPResponseCallback) {
         setNeedsToUpdateUser = false
-        
+
         #if os(macOS)
         var params = apphudCurrentDeviceMacParameters() as [String: Any]
         #elseif os(watchOS)
@@ -191,18 +182,19 @@ extension ApphudInternal {
         #else
         var params = apphudCurrentDeviceiOSParameters() as [String: Any]
         #endif
-        
+
         if currentUser == nil && !reinstallTracked {
            params["redownload"] = true
            reinstallTracked = true
         }
-        
+
         params.merge(fields) { (current, _) in current}
         params["device_id"] = self.currentDeviceID
         params["is_debug"] = apphudIsSandbox()
         params["is_new"] = isFreshInstall && currentUser == nil
         params["redownload"] = currentUser == nil
         params["need_paywalls"] = !didLoadUserAtThisLaunch
+        params["opt_out"] = ApphudUtils.shared.optOutOfTracking
         appInstallationDate.map { params["first_seen"] = $0 }
         Bundle.main.bundleIdentifier.map { params["bundle_id"] = $0 }
         // do not automatically pass currentUserID here,because we have separate method updateUserID
@@ -227,6 +219,17 @@ extension ApphudInternal {
         createOrGetUser(shouldUpdateUserID: false) { _, _ in
             self.lastCheckDate = Date()
         }
+    }
+
+    func notifyAboutUpdates(_ hasChanges: HasPurchasesChanges) {
+        if hasChanges.hasSubscriptionChanges {
+            self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions)
+            NotificationCenter.default.post(name: Apphud.didUpdateSubscriptionsNotification(), object: nil)
+        }
+        if hasChanges.hasNonRenewingChanges {
+            self.delegate?.apphudNonRenewingPurchasesUpdated?(self.currentUser!.purchases)
+        }
+
     }
 
     // MARK: - User Properties
@@ -379,7 +382,7 @@ extension ApphudInternal {
         guard let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).last,
               let attributes = try? FileManager.default.attributesOfItem(atPath: documentsURL.path)
         else { return nil }
-        
+
         let dateFormatter = DateFormatter()
         dateFormatter.dateStyle = .medium
         dateFormatter.timeStyle = .medium
@@ -389,5 +392,5 @@ extension ApphudInternal {
         }
         return nil
     }
-    
+
 }

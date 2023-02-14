@@ -27,7 +27,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     private var refreshReceiptCallback: (() -> Void)?
     private var paymentCallback: ApphudTransactionCallback?
-    
+
     var purchasingProductID: String?
     var purchasingValue: ApphudCustomPurchaseValue?
     var isPurchasing: Bool = false
@@ -35,15 +35,15 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     private var refreshRequest: SKReceiptRefreshRequest?
 
     internal var productsLoadTime: TimeInterval = 0.0
-    
+
     func setupObserver() {
         SKPaymentQueue.default().add(self)
     }
-    
+
     func enableSwizzle() {
         SKPaymentQueue.doSwizzle()
     }
-    
+
     func restoreTransactions() {
         DispatchQueue.main.async {
             SKPaymentQueue.default().restoreCompletedTransactions()
@@ -71,7 +71,6 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         }
     }
 
-    @available(iOS 13.0.0, *)
     func fetchProduct(_ productId: String) async -> SKProduct? {
 
         if let availableProduct = products.first(where: { $0.productIdentifier == productId }) {
@@ -91,7 +90,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         }
     }
 
-    func purchase(product: SKProduct, value:Double? = nil, callback: @escaping ApphudTransactionCallback) {
+    func purchase(product: SKProduct, value: Double? = nil, callback: @escaping ApphudTransactionCallback) {
         ApphudUtils.shared.storeKitObserverMode = false
         let payment = SKMutablePayment(product: product)
         purchase(payment: payment, value: value, callback: callback)
@@ -131,12 +130,12 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
                 switch trx.transactionState {
                 case .purchasing:
                     self.isPurchasing = true
-                    
+
                     if !ApphudUtils.shared.isFlutter {
                         // Do not access applicationUsername on Flutter to avoid crash
                         apphudLog("Payment is in purchasing state \(trx.payment.productIdentifier) for username: \(trx.payment.applicationUsername ?? "")")
                     }
-                    
+
                     if self.purchasingProductID == nil && ApphudUtils.shared.storeKitObserverMode == false {
                         apphudLog("Seems like Observer Mode is False however purchase is not being made through Apphud SDK. Please make sure you set ObserverMode to True when initialising Apphud SDK. As for now, force enabling observer mode..", logLevel: .off)
                         ApphudUtils.shared.storeKitObserverMode = true
@@ -165,7 +164,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
             }
         }
     }
-    
+
     func handleDeferredTransaction(_ transaction: SKPaymentTransaction) {
         if let error = transaction.error as? SKError, error.code != .paymentCancelled {
             ApphudInternal.shared.delegate?.handleDeferredTransaction?(transaction: transaction)
@@ -275,7 +274,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
             apphudLog("Method unavailable on current iOS version (minimum 14.0).", forceDisplay: true)
         }
     }
-    
+
     internal func appropriateApplicationUsername() -> String? {
         if !hasSwizzledPaymentQueue { return nil }
         let userID = ApphudInternal.shared.currentUserID
@@ -351,12 +350,12 @@ extension SKPaymentTransaction {
 
 private var hasSwizzledPaymentQueue = false
 extension SKPaymentQueue {
-    
+
     public final class func doSwizzle() {
         guard !hasSwizzledPaymentQueue else { return }
 
         hasSwizzledPaymentQueue = true
-        
+
         let original = #selector(self.add(_:) as (SKPaymentQueue) -> (SKPayment) -> Void)
         let swizzled = #selector(SKPaymentQueue.apphudAdd(_:))
 
@@ -367,11 +366,11 @@ extension SKPaymentQueue {
               }
         method_exchangeImplementations(originalMethod, swizzledMethod)
     }
-    
+
     @objc internal func apphudAdd(_ payment: SKPayment) {
         let currentUsername = payment.applicationUsername
         let currentUsernameIsUUID = (currentUsername != nil) && (UUID(uuidString: currentUsername!) != nil)
-        
+
         if !currentUsernameIsUUID, let mutablePayment = payment as? SKMutablePayment ?? payment.mutableCopy() as? SKMutablePayment {
             mutablePayment.applicationUsername = ApphudStoreKitWrapper.shared.appropriateApplicationUsername()
             apphudAdd(mutablePayment)

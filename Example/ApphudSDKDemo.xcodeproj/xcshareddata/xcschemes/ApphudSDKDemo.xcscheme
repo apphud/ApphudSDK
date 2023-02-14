@@ -15,7 +15,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "94AE4E8C22A0FAC800564F85"
-               BuildableName = "ApphudDemoApp.app"
+               BuildableName = "Apphud.app"
                BlueprintName = "ApphudSDKDemo"
                ReferencedContainer = "container:ApphudSDKDemo.xcodeproj">
             </BuildableReference>
@@ -45,7 +45,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "94AE4E8C22A0FAC800564F85"
-            BuildableName = "ApphudDemoApp.app"
+            BuildableName = "Apphud.app"
             BlueprintName = "ApphudSDKDemo"
             ReferencedContainer = "container:ApphudSDKDemo.xcodeproj">
          </BuildableReference>
@@ -62,7 +62,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "94AE4E8C22A0FAC800564F85"
-            BuildableName = "ApphudDemoApp.app"
+            BuildableName = "Apphud.app"
             BlueprintName = "ApphudSDKDemo"
             ReferencedContainer = "container:ApphudSDKDemo.xcodeproj">
          </BuildableReference>

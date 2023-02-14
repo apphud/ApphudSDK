@@ -25,7 +25,7 @@ import Foundation
  */
 
 public class ApphudPaywall: NSObject, Codable {
-    
+
     /**
      Array of products
      */

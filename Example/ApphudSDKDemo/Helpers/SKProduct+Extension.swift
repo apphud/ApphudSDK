@@ -9,10 +9,9 @@
 import Foundation
 import StoreKit
 
-
 extension SKProduct {
 
-    func pricingDescription()  -> String {
+    func pricingDescription() -> String {
         if subscriptionPeriod != nil {
             if introductoryPrice != nil {
                 return autoDescription() + ", " + autoPrice()

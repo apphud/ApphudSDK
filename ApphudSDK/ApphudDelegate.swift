@@ -78,7 +78,7 @@ import StoreKit
         Called when Apphud SDK detects a deferred or interrupted purchase, this may happen when SCA confirmation is needed, in the case of parental control and some other cases
      */
     @objc optional func handleDeferredTransaction(transaction: SKPaymentTransaction)
-    
+
     /**
         Called when user is registered in Apphud [or used from cache]. This method is called once per app lifecycle.
         The `rawPaywalls` array may not yet have SKProducts, so this method should not be used for paywalls management.
@@ -86,7 +86,7 @@ import StoreKit
         However, if using A/B Testing, `rawPaywalls` can be used to fetch `experimentName`, `variationName` or other parameters like `json` from your experimental paywall.
     */
     @objc optional func userDidLoad(rawPaywalls: [ApphudPaywall])
-    
+
     /**
      Called when paywalls are fully loaded with their SKProducts. This is a duplicate for `Apphud.paywallsDidLoadCallback {}` method.
     */

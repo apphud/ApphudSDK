@@ -10,7 +10,6 @@ import Foundation
  An object containing all incoming Rule information.
 */
 
-
 public class ApphudRule: NSObject {
 
     /**

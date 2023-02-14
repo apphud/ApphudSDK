@@ -19,7 +19,7 @@ extension ApphudInternal {
             continueWithProductGroups([group], errorCode: nil, writeToCache: false)
         } else {
             if needToUpdateProductGroups {
-                getProductGroups { groups, error, code in
+                getProductGroups { groups, _, code in
                     self.continueWithProductGroups(groups, errorCode: code, writeToCache: true)
                 }
             } else {
@@ -74,6 +74,14 @@ extension ApphudInternal {
         apphudLog("No Product Identifiers found in Apphud. Probably you forgot to add products in Apphud Settings? Scheduled products fetch retry in \(delay) seconds.", forceDisplay: true)
     }
 
+    internal func fetchAllAvailableProductIDs() async -> Set<String> {
+        await withCheckedContinuation({ continuation in
+            performWhenProductGroupsFetched {
+                continuation.resume(returning: self.allAvailableProductIDs())
+            }
+        })
+    }
+
     internal func allAvailableProductIDs() -> Set<String> {
         var productIDs = [String]()
         productGroups.forEach { group in
@@ -92,6 +100,7 @@ extension ApphudInternal {
 
             self.updateProductGroupsWithStoreKitProducts()
             ApphudInternal.shared.performAllStoreKitProductsFetchedCallbacks()
+            NotificationCenter.default.post(name: Apphud.didFetchProductsNotification(), object: storeKitProducts)
             ApphudInternal.shared.delegate?.apphudDidFetchStoreKitProducts?(storeKitProducts, error)
             ApphudInternal.shared.delegate?.apphudDidFetchStoreKitProducts?(storeKitProducts)
             self.customProductsFetchedBlocks.forEach { block in block(storeKitProducts, error) }
@@ -131,12 +140,12 @@ extension ApphudInternal {
             return
         }
 
-        httpClient?.startRequest(path: .products, apiVersion: .APIV2, params: ["device_id": currentDeviceID], method: .get, useDecoder: true) { _, _, data, error, code, duration in
+        httpClient?.startRequest(path: .products, apiVersion: .APIV2, params: ["observer_mode": ApphudUtils.shared.storeKitObserverMode, "device_id": currentDeviceID], method: .get, useDecoder: true) { _, _, data, error, code, duration in
 
             if error == nil {
                 ApphudLoggerService.shared.add(key: .products, value: duration, retryLog: self.productsFetchRetries)
             }
-            
+
             if let data = data {
                 typealias ApphudArrayResponse = ApphudAPIDataResponse<ApphudAPIArrayResponse <ApphudGroup> >
 
@@ -158,17 +167,17 @@ extension ApphudInternal {
     }
 
     internal func preparePaywalls(pwls: [ApphudPaywall], writeToCache: Bool = true, completionBlock: (([ApphudPaywall]?, Error?) -> Void)?) {
-        
+
         if UserDefaults.standard.bool(forKey: swizzlePaymentDisabledKey) != true && httpClient!.canSwizzlePayment() {
             ApphudStoreKitWrapper.shared.enableSwizzle()
         } else {
             apphudLog("Payment swizzle has been disabled remotely, skipping", logLevel: .debug)
         }
-        
+
         self.paywalls = pwls
 
         if writeToCache { self.cachePaywalls(paywalls: paywalls) }
-        
+
         if !didLoadUserAtThisLaunch {
             delegate?.userDidLoad?(rawPaywalls: paywalls)
             didLoadUserAtThisLaunch = true

@@ -44,8 +44,8 @@ final class ApphudInternal: NSObject {
     internal var submitReceiptCallbacks = [ApphudErrorCallback?]()
     internal var restorePurchasesCallback: (([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void)?
     internal var isSubmittingReceipt: Bool = false
-    internal var lastUploadedTransactions = [UInt64]()
-    
+    internal var lastUploadedTransactions = Set<UInt64>()
+
     // MARK: - Paywalls Events
     internal var lastUploadedPaywallEvent = [String: AnyHashable]()
     internal var lastUploadedPaywallEventDate: Date?
@@ -216,7 +216,6 @@ final class ApphudInternal: NSObject {
 
     // MARK: - Initialization
 
-
     internal func initialize(apiKey: String, inputUserID: String?, inputDeviceID: String? = nil, observerMode: Bool) {
 
         if !ApphudKeychain.canUseKeychain && !ApphudKeychain.hasLocalStorageData && UIApplication.shared.applicationState != .active {
@@ -305,7 +304,6 @@ final class ApphudInternal: NSObject {
         apphudIsSandbox() ? 60 : 90000
     }
 
-
     private func isUserCacheExpired() -> Bool {
         if let lastUserUpdatedDate = ApphudLoggerService.lastUserUpdatedAt, Date().timeIntervalSince(lastUserUpdatedDate) < cacheTimeout {
             return false
@@ -326,7 +324,10 @@ final class ApphudInternal: NSObject {
         guard !isRegisteringUser else {return}
         guard self.httpClient != nil else {return}
         isRegisteringUser = true
+
+        // in observer mode need to fetch products too, for Updating currency and Rules
         continueToFetchProducts(needToUpdateProductGroups: needToUpdateProductGroups)
+
         registerUser(skipRegistration: skipRegistration)
     }
 
@@ -379,7 +380,7 @@ final class ApphudInternal: NSObject {
     }
 
     // MARK: - Other
-    
+
     var applicationDidBecomeActiveNotification: Notification.Name {
         #if os(iOS) || os(tvOS)
             UIApplication.didBecomeActiveNotification
@@ -410,14 +411,14 @@ final class ApphudInternal: NSObject {
         apphudLog("App did become active")
 
         if let delayedParams = delayedInitilizationParams {
-            initialize(apiKey: delayedParams.apiKey, inputUserID: delayedParams.userID, inputDeviceID: delayedParams.device,  observerMode: delayedParams.observerMode)
+            initialize(apiKey: delayedParams.apiKey, inputUserID: delayedParams.userID, inputDeviceID: delayedParams.device, observerMode: delayedParams.observerMode)
             delayedInitilizationParams = nil
         }
 
         let minCheckInterval: Double = 60
-        
+
         checkPendingRules()
-    
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             if self.currentUser == nil {
                 self.continueToRegisteringUser()
@@ -429,11 +430,9 @@ final class ApphudInternal: NSObject {
                 }
             }
         }
-        
+
         setNeedToCheckTransactions()
     }
-    
-    
 
     // MARK: - Perform Blocks
 
@@ -535,11 +534,11 @@ final class ApphudInternal: NSObject {
                                                        "user_id": self.currentUserID,
                                                        "bundle_id": Bundle.main.bundleIdentifier,
                                                        "data": params]
-            
+
             #if os(iOS)
             final_params["connection_type"] = self.currentReachabilityStatus.rawValue
             #endif
-            
+
             self.httpClient?.startRequest(path: .logs, apiVersion: .APIV3, params: final_params, method: .post) { (_, _, _, _, _, _) in
                 callback()
             }
@@ -569,7 +568,7 @@ final class ApphudInternal: NSObject {
             self.lastUploadedPaywallEvent = params
             self.lastUploadedPaywallEventDate = Date()
         }
-        
+
         submitPaywallEvent(params: params) { (result, _, _, _, code, _) in
             if !result {
                 self.schedulePaywallEvent(params, code == NSURLErrorNotConnectedToInternet)
@@ -689,7 +688,7 @@ extension ApphudInternal {
         case cellular
         case wifi
     }
-    
+
     var currentReachabilityStatus: ApphudConnectionType {
         var zeroAddress = sockaddr_in()
         zeroAddress.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
@@ -701,25 +700,21 @@ extension ApphudInternal {
         }) else {
             return .none
         }
-        
+
         var flags: SCNetworkReachabilityFlags = []
         if !SCNetworkReachabilityGetFlags(defaultRouteReachability, &flags) {
             return .none
         }
-        
+
         if flags.contains(.reachable) == false {
             return .none
-        }
-        else if flags.contains(.isWWAN) == true {
+        } else if flags.contains(.isWWAN) == true {
             return .cellular
-        }
-        else if flags.contains(.connectionRequired) == false {
+        } else if flags.contains(.connectionRequired) == false {
             return .wifi
-        }
-        else if (flags.contains(.connectionOnDemand) == true || flags.contains(.connectionOnTraffic) == true) && flags.contains(.interventionRequired) == false {
+        } else if (flags.contains(.connectionOnDemand) == true || flags.contains(.connectionOnTraffic) == true) && flags.contains(.interventionRequired) == false {
             return .wifi
-        }
-        else {
+        } else {
             return .none
         }
     }

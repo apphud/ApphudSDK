@@ -33,8 +33,8 @@ public class ApphudUtils: NSObject {
     internal static let shared = ApphudUtils()
     private(set) var logLevel: ApphudLogLevel = .off
     internal var storeKitObserverMode = false
-    internal var optOutOfIDFACollection = false
-    
+    internal var optOutOfTracking = false
+
     internal var isFlutter: Bool {
         ApphudHttpClient.shared.sdkType.lowercased() == "flutter"
     }

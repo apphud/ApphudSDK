@@ -102,12 +102,30 @@ class PaywallViewController: UIViewController {
 
     func purchaseProduct(_ product: ApphudProduct) async {
         self.showLoader()
+
         let result = await Apphud.purchase(product)
+
         self.purchaseCallback?(result.error == nil)
         self.hideLoader()
 
         if result.error == nil {
             self.closeAction()
+        }
+    }
+
+    @available(iOS 15.0, *)
+    func purchaseProductStruct(_ product: ApphudProduct) async {
+        if let productModel = await product.product() {
+            self.showLoader()
+
+            let result = await Apphud.purchase(productModel)
+
+            self.purchaseCallback?(result.success)
+            self.hideLoader()
+
+            if result.error == nil {
+                self.closeAction()
+            }
         }
     }
 
@@ -129,8 +147,22 @@ class PaywallViewController: UIViewController {
     @IBAction private func buttonAction() {
         guard let product = selectedProduct else {return}
 
-        Task {
-            await purchaseProduct(product)
-        }
+        let sheet = UIAlertController(title: "Select purchase method", message: nil, preferredStyle: .actionSheet)
+        sheet.addAction(UIAlertAction(title: "Purchase SKProduct", style: .default, handler: { _ in
+            Task {
+                await self.purchaseProduct(product)
+            }
+        }))
+        sheet.addAction(UIAlertAction(title: "Purchase Product struct", style: .default, handler: { _ in
+            Task {
+                if #available(iOS 15.0, *) {
+                    await self.purchaseProductStruct(product)
+                } else {
+                    await self.purchaseProduct(product)
+                }
+            }
+        }))
+        sheet.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        present(sheet, animated: true)
     }
 }

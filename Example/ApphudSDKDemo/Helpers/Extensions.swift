@@ -76,5 +76,3 @@ extension ApphudSubscriptionStatus {
         }
     }
 }
-
-

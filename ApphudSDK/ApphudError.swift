@@ -28,18 +28,18 @@ public class ApphudError: NSError {
     }
 }
 
-    extension NSError {
-        var apphudUnderlyingErrorCode: Int {
-            
-            if let error = userInfo["NSUnderlyingError"] as? NSError {
-                return error.code
-            }
+extension NSError {
+    var apphudUnderlyingErrorCode: Int {
 
-            return -1
+        if let error = userInfo["NSUnderlyingError"] as? NSError {
+            return error.code
         }
-    
+
+        return -1
+    }
+
     var apphudUnderlyingErrorDescription: String? {
-        
+
         if let error = userInfo["NSUnderlyingError"] as? NSError {
             return error.localizedFailureReason
         }

@@ -48,7 +48,7 @@ internal struct ApphudUser {
                 }
             }
         }
-        
+
         self.subscriptions = subs.sorted {
             if ($0.isActive() && $1.isActive()) || (!$0.isActive() && !$1.isActive()) {
                 return $0.expiresDate > $1.expiresDate
@@ -56,7 +56,7 @@ internal struct ApphudUser {
                 return $0.isActive()
             }
         }
-        
+
         self.purchases = inapps.sorted {
             if ($0.isActive() && $1.isActive()) || (!$0.isActive() && !$1.isActive()) {
                 return $0.purchasedAt > $1.purchasedAt
