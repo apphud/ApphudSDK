@@ -7,6 +7,7 @@
 
 import Foundation
 import StoreKit
+import SwiftUI
 
 @available(iOS 15.0, *)
 final class TransactionObserver {
@@ -23,13 +24,13 @@ final class TransactionObserver {
 
     private func newTransactionListenerTask() -> Task<Void, Never> {
         Task(priority: .background) {
-            for await verificationResult in Transaction.updates {
+            for await verificationResult in StoreKit.Transaction.updates {
                 self.handle(updatedTransaction: verificationResult)
             }
         }
     }
 
-    private func handle(updatedTransaction verificationResult: VerificationResult<Transaction>) {
+    private func handle(updatedTransaction verificationResult: VerificationResult<StoreKit.Transaction>) {
         guard case .verified(let transaction) = verificationResult else {
             if case .unverified(let unsignedTransaction, _) = verificationResult {
                 apphudLog("Received unverified transaction [\(unsignedTransaction.id), \(unsignedTransaction.productID)] from StoreKit2")
@@ -89,8 +90,9 @@ internal class ApphudAsyncStoreKit {
         }
     }
 
-    func purchase(product: Product, apphudProduct: ApphudProduct?) async -> ApphudAsyncPurchaseResult {
+    func purchase(product: Product, apphudProduct: ApphudProduct?, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
         self.isPurchasing = true
+        isPurchasing?.wrappedValue = true
         var options = Set<Product.PurchaseOption>()
         if let uuidString = ApphudStoreKitWrapper.shared.appropriateApplicationUsername(), let uuid = UUID(uuidString: uuidString) {
             options.insert(.appAccountToken(uuid))
@@ -98,9 +100,8 @@ internal class ApphudAsyncStoreKit {
 
         do {
             ApphudLoggerService.shared.paywallCheckoutInitiated(apphudProduct?.paywallId, product.id)
-            self.isPurchasing = true
             let result = try await product.purchase(options: options)
-            var transaction: Transaction?
+            var transaction: StoreKit.Transaction?
 
             switch result {
             case .success(.verified(let trx)):
@@ -122,11 +123,13 @@ internal class ApphudAsyncStoreKit {
             }
 
             self.isPurchasing = false
+            isPurchasing?.wrappedValue = false
 
             return ApphudInternal.shared.asyncPurchaseResult(product: product, transaction: transaction, error: nil)
 
         } catch {
             self.isPurchasing = false
+            isPurchasing?.wrappedValue = false
             return ApphudInternal.shared.asyncPurchaseResult(product: product, transaction: nil, error: error)
         }
     }

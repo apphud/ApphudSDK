@@ -1,0 +1,6 @@
+framework module ApphudSDK {
+  umbrella header "ApphudSDK-umbrella.h"
+
+  export *
+  module * { export * }
+}

@@ -40,6 +40,10 @@ public class ApphudPurchaseResult: NSObject {
      */
     @objc public let error: Error?
 
+    public var success: Bool {
+        error == nil
+    }
+
     // MARK: - Private methods
 
     init(_ subscription: ApphudSubscription?, _ purchase: ApphudNonRenewingPurchase?, _ transaction: SKPaymentTransaction?, _ error: Error?) {

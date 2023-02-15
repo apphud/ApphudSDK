@@ -224,12 +224,13 @@ extension ApphudInternal {
     func notifyAboutUpdates(_ hasChanges: HasPurchasesChanges) {
         if hasChanges.hasSubscriptionChanges {
             self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions)
-            NotificationCenter.default.post(name: Apphud.didUpdateSubscriptionsNotification(), object: nil)
         }
         if hasChanges.hasNonRenewingChanges {
             self.delegate?.apphudNonRenewingPurchasesUpdated?(self.currentUser!.purchases)
         }
-
+        if hasChanges.hasSubscriptionChanges || hasChanges.hasNonRenewingChanges {
+            NotificationCenter.default.post(name: Apphud.didUpdateNotification(), object: nil)
+        }
     }
 
     // MARK: - User Properties

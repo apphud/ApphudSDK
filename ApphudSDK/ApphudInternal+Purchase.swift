@@ -8,6 +8,7 @@
 
 import Foundation
 import StoreKit
+import SwiftUI
 
 @available(OSX 10.14.4, *)
 extension ApphudInternal {
@@ -48,7 +49,7 @@ extension ApphudInternal {
     }
 
     @available(iOS 15.0, *)
-    @discardableResult internal func handleTransaction(_ transaction: Transaction, forceSubmit: Bool = false) async -> Bool {
+    @discardableResult internal func handleTransaction(_ transaction: StoreKit.Transaction, forceSubmit: Bool = false) async -> Bool {
         let transactionId = transaction.id
         let refundDate = transaction.revocationDate
         let expirationDate = transaction.expirationDate
@@ -332,9 +333,11 @@ extension ApphudInternal {
     // MARK: - Internal purchase methods
 
     @available(iOS 13.0.0, macOS 11.0, *)
-    internal func purchase(productId: String, product: ApphudProduct?, validate: Bool, value: Double? = nil) async -> ApphudPurchaseResult {
+    internal func purchase(productId: String, product: ApphudProduct?, validate: Bool, isPurchasing: Binding<Bool>? = nil, value: Double? = nil) async -> ApphudPurchaseResult {
         await withCheckedContinuation { continuation in
+            isPurchasing?.wrappedValue = true
             purchase(productId: productId, product: product, validate: validate, callback: { result in
+                isPurchasing?.wrappedValue = false
                 continuation.resume(returning: result)
             })
         }
@@ -417,7 +420,7 @@ extension ApphudInternal {
     }
 
     @available(iOS 15.0, *)
-    internal func asyncPurchaseResult(product: Product, transaction: Transaction?, error: Error?) -> ApphudAsyncPurchaseResult {
+    internal func asyncPurchaseResult(product: Product, transaction: StoreKit.Transaction?, error: Error?) -> ApphudAsyncPurchaseResult {
 
         // 1. try to find in app purchase by product id
         let purchase = currentUser?.purchases.first(where: {$0.productId == product.id})

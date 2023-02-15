@@ -12,6 +12,7 @@ import UIKit
 import StoreKit
 import Foundation
 import UserNotifications
+import SwiftUI
 
 internal let apphud_sdk_version = "3.0.0"
 
@@ -226,8 +227,8 @@ final public class Apphud: NSObject {
      */
 
     @available(iOS 15.0, macOS 12.0, *)
-    public static func purchase(_ product: Product) async -> ApphudAsyncPurchaseResult {
-        await ApphudAsyncStoreKit.shared.purchase(product: product, apphudProduct: apphudProductFor(product))
+    public static func purchase(_ product: Product, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
+        await ApphudAsyncStoreKit.shared.purchase(product: product, apphudProduct: apphudProductFor(product), isPurchasing: isPurchasing)
     }
 
     /**
@@ -237,8 +238,8 @@ final public class Apphud: NSObject {
 
      - returns: `ApphudPurchaseResult` object.
      */
-    @objc public static func purchase(_ product: ApphudProduct) async -> ApphudPurchaseResult {
-        await ApphudInternal.shared.purchase(productId: product.productId, product: product, validate: true)
+    public static func purchase(_ product: ApphudProduct, isPurchasing: Binding<Bool>? = nil) async -> ApphudPurchaseResult {
+        await ApphudInternal.shared.purchase(productId: product.productId, product: product, validate: true, isPurchasing: isPurchasing)
     }
 
     /**
@@ -482,10 +483,10 @@ final public class Apphud: NSObject {
     }
 
     /**
-     This notification is called when any subscription is purchased or updated (for example, status changed from `trial` to `expired` or `isAutorenewEnabled` changed to `false`). SDK also checks for subscription updates when app becomes active.
+     This notification is called when any subscription or non-renewing purchase is purchased or updated. SDK also checks for purchase updates when app becomes active. Useful for updating your UI on any purchase changes. Useful for SwiftUI.
     */
-    @objc public static func didUpdateSubscriptionsNotification() -> Notification.Name {
-        return Notification.Name("ApphudDidUpdateSubscriptionsNotification")
+    @objc public static func didUpdateNotification() -> Notification.Name {
+        return Notification.Name("ApphudDidUpdateNotification")
     }
 
     /**
@@ -575,6 +576,7 @@ final public class Apphud: NSObject {
      
      - Note: You can remove this method after a some period of time, i.e. when you are sure that all paying users are already synced with Apphud.
      */
+    @available(iOS, deprecated: 15.0, message: "No longer needed for iOS 15+. Purchases migrate automatically.")
     @objc public static func migratePurchasesIfNeeded(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {
         if apphudShouldMigrate() {
             ApphudInternal.shared.restorePurchases { (subscriptions, purchases, error) in
