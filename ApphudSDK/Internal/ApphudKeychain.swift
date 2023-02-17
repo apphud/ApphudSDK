@@ -8,6 +8,7 @@
 
 import Security
 import Foundation
+import UIKit
 
 // Constant Identifiers
 let userAccount = "ApphudUser"
