@@ -28,7 +28,7 @@ struct ContentView: View {
             }
             .font(.headline)
             .padding()
-        
+
             Button("Get Premium") {
                 isPaywallPresented.toggle()
             }

@@ -301,6 +301,11 @@ final public class Apphud: NSObject {
         }
     }
 
+    @available(*, unavailable, renamed: "fetchProducts")
+    public static func productsDidFetchCallback(_ callback: @escaping ([SKProduct], Error?) -> Void) {
+        fetchProducts(callback)
+    }
+
     /**
      This notification is sent when `SKProduct`s are fetched from the App Store. Note that you have to add all product identifiers in Apphud Dashboard > Product Hub > Products.
 
@@ -326,6 +331,11 @@ final public class Apphud: NSObject {
         }
 
         return ApphudStoreKitWrapper.shared.products
+    }
+
+    @available(*, unavailable, renamed: "paywalls()")
+    public static var paywalls: [ApphudPaywall] {
+        []
     }
 
     /**
@@ -415,7 +425,7 @@ final public class Apphud: NSObject {
     /**
      Sets custom value (in USD) for purchases. You should call this method before starting a purchase. Custom value will be sent to AppsFlyer and Facebook for value optimization. You can try to send your subscriptions LTV or ARPPU as custom value. Must be sent in USD. Contact support manager for details.
      */
-    @objc public static func setCustomValueForTrial(_ value: Double, productId: String) {
+    @objc public static func setCustomPurchaseValue(_ value: Double, productId: String) {
         ApphudStoreKitWrapper.shared.purchasingValue = ApphudCustomPurchaseValue(productId, value)
     }
 
@@ -488,7 +498,7 @@ final public class Apphud: NSObject {
     /**
      Permission groups configured in Apphud dashboard > Product Hub > Products. Note that this method may be empty at the first launch of the app until prloducts are loaded. Groups are cached on device.
      
-     - Important:You should not use this method in Observer Mode.
+     - Important:You should not use this method in Observer Mode as it may return incorrect data.
      */
     @objc public static var permissionGroups: [ApphudGroup] {
         ApphudInternal.shared.productGroups
