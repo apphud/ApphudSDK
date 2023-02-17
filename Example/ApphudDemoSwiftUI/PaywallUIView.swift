@@ -40,12 +40,13 @@ struct PaywallUIView: View {
                 presentationMode.wrappedValue.dismiss()
             }, label: {Image(systemName: "xmark")}).disabled(isPurchasing),
                                 trailing: Button("Restore") {
-                isPurchasing = true
-                Apphud.restorePurchases { _, _, _ in
-                    isPurchasing = false
+                Task {
+                    isPurchasing = true
+                    await Apphud.restorePurchases()
                     if AppVariables.isPremium {
                         presentationMode.wrappedValue.dismiss()
                     }
+                    isPurchasing = false
                 }
             }.disabled(isPurchasing))
         }
@@ -145,6 +146,8 @@ struct PaywallUIView: View {
             guard let productStruct = await product.product() else {
                 return
             }
+
+            Apphud.setCustomValueForTrial(1.23, productId: product.productId)
 
             let result = await Apphud.purchase(productStruct, isPurchasing: $isPurchasing)
             if result.success {

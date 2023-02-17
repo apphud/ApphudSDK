@@ -75,6 +75,7 @@ extension ApphudInternal {
 
             let product = await ApphudStoreKitWrapper.shared.fetchProduct(productID)
             let receipt = await appStoreReceipt()
+            let isRecentlyPurchased: Bool = purchaseDate > Date().addingTimeInterval(-600)
             return await withCheckedContinuation { continuation in
                 performWhenUserRegistered {
                     apphudLog("Submitting transaction \(transactionId), \(productID) from StoreKit2..")
@@ -83,7 +84,7 @@ extension ApphudInternal {
                                        apphudProduct: nil,
                                        transactionIdentifier: String(transactionId),
                                        transactionProductIdentifier: productID,
-                                       transactionState: nil,
+                                       transactionState: isRecentlyPurchased ? .purchased : nil,
                                        receiptString: receipt,
                                        notifyDelegate: true) { [self] error in
                         if error != nil {

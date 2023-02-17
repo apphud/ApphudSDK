@@ -306,7 +306,7 @@ private class ApphudProductsFetcher: NSObject, SKProductsRequestDelegate {
         DispatchQueue.main.async {
             self.callback?(response.products, nil)
             if response.invalidProductIdentifiers.count > 0 {
-                apphudLog("Failed to load SKProducts from the App Store, because product identifiers are invalid:\n \(response.invalidProductIdentifiers)\n\tFor more details visit: https://docs.apphud.com/testing/ios#failed-to-load-skproducts-from-the-app-store-error", forceDisplay: true)
+                apphudLog("Failed to load SKProducts from the App Store, because product identifiers are invalid:\n \(response.invalidProductIdentifiers)\n\tFor more details visit: https://docs.apphud.com/docs/testing-troubleshooting#failed-to-load-skproducts-from-the-app-store-error", forceDisplay: true)
             }
             if response.products.count > 0 {
                 apphudLog("Successfully fetched SKProducts from the App Store:\n \(response.products.map { $0.productIdentifier })")
@@ -319,7 +319,7 @@ private class ApphudProductsFetcher: NSObject, SKProductsRequestDelegate {
     func request(_ request: SKRequest, didFailWithError error: Error) {
         DispatchQueue.main.async {
             if (error as NSError).description.contains("Attempted to decode store response") {
-                apphudLog("Failed to load SKProducts from the App Store, error: \(error). [!] App Store features in iOS Simulator are not supported. For more details visit: https://docs.apphud.com/testing/ios#attempted-to-decode-store-response-error-while-fetching-products", forceDisplay: true)
+                apphudLog("Failed to load SKProducts from the App Store, error: \(error). [!] App Store features in iOS Simulator are not supported. For more details visit: https://docs.apphud.com/docs/testing-troubleshooting#attempted-to-decode-store-response-error-while-fetching-products", forceDisplay: true)
             } else {
                 apphudLog("Failed to load SKProducts from the App Store, error: \(error)", forceDisplay: true)
             }

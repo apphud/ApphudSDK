@@ -29,7 +29,7 @@ import StoreKit
     /**
         Called when user ID has been changed. Use this if you implement integrations with Analytics services.
      
-        Please read following if you implement integrations: `https://docs.apphud.com/docs/en/sdk-integration#user-identifier-and-integrations`
+        Please read following if you implement integrations: `https://docs.apphud.com/docs/initialization`
      
         This delegate method is called in 2 cases:
      
@@ -81,14 +81,14 @@ import StoreKit
 
     /**
         Called when user is registered in Apphud [or used from cache]. This method is called once per app lifecycle.
-        The `rawPaywalls` array may not yet have SKProducts, so this method should not be used for paywalls management.
+        The `rawPaywalls` array may not yet have `SKProducts`, so this method should not be used for paywalls management.
 
         However, if using A/B Testing, `rawPaywalls` can be used to fetch `experimentName`, `variationName` or other parameters like `json` from your experimental paywall.
     */
     @objc optional func userDidLoad(rawPaywalls: [ApphudPaywall])
 
     /**
-     Called when paywalls are fully loaded with their SKProducts. This is a duplicate for `Apphud.paywallsDidLoadCallback {}` method.
+     Called when paywalls are fully loaded with their `SKProducts` / `Products`. This is a duplicate for `Apphud.paywallsDidLoadCallback {}` method.
     */
     @objc optional func paywallsDidFullyLoad(paywalls: [ApphudPaywall])
 }

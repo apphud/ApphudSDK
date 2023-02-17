@@ -419,6 +419,7 @@
 				DEVELOPMENT_TEAM = JLG6CF288G;
 				INFOPLIST_FILE = "$(SRCROOT)/ApphudSDKDemo/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Apphud;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -450,6 +451,7 @@
 				DEVELOPMENT_TEAM = JLG6CF288G;
 				INFOPLIST_FILE = "$(SRCROOT)/ApphudSDKDemo/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Apphud;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

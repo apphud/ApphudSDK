@@ -21,7 +21,7 @@ import Foundation
  
  - Note: An alternative way of getting ``Apphud/paywalls``
  
- - Important: For more information  - [Paywalls Documentation](https://docs.apphud.com/getting-started/product-hub/paywalls)
+ - Important: For more information  - [Paywalls Documentation](https://docs.apphud.com/docs/paywalls)
  */
 
 public class ApphudPaywall: NSObject, Codable {

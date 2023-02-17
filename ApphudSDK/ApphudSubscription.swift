@@ -81,7 +81,7 @@ public class ApphudSubscription: NSObject {
     @objc public let isSandbox: Bool
 
     /**
-     Returns `true` if subscription was made using Local StoreKit Configuration File. Read more: https://docs.apphud.com/getting-started/sandbox#testing-purchases-using-local-storekit-configuration-file
+     Returns `true` if subscription was made using Local StoreKit Configuration File. Read more: https://docs.apphud.com/docs/testing-troubleshooting#local-storekit-testing
      */
     @objc public let isLocal: Bool
 

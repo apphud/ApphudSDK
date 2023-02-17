@@ -33,10 +33,22 @@ class PaywallViewController: UIViewController {
         setupNavBar()
         Task {
             await loadPaywalls()
+//            await loadProducts()
         }
     }
 
     // MARK: - ViewModel Methods
+
+    private func loadProducts() async {
+        do {
+            if #available(iOS 15.0, *) {
+                let products = try await Apphud.fetchProducts()
+                print("products successfully fetched: \(products.map { $0.id })")
+            }
+        } catch {
+            print("products fetch error = \(error)")
+        }
+    }
 
     private func loadPaywalls() async {
         let paywalls = await Apphud.paywalls()

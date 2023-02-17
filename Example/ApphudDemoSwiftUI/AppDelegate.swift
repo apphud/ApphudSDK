@@ -14,7 +14,8 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
 
-      ApphudUtils.enableAllLogs()
+        ApphudUtils.enableAllLogs()
+
       Apphud.start(apiKey: "app_4sY9cLggXpMDDQMmvc5wXUPGReMp8G", observerMode: true)
 
       /** Custom User Properties Examples */
@@ -32,7 +33,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 
     func registerForNotifications() {
         UNUserNotificationCenter.current().delegate = self
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { (_, _) in }
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { _, _ in }
         UIApplication.shared.registerForRemoteNotifications()
     }
 

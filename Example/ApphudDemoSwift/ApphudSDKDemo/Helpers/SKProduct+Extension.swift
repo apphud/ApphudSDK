@@ -11,6 +11,14 @@ import StoreKit
 
 extension SKProduct {
 
+    /**
+     Returns product pricing terms in the following format:
+     "3 days free trial, then $1.99 / week' if free trial,
+     "Weekly Access – $1.99 / week" if no trial,
+     "Weekly Access – $1.99 / week" if no trial,
+     "Life Time Access – $19.99" if not a subscription
+     */
+
     func pricingDescription() -> String {
         if subscriptionPeriod != nil {
             if introductoryPrice != nil {

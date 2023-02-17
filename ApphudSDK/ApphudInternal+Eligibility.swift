@@ -31,7 +31,7 @@ extension ApphudInternal {
                         self._checkPromoEligibilitiesForRegisteredUser(products: products, callback: callback)
                     })
                 } else {
-                    apphudLog("Receipt not found on device, impossible to determine eligibility. This is probably missing sandbox receipt issue. This should never not happen on production, because there receipt always exists. For more information see: https://docs.apphud.com/getting-started/sandbox#testing-eligibilities. Exiting", forceDisplay: true)
+                    apphudLog("Receipt not found on device, impossible to determine eligibility. This is probably missing sandbox receipt issue. This should never not happen on production, because there receipt always exists. For more information see: https://docs.apphud.com/docs/testing-troubleshooting. Exiting", forceDisplay: true)
                     var response = [String: Bool]()
                     for product in products {
                         response[product.productIdentifier] = false // cannot purchase offer by default
@@ -98,7 +98,7 @@ extension ApphudInternal {
                         self._checkIntroEligibilitiesForRegisteredUser(products: products, callback: callback)
                     })
                 } else {
-                    apphudLog("Receipt not found on device, impossible to determine eligibility. This is probably missing sandbox receipt issue. This should never not happen on production, because there receipt always exists. For more information see: https://docs.apphud.com/getting-started/sandbox#testing-eligibilities. Exiting", forceDisplay: true)
+                    apphudLog("Receipt not found on device, impossible to determine eligibility. This is probably missing sandbox receipt issue. This should never not happen on production, because there receipt always exists. For more information see: https://docs.apphud.com/docs/testing-troubleshooting. Exiting", forceDisplay: true)
                     var response = [String: Bool]()
                     for product in products {
                         response[product.productIdentifier] = true // can purchase intro by default

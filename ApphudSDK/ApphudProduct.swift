@@ -14,7 +14,7 @@ import StoreKit
  In-App Purchase must configured in App Store Connect and should be added to Apphud Dashboard > Product Hub > Products.
  `ApphudProduct` is Apphud's wrapper around StoreKit's `SKProduct`.
  
- - Note: For more information  - [Product Hub Documentation](https://docs.apphud.com/getting-started/product-hub/products)
+ - Note: For more information  - [Product Hub Documentation](https://docs.apphud.com/docs/product-hub)
  */
 
 public class ApphudProduct: NSObject, Codable {
