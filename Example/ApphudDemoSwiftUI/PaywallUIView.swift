@@ -147,7 +147,7 @@ struct PaywallUIView: View {
                 return
             }
 
-            Apphud.setCustomValueForTrial(1.23, productId: product.productId)
+            Apphud.setCustomPurchaseValue(1.23, productId: product.productId)
 
             let result = await Apphud.purchase(productStruct, isPurchasing: $isPurchasing)
             if result.success {

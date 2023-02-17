@@ -15,7 +15,7 @@
 		2833A971299CA51600398839 /* AppVariables.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2833A970299CA51600398839 /* AppVariables.swift */; };
 		2833A973299CA5BE00398839 /* PaywallUIView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2833A972299CA5BE00398839 /* PaywallUIView.swift */; };
 		2833A975299CA71600398839 /* SKProduct+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2833A974299CA71600398839 /* SKProduct+Extension.swift */; };
-		2833A977299CAF4100398839 /* StoreKit.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 2833A976299CAF4100398839 /* StoreKit.storekit */; };
+		28CC9439299F60F30014E855 /* StoreKit.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 28CC9438299F60F30014E855 /* StoreKit.storekit */; };
 		E1AA755B70E83321495C25D9 /* Pods_ApphudDemoSwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7C0A5D6F7E7B2BC1E1CF2309 /* Pods_ApphudDemoSwiftUI.framework */; };
 /* End PBXBuildFile section */
 
@@ -31,7 +31,7 @@
 		2833A970299CA51600398839 /* AppVariables.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppVariables.swift; sourceTree = "<group>"; };
 		2833A972299CA5BE00398839 /* PaywallUIView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallUIView.swift; sourceTree = "<group>"; };
 		2833A974299CA71600398839 /* SKProduct+Extension.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = "SKProduct+Extension.swift"; path = "../ApphudDemoSwift/ApphudSDKDemo/Helpers/SKProduct+Extension.swift"; sourceTree = "<group>"; };
-		2833A976299CAF4100398839 /* StoreKit.storekit */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = StoreKit.storekit; path = ../ApphudDemoSwift/ApphudSDKDemo/StoreKit.storekit; sourceTree = "<group>"; };
+		28CC9438299F60F30014E855 /* StoreKit.storekit */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = StoreKit.storekit; sourceTree = "<group>"; };
 		7C0A5D6F7E7B2BC1E1CF2309 /* Pods_ApphudDemoSwiftUI.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_ApphudDemoSwiftUI.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		E0FD7A5B71CB67D116CA478E /* Pods-ApphudDemoSwiftUI.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ApphudDemoSwiftUI.debug.xcconfig"; path = "Target Support Files/Pods-ApphudDemoSwiftUI/Pods-ApphudDemoSwiftUI.debug.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -69,7 +69,7 @@
 		2833A95C299C95A700398839 /* ApphudDemoSwiftUI */ = {
 			isa = PBXGroup;
 			children = (
-				2833A976299CAF4100398839 /* StoreKit.storekit */,
+				28CC9438299F60F30014E855 /* StoreKit.storekit */,
 				2833A96D299CA20600398839 /* ApphudDemoSwiftUI-Info.plist */,
 				2833A95D299C95A700398839 /* ApphudDemoSwiftUIApp.swift */,
 				2833A95F299C95A700398839 /* ContentView.swift */,
@@ -168,7 +168,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				2833A977299CAF4100398839 /* StoreKit.storekit in Resources */,
+				28CC9439299F60F30014E855 /* StoreKit.storekit in Resources */,
 				2833A965299C95A800398839 /* Preview Assets.xcassets in Resources */,
 				2833A962299C95A800398839 /* Assets.xcassets in Resources */,
 			);
