@@ -6,10 +6,10 @@
 //  Copyright © 2019 Apphud Inc. All rights reserved.
 //
 
-struct ApphudScreen {
+public struct ApphudScreen {
 
-    var status_bar_color: String?
-    var name: String?
+    public var status_bar_color: String?
+    public var name: String?
 
     init(dictionary: [String: Any]) {
         status_bar_color = dictionary["status_bar_color"] as? String

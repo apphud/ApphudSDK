@@ -64,63 +64,63 @@
 /* Begin PBXFileReference section */
 		0264D1C26F4354EC5FA1600B3E6302FB /* Pods-ApphudSDKDemo */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; name = "Pods-ApphudSDKDemo"; path = Pods_ApphudSDKDemo.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		026AB9AEBAE804904EF463B3738960A3 /* ApphudSDK-umbrella.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "ApphudSDK-umbrella.h"; sourceTree = "<group>"; };
-		02F33371190D96CEAC8AE50D72EF505F /* ApphudHttpClient.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ApphudHttpClient.swift; path = ApphudSDK/ApphudHttpClient.swift; sourceTree = "<group>"; };
-		08FDF3CD45590705143488C5E69875B8 /* ApphudPaywall.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ApphudPaywall.swift; path = ApphudSDK/ApphudPaywall.swift; sourceTree = "<group>"; };
+		02F33371190D96CEAC8AE50D72EF505F /* ApphudHttpClient.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ApphudHttpClient.swift; sourceTree = "<group>"; };
+		08FDF3CD45590705143488C5E69875B8 /* ApphudPaywall.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ApphudPaywall.swift; sourceTree = "<group>"; };
 		0DE38071E84A9951B95FEECBEA926D5C /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS14.0.sdk/System/Library/Frameworks/StoreKit.framework; sourceTree = DEVELOPER_DIR; };
 		116B608BECADE7354BEF4977EBA361C6 /* ApphudSDK */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; name = ApphudSDK; path = ApphudSDK.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		11828B8436FB9BB737160593B4DEE761 /* LICENSE */ = {isa = PBXFileReference; includeInIndex = 1; path = LICENSE; sourceTree = "<group>"; };
+		11828B8436FB9BB737160593B4DEE761 /* LICENSE */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
 		1ACBD6E961C82904412329A439D85BF3 /* ApphudNavigationController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ApphudNavigationController.swift; sourceTree = "<group>"; };
-		1BE09956628ABCAE1E636B52B803F149 /* ApphudInternal.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ApphudInternal.swift; path = ApphudSDK/ApphudInternal.swift; sourceTree = "<group>"; };
-		226A6C7AB0C02F9DEAF56F1420E2277F /* ApphudInternal+UserUpdate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = "ApphudInternal+UserUpdate.swift"; path = "ApphudSDK/ApphudInternal+UserUpdate.swift"; sourceTree = "<group>"; };
+		1BE09956628ABCAE1E636B52B803F149 /* ApphudInternal.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ApphudInternal.swift; sourceTree = "<group>"; };
+		226A6C7AB0C02F9DEAF56F1420E2277F /* ApphudInternal+UserUpdate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "ApphudInternal+UserUpdate.swift"; sourceTree = "<group>"; };
 		2C6AD5A6CB2972835AA170CE75CDAD3E /* Pods-ApphudSDKDemo-umbrella.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "Pods-ApphudSDKDemo-umbrella.h"; sourceTree = "<group>"; };
 		34E0400E9294293E7663F657F9D57450 /* Pods-ApphudSDKDemo-acknowledgements.markdown */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = "Pods-ApphudSDKDemo-acknowledgements.markdown"; sourceTree = "<group>"; };
 		351A4BE6B58E07A5958EEE28B372F3D8 /* ApphudSDK.modulemap */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.module; path = ApphudSDK.modulemap; sourceTree = "<group>"; };
-		375F43BF68EAEF1458708CA98EB2DF74 /* ApphudKeychain.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ApphudKeychain.swift; path = ApphudSDK/ApphudKeychain.swift; sourceTree = "<group>"; };
+		375F43BF68EAEF1458708CA98EB2DF74 /* ApphudKeychain.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ApphudKeychain.swift; sourceTree = "<group>"; };
 		3EDDCFEA00DCC4FF0FCDEDEDBE6773BA /* ApphudSDK-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "ApphudSDK-Info.plist"; sourceTree = "<group>"; };
-		404402EA923EAF71701E7483A13116A7 /* ApphudRule.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ApphudRule.swift; path = ApphudSDK/ApphudRule.swift; sourceTree = "<group>"; };
-		46CAFA756D40D7228D573AD665AB999A /* ApphudUser.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ApphudUser.swift; path = ApphudSDK/ApphudUser.swift; sourceTree = "<group>"; };
+		404402EA923EAF71701E7483A13116A7 /* ApphudRule.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ApphudRule.swift; sourceTree = "<group>"; };
+		46CAFA756D40D7228D573AD665AB999A /* ApphudUser.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ApphudUser.swift; sourceTree = "<group>"; };
 		4A5BE3280F1F9F806124DF7BCF2DB9DF /* ApphudScreenController+Extensions.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "ApphudScreenController+Extensions.swift"; sourceTree = "<group>"; };
-		553CF5823CD1DAE8B104ADBD01E51185 /* ApphudPurchaseResult.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ApphudPurchaseResult.swift; path = ApphudSDK/ApphudPurchaseResult.swift; sourceTree = "<group>"; };
+		553CF5823CD1DAE8B104ADBD01E51185 /* ApphudPurchaseResult.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ApphudPurchaseResult.swift; sourceTree = "<group>"; };
 		55491B53CCB52C197797CCFE018C0BF6 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS14.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
-		57ABBC03EF747C62298C732316425DED /* Apphud.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = Apphud.swift; path = ApphudSDK/Apphud.swift; sourceTree = "<group>"; };
-		5A7FC53C8928613A33AFCECD6844A2E7 /* ApphudInternal+Attribution.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = "ApphudInternal+Attribution.swift"; path = "ApphudSDK/ApphudInternal+Attribution.swift"; sourceTree = "<group>"; };
-		5BE02B845B5142F001D43CCE7BA5F607 /* ApphudLoggerService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ApphudLoggerService.swift; path = ApphudSDK/ApphudLoggerService.swift; sourceTree = "<group>"; };
+		57ABBC03EF747C62298C732316425DED /* Apphud.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Apphud.swift; sourceTree = "<group>"; };
+		5A7FC53C8928613A33AFCECD6844A2E7 /* ApphudInternal+Attribution.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "ApphudInternal+Attribution.swift"; sourceTree = "<group>"; };
+		5BE02B845B5142F001D43CCE7BA5F607 /* ApphudLoggerService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ApphudLoggerService.swift; sourceTree = "<group>"; };
 		5D0C87C9B872AA8CD56A9C661B7A378F /* ApphudScreenController+Macros.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "ApphudScreenController+Macros.swift"; sourceTree = "<group>"; };
 		5EC66EAB70CE0556C0BEFD440182D222 /* Pods-ApphudSDKDemo-dummy.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = "Pods-ApphudSDKDemo-dummy.m"; sourceTree = "<group>"; };
 		6077960F7D7132CCDE32A21391FC0466 /* ApphudUIDelegate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ApphudUIDelegate.swift; sourceTree = "<group>"; };
-		63310AEED63225A1CBA2C96B486540C3 /* ApphudSubscription.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ApphudSubscription.swift; path = ApphudSDK/ApphudSubscription.swift; sourceTree = "<group>"; };
-		66BA80762371A236B89C1AF50A477C81 /* ApphudAsyncStoreKit.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ApphudAsyncStoreKit.swift; path = ApphudSDK/ApphudAsyncStoreKit.swift; sourceTree = "<group>"; };
-		6E4D8249BE17EB668ECBE85180BDD4B1 /* ApphudUtils.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ApphudUtils.swift; path = ApphudSDK/ApphudUtils.swift; sourceTree = "<group>"; };
-		77A3F094E506F8181C4E781305F2CD99 /* ApphudExtensions.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ApphudExtensions.swift; path = ApphudSDK/ApphudExtensions.swift; sourceTree = "<group>"; };
-		79CCEC20E5CA21BE49B7C10EB3BA796C /* ApphudUserProperty.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ApphudUserProperty.swift; path = ApphudSDK/ApphudUserProperty.swift; sourceTree = "<group>"; };
-		8821394F17C3447053EF195F645DE9C3 /* ApphudInternal+Purchase.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = "ApphudInternal+Purchase.swift"; path = "ApphudSDK/ApphudInternal+Purchase.swift"; sourceTree = "<group>"; };
-		8D1E1FC3610E4B2C8FA4F8F6E571A5F2 /* ApphudSDK.podspec */ = {isa = PBXFileReference; explicitFileType = text.script.ruby; includeInIndex = 1; indentWidth = 2; lastKnownFileType = text; path = ApphudSDK.podspec; sourceTree = "<group>"; tabWidth = 2; xcLanguageSpecificationIdentifier = xcode.lang.ruby; };
-		97789E9D401CE3EB794B27678EFB9DC1 /* ApphudAsyncPurchaseResult.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ApphudAsyncPurchaseResult.swift; path = ApphudSDK/ApphudAsyncPurchaseResult.swift; sourceTree = "<group>"; };
+		63310AEED63225A1CBA2C96B486540C3 /* ApphudSubscription.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ApphudSubscription.swift; sourceTree = "<group>"; };
+		66BA80762371A236B89C1AF50A477C81 /* ApphudAsyncStoreKit.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ApphudAsyncStoreKit.swift; sourceTree = "<group>"; };
+		6E4D8249BE17EB668ECBE85180BDD4B1 /* ApphudUtils.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ApphudUtils.swift; sourceTree = "<group>"; };
+		77A3F094E506F8181C4E781305F2CD99 /* ApphudExtensions.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ApphudExtensions.swift; sourceTree = "<group>"; };
+		79CCEC20E5CA21BE49B7C10EB3BA796C /* ApphudUserProperty.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ApphudUserProperty.swift; sourceTree = "<group>"; };
+		8821394F17C3447053EF195F645DE9C3 /* ApphudInternal+Purchase.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "ApphudInternal+Purchase.swift"; sourceTree = "<group>"; };
+		8D1E1FC3610E4B2C8FA4F8F6E571A5F2 /* ApphudSDK.podspec */ = {isa = PBXFileReference; explicitFileType = text.script.ruby; includeInIndex = 1; indentWidth = 2; path = ApphudSDK.podspec; sourceTree = "<group>"; tabWidth = 2; xcLanguageSpecificationIdentifier = xcode.lang.ruby; };
+		97789E9D401CE3EB794B27678EFB9DC1 /* ApphudAsyncPurchaseResult.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ApphudAsyncPurchaseResult.swift; sourceTree = "<group>"; };
 		9C3AD398F97E4D0DDD2B557F910C80F6 /* Pods-ApphudSDKDemo.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-ApphudSDKDemo.debug.xcconfig"; sourceTree = "<group>"; };
-		9D940727FF8FB9C785EB98E56350EF41 /* Podfile */ = {isa = PBXFileReference; explicitFileType = text.script.ruby; includeInIndex = 1; indentWidth = 2; lastKnownFileType = text; name = Podfile; path = ../Podfile; sourceTree = SOURCE_ROOT; tabWidth = 2; xcLanguageSpecificationIdentifier = xcode.lang.ruby; };
+		9D940727FF8FB9C785EB98E56350EF41 /* Podfile */ = {isa = PBXFileReference; explicitFileType = text.script.ruby; includeInIndex = 1; indentWidth = 2; name = Podfile; path = ../Podfile; sourceTree = SOURCE_ROOT; tabWidth = 2; xcLanguageSpecificationIdentifier = xcode.lang.ruby; };
 		A08E75B056843F28156079BECB4DF143 /* Pods-ApphudSDKDemo-acknowledgements.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Pods-ApphudSDKDemo-acknowledgements.plist"; sourceTree = "<group>"; };
 		A0B5AD21FA0FD8244866ACB27AEE0986 /* ApphudSDK-prefix.pch */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "ApphudSDK-prefix.pch"; sourceTree = "<group>"; };
 		A164C15C5F27ECADE201C01C8FEFE053 /* Pods-ApphudSDKDemo.modulemap */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.module; path = "Pods-ApphudSDKDemo.modulemap"; sourceTree = "<group>"; };
 		B8C9E8664A7EC5C1ABF36DFC414C6C69 /* Pods-ApphudSDKDemo.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-ApphudSDKDemo.release.xcconfig"; sourceTree = "<group>"; };
-		BAE59E96D20D6524E0AD7B7B542046D5 /* ApphudDelegate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ApphudDelegate.swift; path = ApphudSDK/ApphudDelegate.swift; sourceTree = "<group>"; };
-		BDE35C96914B9B0E9A981FB7E45834F2 /* ApphudStoreKitWrapper.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ApphudStoreKitWrapper.swift; path = ApphudSDK/ApphudStoreKitWrapper.swift; sourceTree = "<group>"; };
-		C28808BF78D392A8561D9950D879CE90 /* ApphudProduct.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ApphudProduct.swift; path = ApphudSDK/ApphudProduct.swift; sourceTree = "<group>"; };
+		BAE59E96D20D6524E0AD7B7B542046D5 /* ApphudDelegate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ApphudDelegate.swift; sourceTree = "<group>"; };
+		BDE35C96914B9B0E9A981FB7E45834F2 /* ApphudStoreKitWrapper.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ApphudStoreKitWrapper.swift; sourceTree = "<group>"; };
+		C28808BF78D392A8561D9950D879CE90 /* ApphudProduct.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ApphudProduct.swift; sourceTree = "<group>"; };
 		C8838A4C386378D9BDF7756077B72688 /* ApphudSDK.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = ApphudSDK.release.xcconfig; sourceTree = "<group>"; };
-		CEA5CC53123D522407082D6BDF636BBF /* ApphudInternal+Product.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = "ApphudInternal+Product.swift"; path = "ApphudSDK/ApphudInternal+Product.swift"; sourceTree = "<group>"; };
+		CEA5CC53123D522407082D6BDF636BBF /* ApphudInternal+Product.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "ApphudInternal+Product.swift"; sourceTree = "<group>"; };
 		D395683B562225DED4208883D4F8246F /* ApphudRulesManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ApphudRulesManager.swift; sourceTree = "<group>"; };
-		D602C602F967C30D549EF96CD4A1AA80 /* ApphudGroup.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ApphudGroup.swift; path = ApphudSDK/ApphudGroup.swift; sourceTree = "<group>"; };
+		D602C602F967C30D549EF96CD4A1AA80 /* ApphudGroup.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ApphudGroup.swift; sourceTree = "<group>"; };
 		D60F43E1A51FA314521177CFA152797E /* ApphudScreenController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ApphudScreenController.swift; sourceTree = "<group>"; };
 		D6F1F95FAF049868C07A1E50663A03FE /* Pods-ApphudSDKDemo-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Pods-ApphudSDKDemo-Info.plist"; sourceTree = "<group>"; };
 		DF30FEE32C5DC13D79C626C01A0421FD /* ApphudSDK.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = ApphudSDK.debug.xcconfig; sourceTree = "<group>"; };
-		E03764E7DBEA65AB52A3AF1FA9D0B841 /* ApphudUserPropertyKey.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ApphudUserPropertyKey.swift; path = ApphudSDK/ApphudUserPropertyKey.swift; sourceTree = "<group>"; };
-		E165D1A1D7FECD461D043451EA4FB367 /* ApphudReceipt.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ApphudReceipt.swift; path = ApphudSDK/ApphudReceipt.swift; sourceTree = "<group>"; };
-		E2C1BB26DB432BDC8B262231B38BC68D /* README.md */ = {isa = PBXFileReference; includeInIndex = 1; path = README.md; sourceTree = "<group>"; };
+		E03764E7DBEA65AB52A3AF1FA9D0B841 /* ApphudUserPropertyKey.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ApphudUserPropertyKey.swift; sourceTree = "<group>"; };
+		E165D1A1D7FECD461D043451EA4FB367 /* ApphudReceipt.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ApphudReceipt.swift; sourceTree = "<group>"; };
+		E2C1BB26DB432BDC8B262231B38BC68D /* README.md */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		E8EABA890F77F7BAE29BEF4303ABF35A /* Pods-ApphudSDKDemo-frameworks.sh */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.script.sh; path = "Pods-ApphudSDKDemo-frameworks.sh"; sourceTree = "<group>"; };
 		EEFEA4E0C9F73192EB14BF25EC08FFE8 /* ApphudSDK-dummy.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = "ApphudSDK-dummy.m"; sourceTree = "<group>"; };
-		F531249BB5C4278D399D6FA6B7DE715B /* ApphudInternal+Eligibility.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = "ApphudInternal+Eligibility.swift"; path = "ApphudSDK/ApphudInternal+Eligibility.swift"; sourceTree = "<group>"; };
-		F6958020A2FB6ECBB42F2A9D9B0BFD19 /* ApphudScreen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ApphudScreen.swift; path = ApphudSDK/ApphudScreen.swift; sourceTree = "<group>"; };
-		FC6FCD9FF56649EFCDB0BD93B87E3928 /* ApphudError.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ApphudError.swift; path = ApphudSDK/ApphudError.swift; sourceTree = "<group>"; };
-		FCC2CB0262EE8C77829C31F93BE65B45 /* ApphudNonRenewingPurchase.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ApphudNonRenewingPurchase.swift; path = ApphudSDK/ApphudNonRenewingPurchase.swift; sourceTree = "<group>"; };
+		F531249BB5C4278D399D6FA6B7DE715B /* ApphudInternal+Eligibility.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "ApphudInternal+Eligibility.swift"; sourceTree = "<group>"; };
+		F6958020A2FB6ECBB42F2A9D9B0BFD19 /* ApphudScreen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ApphudScreen.swift; sourceTree = "<group>"; };
+		FC6FCD9FF56649EFCDB0BD93B87E3928 /* ApphudError.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ApphudError.swift; sourceTree = "<group>"; };
+		FCC2CB0262EE8C77829C31F93BE65B45 /* ApphudNonRenewingPurchase.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ApphudNonRenewingPurchase.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -160,6 +160,50 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
+		28CC9436299F56740014E855 /* Public */ = {
+			isa = PBXGroup;
+			children = (
+				57ABBC03EF747C62298C732316425DED /* Apphud.swift */,
+				08FDF3CD45590705143488C5E69875B8 /* ApphudPaywall.swift */,
+				C28808BF78D392A8561D9950D879CE90 /* ApphudProduct.swift */,
+				63310AEED63225A1CBA2C96B486540C3 /* ApphudSubscription.swift */,
+				FCC2CB0262EE8C77829C31F93BE65B45 /* ApphudNonRenewingPurchase.swift */,
+				D602C602F967C30D549EF96CD4A1AA80 /* ApphudGroup.swift */,
+				FC6FCD9FF56649EFCDB0BD93B87E3928 /* ApphudError.swift */,
+				553CF5823CD1DAE8B104ADBD01E51185 /* ApphudPurchaseResult.swift */,
+				97789E9D401CE3EB794B27678EFB9DC1 /* ApphudAsyncPurchaseResult.swift */,
+				E165D1A1D7FECD461D043451EA4FB367 /* ApphudReceipt.swift */,
+				E03764E7DBEA65AB52A3AF1FA9D0B841 /* ApphudUserPropertyKey.swift */,
+				6E4D8249BE17EB668ECBE85180BDD4B1 /* ApphudUtils.swift */,
+				BAE59E96D20D6524E0AD7B7B542046D5 /* ApphudDelegate.swift */,
+				6077960F7D7132CCDE32A21391FC0466 /* ApphudUIDelegate.swift */,
+				404402EA923EAF71701E7483A13116A7 /* ApphudRule.swift */,
+				F6958020A2FB6ECBB42F2A9D9B0BFD19 /* ApphudScreen.swift */,
+			);
+			path = Public;
+			sourceTree = "<group>";
+		};
+		28CC9437299F56CD0014E855 /* Internal */ = {
+			isa = PBXGroup;
+			children = (
+				77A3F094E506F8181C4E781305F2CD99 /* ApphudExtensions.swift */,
+				02F33371190D96CEAC8AE50D72EF505F /* ApphudHttpClient.swift */,
+				1BE09956628ABCAE1E636B52B803F149 /* ApphudInternal.swift */,
+				5A7FC53C8928613A33AFCECD6844A2E7 /* ApphudInternal+Attribution.swift */,
+				F531249BB5C4278D399D6FA6B7DE715B /* ApphudInternal+Eligibility.swift */,
+				CEA5CC53123D522407082D6BDF636BBF /* ApphudInternal+Product.swift */,
+				8821394F17C3447053EF195F645DE9C3 /* ApphudInternal+Purchase.swift */,
+				226A6C7AB0C02F9DEAF56F1420E2277F /* ApphudInternal+UserUpdate.swift */,
+				375F43BF68EAEF1458708CA98EB2DF74 /* ApphudKeychain.swift */,
+				5BE02B845B5142F001D43CCE7BA5F607 /* ApphudLoggerService.swift */,
+				BDE35C96914B9B0E9A981FB7E45834F2 /* ApphudStoreKitWrapper.swift */,
+				66BA80762371A236B89C1AF50A477C81 /* ApphudAsyncStoreKit.swift */,
+				79CCEC20E5CA21BE49B7C10EB3BA796C /* ApphudUserProperty.swift */,
+				46CAFA756D40D7228D573AD665AB999A /* ApphudUser.swift */,
+			);
+			path = Internal;
+			sourceTree = "<group>";
+		};
 		30FD5216C3768DE88A1A46BE31FD0BF5 /* Pod */ = {
 			isa = PBXGroup;
 			children = (
@@ -178,7 +222,6 @@
 				D60F43E1A51FA314521177CFA152797E /* ApphudScreenController.swift */,
 				4A5BE3280F1F9F806124DF7BCF2DB9DF /* ApphudScreenController+Extensions.swift */,
 				5D0C87C9B872AA8CD56A9C661B7A378F /* ApphudScreenController+Macros.swift */,
-				6077960F7D7132CCDE32A21391FC0466 /* ApphudUIDelegate.swift */,
 			);
 			name = ApphudUI;
 			path = ApphudSDK/ApphudUI;
@@ -187,35 +230,8 @@
 		379BA73BD5EC4D217568936A3FB3B176 /* ApphudSDK */ = {
 			isa = PBXGroup;
 			children = (
-				57ABBC03EF747C62298C732316425DED /* Apphud.swift */,
-				97789E9D401CE3EB794B27678EFB9DC1 /* ApphudAsyncPurchaseResult.swift */,
-				66BA80762371A236B89C1AF50A477C81 /* ApphudAsyncStoreKit.swift */,
-				BAE59E96D20D6524E0AD7B7B542046D5 /* ApphudDelegate.swift */,
-				FC6FCD9FF56649EFCDB0BD93B87E3928 /* ApphudError.swift */,
-				77A3F094E506F8181C4E781305F2CD99 /* ApphudExtensions.swift */,
-				D602C602F967C30D549EF96CD4A1AA80 /* ApphudGroup.swift */,
-				02F33371190D96CEAC8AE50D72EF505F /* ApphudHttpClient.swift */,
-				1BE09956628ABCAE1E636B52B803F149 /* ApphudInternal.swift */,
-				5A7FC53C8928613A33AFCECD6844A2E7 /* ApphudInternal+Attribution.swift */,
-				F531249BB5C4278D399D6FA6B7DE715B /* ApphudInternal+Eligibility.swift */,
-				CEA5CC53123D522407082D6BDF636BBF /* ApphudInternal+Product.swift */,
-				8821394F17C3447053EF195F645DE9C3 /* ApphudInternal+Purchase.swift */,
-				226A6C7AB0C02F9DEAF56F1420E2277F /* ApphudInternal+UserUpdate.swift */,
-				375F43BF68EAEF1458708CA98EB2DF74 /* ApphudKeychain.swift */,
-				5BE02B845B5142F001D43CCE7BA5F607 /* ApphudLoggerService.swift */,
-				FCC2CB0262EE8C77829C31F93BE65B45 /* ApphudNonRenewingPurchase.swift */,
-				08FDF3CD45590705143488C5E69875B8 /* ApphudPaywall.swift */,
-				C28808BF78D392A8561D9950D879CE90 /* ApphudProduct.swift */,
-				553CF5823CD1DAE8B104ADBD01E51185 /* ApphudPurchaseResult.swift */,
-				E165D1A1D7FECD461D043451EA4FB367 /* ApphudReceipt.swift */,
-				404402EA923EAF71701E7483A13116A7 /* ApphudRule.swift */,
-				F6958020A2FB6ECBB42F2A9D9B0BFD19 /* ApphudScreen.swift */,
-				BDE35C96914B9B0E9A981FB7E45834F2 /* ApphudStoreKitWrapper.swift */,
-				63310AEED63225A1CBA2C96B486540C3 /* ApphudSubscription.swift */,
-				46CAFA756D40D7228D573AD665AB999A /* ApphudUser.swift */,
-				79CCEC20E5CA21BE49B7C10EB3BA796C /* ApphudUserProperty.swift */,
-				E03764E7DBEA65AB52A3AF1FA9D0B841 /* ApphudUserPropertyKey.swift */,
-				6E4D8249BE17EB668ECBE85180BDD4B1 /* ApphudUtils.swift */,
+				28CC9436299F56740014E855 /* Public */,
+				28CC9437299F56CD0014E855 /* Internal */,
 				3514BD173DF2A42ED440855193A2020B /* ApphudUI */,
 				30FD5216C3768DE88A1A46BE31FD0BF5 /* Pod */,
 				DD29DB6CDE273A197897EF16F5C295C8 /* Support Files */,

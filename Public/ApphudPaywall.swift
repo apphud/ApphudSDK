@@ -7,6 +7,21 @@
 import Foundation
 
 /**
+ Helper enum which contains most commonly used paywall identifiers. If you want to use this enum, your paywall identifiers must match to ones you use in Apphud Product Hub.
+ ```swift
+ let paywall = await Apphud.paywall(ApphudPaywallID.onboarding.rawValue)
+ ```
+ */
+enum ApphudPaywallID: String {
+    case main
+    case onboarding
+    case settings
+    case content
+    case toolbar
+    case banner
+}
+
+/**
  An object associated with purchases container (Paywall).
  
  Paywalls configured in Apphud Dashboard > Product Hub > Paywalls. Each paywall contains an array of `ApphudProduct` objects that you use for purchase. A paywall is a product array with custom JSON. The array is ordered and may be used to display products on your in-app purchase screen.
@@ -14,9 +29,7 @@ import Foundation
  #### Related Articles:
  To get paywall by identifier :
   ```swift
- Apphud.paywallsDidLoadCallback { paywalls in
-     let paywall = paywalls.first(where: {$0.identifier == "custom_paywall_identifier"})
- }
+ let paywall = await Apphud.paywall(ApphudPaywallID.onboarding.rawValue)
   ```
  
  - Note: An alternative way of getting ``Apphud/paywalls``
