@@ -61,7 +61,7 @@ struct PaywallUIView: View {
         })
         .interactiveDismissDisabled(isPurchasing)
         .task {
-            if let mainPaywall = await Apphud.paywall(paywallID.rawValue) {
+            if let mainPaywall = await Apphud.paywall(ApphudPaywallID.main.rawValue) {
                 paywall = mainPaywall
                 selectedProduct = paywall?.products.first
             }

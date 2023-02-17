@@ -12,7 +12,7 @@ import Foundation
  let paywall = await Apphud.paywall(ApphudPaywallID.onboarding.rawValue)
  ```
  */
-enum ApphudPaywallID: String {
+public enum ApphudPaywallID: String {
     case main
     case onboarding
     case settings
