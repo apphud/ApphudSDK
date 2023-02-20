@@ -97,7 +97,7 @@ internal class ApphudAsyncStoreKit {
     }
 }
 
-@available(iOS 15.0, *)
+@available(iOS 15.0, macOS 12.0, *)
 final class ApphudAsyncTransactionObserver {
 
     var updates: Task<Void, Never>?

@@ -48,7 +48,7 @@ extension ApphudInternal {
         }
     }
 
-    @available(iOS 15.0, *)
+    @available(iOS 15.0, macOS 12.0, *)
     @discardableResult internal func handleTransaction(_ transaction: StoreKit.Transaction, forceSubmit: Bool = false) async -> Bool {
         let transactionId = transaction.id
         let refundDate = transaction.revocationDate
@@ -421,7 +421,7 @@ extension ApphudInternal {
         }
     }
 
-    @available(iOS 15.0, *)
+    @available(iOS 15.0, macOS 12.0, *)
     internal func asyncPurchaseResult(product: Product, transaction: StoreKit.Transaction?, error: Error?) -> ApphudAsyncPurchaseResult {
 
         // 1. try to find in app purchase by product id

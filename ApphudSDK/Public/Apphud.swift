@@ -235,6 +235,7 @@ final public class Apphud: NSObject {
 
      - returns: `ApphudPurchaseResult` object.
      */
+    @available(macOS 11.0, *)
     public static func purchase(_ product: ApphudProduct, isPurchasing: Binding<Bool>? = nil) async -> ApphudPurchaseResult {
         await ApphudInternal.shared.purchase(productId: product.productId, product: product, validate: true, isPurchasing: isPurchasing)
     }
