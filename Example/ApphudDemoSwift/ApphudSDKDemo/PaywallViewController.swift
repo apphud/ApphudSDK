@@ -128,8 +128,10 @@ class PaywallViewController: UIViewController {
 
     @available(iOS 15.0, *)
     func purchaseProductStruct(_ product: ApphudProduct) async {
-        if let productModel = await product.product() {
+        if let productModel = try? await product.product() {
             self.showLoader()
+
+//            Apphud.setCustomPurchaseValue(1.23, productId: product.productId)
 
             let result = await Apphud.purchase(productModel)
 
@@ -169,7 +171,6 @@ class PaywallViewController: UIViewController {
         sheet.addAction(UIAlertAction(title: "Purchase Product struct", style: .default, handler: { _ in
             Task {
                 if #available(iOS 15.0, *) {
-                    Apphud.migratePurchasesIfNeeded { _, _, _ in }
                     await self.purchaseProductStruct(product)
                 } else {
                     await self.purchaseProduct(product)

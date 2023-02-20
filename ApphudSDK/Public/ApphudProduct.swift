@@ -42,15 +42,11 @@ public class ApphudProduct: NSObject, Codable {
     @objc public internal(set) var skProduct: SKProduct?
 
     /**
-    Returns Product struct for given Product Id. Makes async request to Apple, if not yet fetched. Or returns immediately, if available.
+    Returns Product struct for given Product Id. Makes async request to Apple, if not yet fetched. Or returns immediately, if available. Throwable.
      */
     @available(iOS 15.0, *)
-    public func product() async -> Product? {
-        if let p = ApphudAsyncStoreKit.shared.products.first(where: { $0.id == productId }) {
-            return p
-        }
-
-        return try? await ApphudAsyncStoreKit.shared.fetchProduct(productId)
+    public func product() async throws -> Product? {
+        try await ApphudAsyncStoreKit.shared.fetchProduct(productId)
     }
 
     /**

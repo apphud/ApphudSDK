@@ -9,48 +9,6 @@ import Foundation
 import StoreKit
 import SwiftUI
 
-@available(iOS 15.0, *)
-final class TransactionObserver {
-
-    var updates: Task<Void, Never>?
-
-    init() {
-        updates = newTransactionListenerTask()
-    }
-
-    deinit {
-        updates?.cancel()
-    }
-
-    private func newTransactionListenerTask() -> Task<Void, Never> {
-        Task(priority: .background) {
-            for await verificationResult in StoreKit.Transaction.updates {
-                self.handle(updatedTransaction: verificationResult)
-            }
-        }
-    }
-
-    private func handle(updatedTransaction verificationResult: VerificationResult<StoreKit.Transaction>) {
-        guard case .verified(let transaction) = verificationResult else {
-            if case .unverified(let unsignedTransaction, _) = verificationResult {
-                apphudLog("Received unverified transaction [\(unsignedTransaction.id), \(unsignedTransaction.productID)] from StoreKit2")
-                ApphudInternal.shared.setNeedToCheckTransactions()
-            }
-            return
-        }
-
-        if !ApphudUtils.shared.storeKitObserverMode {
-            Task {
-                _ = await ApphudInternal.shared.handleTransaction(transaction)
-                await transaction.finish()
-            }
-        } else {
-            apphudLog("Received transaction [\(transaction.id), \(transaction.productID)] from StoreKit2")
-            ApphudInternal.shared.setNeedToCheckTransactions()
-        }
-    }
-}
-
 @available(iOS 15.0, macOS 12.0, *)
 internal class ApphudAsyncStoreKit {
 
@@ -58,7 +16,7 @@ internal class ApphudAsyncStoreKit {
     var isPurchasing: Bool = false
     var products = Set<Product>()
 
-    var transactionsListener = TransactionObserver()
+    var transactionsListener = ApphudAsyncTransactionObserver()
 
     var productsLoaded = false
 
@@ -68,7 +26,10 @@ internal class ApphudAsyncStoreKit {
     }
 
     func fetchProduct(_ id: String) async throws -> Product? {
-        try await fetchProducts([id], isLoadingAllAvailable: false).first
+        if let product = products.first(where: { $0.id == id }) {
+            return product
+        }
+        return try await fetchProducts([id], isLoadingAllAvailable: false).first
     }
 
     func fetchProducts(_ ids: Set<String>, isLoadingAllAvailable: Bool) async throws -> [Product] {
@@ -92,6 +53,7 @@ internal class ApphudAsyncStoreKit {
 
     func purchase(product: Product, apphudProduct: ApphudProduct?, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
         self.isPurchasing = true
+        self.products.insert(product)
         isPurchasing?.wrappedValue = true
         var options = Set<Product.PurchaseOption>()
         if let uuidString = ApphudStoreKitWrapper.shared.appropriateApplicationUsername(), let uuid = UUID(uuidString: uuidString) {
@@ -131,6 +93,51 @@ internal class ApphudAsyncStoreKit {
             self.isPurchasing = false
             isPurchasing?.wrappedValue = false
             return ApphudInternal.shared.asyncPurchaseResult(product: product, transaction: nil, error: error)
+        }
+    }
+}
+
+@available(iOS 15.0, *)
+final class ApphudAsyncTransactionObserver {
+
+    var updates: Task<Void, Never>?
+
+    init() {
+        updates = newTransactionListenerTask()
+    }
+
+    deinit {
+        updates?.cancel()
+    }
+
+    private func newTransactionListenerTask() -> Task<Void, Never> {
+        Task(priority: .background) {
+            for await verificationResult in StoreKit.Transaction.updates {
+                self.handle(updatedTransaction: verificationResult)
+            }
+        }
+    }
+
+    private func handle(updatedTransaction verificationResult: VerificationResult<StoreKit.Transaction>) {
+        guard case .verified(let transaction) = verificationResult else {
+            if case .unverified(let unsignedTransaction, _) = verificationResult {
+                apphudLog("Received unverified transaction [\(unsignedTransaction.id), \(unsignedTransaction.productID)] from StoreKit2")
+                ApphudInternal.shared.setNeedToCheckTransactions()
+            }
+            return
+        }
+
+        if !ApphudUtils.shared.storeKitObserverMode {
+            Task {
+                _ = await ApphudInternal.shared.handleTransaction(transaction)
+                await transaction.finish()
+            }
+        } else {
+            apphudLog("Received transaction [\(transaction.id), \(transaction.productID)] from StoreKit2")
+            Task {
+                _ = try? await ApphudAsyncStoreKit.shared.fetchProduct(transaction.productID)
+            }
+            ApphudInternal.shared.setNeedToCheckTransactions()
         }
     }
 }

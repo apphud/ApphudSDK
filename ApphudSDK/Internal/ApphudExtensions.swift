@@ -17,7 +17,10 @@ typealias ApphudErrorCallback = ((Error?) -> Void)
 
 #if os(iOS)
 internal func apphudVisibleViewController() -> UIViewController? {
-    var currentVC = UIApplication.shared.keyWindow?.rootViewController
+
+    let keyWindow = UIApplication.shared.windows.filter {$0.isKeyWindow}.first
+
+    var currentVC = keyWindow?.rootViewController
     while let presentedVC = currentVC?.presentedViewController {
         currentVC = presentedVC
     }
@@ -420,6 +423,16 @@ internal func apphudReceiptDataString() -> String? {
     return string
 }
 
+@available(iOS 15.0, *)
+extension Product {
+    var adamId: String? {
+        if let dict = try? JSONSerialization.jsonObject(with: jsonRepresentation) as? [String: Any], let id = dict["id"] as? String {
+            return id
+        }
+        return nil
+    }
+}
+
 extension SKProduct {
 
     func apphudSubmittableParameters(_ purchased: Bool = false) -> [String: Any] {
@@ -428,6 +441,12 @@ extension SKProduct {
             "product_id": productIdentifier,
             "price": price.floatValue
         ]
+
+        if #available(iOS 15.0, *) {
+            if let productStruct = ApphudAsyncStoreKit.shared.products.first(where: { $0.id == productIdentifier }), let adamID = productStruct.adamId {
+                params["adam_id"] = adamID
+            }
+        }
 
         if let countryCode = priceLocale.regionCode {
             params["country_code"] = countryCode

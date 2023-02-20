@@ -143,11 +143,11 @@ struct PaywallUIView: View {
         guard let product = selectedProduct else {return}
 
         Task {
-            guard let productStruct = await product.product() else {
+            guard let productStruct = try? await product.product() else {
                 return
             }
 
-            Apphud.setCustomPurchaseValue(1.23, productId: product.productId)
+//            Apphud.setCustomPurchaseValue(1.23, productId: product.productId)
 
             let result = await Apphud.purchase(productStruct, isPurchasing: $isPurchasing)
             if result.success {
