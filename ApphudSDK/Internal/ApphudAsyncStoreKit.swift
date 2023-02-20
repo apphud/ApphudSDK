@@ -9,7 +9,7 @@ import Foundation
 import StoreKit
 import SwiftUI
 
-@available(iOS 15.0, macOS 12.0, tvOS 15.0, *)
+@available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
 internal class ApphudAsyncStoreKit {
 
     static let shared = ApphudAsyncStoreKit()
@@ -97,7 +97,7 @@ internal class ApphudAsyncStoreKit {
     }
 }
 
-@available(iOS 15.0, macOS 12.0, tvOS 15.0, *)
+@available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
 final class ApphudAsyncTransactionObserver {
 
     var updates: Task<Void, Never>?

@@ -218,7 +218,7 @@ final class ApphudInternal: NSObject {
 
     internal func initialize(apiKey: String, inputUserID: String?, inputDeviceID: String? = nil, observerMode: Bool) {
         
-        #if os(iOS) || os(tvOS) || os(watchOS)
+        #if os(iOS) || os(tvOS)
         if !ApphudKeychain.canUseKeychain && !ApphudKeychain.hasLocalStorageData && UIApplication.shared.applicationState != .active {
             setupObservers()
             apphudLog("Unable to initialize right now, will wait until app becomes active", forceDisplay: true)

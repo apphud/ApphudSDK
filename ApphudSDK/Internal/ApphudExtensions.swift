@@ -423,7 +423,7 @@ internal func apphudReceiptDataString() -> String? {
     return string
 }
 
-@available(iOS 15.0, macOS 12.0, tvOS 15.0, *)
+@available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
 extension Product {
     var adamId: String? {
         if let dict = try? JSONSerialization.jsonObject(with: jsonRepresentation) as? [String: Any], let id = dict["id"] as? String {
@@ -441,7 +441,7 @@ extension SKProduct {
             "price": price.floatValue
         ]
         
-        if #available(macOS 12.0, tvOS 15.0, *) {
+        if #available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *) {
             if let productStruct = ApphudAsyncStoreKit.shared.products.first(where: { $0.id == productIdentifier }), let adamID = productStruct.adamId {
                 params["adam_id"] = adamID
             }
