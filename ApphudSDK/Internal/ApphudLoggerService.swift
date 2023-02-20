@@ -45,7 +45,7 @@ class ApphudLoggerService {
         ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_checkout_initiated", "properties": ["paywall_id": paywallId ?? "", "product_id": productId ?? ""] ])
     }
 
-    @available(iOS 15.0, macOS 12.0, *)
+    @available(iOS 15.0, macOS 12.0, tvOS 15.0, *)
     internal func paywallPaymentCancelled(_ paywallId: String?, product: Product) {
         ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_payment_cancelled", "properties": ["paywall_id": paywallId ?? "", "product_id": product.id]])
     }
