@@ -13,7 +13,6 @@ import UIKit
 #endif
 
 #if os(iOS)
-@available(iOS 11.2, *)
 internal class ApphudRulesManager {
     static let shared = ApphudRulesManager()
     var pendingController: UIViewController?

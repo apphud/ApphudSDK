@@ -12,8 +12,6 @@ import WebKit
 import StoreKit
 import SafariServices
 
-@available(iOS 11.2, *)
-
 extension ApphudScreenController: WKNavigationDelegate {
 
     func handleNavigationAction(navigationAction: WKNavigationAction) -> Bool {

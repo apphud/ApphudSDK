@@ -22,7 +22,7 @@ Integrate in-app purchases and subscriptions in your mobile app in 2 lines of co
 
 ## Real-time Revenue Analytics
 
- View key subscription metrics in our [dashboard](https://docs.apphud.com/analyze/dashboard) and [charts](https://docs.apphud.com/analyze/charts), like MRR, Subscriber Retention (Cohorts), Churn rate, ARPU, Trial Conversions, Proceeds, Refunds, etc.
+ View key subscription metrics in our [dashboard](https://docs.apphud.com/docs/dashboard) and [charts](https://docs.apphud.com/docs/charts), like MRR, Subscriber Retention (Cohorts), Churn rate, ARPU, Trial Conversions, Proceeds, Refunds, etc.
 
 <p align="center">
 <img src="https://apphud.com/images/why.png"  width="35%" height="35%" />
@@ -72,7 +72,7 @@ Apphud may win back lapsed subscribers, reduce churn rate, get cancellation insi
 
 ## Installation
 
-Create your account at [Apphud for free](https://app.apphud.com/sign_up?utm_source=github&utm_medium=article&utm_campaign=github). Please feel free to read our [SDK Integration Guide](https://docs.apphud.com/getting-started/sdk-integration).
+Create your account at [Apphud for free](https://app.apphud.com/sign_up?utm_source=github&utm_medium=article&utm_campaign=github). Please feel free to read our [SDK Integration Guide](https://docs.apphud.com/docs/ios).
 
 ## Having a question?
 

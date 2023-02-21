@@ -18,7 +18,6 @@ import SafariServices
 import StoreKit
 
 #if os(iOS)
-@available(iOS 11.2, *)
 class ApphudScreenController: UIViewController {
 
     internal lazy var webView: WKWebView = {
@@ -63,7 +62,7 @@ class ApphudScreenController: UIViewController {
     private var handledDidAppearAndDidLoadScreen = false
 
     private lazy var loadingIndicator: UIActivityIndicatorView = {
-        let loading = UIActivityIndicatorView(style: .gray)
+        let loading = UIActivityIndicatorView(style: .medium)
         loading.hidesWhenStopped = true
         self.view.addSubview(loading)
         loading.translatesAutoresizingMaskIntoConstraints = false
@@ -217,16 +216,18 @@ class ApphudScreenController: UIViewController {
     private func updateBackgroundColor() {
         if self.screen?.status_bar_color == "white" {
             self.view.backgroundColor = UIColor.black
-            self.loadingIndicator.style = .white
+            self.loadingIndicator.style = .medium
         } else {
             self.view.backgroundColor = UIColor.white
-            self.loadingIndicator.style = .gray
+            self.loadingIndicator.style = .medium
         }
     }
 
     internal func addObserverIfNeeded() {
         if !addedObserver {
-            NotificationCenter.default.addObserver(self, selector: #selector(replaceMacroses), name: Apphud.didFetchProductsNotification(), object: nil)
+            Apphud.fetchProducts { [weak self] _, _ in
+                self?.replaceMacroses()
+            }
             addedObserver = true
         }
     }
@@ -273,7 +274,6 @@ class ApphudScreenController: UIViewController {
         }
 
         if offerID != nil {
-            if #available(iOS 12.2, *) {
                 if product.discounts.first(where: {$0.identifier == offerID!}) != nil {
 
                     if isPurchasing {return}
@@ -288,9 +288,6 @@ class ApphudScreenController: UIViewController {
                 } else {
                     apphudLog("Aborting purchase because couldn't find promo offer with id: \(offerID!) in product: \(product.productIdentifier), available promo offer ids: \(product.apphudPromoIdentifiers())", forceDisplay: true)
                 }
-            } else {
-                apphudLog("Aborting purchase because promotional offers are available only on iOS 12.2 and above", forceDisplay: true)
-            }
         } else {
 
             if isPurchasing {return}
