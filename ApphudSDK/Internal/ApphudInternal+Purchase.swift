@@ -334,7 +334,7 @@ extension ApphudInternal {
 
     // MARK: - Internal purchase methods
 
-    @available(iOS 13.0.0, macOS 11.0, watchOS 6.0, tvOS 13.0,  *)
+    @available(iOS 13.0.0, macOS 11.0, watchOS 6.0, tvOS 13.0, *)
     internal func purchase(productId: String, product: ApphudProduct?, validate: Bool, isPurchasing: Binding<Bool>? = nil, value: Double? = nil) async -> ApphudPurchaseResult {
         await withCheckedContinuation { continuation in
             isPurchasing?.wrappedValue = true

@@ -217,7 +217,7 @@ final class ApphudInternal: NSObject {
     // MARK: - Initialization
 
     internal func initialize(apiKey: String, inputUserID: String?, inputDeviceID: String? = nil, observerMode: Bool) {
-        
+
         #if os(iOS) || os(tvOS)
         if !ApphudKeychain.canUseKeychain && !ApphudKeychain.hasLocalStorageData && UIApplication.shared.applicationState != .active {
             setupObservers()
@@ -226,20 +226,20 @@ final class ApphudInternal: NSObject {
             return
         }
         #endif
-        
+
         if httpClient == nil {
             ApphudStoreKitWrapper.shared.setupObserver()
             httpClient = ApphudHttpClient.shared
             httpClient!.apiKey = apiKey
             apphudLog("Started Apphud SDK (\(ApphudHttpClient.shared.sdkVersion))", forceDisplay: true)
         }
-        
+
         guard allowIdentifyUser == true else {
             apphudLog("Abort initializing, because Apphud SDK already initialized. You can only call `Apphud.start()` once per app lifecycle. Or if `Apphud.logout()` was called previously.", forceDisplay: true)
             return
         }
         allowIdentifyUser = false
-        
+
         identify(inputUserID: inputUserID, inputDeviceID: inputDeviceID, observerMode: observerMode)
     }
 

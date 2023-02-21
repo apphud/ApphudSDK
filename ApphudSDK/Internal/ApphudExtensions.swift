@@ -440,7 +440,7 @@ extension SKProduct {
             "product_id": productIdentifier,
             "price": price.floatValue
         ]
-        
+
         if #available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *) {
             if let productStruct = ApphudAsyncStoreKit.shared.products.first(where: { $0.id == productIdentifier }), let adamID = productStruct.adamId {
                 params["adam_id"] = adamID
@@ -448,29 +448,29 @@ extension SKProduct {
         } else {
             // Fallback on earlier versions
         }
-        
+
         if let countryCode = priceLocale.regionCode {
             params["country_code"] = countryCode
         }
-        
+
         if let currencyCode = priceLocale.currencyCode {
             params["currency_code"] = currencyCode
         }
-        
+
         if let introData = apphudIntroParameters() {
             params.merge(introData, uniquingKeysWith: {$1})
         }
-        
+
         if let value = ApphudStoreKitWrapper.shared.purchasingValue, value.productId == productIdentifier, purchased == true {
             params["custom_purchase_value"] = value.value
         }
-        
+
         if subscriptionPeriod != nil && subscriptionPeriod!.numberOfUnits > 0 {
             let units_count = subscriptionPeriod!.numberOfUnits
             params["unit"] = apphudUnitStringFrom(periodUnit: subscriptionPeriod!.unit)
             params["units_count"] = units_count
         }
-        
+
         var discount_params = [[String: Any]]()
         for discount in discounts {
             let promo_params = apphudPromoParameters(discount: discount)
@@ -479,7 +479,7 @@ extension SKProduct {
         if discount_params.count > 0 {
             params["promo_offers"] = discount_params
         }
-        
+
         return params
     }
 
