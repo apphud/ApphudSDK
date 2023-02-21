@@ -193,7 +193,8 @@ final public class Apphud: NSObject {
 
      - returns: Array of `Product` structs. Note that you have to add product identifiers in Apphud > Product Hub > Products.
      */
-    @available(iOS 15.0, macOS 12.0, *)
+
+    @available(iOS 15.0, macOS 12.0, tvOS 15.0,watchOS 8.0, *)
     public static func fetchProducts() async throws -> [Product] {
         if ApphudAsyncStoreKit.shared.productsLoaded {
             return Array(ApphudAsyncStoreKit.shared.products)
@@ -207,7 +208,7 @@ final public class Apphud: NSObject {
 
      - returns: `ApphudProduct` struct.
      */
-    @available(iOS 15.0, macOS 12.0, *)
+    @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
     public static func apphudProductFor(_ product: Product) -> ApphudProduct? {
         ApphudInternal.shared.allAvailableProducts.first(where: { $0.productId == product.id })
     }
@@ -221,7 +222,7 @@ final public class Apphud: NSObject {
 
      - returns: `ApphudAsyncPurchaseResult` struct.
      */
-    @available(iOS 15.0, macOS 12.0, *)
+    @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
     public static func purchase(_ product: Product, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
         await ApphudAsyncStoreKit.shared.purchase(product: product, apphudProduct: apphudProductFor(product), isPurchasing: isPurchasing)
     }
@@ -235,6 +236,7 @@ final public class Apphud: NSObject {
 
      - returns: `ApphudPurchaseResult` object.
      */
+    @available(iOS 13.0.0, macOS 11.0, watchOS 6.0, tvOS 13.0, *)
     public static func purchase(_ product: ApphudProduct, isPurchasing: Binding<Bool>? = nil) async -> ApphudPurchaseResult {
         await ApphudInternal.shared.purchase(productId: product.productId, product: product, validate: true, isPurchasing: isPurchasing)
     }

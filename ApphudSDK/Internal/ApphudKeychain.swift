@@ -8,7 +8,9 @@
 
 import Security
 import Foundation
+#if canImport(UIKit)
 import UIKit
+#endif
 
 // Constant Identifiers
 let userAccount = "ApphudUser"
@@ -35,7 +37,11 @@ let kSecMatchLimitOneValue = NSString(format: kSecMatchLimitOne)
 public class ApphudKeychain: NSObject {
 
     internal static var canUseKeychain: Bool {
+    #if os(iOS) || os(tvOS)
         return UIApplication.shared.isProtectedDataAvailable
+    #else
+        return true
+    #endif
     }
 
     internal static var hasLocalStorageData: Bool {

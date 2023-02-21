@@ -15,6 +15,7 @@ internal typealias ApphudTransactionCallback = (SKPaymentTransaction, Error?) ->
 public let _ApphudWillFinishTransactionNotification = Notification.Name(rawValue: "ApphudWillFinishTransactionNotification")
 public let _ApphudDidFinishTransactionNotification = Notification.Name(rawValue: "ApphudDidFinishTransactionNotification")
 
+
 internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SKRequestDelegate {
     static var shared = ApphudStoreKitWrapper()
 
@@ -132,7 +133,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
                     self.isPurchasing = true
 
                     Task {
-                        if #available(iOS 15.0, *) {
+                        if #available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *) {
                             _ = try? await ApphudAsyncStoreKit.shared.fetchProduct(trx.payment.productIdentifier)
                         }
                     }
@@ -179,7 +180,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     private func handleTransactionIfStarted(_ transaction: SKPaymentTransaction) {
 
-        if #available(iOS 15.0, macOS 12.0, *), ApphudAsyncStoreKit.shared.isPurchasing {
+        if #available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *), ApphudAsyncStoreKit.shared.isPurchasing {
             return
         }
 

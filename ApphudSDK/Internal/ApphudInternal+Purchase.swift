@@ -48,7 +48,7 @@ extension ApphudInternal {
         }
     }
 
-    @available(iOS 15.0, *)
+    @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
     @discardableResult internal func handleTransaction(_ transaction: StoreKit.Transaction, forceSubmit: Bool = false) async -> Bool {
         let transactionId = transaction.id
         let refundDate = transaction.revocationDate
@@ -334,7 +334,7 @@ extension ApphudInternal {
 
     // MARK: - Internal purchase methods
 
-    @available(iOS 13.0.0, macOS 11.0, *)
+    @available(iOS 13.0.0, macOS 11.0, watchOS 6.0, tvOS 13.0,  *)
     internal func purchase(productId: String, product: ApphudProduct?, validate: Bool, isPurchasing: Binding<Bool>? = nil, value: Double? = nil) async -> ApphudPurchaseResult {
         await withCheckedContinuation { continuation in
             isPurchasing?.wrappedValue = true
@@ -421,7 +421,7 @@ extension ApphudInternal {
         }
     }
 
-    @available(iOS 15.0, *)
+    @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
     internal func asyncPurchaseResult(product: Product, transaction: StoreKit.Transaction?, error: Error?) -> ApphudAsyncPurchaseResult {
 
         // 1. try to find in app purchase by product id
