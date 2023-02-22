@@ -185,8 +185,9 @@ extension ApphudInternal {
                let result = try? JSONSerialization.jsonObject(with: data, options: .allowFragments) as? [String: Any],
                let attribution = result["attribution"] as? Bool {
                 completion(result, attribution)
+            } else {
+                completion(nil, false)
             }
-            completion(nil, false)
         }
         task.resume()
     }
