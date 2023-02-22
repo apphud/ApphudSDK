@@ -10,7 +10,6 @@ import Foundation
 import StoreKit
 import SwiftUI
 
-@available(OSX 10.14.4, *)
 extension ApphudInternal {
 
     // MARK: - Main Purchase and Submit Receipt methods

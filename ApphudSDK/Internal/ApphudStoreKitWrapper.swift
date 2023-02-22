@@ -293,7 +293,6 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 /*
  This class will be extended in the future.
  */
-@available(OSX 10.14.4, *)
 private class ApphudProductsFetcher: NSObject, SKProductsRequestDelegate {
     private var callback: ApphudStoreKitProductsCallback?
 

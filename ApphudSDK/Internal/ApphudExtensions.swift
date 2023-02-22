@@ -28,7 +28,6 @@ internal func apphudVisibleViewController() -> UIViewController? {
 }
 #endif
 
-@available(OSX 10.14.4, *)
 extension String {
     /// Helper method to parse date string into Date object
     internal var apphudIsoDate: Date? {
@@ -139,7 +138,6 @@ internal func apphudPerformOnMainThread(callback: @escaping () -> Void) {
 }
 
 #if os(macOS)
-@available(OSX 10.14.4, *)
 internal func apphudCurrentDeviceMacParameters() -> [String: String] {
     let app_version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? ""
 
@@ -252,7 +250,6 @@ extension UIDevice {
 }
 #endif
 
-@available(OSX 10.14.4, *)
 internal func apphudIdentifierForAdvertising() -> String? {
     if let idfa = ApphudInternal.shared.advertisingIdentifier, idfa != "00000000-0000-0000-0000-000000000000" {
         return idfa

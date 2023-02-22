@@ -11,7 +11,6 @@ import Foundation
 import UIKit
 #endif
 
-@available(OSX 10.14.4, *)
 extension ApphudInternal {
 
     @discardableResult internal func parseUser(_ dict: [String: Any]?) -> HasPurchasesChanges {

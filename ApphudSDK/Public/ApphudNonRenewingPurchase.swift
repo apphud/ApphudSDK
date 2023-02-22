@@ -42,7 +42,6 @@ public class ApphudNonRenewingPurchase: NSObject {
     // MARK: - Private methods
 
     /// Subscription private initializer
-    @available(OSX 10.14.4, *)
     init?(dictionary: [String: Any]) {
         guard dictionary["kind"] as? String == "nonrenewable" else {return nil}
 
