@@ -16,6 +16,8 @@ internal typealias HasPurchasesChanges = (hasSubscriptionChanges: Bool, hasNonRe
 internal typealias ApphudPaywallsCallback = ([ApphudPaywall]) -> Void
 internal typealias ApphudRetryLog = (count: Int, errorCode: Int)
 
+internal let ApphudFlagString = "ApphudReinstallFlag"
+
 internal let ApphudInitializeGuardText = "Attempted to use Apphud SDK method earlier than initialization. You should initialize SDK first."
 
 final class ApphudInternal: NSObject {
@@ -128,6 +130,7 @@ final class ApphudInternal: NSObject {
     internal var isSendingAppsFlyer = false
     internal var isSendingAdjust = false
     internal var isFreshInstall = true
+    internal var isRedownload = false
 
     internal var isInitialized: Bool {
         httpClient != nil
@@ -250,6 +253,8 @@ final class ApphudInternal: NSObject {
         var deviceID = ApphudKeychain.loadDeviceID()
 
         isFreshInstall = deviceID == nil
+        isRedownload = deviceID != nil && UserDefaults.standard.string(forKey: ApphudFlagString) == nil
+        UserDefaults.standard.set(ApphudFlagString, forKey: ApphudFlagString)
 
         if inputDeviceID?.count ?? 0 > 0 {
             deviceID = inputDeviceID

@@ -182,8 +182,8 @@ extension ApphudInternal {
         var params = apphudCurrentDeviceiOSParameters() as [String: Any]
         #endif
 
-        if currentUser == nil && !reinstallTracked {
-           params["redownload"] = true
+        if isRedownload && !reinstallTracked {
+           params["reinstall"] = true
            reinstallTracked = true
         }
 
@@ -191,7 +191,6 @@ extension ApphudInternal {
         params["device_id"] = self.currentDeviceID
         params["is_debug"] = apphudIsSandbox()
         params["is_new"] = isFreshInstall && currentUser == nil
-        params["redownload"] = currentUser == nil
         params["need_paywalls"] = !didLoadUserAtThisLaunch
         params["opt_out"] = ApphudUtils.shared.optOutOfTracking
         appInstallationDate.map { params["first_seen"] = $0 }
