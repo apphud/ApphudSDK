@@ -31,12 +31,7 @@ internal func apphudVisibleViewController() -> UIViewController? {
 extension String {
     /// Helper method to parse date string into Date object
     internal var apphudIsoDate: Date? {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withFractionalSeconds,
-                                   .withInternetDateTime,
-                                   .withColonSeparatorInTimeZone,
-                                   .withColonSeparatorInTime]
-        let date = formatter.date(from: self)
+        let date = Self.apphudIsoDateFormatter.date(from: self)
         if date != nil { return date }
 
         // fallback
@@ -53,8 +48,19 @@ extension String {
     }
 
     internal var apphudStandardIsoDate: Date? {
-        ISO8601DateFormatter().date(from: self)
+        Self.standardIsoDateFormatter.date(from: self)
     }
+
+    private static let apphudIsoDateFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withFractionalSeconds,
+                                   .withInternetDateTime,
+                                   .withColonSeparatorInTimeZone,
+                                   .withColonSeparatorInTime]
+        return formatter
+    }()
+
+    private static let standardIsoDateFormatter = ISO8601DateFormatter()
 }
 
 private extension DateFormatter {
