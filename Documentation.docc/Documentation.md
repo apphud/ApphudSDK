@@ -11,7 +11,7 @@ Apphud is all-in-one infrastructure for your app growth. Apphud helps marketing 
 
 
 
-Sign up [for free](https://apphud.com).
+Sign up [for free](https://app.apphud.com).
 
 ### The easiest way to integrate in-app subscriptions
 
@@ -31,6 +31,7 @@ let result = await Apphud.purchase(product)
 ## Topics
 
 ### Apphud main methods
+
 - ``Apphud/start(apiKey:userID:observerMode:)``
 - ``Apphud/paywalls``
 - ``Apphud/paywallsDidLoadCallback(_:)``
@@ -53,6 +54,7 @@ let result = await Apphud.purchase(product)
 - ``Apphud/checkEligibilityForPromotionalOffer(product:callback:)``
 
 ### ApphudDelegate main methods
+
 - ``ApphudDelegate/apphudSubscriptionsUpdated(_:)``
 - ``ApphudDelegate/apphudNonRenewingPurchasesUpdated(_:)``
 - ``ApphudDelegate/apphudDidChangeUserID(_:)``
@@ -63,6 +65,7 @@ let result = await Apphud.purchase(product)
 - ``ApphudDelegate/handleDeferredTransaction(transaction:)``
 
 ### ApphudUIDelegate main methods
+
 - ``ApphudUIDelegate/apphudShouldPerformRule(rule:)``
 - ``ApphudUIDelegate/apphudShouldShowScreen(screenName:)``
 - ``ApphudUIDelegate/apphudParentViewController(controller:)``
