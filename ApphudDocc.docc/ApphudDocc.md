@@ -34,7 +34,7 @@ let result = await Apphud.purchase(product)
 - ``Apphud/start(apiKey:userID:observerMode:)``
 - ``Apphud/paywalls``
 - ``Apphud/paywallsDidLoadCallback(_:)``
-- ``Apphud/purchase(_:callback:)-6dhy3``
+- ``Apphud/purchase(_:callback:)``
 
 - ``Apphud/willPurchaseProductFromPaywall(_:)``
 - ``Apphud/productsDidFetchCallback(_:)``
