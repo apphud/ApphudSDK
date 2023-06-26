@@ -1,5 +1,5 @@
 <p align="center">
-<img src="https://cdn.siter.io/assets/ast_kSk43nA4wqPNF8sfBtWdJsL1Z/85cc5c6c-43dd-44a2-90cf-2ae17cd6a25d.svg" alt="Apphud" width="20%" height="20%"/>
+<img src="https://apphud.com/images/logo-header.svg" alt="Apphud" width="50%" height="50%"/>
  </p>
 
 ## Greetings!
@@ -72,7 +72,7 @@ Apphud may win back lapsed subscribers, reduce churn rate, get cancellation insi
 
 ## Installation
 
-Create your account at [Apphud for free](https://app.apphud.com/sign_up?utm_source=github&utm_medium=article&utm_campaign=github). Please feel free to read our [SDK Integration Guide](https://docs.apphud.com/docs/ios).
+Create your account at [Apphud for free](https://app.apphud.com/sign_up?utm_source=github&utm_medium=article&utm_campaign=github). Please feel free to read our [SDK Integration Guide](https://docs.apphud.com/docs/quickstart).
 
 ## Having a question?
 
