@@ -20,7 +20,7 @@ import Foundation
  * `refunded`: Subscription was refunded by Apple Care. Developer should treat this subscription as never purchased.
  * `expired`: Subscription has expired because has been canceled manually by user or had unresolved billing issues.
  */
-@objc public enum ApphudSubscriptionStatus: Int {
+public enum ApphudSubscriptionStatus: String, Codable {
     case trial
     case intro
     case promo
@@ -33,7 +33,7 @@ import Foundation
 /**
  Custom Apphud class containing all information about customer subscription.
  */
-public class ApphudSubscription: NSObject {
+public class ApphudSubscription: Codable {
 
     /**
      Use this function to detect whether to give or not premium content to the user.
@@ -52,7 +52,7 @@ public class ApphudSubscription: NSObject {
     /**
      The state of the subscription
      */
-    @objc public var status: ApphudSubscriptionStatus
+    public var status: ApphudSubscriptionStatus
 
     /**
      Product identifier of this subscription
@@ -109,6 +109,47 @@ public class ApphudSubscription: NSObject {
 
     // MARK: - Private methods
 
+    private enum CodingKeys: String, CodingKey {
+        case id, expiresAt, productId, cancelledAt, startedAt, inRetryBilling, autorenewEnabled, introductoryActivated, environment, local, groupId, status
+    }
+
+
+    required public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        let expiresDateString = try values.decode(String.self, forKey: .expiresAt)
+        guard let expDate = expiresDateString.apphudIsoDate else { throw ApphudError(message: "Missing Expires Date") }
+
+        id = try values.decode(String.self, forKey: .id)
+        expiresDate = expDate
+        productId = try values.decode(String.self, forKey: .productId)
+        canceledAt = try values.decode(String.self, forKey: .cancelledAt).apphudIsoDate
+        startedAt = try values.decode(String.self, forKey: .startedAt).apphudIsoDate ?? Date()
+        isInRetryBilling = try values.decode(Bool.self, forKey: .inRetryBilling)
+        isAutorenewEnabled = try values.decode(Bool.self, forKey: .autorenewEnabled)
+        isIntroductoryActivated = try values.decode(Bool.self, forKey: .introductoryActivated)
+        isSandbox = (try values.decode(String.self, forKey: .environment)) == "sandbox"
+        isLocal = try values.decode(Bool.self, forKey: .local)
+        groupId = try values.decode(String.self, forKey: .groupId)
+        status = try values.decode(ApphudSubscriptionStatus.self, forKey: .status)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(expiresDate.apphudIsoString, forKey: .expiresAt)
+        try container.encode(productId, forKey: .productId)
+        try? container.encode(canceledAt?.apphudIsoString, forKey: .cancelledAt)
+        try container.encode(startedAt.apphudIsoString, forKey: .startedAt)
+        try container.encode(isInRetryBilling, forKey: .inRetryBilling)
+        try container.encode(isAutorenewEnabled, forKey: .autorenewEnabled)
+        try container.encode(isIntroductoryActivated, forKey: .introductoryActivated)
+        try container.encode(isLocal, forKey: .local)
+        try container.encode(isSandbox ? "sandbox" : "production", forKey: .environment)
+        try container.encode(groupId, forKey: .groupId)
+        try container.encode(status.rawValue, forKey: .status)
+    }
+
+
     /// Subscription private initializer
     init?(dictionary: [String: Any]) {
         guard let expDate = (dictionary["expires_at"] as? String ?? "").apphudIsoDate else {return nil}
@@ -124,58 +165,9 @@ public class ApphudSubscription: NSObject {
         isLocal = dictionary["local"] as? Bool ?? false
         groupId = dictionary["group_id"] as? String ?? ""
         if let statusString = dictionary["status"] as? String {
-            status = ApphudSubscription.statusFrom(string: statusString)
+            status = ApphudSubscriptionStatus(rawValue: statusString) ?? .expired
         } else {
             status = .expired
-        }
-    }
-
-    /// have to write this code because obj-c doesn't support enum to be string
-    private static func statusFrom(string: String) -> ApphudSubscriptionStatus {
-        switch string {
-        case "trial":
-            return .trial
-        case "intro":
-            return .intro
-        case "promo":
-            return .promo
-        case "regular":
-            return .regular
-        case "grace":
-            return .grace
-        case "refunded":
-            return .refunded
-        case "expired":
-            return .expired
-        default:
-            return .expired
-        }
-    }
-}
-
-extension ApphudSubscriptionStatus {
-    /**
-     This function can only be used in Swift
-     */
-    func toString() -> String {
-
-        switch self {
-        case .trial:
-            return "trial"
-        case .intro:
-            return "intro"
-        case .promo:
-            return "promo"
-        case .grace:
-            return "grace"
-        case .regular:
-            return "regular"
-        case .refunded:
-            return "refunded"
-        case .expired:
-            return "expired"
-        default:
-            return ""
         }
     }
 }

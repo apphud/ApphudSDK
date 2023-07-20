@@ -173,7 +173,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     func handleDeferredTransaction(_ transaction: SKPaymentTransaction) {
         if let error = transaction.error as? SKError, error.code != .paymentCancelled {
-            ApphudInternal.shared.delegate?.handleDeferredTransaction?(transaction: transaction)
+            ApphudInternal.shared.delegate?.handleDeferredTransaction(transaction: transaction)
         }
     }
 
@@ -193,7 +193,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         } else {
             if transaction.transactionState == .purchased {
                 ApphudInternal.shared.submitReceiptAutomaticPurchaseTracking(transaction: transaction) { result in
-                    if let finish = ApphudInternal.shared.delegate?.apphudDidObservePurchase?(result: result), finish == true {
+                    if let finish = ApphudInternal.shared.delegate?.apphudDidObservePurchase(result: result), finish == true {
                         self.finishTransaction(transaction)
                     }
                 }
@@ -229,7 +229,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     func paymentQueue(_ queue: SKPaymentQueue, shouldAddStorePayment payment: SKPayment, for product: SKProduct) -> Bool {
 
         DispatchQueue.main.async {
-            if let callback = ApphudInternal.shared.delegate?.apphudShouldStartAppStoreDirectPurchase?(product) {
+            if let callback = ApphudInternal.shared.delegate?.apphudShouldStartAppStoreDirectPurchase(product) {
                 ApphudInternal.shared.purchase(productId: product.productIdentifier, product: nil, validate: true, callback: callback)
             }
         }

@@ -28,6 +28,17 @@ internal func apphudVisibleViewController() -> UIViewController? {
 }
 #endif
 
+extension Date {
+    internal var apphudIsoString: String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withFractionalSeconds,
+                                   .withInternetDateTime,
+                                   .withColonSeparatorInTimeZone,
+                                   .withColonSeparatorInTime]
+        return formatter.string(from: self)
+    }
+}
+
 extension String {
     /// Helper method to parse date string into Date object
     internal var apphudIsoDate: Date? {

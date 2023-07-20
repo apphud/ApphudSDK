@@ -24,7 +24,7 @@ final class ApphudInternal: NSObject {
 
     internal static let shared = ApphudInternal()
     internal var httpClient: ApphudHttpClient?
-    internal weak var delegate: ApphudDelegate?
+    internal var delegate: ApphudDelegate?
     internal weak var uiDelegate: ApphudUIDelegate?
 
     // MARK: - Private properties

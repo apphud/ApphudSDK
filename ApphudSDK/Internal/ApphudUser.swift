@@ -38,13 +38,16 @@ internal struct ApphudUser {
         var subs = [ApphudSubscription]()
         var inapps = [ApphudNonRenewingPurchase]()
 
-        if let subscriptionsDictsArray = dictionary["subscriptions"] as? [[String: Any]] {
-            for subdict in subscriptionsDictsArray {
-                if let subscription = ApphudSubscription(dictionary: subdict) {
-                    subs.append(subscription)
-                } else if let purchase = ApphudNonRenewingPurchase(dictionary: subdict) {
-                    inapps.append(purchase)
-                }
+        if let iapDict = dictionary["subscriptions"] as? [[String: Any]],
+           let data = try? JSONSerialization.data(withJSONObject: iapDict, options: []) {
+
+            do {
+                let decoder = JSONDecoder()
+                decoder.keyDecodingStrategy = .convertFromSnakeCase
+                subs = try decoder.decode([ApphudSubscription].self, from: data)
+                inapps = try decoder.decode([ApphudNonRenewingPurchase].self, from: data)
+            } catch {
+                apphudLog("User subs parse error:\(error.localizedDescription)")
             }
         }
 
@@ -69,7 +72,7 @@ internal struct ApphudUser {
         var array = [[String: AnyHashable]]()
         for subscription in self.subscriptions {
             var dict = [String: AnyHashable]()
-            dict["status"] = subscription.status.toString()
+            dict["status"] = subscription.status.rawValue
             dict["expires_date"] = subscription.expiresDate
             dict["product_id"] = subscription.productId
             dict["autorenew"] = subscription.isAutorenewEnabled

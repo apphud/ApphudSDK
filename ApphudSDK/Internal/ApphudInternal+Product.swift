@@ -12,7 +12,7 @@ import StoreKit
 extension ApphudInternal {
 
     @objc internal func continueToFetchProducts(needToUpdateProductGroups: Bool = true) {
-        if let productIDs = delegate?.apphudProductIdentifiers?(), productIDs.count > 0 {
+        if let productIDs = delegate?.apphudProductIdentifiers(), productIDs.count > 0 {
             let products = productIDs.map { ApphudProduct(id: $0, name: $0, productId: $0, store: "app_store", skProduct: nil) }
             let group = ApphudGroup(id: "Untitled", name: "Untitled", products: products)
             continueWithProductGroups([group], errorCode: nil, writeToCache: false)
@@ -100,8 +100,8 @@ extension ApphudInternal {
             self.updateProductGroupsWithStoreKitProducts()
             ApphudInternal.shared.performAllStoreKitProductsFetchedCallbacks()
             NotificationCenter.default.post(name: Apphud.didFetchProductsNotification(), object: storeKitProducts)
-            ApphudInternal.shared.delegate?.apphudDidFetchStoreKitProducts?(storeKitProducts, error)
-            ApphudInternal.shared.delegate?.apphudDidFetchStoreKitProducts?(storeKitProducts)
+            ApphudInternal.shared.delegate?.apphudDidFetchStoreKitProducts(storeKitProducts, error)
+            ApphudInternal.shared.delegate?.apphudDidFetchStoreKitProducts(storeKitProducts)
             self.customProductsFetchedBlocks.forEach { block in block(storeKitProducts, error) }
             self.customProductsFetchedBlocks.removeAll()
             self.updatePaywallsWithStoreKitProducts(paywalls: self.paywalls) // double call, but it's okay, because user may call refreshStorKitProducts method
@@ -178,7 +178,7 @@ extension ApphudInternal {
         if writeToCache { self.cachePaywalls(paywalls: paywalls) }
 
         if !didLoadUserAtThisLaunch {
-            delegate?.userDidLoad?(rawPaywalls: paywalls)
+            delegate?.userDidLoad(rawPaywalls: paywalls)
             didLoadUserAtThisLaunch = true
         }
 
@@ -187,7 +187,7 @@ extension ApphudInternal {
             completionBlock?(self.paywalls, nil)
             self.customPaywallsLoadedCallbacks.forEach { block in block(self.paywalls) }
             self.customPaywallsLoadedCallbacks.removeAll()
-            self.delegate?.paywallsDidFullyLoad?(paywalls: self.paywalls)
+            self.delegate?.paywallsDidFullyLoad(paywalls: self.paywalls)
         }
     }
     private func fetchPaywallsIfNeeded(forceRefresh: Bool = false, callback: @escaping ([ApphudPaywall]?, Error?, Bool) -> Void) {

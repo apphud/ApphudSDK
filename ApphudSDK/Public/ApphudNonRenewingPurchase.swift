@@ -12,34 +12,61 @@ import Foundation
  Custom Apphud class containing all information about customer non-renewing purchase
  */
 
-public class ApphudNonRenewingPurchase: NSObject {
+public class ApphudNonRenewingPurchase: Codable {
 
     /**
      Product identifier of this subscription
      */
-    @objc public let productId: String
+    public let productId: String
 
     /**
      Date when user bought regular in-app purchase.
      */
-    @objc public let purchasedAt: Date
+    public let purchasedAt: Date
 
     /**
      Canceled date of in-app purchase, i.e. refund date. Nil if in-app purchase is not refunded.
      */
-    @objc public let canceledAt: Date?
+    public let canceledAt: Date?
 
     /**
      Returns `true` if purchase is made in test environment, i.e. sandbox or local purchase.
      */
-    @objc public let isSandbox: Bool
+    public let isSandbox: Bool
 
     /**
      Returns `true` if purchase was made using Local StoreKit Configuration File. Read more: https://docs.apphud.com/docs/testing-troubleshooting#local-storekit-testing
      */
-    @objc public let isLocal: Bool
+    public let isLocal: Bool
 
     // MARK: - Private methods
+
+    private enum CodingKeys: String, CodingKey {
+        case id, purchasedAt, productId, cancelledAt, environment, local, kind
+    }
+
+
+    required public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        let kind = try values.decode(String.self, forKey: .kind)
+
+        guard kind == "nonrenewable" else { throw ApphudError(message: "Not a nonrenewing purchase")}
+
+        productId = try values.decode(String.self, forKey: .productId)
+        canceledAt = try values.decode(String.self, forKey: .cancelledAt).apphudIsoDate
+        purchasedAt = try values.decode(String.self, forKey: .purchasedAt).apphudIsoDate ?? Date()
+        isSandbox = (try values.decode(String.self, forKey: .environment)) == "sandbox"
+        isLocal = try values.decode(Bool.self, forKey: .local)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(productId, forKey: .productId)
+        try? container.encode(canceledAt?.apphudIsoString, forKey: .cancelledAt)
+        try container.encode(purchasedAt.apphudIsoString, forKey: .purchasedAt)
+        try container.encode(isSandbox ? "sandbox" : "production", forKey: .environment)
+        try container.encode(isLocal, forKey: .local)
+    }
 
     /// Subscription private initializer
     init?(dictionary: [String: Any]) {

@@ -28,7 +28,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 //        Apphud.setUserProperty(key: .init("custom_prop_1"), value: 0.5)
 //        Apphud.setUserProperty(key: .init("custom_prop_2"), value: true)
 //        Apphud.incrementUserProperty(key: .init("coins_count"), by: 2)
-        Apphud.setDelegate(self)
+//        Apphud.setDelegate(self)
         Apphud.setUIDelegate(self)
 
         registerForNotifications()
@@ -63,23 +63,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     }
 }
 
-extension AppDelegate: ApphudDelegate {
-
-    func apphudDidFetchStoreKitProducts(_ products: [SKProduct]) {
-        // handle this if needed
-    }
-
-    func apphudDidFetchStoreKitProducts(_ products: [SKProduct], _ error: Error?) {
-        // handle this if needed
-    }
-
-    func apphudDidObservePurchase(result: ApphudPurchaseResult) -> Bool {
-
-        print("Did observe purchase made without Apphud SDK: \(result)")
-
-        return true // let apphud sdk to finish this transaction
-    }
-}
 
 extension AppDelegate: ApphudUIDelegate {
 
@@ -89,5 +72,11 @@ extension AppDelegate: ApphudUIDelegate {
         } else {
             return .overFullScreen
         }
+    }
+}
+
+extension AppDelegate: ApphudDelegate {
+    func paywallsDidFullyLoad(paywalls: [ApphudPaywall]) {
+        print("paywalls are ready")
     }
 }
