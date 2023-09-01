@@ -443,6 +443,14 @@ extension Product {
 
 extension SKProduct {
 
+    var apphudIsPaidIntro: Bool {
+        introductoryPrice != nil && introductoryPrice!.price.doubleValue > 0
+    }
+
+    var apphudIsTrial: Bool {
+        introductoryPrice != nil && introductoryPrice?.paymentMode == SKProductDiscount.PaymentMode.freeTrial
+    }
+
     func apphudSubmittableParameters(_ purchased: Bool = false) -> [String: Any] {
         var params: [String: Any] = [
             "product_id": productIdentifier,

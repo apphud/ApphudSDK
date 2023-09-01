@@ -295,8 +295,24 @@ extension ApphudInternal {
         apphudLog("Uploading App Store Receipt...")
 
         httpClient?.startRequest(path: .subscriptions, params: params, method: .post) { (result, response, _, error, errorCode, duration) in
-            if error == nil && hasMadePurchase {
+            
+            if !result && hasMadePurchase && self.fallbackMode {
+                self.requiresReceiptSubmission = true
+                self.isSubmittingReceipt = false
+                let hasChanges = self.stubPurchase(product: product ?? apphudProduct?.skProduct)
+                self.notifyAboutUpdates(hasChanges)
+                self.submitReceiptCallbacks.forEach { callback in callback?(error)}
+                self.submitReceiptCallbacks.removeAll()
+                return
+            }
+
+            if result && hasMadePurchase {
                 ApphudLoggerService.shared.add(key: .subscriptions, value: duration, retryLog: self.submitReceiptRetries)
+            }
+
+            if result && hasMadePurchase && Apphud.hasPremiumAccess() {
+                apphudLog("disable fallback mode", logLevel: .all)
+                self.fallbackMode = false
             }
 
             self.forceSendAttributionDataIfNeeded()

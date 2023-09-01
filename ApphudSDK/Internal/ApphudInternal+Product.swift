@@ -11,8 +11,9 @@ import StoreKit
 
 extension ApphudInternal {
 
-    @objc internal func continueToFetchProducts(needToUpdateProductGroups: Bool = true) {
-        if let productIDs = delegate?.apphudProductIdentifiers(), productIDs.count > 0 {
+    @objc internal func continueToFetchProducts(needToUpdateProductGroups: Bool = true, fallbackProducts: [String]? = nil) {
+
+        if let productIDs = (fallbackProducts ?? delegate?.apphudProductIdentifiers()), productIDs.count > 0 {
             let products = productIDs.map { ApphudProduct(id: $0, name: $0, productId: $0, store: "app_store", skProduct: nil) }
             let group = ApphudGroup(id: "Untitled", name: "Untitled", products: products)
             continueWithProductGroups([group], errorCode: nil, writeToCache: false)
@@ -230,9 +231,33 @@ extension ApphudInternal {
         return products
     }
 
+    internal func paywallsAreReady() -> Bool {
+        var paywallsContainsProducts = false
+        paywalls.forEach { paywall in
+            paywall.products.forEach { p in
+                if p.skProduct != nil {
+                    paywallsContainsProducts = true
+                }
+            }
+        }
+
+        if paywallsContainsProducts {return true}
+
+        updatePaywallsWithStoreKitProducts(paywalls: paywalls)
+
+        paywalls.forEach { paywall in
+            paywall.products.forEach { p in
+                if p.skProduct != nil {
+                    paywallsContainsProducts = true
+                }
+            }
+        }
+
+        return paywallsContainsProducts
+    }
+
     internal func updatePaywallsWithStoreKitProducts(paywalls: [ApphudPaywall]) {
         performWhenUserRegistered {
-            self.paywallsAreReady = true
             self.paywallsLoadTime = Date().timeIntervalSince(self.initDate)
         }
 

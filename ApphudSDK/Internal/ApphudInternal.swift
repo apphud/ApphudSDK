@@ -38,7 +38,6 @@ final class ApphudInternal: NSObject {
     internal var productGroupsFetchedCallbacks = [ApphudVoidCallback]()
     internal var storeKitProductsFetchedCallbacks = [ApphudVoidCallback]()
     internal var customProductsFetchedBlocks = [ApphudStoreKitProductsCallback]()
-    internal var paywallsAreReady = false
     internal var productGroups = [ApphudGroup]()
     internal var paywalls = [ApphudPaywall]()
 
@@ -131,6 +130,9 @@ final class ApphudInternal: NSObject {
     internal var isSendingAdjust = false
     internal var isFreshInstall = true
     internal var isRedownload = false
+
+    internal var fallbackMode = false
+    internal var registrationStartedAt: Date?
 
     internal var isInitialized: Bool {
         httpClient != nil
@@ -371,6 +373,11 @@ final class ApphudInternal: NSObject {
 
         let delay: TimeInterval
 
+        let serverIsUnreachable = [NSURLErrorCannotConnectToHost, NSURLErrorTimedOut, 500, 502, 503].contains(errorCode)
+        if serverIsUnreachable {
+            executeFallback()
+        }
+
         if retryImmediately.contains(errorCode) {
             delay = 0.5
         } else if noInternetError.contains(errorCode) {
@@ -457,7 +464,7 @@ final class ApphudInternal: NSObject {
         }
     }
 
-    private func performAllUserRegisteredBlocks() {
+    internal func performAllUserRegisteredBlocks() {
         for block in userRegisteredCallbacks {
             apphudLog("Performing scheduled block..")
             block()

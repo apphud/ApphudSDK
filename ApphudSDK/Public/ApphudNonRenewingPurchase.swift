@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import StoreKit
 
 /**
  Custom Apphud class containing all information about customer non-renewing purchase
@@ -83,6 +84,17 @@ public class ApphudNonRenewingPurchase: Codable {
      Returns `true` if purchase is not refunded.
      */
     @objc public func isActive() -> Bool {
+        if (canceledAt != nil && canceledAt!.timeIntervalSince(purchasedAt) < 3700) {
+            return canceledAt! > Date()
+        }
         return canceledAt == nil
+    }
+
+    internal init(product: SKProduct) {
+        productId = product.productIdentifier
+        purchasedAt = Date()
+        canceledAt = Date().addingTimeInterval(3600)
+        isSandbox = apphudIsSandbox()
+        isLocal = false
     }
 }

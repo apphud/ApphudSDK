@@ -26,6 +26,12 @@ internal struct ApphudUser {
 
     // MARK: - Private methods
 
+    init?(userID: String, subscriptions: [ApphudSubscription] = [], purchases: [ApphudNonRenewingPurchase] = []) {
+        self.user_id = userID
+        self.subscriptions = subscriptions
+        self.purchases = purchases
+    }
+
     init?(dictionary: [String: Any]) {
         guard let userID = dictionary["user_id"] as? String else { return nil }
         self.user_id = userID

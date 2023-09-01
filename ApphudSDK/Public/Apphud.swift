@@ -264,7 +264,7 @@ final public class Apphud: NSObject {
      It is safe to call this method multiple times – previous callback will not be overwritten, but will be added to array and once paywalls are loaded, all callbacks will be called.
     */
     @objc public static func paywallsDidLoadCallback(_ callback: @escaping ([ApphudPaywall]) -> Void) {
-        if ApphudInternal.shared.paywallsAreReady {
+        if ApphudInternal.shared.paywallsAreReady() {
             callback(ApphudInternal.shared.paywalls)
         } else {
             ApphudInternal.shared.customPaywallsLoadedCallbacks.append(callback)

@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import StoreKit
 
 /**
  Status of the subscription. It can only be in one state at any moment.
@@ -41,6 +42,10 @@ public class ApphudSubscription: Codable {
      - Returns: If value is `true` then user should have access to premium content.
      */
     @objc public func isActive() -> Bool {
+        if groupId == stub_key {
+            return expiresDate > Date()
+        }
+        
         switch status {
         case .trial, .intro, .promo, .regular, .grace:
             return true
@@ -170,4 +175,21 @@ public class ApphudSubscription: Codable {
             status = .expired
         }
     }
+
+    internal init(product: SKProduct) {
+        id = product.productIdentifier
+        expiresDate = Date().addingTimeInterval(3600)
+        productId = product.productIdentifier
+        canceledAt = nil
+        startedAt = Date()
+        isInRetryBilling = false
+        isAutorenewEnabled = true
+        isSandbox = apphudIsSandbox()
+        isLocal = false
+        groupId = stub_key
+        status = product.apphudIsTrial ? .trial : product.apphudIsPaidIntro ? .intro : .regular
+        isIntroductoryActivated = status == .trial || status == .intro
+    }
+
+    internal let stub_key = "apphud_stub"
 }

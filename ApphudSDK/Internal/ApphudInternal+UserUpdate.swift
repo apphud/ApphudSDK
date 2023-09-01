@@ -50,7 +50,7 @@ extension ApphudInternal {
         return (hasSubscriptionChanges, hasPurchasesChanges)
     }
 
-    private func mappingPaywalls(_ pwls: [[String: Any]]) {
+    internal func mappingPaywalls(_ pwls: [[String: Any]]) {
         let finalPaywalls = pwls.map { ApphudPaywall(dictionary: $0) }
         self.preparePaywalls(pwls: finalPaywalls, writeToCache: true, completionBlock: nil)
     }
