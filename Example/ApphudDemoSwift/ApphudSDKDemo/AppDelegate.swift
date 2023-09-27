@@ -63,7 +63,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     }
 }
 
-
 extension AppDelegate: ApphudUIDelegate {
 
     func apphudScreenPresentationStyle(controller: UIViewController) -> UIModalPresentationStyle {

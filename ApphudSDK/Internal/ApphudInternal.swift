@@ -271,12 +271,12 @@ final class ApphudInternal: NSObject {
 
         self.currentDeviceID = deviceID!
 
-        self.currentUser = ApphudUser.fromCache()
+        self.currentUser = ApphudUser.fromCacheV2(isFreshInstall)
         let userIDFromKeychain = ApphudKeychain.loadUserID()
 
         if inputUserID?.count ?? 0 > 0 {
             self.currentUserID = inputUserID!
-        } else if let existingUserID = self.currentUser?.user_id {
+        } else if let existingUserID = self.currentUser?.userId {
             self.currentUserID = existingUserID
         } else if userIDFromKeychain != nil {
             self.currentUserID = userIDFromKeychain!
@@ -335,7 +335,7 @@ final class ApphudInternal: NSObject {
         isRegisteringUser = true
 
         // in observer mode need to fetch products too, for Updating currency and Rules
-        continueToFetchProducts(needToUpdateProductGroups: needToUpdateProductGroups)
+        continueToFetchProducts(needToUpdateProductGroups: needToUpdateProductGroups, fallbackProducts: nil)
 
         registerUser(skipRegistration: skipRegistration)
     }
@@ -660,7 +660,7 @@ final class ApphudInternal: NSObject {
                     let properties = notifDict["properties"] as? [String: Any]
                     ruleDict = ruleDict.merging(properties ?? [:], uniquingKeysWith: {_, new in new})
                     let rule = ApphudRule(dictionary: ruleDict)
-                    ApphudRulesManager.shared.handleRule(rule: rule)
+//                    ApphudRulesManager.shared.handleRule(rule: rule)
                 }
             })
         }

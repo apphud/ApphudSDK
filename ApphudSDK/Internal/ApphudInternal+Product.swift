@@ -11,7 +11,11 @@ import StoreKit
 
 extension ApphudInternal {
 
-    @objc internal func continueToFetchProducts(needToUpdateProductGroups: Bool = true, fallbackProducts: [String]? = nil) {
+    @objc internal func refetchProducts() {
+        continueToFetchProducts(needToUpdateProductGroups: true, fallbackProducts: nil)
+    }
+
+    @objc internal func continueToFetchProducts(needToUpdateProductGroups: Bool = true, fallbackProducts: [String]?) {
 
         if let productIDs = (fallbackProducts ?? delegate?.apphudProductIdentifiers()), productIDs.count > 0 {
             let products = productIDs.map { ApphudProduct(id: $0, name: $0, productId: $0, store: "app_store", skProduct: nil) }
@@ -59,7 +63,7 @@ extension ApphudInternal {
             return
         }
 
-        let delay: TimeInterval
+        var delay: TimeInterval
 
         if noInternetError {
             delay = 1.0
@@ -69,8 +73,8 @@ extension ApphudInternal {
             productsFetchRetries.errorCode = errorCode
         }
 
-        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(continueToFetchProducts), object: nil)
-        perform(#selector(continueToFetchProducts), with: nil, afterDelay: delay)
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(refetchProducts), object: nil)
+        perform(#selector(refetchProducts), with: nil, afterDelay: delay)
         apphudLog("No Product Identifiers found in Apphud. Probably you forgot to add products in Apphud Settings? Scheduled products fetch retry in \(delay) seconds.", forceDisplay: true)
     }
 
@@ -129,7 +133,7 @@ extension ApphudInternal {
         } else if productGroups.count > 0 {
             continueToFetchStoreKitProducts()
         } else {
-            continueToFetchProducts()
+            continueToFetchProducts(fallbackProducts: nil)
         }
     }
 

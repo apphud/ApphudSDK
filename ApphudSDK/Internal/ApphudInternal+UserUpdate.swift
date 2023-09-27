@@ -13,7 +13,11 @@ import UIKit
 
 extension ApphudInternal {
 
-    @discardableResult internal func parseUser(_ dict: [String: Any]?) -> HasPurchasesChanges {
+    @discardableResult internal func parseUser(_ dict: [String: Any]?, data: Data? = nil) -> HasPurchasesChanges {
+
+        guard let data = data else {
+            return (false, false)
+        }
 
         guard let dataDict = dict?["data"] as? [String: Any] else {
             return (false, false)
@@ -24,21 +28,25 @@ extension ApphudInternal {
 
         UserDefaults.standard.set(userDict["swizzle_disabled"] != nil, forKey: swizzlePaymentDisabledKey)
 
-        if let paywalls = userDict["paywalls"] as? [[String: Any]] {
-            self.mappingPaywalls(paywalls)
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+
+        let oldStates = currentUser?.subscriptionsStates()
+        let oldPurchasesStates = currentUser?.purchasesStates()
+
+        let response = try? decoder.decode(ApphudUserResponse<ApphudUser>.self, from: data)
+        currentUser = response?.data.results
+
+        if let pwls = currentUser?.paywalls {
+            self.preparePaywalls(pwls: pwls, writeToCache: true, completionBlock: nil)
         } else {
             didLoadUserAtThisLaunch = true
         }
 
-        let oldStates = self.currentUser?.subscriptionsStates()
-        let oldPurchasesStates = self.currentUser?.purchasesStates()
+        let newStates = currentUser?.subscriptionsStates()
+        let newPurchasesStates = currentUser?.purchasesStates()
 
-        self.currentUser = ApphudUser(dictionary: userDict)
-
-        let newStates = self.currentUser?.subscriptionsStates()
-        let newPurchasesStates = self.currentUser?.purchasesStates()
-
-        ApphudUser.toCache(userDict)
+        currentUser?.toCacheV2()
 
         checkUserID(tellDelegate: true)
 
@@ -56,7 +64,7 @@ extension ApphudInternal {
     }
 
     private func checkUserID(tellDelegate: Bool) {
-        guard let userID = self.currentUser?.user_id else {return}
+        guard let userID = self.currentUser?.userId else {return}
         if self.currentUserID != userID {
             self.currentUserID = userID
             ApphudKeychain.saveUserID(userID: self.currentUserID)
@@ -80,8 +88,9 @@ extension ApphudInternal {
         let needLogging = shouldUpdateUserID
         let fields = shouldUpdateUserID ? ["user_id": self.currentUserID] : [:]
 
-        self.updateUser(fields: fields, delay: delay) { (result, response, _, error, code, duration) in
-            let hasChanges = self.parseUser(response)
+        self.updateUser(fields: fields, delay: delay) { (result, response, data, error, code, duration) in
+
+            let hasChanges = self.parseUser(response, data: data)
 
             let finalResult = result && self.currentUser != nil
 

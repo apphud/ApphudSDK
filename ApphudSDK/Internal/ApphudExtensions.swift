@@ -106,6 +106,15 @@ internal func apphudShouldMigrate() -> Bool {
     return !UserDefaults.standard.bool(forKey: "ApphudSubscriptionsMigrated")
 }
 
+internal func apphudDataClearCache(key: String) {
+    if var url = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first {
+        url.appendPathComponent(key)
+        if FileManager.default.fileExists(atPath: url.path) {
+            try? FileManager.default.removeItem(at: url)
+        }
+    }
+}
+
 internal func apphudDataToCache(data: Data, key: String) {
     if var url = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first {
         url.appendPathComponent(key)

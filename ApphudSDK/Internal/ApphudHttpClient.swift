@@ -8,6 +8,14 @@
 
 import Foundation
 
+internal struct ApphudUserResponse<T: Decodable>: Decodable {
+    var data: ApphudUserResultsResponse<T>
+}
+
+internal struct ApphudUserResultsResponse<T: Decodable>: Decodable {
+    var results: T
+}
+
 internal struct ApphudAPIDataResponse<T: Decodable>: Decodable {
     var data: T
 }
@@ -305,8 +313,8 @@ public class ApphudHttpClient {
                     var code = httpResponse.statusCode
 
                     #if DEBUG
-                    callback?(false, nil, nil, nil, 503, 10)
-                    return
+//                    callback?(false, nil, nil, nil, 503, 10)
+//                    return
                     #endif
 
                     if code >= 200 && code < 300 {

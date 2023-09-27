@@ -46,7 +46,6 @@ public class ApphudNonRenewingPurchase: Codable {
         case id, purchasedAt, productId, cancelledAt, environment, local, kind
     }
 
-
     required public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         let kind = try values.decode(String.self, forKey: .kind)
@@ -54,7 +53,7 @@ public class ApphudNonRenewingPurchase: Codable {
         guard kind == "nonrenewable" else { throw ApphudError(message: "Not a nonrenewing purchase")}
 
         productId = try values.decode(String.self, forKey: .productId)
-        canceledAt = try values.decode(String.self, forKey: .cancelledAt).apphudIsoDate
+        canceledAt = try? values.decode(String.self, forKey: .cancelledAt).apphudIsoDate
         purchasedAt = try values.decode(String.self, forKey: .purchasedAt).apphudIsoDate ?? Date()
         isSandbox = (try values.decode(String.self, forKey: .environment)) == "sandbox"
         isLocal = try values.decode(Bool.self, forKey: .local)
@@ -84,7 +83,7 @@ public class ApphudNonRenewingPurchase: Codable {
      Returns `true` if purchase is not refunded.
      */
     @objc public func isActive() -> Bool {
-        if (canceledAt != nil && canceledAt!.timeIntervalSince(purchasedAt) < 3700) {
+        if canceledAt != nil && canceledAt!.timeIntervalSince(purchasedAt) < 3700 {
             return canceledAt! > Date()
         }
         return canceledAt == nil
@@ -96,5 +95,9 @@ public class ApphudNonRenewingPurchase: Codable {
         canceledAt = Date().addingTimeInterval(3600)
         isSandbox = apphudIsSandbox()
         isLocal = false
+    }
+
+    internal var stateDescription: String {
+        [String(canceledAt?.timeIntervalSince1970 ?? 0), productId, String(purchasedAt.timeIntervalSince1970)].joined(separator: "|")
     }
 }

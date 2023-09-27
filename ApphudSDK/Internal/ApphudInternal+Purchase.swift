@@ -295,7 +295,7 @@ extension ApphudInternal {
         apphudLog("Uploading App Store Receipt...")
 
         httpClient?.startRequest(path: .subscriptions, params: params, method: .post) { (result, response, _, error, errorCode, duration) in
-            
+
             if !result && hasMadePurchase && self.fallbackMode {
                 self.requiresReceiptSubmission = true
                 self.isSubmittingReceipt = false

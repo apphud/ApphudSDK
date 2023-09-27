@@ -13,7 +13,7 @@ import UIKit
 import StoreKit
 
 extension ApphudInternal {
-    
+
     func executeFallback() {
 
         guard self.currentUser == nil else {
@@ -56,7 +56,6 @@ extension ApphudInternal {
 
             self.mappingPaywalls(paywallsJSON)
 
-
             var allProductIds = [String]()
             self.paywalls.forEach { p in
                 allProductIds.append(contentsOf: p.products.map { $0.productId })
@@ -84,16 +83,14 @@ extension ApphudInternal {
             let subscription = ApphudSubscription(product: product)
             self.currentUser = ApphudUser(userID: currentUserID, subscriptions: [subscription])
 
-            // надо сделать через codable
-            ApphudUser.toCache(userDict)
+            self.currentUser?.toCacheV2()
 
             return HasPurchasesChanges(true, false)
         } else {
             let purchase = ApphudNonRenewingPurchase(product: product)
             self.currentUser = ApphudUser(userID: currentUserID, purchases: [purchase])
 
-            // надо сделать через codable
-            ApphudUser.toCache(userDict)
+            self.currentUser?.toCacheV2()
 
             return HasPurchasesChanges(false, true)
         }

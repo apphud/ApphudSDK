@@ -45,7 +45,7 @@ public class ApphudSubscription: Codable {
         if groupId == stub_key {
             return expiresDate > Date()
         }
-        
+
         switch status {
         case .trial, .intro, .promo, .regular, .grace:
             return true
@@ -118,7 +118,6 @@ public class ApphudSubscription: Codable {
         case id, expiresAt, productId, cancelledAt, startedAt, inRetryBilling, autorenewEnabled, introductoryActivated, environment, local, groupId, status
     }
 
-
     required public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         let expiresDateString = try values.decode(String.self, forKey: .expiresAt)
@@ -127,7 +126,7 @@ public class ApphudSubscription: Codable {
         id = try values.decode(String.self, forKey: .id)
         expiresDate = expDate
         productId = try values.decode(String.self, forKey: .productId)
-        canceledAt = try values.decode(String.self, forKey: .cancelledAt).apphudIsoDate
+        canceledAt = try? values.decode(String.self, forKey: .cancelledAt).apphudIsoDate
         startedAt = try values.decode(String.self, forKey: .startedAt).apphudIsoDate ?? Date()
         isInRetryBilling = try values.decode(Bool.self, forKey: .inRetryBilling)
         isAutorenewEnabled = try values.decode(Bool.self, forKey: .autorenewEnabled)
@@ -153,7 +152,6 @@ public class ApphudSubscription: Codable {
         try container.encode(groupId, forKey: .groupId)
         try container.encode(status.rawValue, forKey: .status)
     }
-
 
     /// Subscription private initializer
     init?(dictionary: [String: Any]) {
@@ -189,6 +187,10 @@ public class ApphudSubscription: Codable {
         groupId = stub_key
         status = product.apphudIsTrial ? .trial : product.apphudIsPaidIntro ? .intro : .regular
         isIntroductoryActivated = status == .trial || status == .intro
+    }
+
+    internal var stateDescription: String {
+        [String(expiresDate.timeIntervalSince1970), productId, status.rawValue, String(isAutorenewEnabled)].joined(separator: "|")
     }
 
     internal let stub_key = "apphud_stub"
