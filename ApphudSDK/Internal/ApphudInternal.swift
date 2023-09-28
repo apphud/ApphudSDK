@@ -380,7 +380,7 @@ final class ApphudInternal: NSObject {
         let retryImmediately = [NSURLErrorRedirectToNonExistentLocation, NSURLErrorUnknown, NSURLErrorTimedOut, NSURLErrorNetworkConnectionLost]
         let noInternetError = [NSURLErrorNotConnectedToInternet, NSURLErrorCannotConnectToHost, NSURLErrorCannotFindHost]
 
-        let delay: TimeInterval
+        var delay: TimeInterval
 
         let serverIsUnreachable = [NSURLErrorCannotConnectToHost, NSURLErrorTimedOut, 500, 502, 503].contains(errorCode)
         if serverIsUnreachable {
@@ -395,6 +395,10 @@ final class ApphudInternal: NSObject {
             delay = 2.0
             userRegisterRetries.count += 1
             userRegisterRetries.errorCode = errorCode
+        }
+
+        if fallbackMode {
+            delay *= 3.0
         }
 
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(registerUser), object: nil)

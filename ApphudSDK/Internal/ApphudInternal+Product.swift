@@ -73,6 +73,10 @@ extension ApphudInternal {
             productsFetchRetries.errorCode = errorCode
         }
 
+        if fallbackMode {
+            delay *= 3.0
+        }
+
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(refetchProducts), object: nil)
         perform(#selector(refetchProducts), with: nil, afterDelay: delay)
         apphudLog("No Product Identifiers found in Apphud. Probably you forgot to add products in Apphud Settings? Scheduled products fetch retry in \(delay) seconds.", forceDisplay: true)

@@ -22,12 +22,12 @@ extension ApphudInternal {
         }
 
         guard let url = Bundle.main.url(forResource: "apphud_paywalls_fallback", withExtension: "json") else {
-            apphudLog("Fallback not setup", logLevel: .all)
+            apphudLog("Fallback JSON file not found", logLevel: .all)
             return
         }
 
         guard !fallbackMode else {
-            apphudLog("Already executed fallback mode")
+            apphudLog("Already in fallback mode")
             return
         }
 
@@ -55,7 +55,7 @@ extension ApphudInternal {
             let pwlsResponse = try decoder.decode(ApphudArrayResponse.self, from: jsonData)
             let pwls = pwlsResponse.data.results
 
-            self.preparePaywalls(pwls: pwls, writeToCache: true, completionBlock: nil)
+            self.preparePaywalls(pwls: pwls, writeToCache: false, completionBlock: nil)
 
             var allProductIds = [String]()
             self.paywalls.forEach { p in
