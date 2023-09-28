@@ -246,7 +246,7 @@ extension ApphudInternal {
         }
         isSubmittingReceipt = true
 
-        let environment = Apphud.isSandbox() ? "sandbox" : "production"
+        let environment = Apphud.isSandbox() ? ApphudEnvironment.sandbox.rawValue : ApphudEnvironment.production.rawValue
 
         var params: [String: Any] = ["device_id": self.currentDeviceID,
                                      "environment": environment,
@@ -294,7 +294,7 @@ extension ApphudInternal {
 
         apphudLog("Uploading App Store Receipt...")
 
-        httpClient?.startRequest(path: .subscriptions, params: params, method: .post) { (result, response, _, error, errorCode, duration) in
+        httpClient?.startRequest(path: .subscriptions, params: params, method: .post, useDecoder: true) { (result, _, data, error, errorCode, duration) in
 
             if !result && hasMadePurchase && self.fallbackMode {
                 self.requiresReceiptSubmission = true
@@ -321,7 +321,7 @@ extension ApphudInternal {
             if result {
                 self.submitReceiptRetries = (0, 0)
                 self.requiresReceiptSubmission = false
-                let hasChanges = self.parseUser(response)
+                let hasChanges = self.parseUser(data: data)
                 if notifyDelegate {
                     self.notifyAboutUpdates(hasChanges)
                 }

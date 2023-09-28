@@ -57,7 +57,7 @@ public class ApphudSubscription: Codable {
     /**
      The state of the subscription
      */
-    public var status: ApphudSubscriptionStatus
+    public let status: ApphudSubscriptionStatus
 
     /**
      Product identifier of this subscription
@@ -114,31 +114,38 @@ public class ApphudSubscription: Codable {
 
     // MARK: - Private methods
 
-    private enum CodingKeys: String, CodingKey {
-        case id, expiresAt, productId, cancelledAt, startedAt, inRetryBilling, autorenewEnabled, introductoryActivated, environment, local, groupId, status
+    required public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: ApphudIAPCodingKeys.self)
+        (self.id, self.expiresDate, self.productId, self.canceledAt, self.startedAt, self.isInRetryBilling, self.isAutorenewEnabled, self.isIntroductoryActivated, self.isSandbox, self.isLocal, self.groupId, self.status) = try Self.decodeValues(from: values)
     }
 
-    required public init(from decoder: Decoder) throws {
-        let values = try decoder.container(keyedBy: CodingKeys.self)
+    internal init(with values: KeyedDecodingContainer<ApphudIAPCodingKeys>) throws {
+        (self.id, self.expiresDate, self.productId, self.canceledAt, self.startedAt, self.isInRetryBilling, self.isAutorenewEnabled, self.isIntroductoryActivated, self.isSandbox, self.isLocal, self.groupId, self.status) = try Self.decodeValues(from: values)
+    }
+
+    private static func decodeValues(from values: KeyedDecodingContainer<ApphudIAPCodingKeys>) throws -> (String, Date, String, Date?, Date, Bool, Bool, Bool, Bool, Bool, String, ApphudSubscriptionStatus) {
+
         let expiresDateString = try values.decode(String.self, forKey: .expiresAt)
         guard let expDate = expiresDateString.apphudIsoDate else { throw ApphudError(message: "Missing Expires Date") }
 
-        id = try values.decode(String.self, forKey: .id)
-        expiresDate = expDate
-        productId = try values.decode(String.self, forKey: .productId)
-        canceledAt = try? values.decode(String.self, forKey: .cancelledAt).apphudIsoDate
-        startedAt = try values.decode(String.self, forKey: .startedAt).apphudIsoDate ?? Date()
-        isInRetryBilling = try values.decode(Bool.self, forKey: .inRetryBilling)
-        isAutorenewEnabled = try values.decode(Bool.self, forKey: .autorenewEnabled)
-        isIntroductoryActivated = try values.decode(Bool.self, forKey: .introductoryActivated)
-        isSandbox = (try values.decode(String.self, forKey: .environment)) == "sandbox"
-        isLocal = try values.decode(Bool.self, forKey: .local)
-        groupId = try values.decode(String.self, forKey: .groupId)
-        status = try values.decode(ApphudSubscriptionStatus.self, forKey: .status)
+        let id = try values.decode(String.self, forKey: .id)
+        let expiresDate = expDate
+        let productId = try values.decode(String.self, forKey: .productId)
+        let canceledAt = try? values.decode(String.self, forKey: .cancelledAt).apphudIsoDate
+        let startedAt = try values.decode(String.self, forKey: .startedAt).apphudIsoDate ?? Date()
+        let isInRetryBilling = try values.decode(Bool.self, forKey: .inRetryBilling)
+        let isAutorenewEnabled = try values.decode(Bool.self, forKey: .autorenewEnabled)
+        let isIntroductoryActivated = try values.decode(Bool.self, forKey: .introductoryActivated)
+        let isSandbox = (try values.decode(String.self, forKey: .environment)) == ApphudEnvironment.sandbox.rawValue
+        let isLocal = try values.decode(Bool.self, forKey: .local)
+        let groupId = try values.decode(String.self, forKey: .groupId)
+        let status = try values.decode(ApphudSubscriptionStatus.self, forKey: .status)
+
+        return (id, expiresDate, productId, canceledAt, startedAt, isInRetryBilling, isAutorenewEnabled, isIntroductoryActivated, isSandbox, isLocal, groupId, status)
     }
 
     public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
+        var container = encoder.container(keyedBy: ApphudIAPCodingKeys.self)
         try container.encode(id, forKey: .id)
         try container.encode(expiresDate.apphudIsoString, forKey: .expiresAt)
         try container.encode(productId, forKey: .productId)
@@ -148,30 +155,10 @@ public class ApphudSubscription: Codable {
         try container.encode(isAutorenewEnabled, forKey: .autorenewEnabled)
         try container.encode(isIntroductoryActivated, forKey: .introductoryActivated)
         try container.encode(isLocal, forKey: .local)
-        try container.encode(isSandbox ? "sandbox" : "production", forKey: .environment)
+        try container.encode(isSandbox ? ApphudEnvironment.sandbox.rawValue : ApphudEnvironment.production.rawValue, forKey: .environment)
         try container.encode(groupId, forKey: .groupId)
         try container.encode(status.rawValue, forKey: .status)
-    }
-
-    /// Subscription private initializer
-    init?(dictionary: [String: Any]) {
-        guard let expDate = (dictionary["expires_at"] as? String ?? "").apphudIsoDate else {return nil}
-        id = dictionary["id"] as? String ?? ""
-        expiresDate = expDate
-        productId = dictionary["product_id"] as? String ?? ""
-        canceledAt =  (dictionary["cancelled_at"] as? String ?? "").apphudIsoDate
-        startedAt = (dictionary["started_at"] as? String ?? "").apphudIsoDate ?? Date()
-        isInRetryBilling = dictionary["in_retry_billing"] as? Bool ?? false
-        isAutorenewEnabled = dictionary["autorenew_enabled"] as? Bool ?? false
-        isIntroductoryActivated = dictionary["introductory_activated"] as? Bool ?? false
-        isSandbox = (dictionary["environment"] as? String ?? "") == "sandbox"
-        isLocal = dictionary["local"] as? Bool ?? false
-        groupId = dictionary["group_id"] as? String ?? ""
-        if let statusString = dictionary["status"] as? String {
-            status = ApphudSubscriptionStatus(rawValue: statusString) ?? .expired
-        } else {
-            status = .expired
-        }
+        try container.encode(ApphudIAPKind.autorenewable.rawValue, forKey: .kind)
     }
 
     internal init(product: SKProduct) {

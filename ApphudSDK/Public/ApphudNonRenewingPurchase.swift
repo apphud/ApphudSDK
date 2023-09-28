@@ -42,41 +42,39 @@ public class ApphudNonRenewingPurchase: Codable {
 
     // MARK: - Private methods
 
-    private enum CodingKeys: String, CodingKey {
-        case id, purchasedAt, productId, cancelledAt, environment, local, kind
+    required public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: ApphudIAPCodingKeys.self)
+        (self.productId, self.canceledAt, self.purchasedAt, self.isSandbox, self.isLocal) = try Self.decodeValues(from: values)
     }
 
-    required public init(from decoder: Decoder) throws {
-        let values = try decoder.container(keyedBy: CodingKeys.self)
+    internal init(with values: KeyedDecodingContainer<ApphudIAPCodingKeys>) throws {
+        (self.productId, self.canceledAt, self.purchasedAt, self.isSandbox, self.isLocal) = try Self.decodeValues(from: values)
+    }
+
+    private static func decodeValues(from values: KeyedDecodingContainer<ApphudIAPCodingKeys>) throws -> (String, Date?, Date, Bool, Bool) {
+
         let kind = try values.decode(String.self, forKey: .kind)
 
-        guard kind == "nonrenewable" else { throw ApphudError(message: "Not a nonrenewing purchase")}
+        guard kind == ApphudIAPKind.nonrenewable.rawValue else { throw ApphudError(message: "Not a nonrenewing purchase")}
 
-        productId = try values.decode(String.self, forKey: .productId)
-        canceledAt = try? values.decode(String.self, forKey: .cancelledAt).apphudIsoDate
-        purchasedAt = try values.decode(String.self, forKey: .purchasedAt).apphudIsoDate ?? Date()
-        isSandbox = (try values.decode(String.self, forKey: .environment)) == "sandbox"
-        isLocal = try values.decode(Bool.self, forKey: .local)
+        let productId = try values.decode(String.self, forKey: .productId)
+        let canceledAt = try? values.decode(String.self, forKey: .cancelledAt).apphudIsoDate
+        let purchasedAt = try values.decode(String.self, forKey: .startedAt).apphudIsoDate ?? Date()
+        let isSandbox = (try values.decode(String.self, forKey: .environment)) == ApphudEnvironment.sandbox.rawValue
+        let isLocal = try values.decode(Bool.self, forKey: .local)
+
+        return (productId, canceledAt, purchasedAt, isSandbox, isLocal)
     }
+
 
     public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
+        var container = encoder.container(keyedBy: ApphudIAPCodingKeys.self)
         try container.encode(productId, forKey: .productId)
         try? container.encode(canceledAt?.apphudIsoString, forKey: .cancelledAt)
-        try container.encode(purchasedAt.apphudIsoString, forKey: .purchasedAt)
-        try container.encode(isSandbox ? "sandbox" : "production", forKey: .environment)
+        try container.encode(purchasedAt.apphudIsoString, forKey: .startedAt)
+        try container.encode(isSandbox ? ApphudEnvironment.sandbox.rawValue : ApphudEnvironment.production.rawValue, forKey: .environment)
         try container.encode(isLocal, forKey: .local)
-    }
-
-    /// Subscription private initializer
-    init?(dictionary: [String: Any]) {
-        guard dictionary["kind"] as? String == "nonrenewable" else {return nil}
-
-        canceledAt =  (dictionary["cancelled_at"] as? String ?? "").apphudIsoDate
-        purchasedAt = (dictionary["started_at"] as? String ?? "").apphudIsoDate ?? Date()
-        productId = dictionary["product_id"] as? String ?? ""
-        isSandbox = (dictionary["environment"] as? String ?? "") == "sandbox"
-        isLocal = dictionary["local"] as? Bool ?? false
+        try container.encode(ApphudIAPKind.nonrenewable.rawValue, forKey: .kind)
     }
 
     /**

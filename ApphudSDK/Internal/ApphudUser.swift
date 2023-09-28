@@ -39,6 +39,7 @@ internal struct ApphudUser: Codable {
         case currency
         case autorenewables
         case nonrenewables
+        case swizzleDisabled
     }
 
     init(from decoder: Decoder) throws {
@@ -49,19 +50,53 @@ internal struct ApphudUser: Codable {
         self.currency = try? values.decode(ApphudCurrency.self, forKey: .currency)
 
         var subs = try? values.decodeIfPresent([ApphudSubscription].self, forKey: .autorenewables)
-        var purchs = try? values.decodeIfPresent([ApphudNonRenewingPurchase].self, forKey: .nonrenewables)
+        var purchs: [ApphudNonRenewingPurchase]?
+        do {
+            purchs = try values.decodeIfPresent([ApphudNonRenewingPurchase].self, forKey: .nonrenewables)
+        } catch {
+            apphudLog("purchases parse error: \(error)")
+        }
 
-        var inAppPurchases = try values.decode([ApphudInAppPurchase].self, forKey: .subscriptions)
+        if subs != nil && purchs != nil {
+            self.subscriptions = subs!
+            self.purchases = purchs!
+        } else {
 
-        self.subscriptions = []
-        self.purchases = []
-        inAppPurchases.forEach { iap in
-            switch iap {
-            case .subscription(let sub):
-                subscriptions.append(sub)
-            case .purchase(let purch):
-                purchases.append(purch)
+            let swizzleDisabled = (try? values.decodeIfPresent(Bool.self, forKey: .swizzleDisabled)) ?? false
+            UserDefaults.standard.set(swizzleDisabled, forKey: ApphudInternal.shared.swizzlePaymentDisabledKey)
+
+            self.subscriptions = []
+            self.purchases = []
+
+            var IAPContainer = try values.nestedUnkeyedContainer(forKey: .subscriptions)
+            while !IAPContainer.isAtEnd {
+                do {
+                    let item = try IAPContainer.nestedContainer(keyedBy: ApphudIAPCodingKeys.self)
+                    let keys = item.allKeys
+
+                    let kind = try item.decode(String.self, forKey: .kind)
+                    if kind == ApphudIAPKind.autorenewable.rawValue {
+                        let s = try ApphudSubscription(with: item)
+                        subscriptions.append(s)
+                    } else {
+                        let p = try ApphudNonRenewingPurchase(with: item)
+                        purchases.append(p)
+                    }
+                } catch {
+                    apphudLog("IAPContainer Error: \(error)")
+                }
             }
+
+//            var inAppPurchases = try values.decode([ApphudInAppPurchase].self, forKey: .subscriptions)
+//
+//            inAppPurchases.forEach { iap in
+//                switch iap {
+//                case .subscription(let sub):
+//                    subscriptions.append(sub)
+//                case .purchase(let purch):
+//                    purchases.append(purch)
+//                }
+//            }
         }
 
         subscriptions.sort {
@@ -186,7 +221,9 @@ internal struct ApphudUser: Codable {
 
         do {
             if let data = apphudDataFromCache(key: Self.ApphudUserKey, cacheTimeout: 86_400*90).objectsData {
-                let user = try JSONDecoder().decode(ApphudUser.self, from: data)
+                let decoder = JSONDecoder()
+                decoder.keyDecodingStrategy = .convertFromSnakeCase
+                let user = try decoder.decode(ApphudUser.self, from: data)
                 return user
             }
         } catch {

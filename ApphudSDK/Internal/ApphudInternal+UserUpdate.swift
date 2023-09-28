@@ -13,20 +13,11 @@ import UIKit
 
 extension ApphudInternal {
 
-    @discardableResult internal func parseUser(_ dict: [String: Any]?, data: Data? = nil) -> HasPurchasesChanges {
+    @discardableResult internal func parseUser(data: Data?) -> HasPurchasesChanges {
 
         guard let data = data else {
             return (false, false)
         }
-
-        guard let dataDict = dict?["data"] as? [String: Any] else {
-            return (false, false)
-        }
-        guard let userDict = dataDict["results"] as? [String: Any] else {
-            return (false, false)
-        }
-
-        UserDefaults.standard.set(userDict["swizzle_disabled"] != nil, forKey: swizzlePaymentDisabledKey)
 
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
@@ -34,8 +25,12 @@ extension ApphudInternal {
         let oldStates = currentUser?.subscriptionsStates()
         let oldPurchasesStates = currentUser?.purchasesStates()
 
-        let response = try? decoder.decode(ApphudUserResponse<ApphudUser>.self, from: data)
-        currentUser = response?.data.results
+        do {
+            let response = try decoder.decode(ApphudUserResponse<ApphudUser>.self, from: data)
+            currentUser = response.data.results
+        } catch {
+            apphudLog("Failed to decode ApphudUser, error: \(error)")
+        }
 
         if let pwls = currentUser?.paywalls {
             self.preparePaywalls(pwls: pwls, writeToCache: true, completionBlock: nil)
@@ -90,7 +85,7 @@ extension ApphudInternal {
 
         self.updateUser(fields: fields, delay: delay) { (result, response, data, error, code, duration) in
 
-            let hasChanges = self.parseUser(response, data: data)
+            let hasChanges = self.parseUser(data: data)
 
             let finalResult = result && self.currentUser != nil
 
@@ -122,13 +117,13 @@ extension ApphudInternal {
         guard let currencyCode = priceLocale.currencyCode else { return }
         guard self.currentUser != nil else { return }
 
-        if countryCode == self.currentUser?.countryCode && currencyCode == self.currentUser?.currencyCode {return}
+        if countryCode == self.currentUser?.currency?.countryCode && currencyCode == self.currentUser?.currency?.code {return}
 
         let params: [String: String] = ["country_code": countryCode, "currency_code": currencyCode]
 
-        updateUser(fields: params, delay: 2.0) { (result, response, _, _, _, _) in
+        updateUser(fields: params, delay: 2.0) { (result, _, data, _, _, _) in
             if result {
-                self.parseUser(response)
+                self.parseUser(data: data)
             }
         }
     }
@@ -142,9 +137,9 @@ extension ApphudInternal {
 
         let exist = performWhenUserRegistered {
 
-            self.updateUser(fields: ["user_id": userID]) { (result, response, _, _, _, _) in
+            self.updateUser(fields: ["user_id": userID]) { (result, _, data, _, _, _) in
                 if result {
-                    self.parseUser(response)
+                    self.parseUser(data: data)
                 }
             }
         }
@@ -155,9 +150,9 @@ extension ApphudInternal {
 
     internal func grantPromotional(_ duration: Int, _ permissionGroup: ApphudGroup?, productId: String?, callback: ApphudBoolCallback?) {
         performWhenUserRegistered {
-            self.grantPromotional(duration, permissionGroup, productId: productId) { (result, response, _, _, _, _) in
+            self.grantPromotional(duration, permissionGroup, productId: productId) { (result, _, data, _, _, _) in
                 if result {
-                    let hasChanges = self.parseUser(response)
+                    let hasChanges = self.parseUser(data: data)
                     self.notifyAboutUpdates(hasChanges)
                 }
                 callback?(result)
@@ -207,7 +202,7 @@ extension ApphudInternal {
         // do not automatically pass currentUserID here,because we have separate method updateUserID
 
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [self] in
-            httpClient?.startRequest(path: .customers, params: params, method: .post) { done, response, data, error, errorCode, duration in
+            httpClient?.startRequest(path: .customers, params: params, method: .post, useDecoder: true) { done, response, data, error, errorCode, duration in
                 if  errorCode == 403 {
                     apphudLog("Unable to perform API requests, because your account has been suspended.", forceDisplay: true)
                     ApphudHttpClient.shared.unauthorized = true

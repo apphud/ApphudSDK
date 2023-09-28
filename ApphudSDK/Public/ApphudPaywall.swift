@@ -149,14 +149,14 @@ public class ApphudPaywall: NSObject, Codable {
             do {
                 try FileManager.default.removeItem(at: fileURLOne)
             } catch {
-                apphudLog("failed to clear apphud cache, error: \(error.localizedDescription)", forceDisplay: true)
+                apphudLog("failed to clear apphud cache, error: \(error)", forceDisplay: true)
             }
         }
         if FileManager.default.fileExists(atPath: fileURLTwo.path) {
             do {
                 try FileManager.default.removeItem(at: fileURLTwo)
             } catch {
-                apphudLog("failed to clear apphud cache, error: \(error.localizedDescription)", forceDisplay: true)
+                apphudLog("failed to clear apphud cache, error: \(error)", forceDisplay: true)
             }
         }
     }

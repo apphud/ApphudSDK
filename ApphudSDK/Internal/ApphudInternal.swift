@@ -617,7 +617,7 @@ final class ApphudInternal: NSObject {
 
     internal func submitPaywallEvent(params: [String: AnyHashable], callback: @escaping ApphudHTTPResponseCallback) {
         let result = performWhenUserRegistered {
-            let environment = Apphud.isSandbox() ? "sandbox" : "production"
+            let environment = Apphud.isSandbox() ? ApphudEnvironment.sandbox.rawValue : ApphudEnvironment.production.rawValue
             let final_params: [String: AnyHashable] = ["device_id": self.currentDeviceID,
                                                        "user_id": self.currentUserID,
                                                        "timestamp": Date().currentTimestamp,
