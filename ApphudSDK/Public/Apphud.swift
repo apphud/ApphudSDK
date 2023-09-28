@@ -267,7 +267,9 @@ final public class Apphud: NSObject {
         if ApphudInternal.shared.paywallsAreReady() {
             callback(ApphudInternal.shared.paywalls)
         } else {
-            ApphudInternal.shared.customPaywallsLoadedCallbacks.append(callback)
+            DispatchQueue.main.async {
+                ApphudInternal.shared.customPaywallsLoadedCallbacks.append(callback)
+            }
         }
     }
 
@@ -298,8 +300,10 @@ final public class Apphud: NSObject {
             // already fetched but empty, refresh
             ApphudInternal.shared.refreshStoreKitProductsWithCallback(callback: callback)
         } else {
-            // not yet fetched, can add to blocks array
-            ApphudInternal.shared.customProductsFetchedBlocks.append(callback)
+            DispatchQueue.main.async {
+                // not yet fetched, can add to blocks array
+                ApphudInternal.shared.customProductsFetchedBlocks.append(callback)
+            }
         }
     }
 

@@ -35,7 +35,7 @@ extension ApphudInternal {
         if let pwls = currentUser?.paywalls {
             self.preparePaywalls(pwls: pwls, writeToCache: true, completionBlock: nil)
         } else {
-            didLoadUserAtThisLaunch = true
+            didPreparePaywalls = true
         }
 
         let newStates = currentUser?.subscriptionsStates()
@@ -51,11 +51,6 @@ extension ApphudInternal {
         let hasSubscriptionChanges = (oldStates != newStates && self.currentUser?.subscriptions != nil)
         let hasPurchasesChanges = (oldPurchasesStates != newPurchasesStates && self.currentUser?.purchases != nil)
         return (hasSubscriptionChanges, hasPurchasesChanges)
-    }
-
-    internal func mappingPaywalls(_ pwls: [[String: Any]]) {
-        let finalPaywalls = pwls.map { ApphudPaywall(dictionary: $0) }
-        self.preparePaywalls(pwls: finalPaywalls, writeToCache: true, completionBlock: nil)
     }
 
     private func checkUserID(tellDelegate: Bool) {
@@ -195,7 +190,7 @@ extension ApphudInternal {
         params["device_id"] = self.currentDeviceID
         params["is_debug"] = apphudIsSandbox()
         params["is_new"] = isFreshInstall && currentUser == nil
-        params["need_paywalls"] = !didLoadUserAtThisLaunch
+        params["need_paywalls"] = !didPreparePaywalls
         params["opt_out"] = ApphudUtils.shared.optOutOfTracking
         appInstallationDate.map { params["first_seen"] = $0 }
         Bundle.main.bundleIdentifier.map { params["bundle_id"] = $0 }

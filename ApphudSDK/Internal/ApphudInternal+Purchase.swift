@@ -56,7 +56,9 @@ extension ApphudInternal {
         let upgrade = transaction.isUpgraded
         let productID = transaction.productID
 
-        if self.lastUploadedTransactions.contains(transactionId) && !forceSubmit {
+        let transactions = self.lastUploadedTransactions
+
+        if transactions.contains(transactionId) && !forceSubmit {
             return false
         }
 

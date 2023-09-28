@@ -22,13 +22,13 @@ extension ApphudInternal {
             let group = ApphudGroup(id: "Untitled", name: "Untitled", products: products)
             continueWithProductGroups([group], errorCode: nil, writeToCache: false)
         } else {
-            if needToUpdateProductGroups {
+            if !needToUpdateProductGroups || fallbackMode {
+                apphudLog("Using cached product groups structure")
+                self.continueWithProductGroups(productGroups, errorCode: nil, writeToCache: false)
+            } else {
                 getProductGroups { groups, _, code in
                     self.continueWithProductGroups(groups, errorCode: code, writeToCache: true)
                 }
-            } else {
-                apphudLog("Using cached product groups structure")
-                self.continueWithProductGroups(productGroups, errorCode: nil, writeToCache: false)
             }
         }
     }
@@ -182,9 +182,9 @@ extension ApphudInternal {
 
         if writeToCache { self.cachePaywalls(paywalls: paywalls) }
 
-        if !didLoadUserAtThisLaunch {
+        if !didPreparePaywalls {
             delegate?.userDidLoad(rawPaywalls: paywalls)
-            didLoadUserAtThisLaunch = true
+            didPreparePaywalls = true
         }
 
         self.performWhenStoreKitProductFetched {

@@ -16,7 +16,7 @@ extension ApphudInternal {
 
     func executeFallback() {
 
-        guard self.currentUser == nil else {
+        guard !didPreparePaywalls else {
             apphudLog("No need for fallback", logLevel: .debug)
             return
         }
@@ -40,21 +40,22 @@ extension ApphudInternal {
 
         if self.paywalls.count > 0 && self.allAvailableProductIDs().count > 0 && self.productGroups.count > 0 {
             self.preparePaywalls(pwls: self.paywalls, writeToCache: false, completionBlock: nil)
-            apphudLog("no need to fallback paywalls", logLevel: .all)
+            apphudLog("fallback mode with cached paywalls", logLevel: .all)
             return
         }
 
         do {
             let jsonData = try Data(contentsOf: url)
-            let json = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any]
-            let paywallsJSON = (json?["data"] as? [String: Any])?["results"] as? [[String: Any]]
 
-            guard let paywallsJSON = paywallsJSON else {
-                apphudLog("Failed to parse paywalls from fallback json", logLevel: .all)
-                return
-            }
+            typealias ApphudArrayResponse = ApphudAPIDataResponse<ApphudAPIArrayResponse <ApphudPaywall> >
 
-            self.mappingPaywalls(paywallsJSON)
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+
+            let pwlsResponse = try decoder.decode(ApphudArrayResponse.self, from: jsonData)
+            let pwls = pwlsResponse.data.results
+
+            self.preparePaywalls(pwls: pwls, writeToCache: true, completionBlock: nil)
 
             var allProductIds = [String]()
             self.paywalls.forEach { p in
@@ -76,19 +77,22 @@ extension ApphudInternal {
 
     func stubPurchase(product: SKProduct?) -> HasPurchasesChanges {
         guard let product = product, !Apphud.hasPremiumAccess() else {
+            apphudLog("No need to stub purchase because already has premium access")
             return HasPurchasesChanges(false, false)
         }
 
         if product.subscriptionGroupIdentifier != nil {
             let subscription = ApphudSubscription(product: product)
-            self.currentUser = ApphudUser(userID: currentUserID, subscriptions: [subscription])
+            self.currentUser = ApphudUser(userID: currentUserID, subscriptions: [subscription], paywalls: paywalls)
+
+            apphudLog("Creating stub subscription with 1 hour expiration..")
 
             self.currentUser?.toCacheV2()
 
             return HasPurchasesChanges(true, false)
         } else {
             let purchase = ApphudNonRenewingPurchase(product: product)
-            self.currentUser = ApphudUser(userID: currentUserID, purchases: [purchase])
+            self.currentUser = ApphudUser(userID: currentUserID, purchases: [purchase], paywalls: paywalls)
 
             self.currentUser?.toCacheV2()
 

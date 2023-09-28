@@ -29,7 +29,7 @@ internal struct ApphudUser: Codable {
 
     var currency: ApphudCurrency?
 
-    // MARK: - Private methods
+    // MARK: - Initializer Methods
 
     enum CodingKeys: CodingKey {
         case userId
@@ -49,7 +49,7 @@ internal struct ApphudUser: Codable {
 
         self.currency = try? values.decode(ApphudCurrency.self, forKey: .currency)
 
-        var subs = try? values.decodeIfPresent([ApphudSubscription].self, forKey: .autorenewables)
+        let subs = try? values.decodeIfPresent([ApphudSubscription].self, forKey: .autorenewables)
         var purchs: [ApphudNonRenewingPurchase]?
         do {
             purchs = try values.decodeIfPresent([ApphudNonRenewingPurchase].self, forKey: .nonrenewables)
@@ -72,7 +72,6 @@ internal struct ApphudUser: Codable {
             while !IAPContainer.isAtEnd {
                 do {
                     let item = try IAPContainer.nestedContainer(keyedBy: ApphudIAPCodingKeys.self)
-                    let keys = item.allKeys
 
                     let kind = try item.decode(String.self, forKey: .kind)
                     if kind == ApphudIAPKind.autorenewable.rawValue {
@@ -86,17 +85,6 @@ internal struct ApphudUser: Codable {
                     apphudLog("IAPContainer Error: \(error)")
                 }
             }
-
-//            var inAppPurchases = try values.decode([ApphudInAppPurchase].self, forKey: .subscriptions)
-//
-//            inAppPurchases.forEach { iap in
-//                switch iap {
-//                case .subscription(let sub):
-//                    subscriptions.append(sub)
-//                case .purchase(let purch):
-//                    purchases.append(purch)
-//                }
-//            }
         }
 
         subscriptions.sort {
@@ -126,71 +114,28 @@ internal struct ApphudUser: Codable {
         try? container.encode(currency, forKey: .currency)
     }
 
-    init?(userID: String, subscriptions: [ApphudSubscription] = [], purchases: [ApphudNonRenewingPurchase] = []) {
+    init?(userID: String, subscriptions: [ApphudSubscription] = [], purchases: [ApphudNonRenewingPurchase] = [], paywalls: [ApphudPaywall] = []) {
         self.userId = userID
         self.subscriptions = subscriptions
         self.purchases = purchases
+        self.paywalls = paywalls
     }
 
-    /*
-    init?(dictionary: [String: Any]) {
-        guard let userID = dictionary["user_id"] as? String else { return nil }
-        self.userId = userID
 
-        if let currencyDict = dictionary["currency"] as? [String: Any], let currencyCode = currencyDict["code"] as? String, let countryCode = currencyDict["country_code"] as? String {
-            self.currency = ApphudCurrency(countryCode: countryCode, code: currencyCode)
-        }
+    //MARK: - INTERNAL AND LEGACY METHODS
 
-        var subs = [ApphudSubscription]()
-        var inapps = [ApphudNonRenewingPurchase]()
-
-        if let iapDict = dictionary["subscriptions"] as? [[String: Any]],
-           let data = try? JSONSerialization.data(withJSONObject: iapDict, options: []) {
-
-            do {
-                let decoder = JSONDecoder()
-                decoder.keyDecodingStrategy = .convertFromSnakeCase
-
-//                     NEED ANOTHER WAY, MAYBE CONVERT EACH DICT TO DATA ?
-
-                subs = try decoder.decode([ApphudSubscription].self, from: data)
-                inapps = try decoder.decode([ApphudNonRenewingPurchase].self, from: data)
-            } catch {
-                apphudLog("User subs parse error:\(error)")
-            }
-        }
-
-        self.subscriptions = subs.sorted {
-            if ($0.isActive() && $1.isActive()) || (!$0.isActive() && !$1.isActive()) {
-                return $0.expiresDate > $1.expiresDate
-            } else {
-                return $0.isActive()
-            }
-        }
-
-        self.purchases = inapps.sorted {
-            if ($0.isActive() && $1.isActive()) || (!$0.isActive() && !$1.isActive()) {
-                return $0.purchasedAt > $1.purchasedAt
-            } else {
-                return $0.isActive()
-            }
-        }
-    }
-     */
-
-    func subscriptionsStates() -> Set<String> {
+    internal func subscriptionsStates() -> Set<String> {
         let states = subscriptions.map { $0.stateDescription }
         return Set(states)
     }
 
-    func purchasesStates() -> Set<String> {
+    internal func purchasesStates() -> Set<String> {
         let states = purchases.map { $0.stateDescription }
         return Set(states)
     }
 
-    static let userDataFileName = "ApphudUser.data"
-    static let ApphudUserKey = "ApphudUser"
-    static let ApphudMigrateCachesKey = "ApphudMigrateCachesKey"
+    private static let ApphudMigrateCachesKey = "ApphudMigrateCachesKey"
+    private static let ApphudUserKey = "ApphudUser"
 
     func toCacheV2() {
 
@@ -206,17 +151,13 @@ internal struct ApphudUser: Codable {
     static func fromCacheV2(_ newInstall: Bool = false) -> ApphudUser? {
 
         if !UserDefaults.standard.bool(forKey: Self.ApphudMigrateCachesKey) {
-            UserDefaults.standard.setValue(true, forKey: Self.ApphudMigrateCachesKey)
-
-            let user = fromCache()
-            let encoder = JSONEncoder()
             do {
-                let data = try encoder.encode(user)
-                apphudDataToCache(data: data, key: Self.ApphudUserKey)
+                let user = try migrateUserFromCacheIfNeeded()
+                return user
             } catch {
-                apphudLog("Failed to save user to cache: \(error)")
+                apphudLog("Failed to migrate user error: \(error)")
             }
-            return user
+            return nil
         }
 
         do {
@@ -233,42 +174,30 @@ internal struct ApphudUser: Codable {
         return nil
     }
 
-    private static func fromCache(directory: FileManager.SearchPathDirectory) -> ApphudUser? {
-        do {
-            if let documentsURL = FileManager.default.urls(for: directory, in: .userDomainMask).first {
-                let fileURL = documentsURL.appendingPathComponent(userDataFileName)
+    private static let userDataFileName = "ApphudUser.data"
 
-                if !FileManager.default.fileExists(atPath: fileURL.path) {
-                    return nil
-                }
+    private static func migrateUserFromCacheIfNeeded() throws -> ApphudUser? {
+        let encoder = JSONEncoder()
 
-                let data = try Data(contentsOf: fileURL)
+        let user = try fromCacheLegacy()
 
-                if let dictionary = try NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(data) as? [String: Any] {
-                    let decoder = JSONDecoder()
-                    decoder.keyDecodingStrategy = .convertFromSnakeCase
-
-                    return try decoder.decode(ApphudUser.self, from: data)
-                }
-            }
-        } catch {
-            apphudLog("failed to read from cache apphud user json, error: \(error)", forceDisplay: true)
+        if user != nil {
+            let data = try encoder.encode(user)
+            apphudDataToCache(data: data, key: Self.ApphudUserKey)
+            apphudLog("Successfully migrated user to CacheV2")
         }
-        return nil
-    }
 
-    private static func fromCache() -> ApphudUser? {
-        if let user = fromCache(directory: .applicationSupportDirectory) {
-            return user
-        } else {
-            return fromCache(directory: .cachesDirectory)
-        }
+        UserDefaults.standard.setValue(true, forKey: Self.ApphudMigrateCachesKey)
+
+        return user
     }
 
     static func clearCache() {
-
         apphudDataClearCache(key: ApphudUserKey)
+        clearCacheLegacy()
+    }
 
+    private static func clearCacheLegacy() {
         guard let folderURLAppSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {return}
         guard let folderURLCaches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {return}
         let fileURLOne = folderURLAppSupport.appendingPathComponent(userDataFileName)
@@ -286,6 +215,40 @@ internal struct ApphudUser: Codable {
             } catch {
                 apphudLog("failed to clear apphud cache, error: \(error)", forceDisplay: true)
             }
+        }
+    }
+
+    private static func fromCacheLegacy(directory: FileManager.SearchPathDirectory) throws -> ApphudUser? {
+        guard let documentsURL = FileManager.default.urls(for: directory, in: .userDomainMask).first else {
+            return nil
+        }
+
+        let fileURL = documentsURL.appendingPathComponent(userDataFileName)
+
+        guard FileManager.default.fileExists(atPath: fileURL.path) else {
+            return nil
+        }
+
+        let data = try Data(contentsOf: fileURL)
+
+        if let dictionary = try NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(data) as? [String: Any] {
+
+            let jsonData = try JSONSerialization.data(withJSONObject: dictionary)
+
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+
+            return try decoder.decode(ApphudUser.self, from: jsonData)
+        }
+
+        return nil
+    }
+
+    private static func fromCacheLegacy() throws -> ApphudUser? {
+        if let user = try fromCacheLegacy(directory: .applicationSupportDirectory) {
+            return user
+        } else {
+            return try fromCacheLegacy(directory: .cachesDirectory)
         }
     }
 }
