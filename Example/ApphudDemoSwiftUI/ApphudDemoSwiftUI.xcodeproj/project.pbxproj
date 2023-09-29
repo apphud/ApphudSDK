@@ -21,6 +21,7 @@
 
 /* Begin PBXFileReference section */
 		21D50DCD83A41C9DEB0BD75D /* Pods-ApphudDemoSwiftUI.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ApphudDemoSwiftUI.release.xcconfig"; path = "Target Support Files/Pods-ApphudDemoSwiftUI/Pods-ApphudDemoSwiftUI.release.xcconfig"; sourceTree = "<group>"; };
+		282FCC4D2AC6D80300B00D2B /* ApphudDemoSwiftUI.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ApphudDemoSwiftUI.entitlements; sourceTree = "<group>"; };
 		2833A95A299C95A700398839 /* ApphudDemoSwiftUI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ApphudDemoSwiftUI.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2833A95D299C95A700398839 /* ApphudDemoSwiftUIApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApphudDemoSwiftUIApp.swift; sourceTree = "<group>"; };
 		2833A95F299C95A700398839 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -69,6 +70,7 @@
 		2833A95C299C95A700398839 /* ApphudDemoSwiftUI */ = {
 			isa = PBXGroup;
 			children = (
+				282FCC4D2AC6D80300B00D2B /* ApphudDemoSwiftUI.entitlements */,
 				28CC9438299F60F30014E855 /* StoreKit.storekit */,
 				2833A96D299CA20600398839 /* ApphudDemoSwiftUI-Info.plist */,
 				2833A95D299C95A700398839 /* ApphudDemoSwiftUIApp.swift */,
@@ -138,7 +140,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1420;
-				LastUpgradeCheck = 1420;
+				LastUpgradeCheck = 1500;
 				TargetAttributes = {
 					2833A959299C95A700398839 = {
 						CreatedOnToolsVersion = 14.2;
@@ -271,6 +273,7 @@
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -331,6 +334,7 @@
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -355,11 +359,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = ApphudDemoSwiftUI.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Preview Content\"";
 				DEVELOPMENT_TEAM = JLG6CF288G;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "ApphudDemoSwiftUI-Info.plist";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -386,11 +392,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = ApphudDemoSwiftUI.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Preview Content\"";
 				DEVELOPMENT_TEAM = JLG6CF288G;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "ApphudDemoSwiftUI-Info.plist";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

@@ -53,7 +53,57 @@
   "settings" : {
     "_applicationInternalID" : "1588941280",
     "_developerTeamID" : "JLG6CF288G",
-    "_lastSynchronizedDate" : 697955872.64341402
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 717674197.50913501,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Store Sync"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Subscription Status"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Transaction"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Manage Subscriptions Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Refund Request Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Offer Code Redeem Sheet"
+      }
+    ]
   },
   "subscriptionGroups" : [
     {
@@ -75,7 +125,7 @@
           "groupNumber" : 6,
           "internalID" : "6445169818",
           "introductoryOffer" : {
-            "internalID" : "EA24D953",
+            "internalID" : "6E00CCFA",
             "numberOfPeriods" : 1,
             "paymentMode" : "free",
             "subscriptionPeriod" : "P1Y"
@@ -101,7 +151,7 @@
           "groupNumber" : 7,
           "internalID" : "6445170040",
           "introductoryOffer" : {
-            "internalID" : "047E62D0",
+            "internalID" : "D03894D2",
             "numberOfPeriods" : 1,
             "paymentMode" : "free",
             "subscriptionPeriod" : "P6M"
@@ -131,7 +181,7 @@
           "groupNumber" : 3,
           "internalID" : "1610303003",
           "introductoryOffer" : {
-            "internalID" : "218834C2",
+            "internalID" : "25593433",
             "numberOfPeriods" : 1,
             "paymentMode" : "free",
             "subscriptionPeriod" : "P3D"
@@ -153,7 +203,7 @@
           "adHocOffers" : [
             {
               "displayPrice" : "0.99",
-              "internalID" : "7DD073A6",
+              "internalID" : "8AF216B2",
               "numberOfPeriods" : 1,
               "offerID" : "com.apphud.monthly_promo_skidos",
               "paymentMode" : "payUpFront",
@@ -194,7 +244,7 @@
           "groupNumber" : 1,
           "internalID" : "1589062315",
           "introductoryOffer" : {
-            "internalID" : "20C310CD",
+            "internalID" : "9C1D8772",
             "numberOfPeriods" : 1,
             "paymentMode" : "free",
             "subscriptionPeriod" : "P3D"
@@ -224,7 +274,7 @@
           "groupNumber" : 4,
           "internalID" : "1617257833",
           "introductoryOffer" : {
-            "internalID" : "B2E82614",
+            "internalID" : "73125FCA",
             "numberOfPeriods" : 1,
             "paymentMode" : "free",
             "subscriptionPeriod" : "P1Y"
@@ -254,7 +304,7 @@
           "groupNumber" : 5,
           "internalID" : "6445169842",
           "introductoryOffer" : {
-            "internalID" : "BCDE7B37",
+            "internalID" : "61AC42A9",
             "numberOfPeriods" : 1,
             "paymentMode" : "free",
             "subscriptionPeriod" : "P1Y"
@@ -276,7 +326,7 @@
     }
   ],
   "version" : {
-    "major" : 2,
+    "major" : 3,
     "minor" : 0
   }
 }

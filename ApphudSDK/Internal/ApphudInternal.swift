@@ -474,6 +474,12 @@ final class ApphudInternal: NSObject {
                 }
             }
         }
+
+        #if DEBUG
+        DispatchQueue.main.asyncAfter(deadline: .now()+2, execute: {
+            ApphudStoreKitWrapper.shared.refreshReceipt { }
+        })
+        #endif
     }
 
     // MARK: - Perform Blocks

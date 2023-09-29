@@ -269,6 +269,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
                 } else {
                     ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: false, transaction: nil)
                 }
+                request.cancel()
                 self.refreshRequest = nil
             }
         }
@@ -286,6 +287,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
                 } else {
                     ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: false, transaction: nil)
                 }
+                request.cancel()
                 self.refreshRequest = nil
             }
         }
