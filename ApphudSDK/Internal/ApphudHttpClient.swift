@@ -310,11 +310,11 @@ public class ApphudHttpClient {
 
                     let method = request.httpMethod ?? ""
 
-                    var code = httpResponse.statusCode
+                    let code = httpResponse.statusCode
 
                     #if DEBUG
-                    callback?(false, nil, nil, nil, 503, 10)
-                    return
+//                    callback?(false, nil, nil, nil, 503, 10)
+//                    return
                     #endif
 
                     if code >= 200 && code < 300 {

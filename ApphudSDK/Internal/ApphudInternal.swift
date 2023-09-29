@@ -692,7 +692,7 @@ final class ApphudInternal: NSObject {
                     let properties = notifDict["properties"] as? [String: Any]
                     ruleDict = ruleDict.merging(properties ?? [:], uniquingKeysWith: {_, new in new})
                     let rule = ApphudRule(dictionary: ruleDict)
-//                    ApphudRulesManager.shared.handleRule(rule: rule)
+                    ApphudRulesManager.shared.handleRule(rule: rule)
                 }
             })
         }

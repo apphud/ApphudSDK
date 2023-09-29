@@ -312,7 +312,7 @@ extension ApphudInternal {
                 ApphudLoggerService.shared.add(key: .subscriptions, value: duration, retryLog: self.submitReceiptRetries)
             }
 
-            if result && hasMadePurchase && Apphud.hasPremiumAccess() {
+            if result && hasMadePurchase && Apphud.hasPremiumAccess() && self.fallbackMode {
                 apphudLog("disable fallback mode", logLevel: .all)
                 self.fallbackMode = false
             }
