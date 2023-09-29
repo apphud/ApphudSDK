@@ -312,11 +312,6 @@ public class ApphudHttpClient {
 
                     let code = httpResponse.statusCode
 
-                    #if DEBUG
-//                    callback?(false, nil, nil, nil, 503, 10)
-//                    return
-                    #endif
-
                     if code >= 200 && code < 300 {
 
                         if let dictionary = dictionary {

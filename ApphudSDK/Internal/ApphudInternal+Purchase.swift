@@ -81,17 +81,18 @@ extension ApphudInternal {
             return await withCheckedContinuation { continuation in
                 performWhenUserRegistered {
                     apphudLog("Submitting transaction \(transactionId), \(productID) from StoreKit2..")
-                    self.lastUploadedTransactions.insert(transactionId)
+                    
+                    var trx = self.lastUploadedTransactions
+                    trx.append(transactionId)
+                    self.lastUploadedTransactions = trx
+
                     self.submitReceipt(product: product,
                                        apphudProduct: nil,
                                        transactionIdentifier: String(transactionId),
                                        transactionProductIdentifier: productID,
                                        transactionState: isRecentlyPurchased ? .purchased : nil,
                                        receiptString: receipt,
-                                       notifyDelegate: true) { [self] error in
-                        if error != nil {
-                            self.lastUploadedTransactions.remove(transactionId)
-                        }
+                                       notifyDelegate: true) { _ in
                         continuation.resume(returning: true)
                     }
                 }
