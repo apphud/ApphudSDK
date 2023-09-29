@@ -231,7 +231,7 @@ internal struct ApphudUser: Codable {
 
         let data = try Data(contentsOf: fileURL)
 
-        if let dictionary = try NSKeyedUnarchiver.unarchivedObject(ofClass: NSDictionary.self, from: data) as? [String: Any] {
+        if let dictionary = try NSKeyedUnarchiver.unarchivedObject(ofClasses: [NSDictionary.self, NSNumber.self, NSString.self, NSDate.self, NSNull.self, NSArray.self], from: data) as? [String: Any] {
 
             let jsonData = try JSONSerialization.data(withJSONObject: dictionary)
 
