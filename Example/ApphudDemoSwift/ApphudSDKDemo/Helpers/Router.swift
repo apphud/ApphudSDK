@@ -3,7 +3,7 @@
 //  ApphudSDKDemo
 //
 //  Created by Valery on 15.06.2021.
-//  Copyright © 2021 softeam. All rights reserved.
+//  Copyright © 2021 Apphud. All rights reserved.
 //
 
 import UIKit

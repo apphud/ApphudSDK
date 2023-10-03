@@ -138,6 +138,7 @@ final class ApphudInternal: NSObject {
     internal var isFreshInstall = true
     internal var isRedownload = false
     internal var didHandleBecomeActive = false
+    internal var respondedStoreKitProducts = false
 
     internal var fallbackMode = false
     internal var registrationStartedAt: Date?

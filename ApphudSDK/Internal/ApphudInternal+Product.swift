@@ -114,6 +114,7 @@ extension ApphudInternal {
             self.customProductsFetchedBlocks.forEach { block in block(storeKitProducts, error) }
             self.customProductsFetchedBlocks.removeAll()
             self.updatePaywallsWithStoreKitProducts(paywalls: self.paywalls) // double call, but it's okay, because user may call refreshStorKitProducts method
+            self.respondedStoreKitProducts = true
             self.continueToUpdateCurrencyIfNeeded()
         }
     }
@@ -259,6 +260,10 @@ extension ApphudInternal {
                     paywallsContainsProducts = true
                 }
             }
+        }
+
+        if respondedStoreKitProducts {
+            return true
         }
 
         return paywallsContainsProducts
