@@ -14,7 +14,7 @@ import Foundation
 import UserNotifications
 import SwiftUI
 
-internal let apphud_sdk_version = "3.0.1"
+internal let apphud_sdk_version = "3.1.0"
 
 /**
  Public Callback object provide -> [String: Bool]
@@ -148,7 +148,7 @@ final public class Apphud: NSObject {
      Set a delegate.
      - parameter delegate: Required. Any ApphudDelegate conformable object.
      */
-    @objc public static func setDelegate(_ delegate: ApphudDelegate) {
+    public static func setDelegate(_ delegate: ApphudDelegate) {
         ApphudInternal.shared.delegate = delegate
     }
 
@@ -264,10 +264,12 @@ final public class Apphud: NSObject {
      It is safe to call this method multiple times – previous callback will not be overwritten, but will be added to array and once paywalls are loaded, all callbacks will be called.
     */
     @objc public static func paywallsDidLoadCallback(_ callback: @escaping ([ApphudPaywall]) -> Void) {
-        if ApphudInternal.shared.paywallsAreReady {
+        if ApphudInternal.shared.paywallsAreReady() {
             callback(ApphudInternal.shared.paywalls)
         } else {
-            ApphudInternal.shared.customPaywallsLoadedCallbacks.append(callback)
+            DispatchQueue.main.async {
+                ApphudInternal.shared.customPaywallsLoadedCallbacks.append(callback)
+            }
         }
     }
 
@@ -298,8 +300,10 @@ final public class Apphud: NSObject {
             // already fetched but empty, refresh
             ApphudInternal.shared.refreshStoreKitProductsWithCallback(callback: callback)
         } else {
-            // not yet fetched, can add to blocks array
-            ApphudInternal.shared.customProductsFetchedBlocks.append(callback)
+            DispatchQueue.main.async {
+                // not yet fetched, can add to blocks array
+                ApphudInternal.shared.customProductsFetchedBlocks.append(callback)
+            }
         }
     }
 
@@ -425,6 +429,8 @@ final public class Apphud: NSObject {
     }
 
     /**
+     __Note: This method must be used only in Observer Mode__. If you make purchases with Apphud, use `purchase(_ product: ApphudProduct, value: Double, callback: ((ApphudPurchaseResult) -> Void)?)` method instead.
+     
      Sets custom value (in USD) for purchases. You should call this method before starting a purchase. Custom value will be sent to AppsFlyer and Facebook for value optimization. You can try to send your subscriptions LTV or ARPPU as custom value. Must be sent in USD. Contact support manager for details.
      */
     @objc public static func setCustomPurchaseValue(_ value: Double, productId: String) {
@@ -515,7 +521,7 @@ final public class Apphud: NSObject {
      
      - Note: If returned object is not `nil`, it doesn't mean that subsription is active.
      */
-    @objc public static func subscription() -> ApphudSubscription? {
+    public static func subscription() -> ApphudSubscription? {
         return ApphudInternal.shared.currentUser?.subscriptions.first
     }
 
@@ -524,7 +530,7 @@ final public class Apphud: NSObject {
      
      Use this method if you have more than one subsription group in your app.
      */
-    @objc public static func subscriptions() -> [ApphudSubscription]? {
+    public static func subscriptions() -> [ApphudSubscription]? {
         guard ApphudInternal.shared.isInitialized else {
             apphudLog(ApphudInitializeGuardText, forceDisplay: true)
             return nil
@@ -535,7 +541,7 @@ final public class Apphud: NSObject {
     /**
      Returns an array of all standard in-app purchases (consumables, nonconsumables or nonrenewing subscriptions) that this user has ever purchased. Purchases are cached on device. This array is sorted by purchase date. Apphud only tracks consumables if they were purchased after integrating Apphud SDK.
      */
-    @objc public static func nonRenewingPurchases() -> [ApphudNonRenewingPurchase]? {
+    public static func nonRenewingPurchases() -> [ApphudNonRenewingPurchase]? {
         guard ApphudInternal.shared.isInitialized else {
             apphudLog(ApphudInitializeGuardText, forceDisplay: true)
             return nil
@@ -548,14 +554,14 @@ final public class Apphud: NSObject {
      
      - Note: Purchases are sorted by purchase date, so it returns Bool value for the most recent purchase by given product identifier.
      */
-    @objc public static func isNonRenewingPurchaseActive(productIdentifier: String) -> Bool {
+    public static func isNonRenewingPurchaseActive(productIdentifier: String) -> Bool {
         nonRenewingPurchases()?.first(where: {$0.productId == productIdentifier})?.isActive() ?? false
     }
 
     /**
      Basically the same as restoring purchases.
      */
-    @objc public static func validateReceipt(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {
+    public static func validateReceipt(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {
         restorePurchases(callback: callback)
     }
 
@@ -566,7 +572,7 @@ final public class Apphud: NSObject {
      
      - Note: Even if callback returns some subscription, it doesn't mean that subscription is active. You should check `subscription.isActive()` value.
      */     
-    @objc public static func restorePurchases(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {
+    public static func restorePurchases(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {
         ApphudInternal.shared.restorePurchases(callback: callback)
     }
 
@@ -585,7 +591,7 @@ final public class Apphud: NSObject {
      - Note: You can remove this method after a some period of time, i.e. when you are sure that all paying users are already synced with Apphud.
      */
     @available(iOS, deprecated: 15.0, message: "No longer needed for iOS 15+. Purchases migrate automatically.")
-    @objc public static func migratePurchasesIfNeeded(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {
+    public static func migratePurchasesIfNeeded(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {
         if apphudShouldMigrate() {
             ApphudInternal.shared.restorePurchases { (subscriptions, purchases, error) in
                 if error == nil {

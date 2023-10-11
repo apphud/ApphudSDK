@@ -28,6 +28,12 @@ internal func apphudVisibleViewController() -> UIViewController? {
 }
 #endif
 
+extension Date {
+    internal var apphudIsoString: String {
+        String.apphudIsoDateFormatter.string(from: self)
+    }
+}
+
 extension String {
     /// Helper method to parse date string into Date object
     internal var apphudIsoDate: Date? {
@@ -51,7 +57,7 @@ extension String {
         Self.standardIsoDateFormatter.date(from: self)
     }
 
-    private static let apphudIsoDateFormatter: ISO8601DateFormatter = {
+    internal static let apphudIsoDateFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withFractionalSeconds,
                                    .withInternetDateTime,
@@ -99,6 +105,15 @@ internal func apphudDidMigrate() {
 
 internal func apphudShouldMigrate() -> Bool {
     return !UserDefaults.standard.bool(forKey: "ApphudSubscriptionsMigrated")
+}
+
+internal func apphudDataClearCache(key: String) {
+    if var url = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first {
+        url.appendPathComponent(key)
+        if FileManager.default.fileExists(atPath: url.path) {
+            try? FileManager.default.removeItem(at: url)
+        }
+    }
 }
 
 internal func apphudDataToCache(data: Data, key: String) {
@@ -437,6 +452,14 @@ extension Product {
 }
 
 extension SKProduct {
+
+    var apphudIsPaidIntro: Bool {
+        introductoryPrice != nil && introductoryPrice!.price.doubleValue > 0
+    }
+
+    var apphudIsTrial: Bool {
+        introductoryPrice != nil && introductoryPrice?.paymentMode == SKProductDiscount.PaymentMode.freeTrial
+    }
 
     func apphudSubmittableParameters(_ purchased: Bool = false) -> [String: Any] {
         var params: [String: Any] = [

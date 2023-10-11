@@ -13,32 +13,35 @@ import UIKit
 
 extension ApphudInternal {
 
-    @discardableResult internal func parseUser(_ dict: [String: Any]?) -> HasPurchasesChanges {
+    @discardableResult internal func parseUser(data: Data?) -> HasPurchasesChanges {
 
-        guard let dataDict = dict?["data"] as? [String: Any] else {
-            return (false, false)
-        }
-        guard let userDict = dataDict["results"] as? [String: Any] else {
+        guard let data = data else {
             return (false, false)
         }
 
-        UserDefaults.standard.set(userDict["swizzle_disabled"] != nil, forKey: swizzlePaymentDisabledKey)
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
 
-        if let paywalls = userDict["paywalls"] as? [[String: Any]] {
-            self.mappingPaywalls(paywalls)
+        let oldStates = currentUser?.subscriptionsStates()
+        let oldPurchasesStates = currentUser?.purchasesStates()
+
+        do {
+            let response = try decoder.decode(ApphudUserResponse<ApphudUser>.self, from: data)
+            currentUser = response.data.results
+        } catch {
+            apphudLog("Failed to decode ApphudUser, error: \(error)")
+        }
+
+        if let pwls = currentUser?.paywalls {
+            self.preparePaywalls(pwls: pwls, writeToCache: true, completionBlock: nil)
         } else {
-            didLoadUserAtThisLaunch = true
+            didPreparePaywalls = true
         }
 
-        let oldStates = self.currentUser?.subscriptionsStates()
-        let oldPurchasesStates = self.currentUser?.purchasesStates()
+        let newStates = currentUser?.subscriptionsStates()
+        let newPurchasesStates = currentUser?.purchasesStates()
 
-        self.currentUser = ApphudUser(dictionary: userDict)
-
-        let newStates = self.currentUser?.subscriptionsStates()
-        let newPurchasesStates = self.currentUser?.purchasesStates()
-
-        ApphudUser.toCache(userDict)
+        currentUser?.toCacheV2()
 
         checkUserID(tellDelegate: true)
 
@@ -50,18 +53,13 @@ extension ApphudInternal {
         return (hasSubscriptionChanges, hasPurchasesChanges)
     }
 
-    private func mappingPaywalls(_ pwls: [[String: Any]]) {
-        let finalPaywalls = pwls.map { ApphudPaywall(dictionary: $0) }
-        self.preparePaywalls(pwls: finalPaywalls, writeToCache: true, completionBlock: nil)
-    }
-
     private func checkUserID(tellDelegate: Bool) {
-        guard let userID = self.currentUser?.user_id else {return}
+        guard let userID = self.currentUser?.userId else {return}
         if self.currentUserID != userID {
             self.currentUserID = userID
             ApphudKeychain.saveUserID(userID: self.currentUserID)
             if tellDelegate {
-                self.delegate?.apphudDidChangeUserID?(userID)
+                self.delegate?.apphudDidChangeUserID(userID)
             }
         }
     }
@@ -80,8 +78,9 @@ extension ApphudInternal {
         let needLogging = shouldUpdateUserID
         let fields = shouldUpdateUserID ? ["user_id": self.currentUserID] : [:]
 
-        self.updateUser(fields: fields, delay: delay) { (result, response, _, error, code, duration) in
-            let hasChanges = self.parseUser(response)
+        self.updateUser(fields: fields, delay: delay) { (result, response, data, error, code, duration) in
+
+            let hasChanges = self.parseUser(data: data)
 
             let finalResult = result && self.currentUser != nil
 
@@ -113,13 +112,13 @@ extension ApphudInternal {
         guard let currencyCode = priceLocale.currencyCode else { return }
         guard self.currentUser != nil else { return }
 
-        if countryCode == self.currentUser?.countryCode && currencyCode == self.currentUser?.currencyCode {return}
+        if countryCode == self.currentUser?.currency?.countryCode && currencyCode == self.currentUser?.currency?.code {return}
 
         let params: [String: String] = ["country_code": countryCode, "currency_code": currencyCode]
 
-        updateUser(fields: params, delay: 2.0) { (result, response, _, _, _, _) in
+        updateUser(fields: params, delay: 2.0) { (result, _, data, _, _, _) in
             if result {
-                self.parseUser(response)
+                self.parseUser(data: data)
             }
         }
     }
@@ -133,9 +132,9 @@ extension ApphudInternal {
 
         let exist = performWhenUserRegistered {
 
-            self.updateUser(fields: ["user_id": userID]) { (result, response, _, _, _, _) in
+            self.updateUser(fields: ["user_id": userID]) { (result, _, data, _, _, _) in
                 if result {
-                    self.parseUser(response)
+                    self.parseUser(data: data)
                 }
             }
         }
@@ -146,9 +145,9 @@ extension ApphudInternal {
 
     internal func grantPromotional(_ duration: Int, _ permissionGroup: ApphudGroup?, productId: String?, callback: ApphudBoolCallback?) {
         performWhenUserRegistered {
-            self.grantPromotional(duration, permissionGroup, productId: productId) { (result, response, _, _, _, _) in
+            self.grantPromotional(duration, permissionGroup, productId: productId) { (result, _, data, _, _, _) in
                 if result {
-                    let hasChanges = self.parseUser(response)
+                    let hasChanges = self.parseUser(data: data)
                     self.notifyAboutUpdates(hasChanges)
                 }
                 callback?(result)
@@ -191,14 +190,14 @@ extension ApphudInternal {
         params["device_id"] = self.currentDeviceID
         params["is_debug"] = apphudIsSandbox()
         params["is_new"] = isFreshInstall && currentUser == nil
-        params["need_paywalls"] = !didLoadUserAtThisLaunch
+        params["need_paywalls"] = !didPreparePaywalls
         params["opt_out"] = ApphudUtils.shared.optOutOfTracking
         appInstallationDate.map { params["first_seen"] = $0 }
         Bundle.main.bundleIdentifier.map { params["bundle_id"] = $0 }
         // do not automatically pass currentUserID here,because we have separate method updateUserID
 
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [self] in
-            httpClient?.startRequest(path: .customers, params: params, method: .post) { done, response, data, error, errorCode, duration in
+            httpClient?.startRequest(path: .customers, params: params, method: .post, useDecoder: true) { done, response, data, error, errorCode, duration in
                 if  errorCode == 403 {
                     apphudLog("Unable to perform API requests, because your account has been suspended.", forceDisplay: true)
                     ApphudHttpClient.shared.unauthorized = true
@@ -221,10 +220,10 @@ extension ApphudInternal {
 
     func notifyAboutUpdates(_ hasChanges: HasPurchasesChanges) {
         if hasChanges.hasSubscriptionChanges {
-            self.delegate?.apphudSubscriptionsUpdated?(self.currentUser!.subscriptions)
+            self.delegate?.apphudSubscriptionsUpdated(self.currentUser!.subscriptions)
         }
         if hasChanges.hasNonRenewingChanges {
-            self.delegate?.apphudNonRenewingPurchasesUpdated?(self.currentUser!.purchases)
+            self.delegate?.apphudNonRenewingPurchasesUpdated(self.currentUser!.purchases)
         }
         if hasChanges.hasSubscriptionChanges || hasChanges.hasNonRenewingChanges {
             NotificationCenter.default.post(name: Apphud.didUpdateNotification(), object: nil)

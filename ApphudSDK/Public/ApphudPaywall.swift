@@ -98,22 +98,6 @@ public class ApphudPaywall: NSObject, Codable {
         case products = "items"
     }
 
-    init(dictionary: [String: Any]) {
-        self.id = dictionary["id"] as? String ?? ""
-        self.name = dictionary["name"] as? String ?? ""
-        self.identifier = dictionary["identifier"] as? String ?? ""
-        self.isDefault = dictionary["default"] as? Bool ?? false
-        self.experimentName = dictionary["experiment_name"] as? String
-        self.fromPaywall = dictionary["from_paywall"] as? String
-        self.variationName = dictionary["variation_name"] as? String
-        self.jsonString = dictionary["json"] as? String
-        self.products = []
-
-        if let products = dictionary["items"] as? [[String: Any]] {
-            self.products = products.map { ApphudProduct(dictionary: $0) }
-        }
-    }
-
     required public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         id = try values.decode(String.self, forKey: .id)
@@ -149,14 +133,14 @@ public class ApphudPaywall: NSObject, Codable {
             do {
                 try FileManager.default.removeItem(at: fileURLOne)
             } catch {
-                apphudLog("failed to clear apphud cache, error: \(error.localizedDescription)", forceDisplay: true)
+                apphudLog("failed to clear apphud cache, error: \(error)", forceDisplay: true)
             }
         }
         if FileManager.default.fileExists(atPath: fileURLTwo.path) {
             do {
                 try FileManager.default.removeItem(at: fileURLTwo)
             } catch {
-                apphudLog("failed to clear apphud cache, error: \(error.localizedDescription)", forceDisplay: true)
+                apphudLog("failed to clear apphud cache, error: \(error)", forceDisplay: true)
             }
         }
     }

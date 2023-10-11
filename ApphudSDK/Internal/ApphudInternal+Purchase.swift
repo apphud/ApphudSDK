@@ -56,7 +56,9 @@ extension ApphudInternal {
         let upgrade = transaction.isUpgraded
         let productID = transaction.productID
 
-        if self.lastUploadedTransactions.contains(transactionId) && !forceSubmit {
+        let transactions = self.lastUploadedTransactions
+
+        if transactions.contains(transactionId) && !forceSubmit {
             return false
         }
 
@@ -79,17 +81,18 @@ extension ApphudInternal {
             return await withCheckedContinuation { continuation in
                 performWhenUserRegistered {
                     apphudLog("Submitting transaction \(transactionId), \(productID) from StoreKit2..")
-                    self.lastUploadedTransactions.insert(transactionId)
+                    
+                    var trx = self.lastUploadedTransactions
+                    trx.append(transactionId)
+                    self.lastUploadedTransactions = trx
+
                     self.submitReceipt(product: product,
                                        apphudProduct: nil,
                                        transactionIdentifier: String(transactionId),
                                        transactionProductIdentifier: productID,
                                        transactionState: isRecentlyPurchased ? .purchased : nil,
                                        receiptString: receipt,
-                                       notifyDelegate: true) { [self] error in
-                        if error != nil {
-                            self.lastUploadedTransactions.remove(transactionId)
-                        }
+                                       notifyDelegate: true) { _ in
                         continuation.resume(returning: true)
                     }
                 }
@@ -246,7 +249,7 @@ extension ApphudInternal {
         }
         isSubmittingReceipt = true
 
-        let environment = Apphud.isSandbox() ? "sandbox" : "production"
+        let environment = Apphud.isSandbox() ? ApphudEnvironment.sandbox.rawValue : ApphudEnvironment.production.rawValue
 
         var params: [String: Any] = ["device_id": self.currentDeviceID,
                                      "environment": environment,
@@ -294,9 +297,25 @@ extension ApphudInternal {
 
         apphudLog("Uploading App Store Receipt...")
 
-        httpClient?.startRequest(path: .subscriptions, params: params, method: .post) { (result, response, _, error, errorCode, duration) in
-            if error == nil && hasMadePurchase {
+        httpClient?.startRequest(path: .subscriptions, params: params, method: .post, useDecoder: true) { (result, _, data, error, errorCode, duration) in
+
+            if !result && hasMadePurchase && self.fallbackMode {
+                self.requiresReceiptSubmission = true
+                self.isSubmittingReceipt = false
+                let hasChanges = self.stubPurchase(product: product ?? apphudProduct?.skProduct)
+                self.notifyAboutUpdates(hasChanges)
+                self.submitReceiptCallbacks.forEach { callback in callback?(error)}
+                self.submitReceiptCallbacks.removeAll()
+                return
+            }
+
+            if result && hasMadePurchase {
                 ApphudLoggerService.shared.add(key: .subscriptions, value: duration, retryLog: self.submitReceiptRetries)
+            }
+
+            if result && hasMadePurchase && Apphud.hasPremiumAccess() && self.fallbackMode {
+                apphudLog("disable fallback mode", logLevel: .all)
+                self.fallbackMode = false
             }
 
             self.forceSendAttributionDataIfNeeded()
@@ -305,7 +324,7 @@ extension ApphudInternal {
             if result {
                 self.submitReceiptRetries = (0, 0)
                 self.requiresReceiptSubmission = false
-                let hasChanges = self.parseUser(response)
+                let hasChanges = self.parseUser(data: data)
                 if notifyDelegate {
                     self.notifyAboutUpdates(hasChanges)
                 }

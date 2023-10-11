@@ -3,7 +3,7 @@
 //  ApphudSDKDemo
 //
 //  Created by Renat Kurbanov on 13.02.2023.
-//  Copyright © 2023 softeam. All rights reserved.
+//  Copyright © 2023 Apphud. All rights reserved.
 //
 
 import Foundation

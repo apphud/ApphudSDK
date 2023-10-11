@@ -24,6 +24,8 @@ struct PaywallUIView: View {
     @State var isPurchasing = false
     @State var purchaseSheetVisible = false
 
+    @State var products = [Product]()
+
     var body: some View {
         NavigationView {
             VStack {
@@ -64,6 +66,13 @@ struct PaywallUIView: View {
             if let mainPaywall = await Apphud.paywall(ApphudPaywallID.main.rawValue) {
                 paywall = mainPaywall
                 selectedProduct = paywall?.products.first
+            }
+
+            do {
+                products = try await Apphud.fetchProducts()
+                print("Fetched StoreKit2 Products: \(products.map { $0.id })")
+            } catch {
+                print("Failed to fetch StoreKit2 Products error: \(error)")
             }
         }
     }

@@ -37,14 +37,12 @@ extension ApphudScreenController {
         var macroses = [String]()
 
         while shouldScan {
-            var tempString: NSString?
-            scanner.scanUpTo("{{\"", into: &tempString)
-            if tempString != nil {
-                scanner.scanUpTo("}}", into: &tempString)
+            if let _ = scanner.scanUpToString("{{\"") {
+                let macro = scanner.scanUpToString("}}")
                 if scanner.isAtEnd {
                     shouldScan = false
                 } else {
-                    macroses.append("\(tempString as String? ?? "")}}")
+                    macroses.append("\(macro as String? ?? "")}}")
                 }
             } else {
                 shouldScan = false
@@ -54,26 +52,21 @@ extension ApphudScreenController {
         var productsOffersMap = [[String: String]]()
 
         for macros in macroses {
-            let scanner = Scanner(string: macros)
-            var tempString: NSString?
 
+            let filtered = macros.replacingOccurrences(of: "{{", with: "")
+                .replacingOccurrences(of: "}}", with: "")
+                .replacingOccurrences(of: "\"", with: "")
+                .replacingOccurrences(of: " | price:", with: "|||")
+                .replacingOccurrences(of: " | price", with: "|||")
+                .replacingOccurrences(of: " ", with: "")
+
+            let components = filtered.components(separatedBy: "|||")
+            
             var dict = [String: String]()
             dict["macros"] = macros
-            if scanner.scanUpTo("\"", into: &tempString) && !scanner.isAtEnd {
-                scanner.scanLocation += 1
-                scanner.scanUpTo("\"", into: &tempString)
-
-                if let product_id = tempString as String? {
-                    dict["product_id"] = product_id
-                }
-
-                if scanner.scanUpTo("price: \"", into: &tempString) && !scanner.isAtEnd {
-                    scanner.scanLocation += 8
-                    scanner.scanUpTo("\"", into: &tempString)
-                    if let offer_id = (tempString as String?) {
-                        dict["offer_id"] = offer_id
-                    }
-                }
+            (components.first).map { dict["product_id"] = $0 }
+            if components.count == 2, let offerId = components.last, offerId.count > 0 {
+                dict["offer_id"] = offerId
             }
             productsOffersMap.append(dict)
         }

@@ -11,19 +11,24 @@ import StoreKit
 
 extension ApphudInternal {
 
-    @objc internal func continueToFetchProducts(needToUpdateProductGroups: Bool = true) {
-        if let productIDs = delegate?.apphudProductIdentifiers?(), productIDs.count > 0 {
+    @objc internal func refetchProducts() {
+        continueToFetchProducts(needToUpdateProductGroups: true, fallbackProducts: nil)
+    }
+
+    @objc internal func continueToFetchProducts(needToUpdateProductGroups: Bool = true, fallbackProducts: [String]?) {
+
+        if let productIDs = (fallbackProducts ?? delegate?.apphudProductIdentifiers()), productIDs.count > 0 {
             let products = productIDs.map { ApphudProduct(id: $0, name: $0, productId: $0, store: "app_store", skProduct: nil) }
             let group = ApphudGroup(id: "Untitled", name: "Untitled", products: products)
             continueWithProductGroups([group], errorCode: nil, writeToCache: false)
         } else {
-            if needToUpdateProductGroups {
+            if !needToUpdateProductGroups || fallbackMode {
+                apphudLog("Using cached product groups structure")
+                self.continueWithProductGroups(productGroups, errorCode: nil, writeToCache: false)
+            } else {
                 getProductGroups { groups, _, code in
                     self.continueWithProductGroups(groups, errorCode: code, writeToCache: true)
                 }
-            } else {
-                apphudLog("Using cached product groups structure")
-                self.continueWithProductGroups(productGroups, errorCode: nil, writeToCache: false)
             }
         }
     }
@@ -58,7 +63,7 @@ extension ApphudInternal {
             return
         }
 
-        let delay: TimeInterval
+        var delay: TimeInterval
 
         if noInternetError {
             delay = 1.0
@@ -68,8 +73,12 @@ extension ApphudInternal {
             productsFetchRetries.errorCode = errorCode
         }
 
-        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(continueToFetchProducts), object: nil)
-        perform(#selector(continueToFetchProducts), with: nil, afterDelay: delay)
+        if fallbackMode {
+            delay *= 3.0
+        }
+
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(refetchProducts), object: nil)
+        perform(#selector(refetchProducts), with: nil, afterDelay: delay)
         apphudLog("No Product Identifiers found in Apphud. Probably you forgot to add products in Apphud Settings? Scheduled products fetch retry in \(delay) seconds.", forceDisplay: true)
     }
 
@@ -100,11 +109,12 @@ extension ApphudInternal {
             self.updateProductGroupsWithStoreKitProducts()
             ApphudInternal.shared.performAllStoreKitProductsFetchedCallbacks()
             NotificationCenter.default.post(name: Apphud.didFetchProductsNotification(), object: storeKitProducts)
-            ApphudInternal.shared.delegate?.apphudDidFetchStoreKitProducts?(storeKitProducts, error)
-            ApphudInternal.shared.delegate?.apphudDidFetchStoreKitProducts?(storeKitProducts)
+            ApphudInternal.shared.delegate?.apphudDidFetchStoreKitProducts(storeKitProducts, error)
+            ApphudInternal.shared.delegate?.apphudDidFetchStoreKitProducts(storeKitProducts)
             self.customProductsFetchedBlocks.forEach { block in block(storeKitProducts, error) }
             self.customProductsFetchedBlocks.removeAll()
             self.updatePaywallsWithStoreKitProducts(paywalls: self.paywalls) // double call, but it's okay, because user may call refreshStorKitProducts method
+            self.respondedStoreKitProducts = true
             self.continueToUpdateCurrencyIfNeeded()
         }
     }
@@ -128,7 +138,7 @@ extension ApphudInternal {
         } else if productGroups.count > 0 {
             continueToFetchStoreKitProducts()
         } else {
-            continueToFetchProducts()
+            continueToFetchProducts(fallbackProducts: nil)
         }
     }
 
@@ -177,9 +187,9 @@ extension ApphudInternal {
 
         if writeToCache { self.cachePaywalls(paywalls: paywalls) }
 
-        if !didLoadUserAtThisLaunch {
-            delegate?.userDidLoad?(rawPaywalls: paywalls)
-            didLoadUserAtThisLaunch = true
+        if !didPreparePaywalls {
+            delegate?.userDidLoad(rawPaywalls: paywalls)
+            didPreparePaywalls = true
         }
 
         self.performWhenStoreKitProductFetched {
@@ -187,7 +197,7 @@ extension ApphudInternal {
             completionBlock?(self.paywalls, nil)
             self.customPaywallsLoadedCallbacks.forEach { block in block(self.paywalls) }
             self.customPaywallsLoadedCallbacks.removeAll()
-            self.delegate?.paywallsDidFullyLoad?(paywalls: self.paywalls)
+            self.delegate?.paywallsDidFullyLoad(paywalls: self.paywalls)
         }
     }
     private func fetchPaywallsIfNeeded(forceRefresh: Bool = false, callback: @escaping ([ApphudPaywall]?, Error?, Bool) -> Void) {
@@ -230,9 +240,37 @@ extension ApphudInternal {
         return products
     }
 
+    internal func paywallsAreReady() -> Bool {
+        var paywallsContainsProducts = false
+        paywalls.forEach { paywall in
+            paywall.products.forEach { p in
+                if p.skProduct != nil {
+                    paywallsContainsProducts = true
+                }
+            }
+        }
+
+        if paywallsContainsProducts {return true}
+
+        updatePaywallsWithStoreKitProducts(paywalls: paywalls)
+
+        paywalls.forEach { paywall in
+            paywall.products.forEach { p in
+                if p.skProduct != nil {
+                    paywallsContainsProducts = true
+                }
+            }
+        }
+
+        if respondedStoreKitProducts {
+            return true
+        }
+
+        return paywallsContainsProducts
+    }
+
     internal func updatePaywallsWithStoreKitProducts(paywalls: [ApphudPaywall]) {
         performWhenUserRegistered {
-            self.paywallsAreReady = true
             self.paywallsLoadTime = Date().timeIntervalSince(self.initDate)
         }
 

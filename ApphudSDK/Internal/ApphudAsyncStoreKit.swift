@@ -14,11 +14,24 @@ internal class ApphudAsyncStoreKit {
 
     static let shared = ApphudAsyncStoreKit()
     var isPurchasing: Bool = false
-    var products = Set<Product>()
-
     var transactionsListener = ApphudAsyncTransactionObserver()
-
     var productsLoaded = false
+
+    private var _products = Set<Product>()
+    private let productsQueue = DispatchQueue(label: "com.apphud.StoreKit2ProductsQueue", attributes: .concurrent)
+
+    internal var products: Set<Product> {
+        get {
+            productsQueue.sync {
+                return self._products
+            }
+        }
+        set {
+            productsQueue.async(flags: .barrier) {
+                self._products = newValue
+            }
+        }
+    }
 
     func fetchProducts() async throws -> [Product] {
         let ids = await ApphudInternal.shared.fetchAllAvailableProductIDs()
@@ -38,11 +51,12 @@ internal class ApphudAsyncStoreKit {
             if loadedProducts.count > 0 {
                 apphudLog("Successfully fetched Products from the App Store:\n \(loadedProducts.map { $0.id })")
             }
-            self.products.formUnion(loadedProducts)
 
-            if isLoadingAllAvailable {
-                self.productsLoaded = true
-            }
+            var currentProducts = products
+            currentProducts.formUnion(loadedProducts)
+            products = currentProducts
+
+            if isLoadingAllAvailable { productsLoaded = true }
 
             return loadedProducts
         } catch {
@@ -53,7 +67,9 @@ internal class ApphudAsyncStoreKit {
 
     func purchase(product: Product, apphudProduct: ApphudProduct?, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
         self.isPurchasing = true
-        self.products.insert(product)
+        var newProducts = self.products
+        newProducts.insert(product)
+        self.products = newProducts
         isPurchasing?.wrappedValue = true
         var options = Set<Product.PurchaseOption>()
         if let uuidString = ApphudStoreKitWrapper.shared.appropriateApplicationUsername(), let uuid = UUID(uuidString: uuidString) {

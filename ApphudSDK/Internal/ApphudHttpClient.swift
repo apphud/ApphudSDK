@@ -8,6 +8,14 @@
 
 import Foundation
 
+internal struct ApphudUserResponse<T: Decodable>: Decodable {
+    var data: ApphudUserResultsResponse<T>
+}
+
+internal struct ApphudUserResultsResponse<T: Decodable>: Decodable {
+    var results: T
+}
+
 internal struct ApphudAPIDataResponse<T: Decodable>: Decodable {
     var data: T
 }
@@ -303,6 +311,7 @@ public class ApphudHttpClient {
                     let method = request.httpMethod ?? ""
 
                     let code = httpResponse.statusCode
+
                     if code >= 200 && code < 300 {
 
                         if let dictionary = dictionary {

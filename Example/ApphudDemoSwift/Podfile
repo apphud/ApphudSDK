@@ -7,3 +7,7 @@ use_frameworks!
 target 'ApphudSDKDemo' do
 pod 'ApphudSDK', :path => '../../'
 end
+
+target 'ApphudSDKTests' do
+pod 'ApphudSDK', :path => '../../'
+end
