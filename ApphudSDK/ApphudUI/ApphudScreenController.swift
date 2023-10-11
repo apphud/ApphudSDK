@@ -273,7 +273,7 @@ class ApphudScreenController: UIViewController {
             return
         }
 
-        if offerID != nil {
+        if offerID != nil && offerID!.count > 0 {
                 if product.discounts.first(where: {$0.identifier == offerID!}) != nil {
 
                     if isPurchasing {return}
