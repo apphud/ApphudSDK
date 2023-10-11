@@ -429,6 +429,8 @@ final public class Apphud: NSObject {
     }
 
     /**
+     __Note: This method must be used only in Observer Mode__. If you make purchases with Apphud, use `purchase(_ product: ApphudProduct, value: Double, callback: ((ApphudPurchaseResult) -> Void)?)` method instead.
+     
      Sets custom value (in USD) for purchases. You should call this method before starting a purchase. Custom value will be sent to AppsFlyer and Facebook for value optimization. You can try to send your subscriptions LTV or ARPPU as custom value. Must be sent in USD. Contact support manager for details.
      */
     @objc public static func setCustomPurchaseValue(_ value: Double, productId: String) {
