@@ -31,7 +31,7 @@ class PaywallViewController: UIViewController {
         super.viewDidLoad()
 
         setupNavBar()
-        Task {
+        Task { @MainActor in
             await loadPaywalls()
 //            await loadProducts()
         }
@@ -145,7 +145,7 @@ class PaywallViewController: UIViewController {
     }
 
     @objc private func restoreAction() {
-        Task {
+        Task { @MainActor in
             showLoader()
             await Apphud.restorePurchases()
             hideLoader()
@@ -164,12 +164,12 @@ class PaywallViewController: UIViewController {
 
         let sheet = UIAlertController(title: "Select purchase method", message: nil, preferredStyle: .actionSheet)
         sheet.addAction(UIAlertAction(title: "Purchase SKProduct", style: .default, handler: { _ in
-            Task {
+            Task { @MainActor in
                 await self.purchaseProduct(product)
             }
         }))
         sheet.addAction(UIAlertAction(title: "Purchase Product struct", style: .default, handler: { _ in
-            Task {
+            Task { @MainActor in
                 if #available(iOS 15.0, *) {
                     await self.purchaseProductStruct(product)
                 } else {

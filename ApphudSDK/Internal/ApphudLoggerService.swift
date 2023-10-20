@@ -97,7 +97,7 @@ class ApphudLoggerService {
             let data = try? JSONSerialization.data(withJSONObject: logs, options: [.prettyPrinted])
             let str = (data != nil ? String(data: data!, encoding: .utf8) : logs.description) ?? ""
             apphudLog("SDK Performance Metrics: \n\(str)")
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 self.durationLogs.removeAll()
             }
         }

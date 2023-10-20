@@ -53,6 +53,8 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     func setupObserver() {
         SKPaymentQueue.default().add(self)
+
+
     }
 
     func enableSwizzle() {
@@ -60,7 +62,8 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     }
 
     func restoreTransactions() {
-        DispatchQueue.main.async {
+        
+        Task { @MainActor in
             SKPaymentQueue.default().restoreCompletedTransactions()
         }
     }
@@ -137,7 +140,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     // MARK: - SKPaymentTransactionObserver
 
     func paymentQueue(_ queue: SKPaymentQueue, updatedTransactions transactions: [SKPaymentTransaction]) {
-        DispatchQueue.main.async {
+        Task { @MainActor in
 
             // order purchased state before any others
             let sortedTransactions = transactions.sorted { first, _ in
@@ -149,7 +152,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
                 case .purchasing:
                     self.isPurchasing = true
 
-                    Task {
+                    Task { @MainActor in
                         if #available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *) {
                             _ = try? await ApphudAsyncStoreKit.shared.fetchProduct(trx.payment.productIdentifier)
                         }
@@ -190,9 +193,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     }
 
     func handleDeferredTransaction(_ transaction: SKPaymentTransaction) {
-        if let error = transaction.error as? SKError, error.code != .paymentCancelled {
-            ApphudInternal.shared.delegate?.handleDeferredTransaction(transaction: transaction)
-        }
+        ApphudInternal.shared.delegate?.handleDeferredTransaction(transaction: transaction)
     }
 
     private func handleTransactionIfStarted(_ transaction: SKPaymentTransaction) {
@@ -238,7 +239,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     }
 
     func paymentQueue(_ queue: SKPaymentQueue, removedTransactions transactions: [SKPaymentTransaction]) {
-        DispatchQueue.main.async {
+        Task { @MainActor in
             transactions.forEach { transaction in
                 NotificationCenter.default.post(name: _ApphudDidFinishTransactionNotification, object: transaction)
             }
@@ -248,7 +249,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     #if os(iOS) && !targetEnvironment(macCatalyst)
     func paymentQueue(_ queue: SKPaymentQueue, shouldAddStorePayment payment: SKPayment, for product: SKProduct) -> Bool {
 
-        DispatchQueue.main.async {
+        Task { @MainActor in
             if let callback = ApphudInternal.shared.delegate?.apphudShouldStartAppStoreDirectPurchase(product) {
                 ApphudInternal.shared.purchase(productId: product.productIdentifier, product: nil, validate: true, callback: callback)
             }
@@ -262,16 +263,16 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     func requestDidFinish(_ request: SKRequest) {
         if request is SKReceiptRefreshRequest {
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 if self.refreshReceiptCallback != nil {
                     self.refreshReceiptCallback?()
                     self.refreshReceiptCallback = nil
                 } else {
                     ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: false, transaction: nil)
                 }
-                request.cancel()
-                self.refreshRequest = nil
             }
+            request.cancel()
+            self.refreshRequest = nil
         }
     }
 
@@ -280,16 +281,16 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
      */
     func request(_ request: SKRequest, didFailWithError error: Error) {
         if request is SKReceiptRefreshRequest {
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 if self.refreshReceiptCallback != nil {
                     self.refreshReceiptCallback?()
                     self.refreshReceiptCallback = nil
                 } else {
                     ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: false, transaction: nil)
                 }
-                request.cancel()
-                self.refreshRequest = nil
             }
+            request.cancel()
+            self.refreshRequest = nil
         }
     }
 
@@ -330,7 +331,7 @@ private class ApphudProductsFetcher: NSObject, SKProductsRequestDelegate {
     }
 
     public func productsRequest(_ request: SKProductsRequest, didReceive response: SKProductsResponse) {
-        DispatchQueue.main.async {
+        Task { @MainActor in
             self.callback?(response.products, nil)
             if response.invalidProductIdentifiers.count > 0 {
                 apphudLog("Failed to load SKProducts from the App Store, because product identifiers are invalid:\n \(response.invalidProductIdentifiers)\n\tFor more details visit: https://docs.apphud.com/docs/testing-troubleshooting#failed-to-load-skproducts-from-the-app-store-error", forceDisplay: true)
@@ -344,7 +345,7 @@ private class ApphudProductsFetcher: NSObject, SKProductsRequestDelegate {
     }
 
     func request(_ request: SKRequest, didFailWithError error: Error) {
-        DispatchQueue.main.async {
+        Task { @MainActor in
             if (error as NSError).description.contains("Attempted to decode store response") {
                 apphudLog("Failed to load SKProducts from the App Store, error: \(error). [!] App Store features in iOS Simulator are not supported. For more details visit: https://docs.apphud.com/docs/testing-troubleshooting#attempted-to-decode-store-response-error-while-fetching-products", forceDisplay: true)
             } else {

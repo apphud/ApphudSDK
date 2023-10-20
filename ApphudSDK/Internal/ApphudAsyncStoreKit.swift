@@ -17,20 +17,11 @@ internal class ApphudAsyncStoreKit {
     var transactionsListener = ApphudAsyncTransactionObserver()
     var productsLoaded = false
 
-    private var _products = Set<Product>()
-    private let productsQueue = DispatchQueue(label: "com.apphud.StoreKit2ProductsQueue", attributes: .concurrent)
+    private var productsStorage = ApphudProductsStorage()
 
-    internal var products: Set<Product> {
-        get {
-            productsQueue.sync {
-                return self._products
-            }
-        }
-        set {
-            productsQueue.async(flags: .barrier) {
-                self._products = newValue
-            }
-        }
+    func products() async -> [Product] {
+        let prs = await productsStorage.readProducts()
+        return Array(prs)
     }
 
     func fetchProducts() async throws -> [Product] {
@@ -39,7 +30,8 @@ internal class ApphudAsyncStoreKit {
     }
 
     func fetchProduct(_ id: String) async throws -> Product? {
-        if let product = products.first(where: { $0.id == id }) {
+
+        if let product = await productsStorage.readProducts().first(where: { $0.id == id }) {
             return product
         }
         return try await fetchProducts([id], isLoadingAllAvailable: false).first
@@ -51,10 +43,8 @@ internal class ApphudAsyncStoreKit {
             if loadedProducts.count > 0 {
                 apphudLog("Successfully fetched Products from the App Store:\n \(loadedProducts.map { $0.id })")
             }
-
-            var currentProducts = products
-            currentProducts.formUnion(loadedProducts)
-            products = currentProducts
+            
+            await productsStorage.append(loadedProducts)
 
             if isLoadingAllAvailable { productsLoaded = true }
 
@@ -65,11 +55,10 @@ internal class ApphudAsyncStoreKit {
         }
     }
 
+    @MainActor
     func purchase(product: Product, apphudProduct: ApphudProduct?, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
         self.isPurchasing = true
-        var newProducts = self.products
-        newProducts.insert(product)
-        self.products = newProducts
+        await productsStorage.append(product)
         isPurchasing?.wrappedValue = true
         var options = Set<Product.PurchaseOption>()
         if let uuidString = ApphudStoreKitWrapper.shared.appropriateApplicationUsername(), let uuid = UUID(uuidString: uuidString) {
@@ -144,13 +133,13 @@ final class ApphudAsyncTransactionObserver {
         }
 
         if !ApphudUtils.shared.storeKitObserverMode {
-            Task {
+            Task { @MainActor in
                 _ = await ApphudInternal.shared.handleTransaction(transaction)
                 await transaction.finish()
             }
         } else {
             apphudLog("Received transaction [\(transaction.id), \(transaction.productID)] from StoreKit2")
-            Task {
+            Task { @MainActor in
                 _ = try? await ApphudAsyncStoreKit.shared.fetchProduct(transaction.productID)
             }
             ApphudInternal.shared.setNeedToCheckTransactions()

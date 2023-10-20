@@ -482,7 +482,7 @@ final class ApphudInternal: NSObject {
     /// Returns false if current user is not yet registered, block is added to array and will be performed later.
     @discardableResult internal func performWhenUserRegistered(callback : @escaping ApphudVoidCallback) -> Bool {
         if currentUser != nil {
-            DispatchQueue.main.async {
+            Task {
                 callback()
             }
             return true
@@ -496,7 +496,7 @@ final class ApphudInternal: NSObject {
     }
 
     internal func performAllUserRegisteredBlocks() {
-        DispatchQueue.main.async {
+        Task {
             for block in self.userRegisteredCallbacks {
                 block()
             }
@@ -510,7 +510,7 @@ final class ApphudInternal: NSObject {
     /// Returns false if products groups map dictionary not yet received, block is added to array and will be performed later.
     @discardableResult internal func performWhenProductGroupsFetched(callback : @escaping ApphudVoidCallback) -> Bool {
         if self.productGroups.count > 0 {
-            DispatchQueue.main.async {
+            Task {
                 callback()
             }
             return true
@@ -521,7 +521,7 @@ final class ApphudInternal: NSObject {
     }
 
     internal func performAllProductGroupsFetchedCallbacks() {
-        DispatchQueue.main.async {
+        Task {
             for block in self.productGroupsFetchedCallbacks {
                 apphudLog("Performing scheduled block..")
                 block()
@@ -536,7 +536,7 @@ final class ApphudInternal: NSObject {
     /// Returns false if products groups map dictionary not yet received, block is added to array and will be performed later.
     @discardableResult internal func performWhenStoreKitProductFetched(callback : @escaping ApphudVoidCallback) -> Bool {
         if ApphudStoreKitWrapper.shared.didFetch {
-            DispatchQueue.main.async {
+            Task {
                 callback()
             }
             return true
@@ -547,7 +547,7 @@ final class ApphudInternal: NSObject {
     }
 
     internal func performAllStoreKitProductsFetchedCallbacks() {
-        DispatchQueue.main.async {
+        Task {
             for block in self.storeKitProductsFetchedCallbacks {
                 apphudLog("Performing scheduled block..")
                 block()
