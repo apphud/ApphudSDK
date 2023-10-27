@@ -400,8 +400,16 @@ extension SKPaymentQueue {
         let currentUsernameIsUUID = (currentUsername != nil) && (UUID(uuidString: currentUsername!) != nil)
 
         if !currentUsernameIsUUID, let mutablePayment = payment as? SKMutablePayment ?? payment.mutableCopy() as? SKMutablePayment {
-            mutablePayment.applicationUsername = ApphudStoreKitWrapper.shared.appropriateApplicationUsername()
-            apphudAdd(mutablePayment)
+
+            // avoid issues with mutableCopy function
+            let validate = (mutablePayment.productIdentifier as NSString).responds(to: Selector(("length")))
+
+            if validate && mutablePayment.productIdentifier.count > 0 {
+                mutablePayment.applicationUsername = ApphudStoreKitWrapper.shared.appropriateApplicationUsername()
+                apphudAdd(mutablePayment)
+            } else {
+                apphudAdd(payment)
+            }
         } else {
             apphudAdd(payment)
         }
