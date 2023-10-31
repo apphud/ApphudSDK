@@ -6,7 +6,7 @@
 
 Apphud SDK is an open-source Swift library to manage auto-renewable subscriptions and other in-app purchases in your app.
 <p align="center">
-<img src="https://apphud.com/images/greetings.png" width="30%" height="30%" />
+<img src="https://apphud.com/images/greetings.webp" width="30%" height="30%" />
 </p>
 
 ## What is Apphud?
@@ -17,7 +17,7 @@ Apphud is all-in-one infrastructure for your app growth. Apphud helps marketing 
 
 Integrate in-app purchases and subscriptions in your mobile app in 2 lines of code. No server code required. Apphud works with all apps on iOS, iPadOS, MacOS, tvOS, watchOS and Android. Cross-platform support out of the box.
 <p align="center">
-<img src="https://apphud.com/images/easy-2.png" width="50%" height="50%" />
+<img src="https://apphud.com/images/easy-2.webp" width="50%" height="50%" />
 </p>
 
 ## Real-time Revenue Analytics
@@ -25,7 +25,7 @@ Integrate in-app purchases and subscriptions in your mobile app in 2 lines of co
  View key subscription metrics in our [dashboard](https://docs.apphud.com/docs/dashboard) and [charts](https://docs.apphud.com/docs/charts), like MRR, Subscriber Retention (Cohorts), Churn rate, ARPU, Trial Conversions, Proceeds, Refunds, etc.
 
 <p align="center">
-<img src="https://apphud.com/images/why.png"  width="35%" height="35%" />
+<img src="https://apphud.com/images/why.webp"  width="35%" height="35%" />
 </p>
   
 ## Integrations
@@ -33,7 +33,7 @@ Integrate in-app purchases and subscriptions in your mobile app in 2 lines of co
 Send subscription events to your favorite third party platforms with automatic currency conversion. Choose from 18 integrations, including: AppsFlyer, Adjust, Branch, Firebase, Amplitude, Mixpanel, OneSignal, Facebook, TikTok, and more. Custom Server-to-Server webhooks and APIs are also available.
 
 <p align="center">
-<img src="https://apphud.com/images/integrations.png"  width="35%" height="35%" />
+<img src="https://apphud.com/images/integrations.webp"  width="35%" height="35%" />
 </p>
 
 ## A/B Experiments
@@ -41,7 +41,7 @@ Send subscription events to your favorite third party platforms with automatic c
 Test different in-app purchases and paywalls. Run experiments to find the best combination of prices and purchase screen parameters that maximize ROI.
 
 <p align="center">
-<img src="https://apphud.com/images/ab_tests.png"  width="35%" height="35%" />
+<img src="https://apphud.com/images/ab_tests.webp"  width="35%" height="35%" />
 </p>
 
 ## Web-to-App
@@ -55,7 +55,7 @@ Web-to-App solution overcomes IDFA limitations in the post iOS 14.5 era. Using t
 
 Apphud may win back lapsed subscribers, reduce churn rate, get cancellation insights, send push notifications and many more using the mechanics below. This mechanics are called Rules. Choose between manual, scheduled and automated rule. Manual rules will be performed manually, scheduled rule will be performed on a certain time, automated rule will be triggered after certain event. Use our visual web editor to create you custom screen or screen sequence for Rule, and analyze user stats from every created screen.
 <p align="center">
-<img src="https://apphud.com/images/rules.png"  width="35%" height="35%" />
+<img src="https://apphud.com/images/rules.webp"  width="35%" height="35%" />
 </p>
 
 ## Why Apphud?
