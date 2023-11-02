@@ -53,6 +53,8 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     func setupObserver() {
         SKPaymentQueue.default().add(self)
+
+
     }
 
     func enableSwizzle() {
@@ -60,7 +62,8 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     }
 
     func restoreTransactions() {
-        DispatchQueue.main.async {
+        
+        Task { @MainActor in
             SKPaymentQueue.default().restoreCompletedTransactions()
         }
     }
@@ -137,7 +140,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     // MARK: - SKPaymentTransactionObserver
 
     func paymentQueue(_ queue: SKPaymentQueue, updatedTransactions transactions: [SKPaymentTransaction]) {
-        DispatchQueue.main.async {
+        Task { @MainActor in
 
             // order purchased state before any others
             let sortedTransactions = transactions.sorted { first, _ in
@@ -149,9 +152,9 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
                 case .purchasing:
                     self.isPurchasing = true
 
-                    Task {
+                    Task { @MainActor in
                         if #available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *) {
-                            _ = try? await ApphudAsyncStoreKit.shared.fetchProduct(trx.payment.productIdentifier)
+                            try? await ApphudAsyncStoreKit.shared.fetchProductIfNeeded(trx.payment.productIdentifier)
                         }
                     }
 
@@ -190,9 +193,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     }
 
     func handleDeferredTransaction(_ transaction: SKPaymentTransaction) {
-        if let error = transaction.error as? SKError, error.code != .paymentCancelled {
-            ApphudInternal.shared.delegate?.handleDeferredTransaction(transaction: transaction)
-        }
+        ApphudInternal.shared.delegate?.handleDeferredTransaction(transaction: transaction)
     }
 
     private func handleTransactionIfStarted(_ transaction: SKPaymentTransaction) {
@@ -269,9 +270,9 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
                 } else {
                     ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: false, transaction: nil)
                 }
-                request.cancel()
-                self.refreshRequest = nil
             }
+            request.cancel()
+            self.refreshRequest = nil
         }
     }
 
@@ -287,9 +288,9 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
                 } else {
                     ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: false, transaction: nil)
                 }
-                request.cancel()
-                self.refreshRequest = nil
             }
+            request.cancel()
+            self.refreshRequest = nil
         }
     }
 
@@ -399,8 +400,16 @@ extension SKPaymentQueue {
         let currentUsernameIsUUID = (currentUsername != nil) && (UUID(uuidString: currentUsername!) != nil)
 
         if !currentUsernameIsUUID, let mutablePayment = payment as? SKMutablePayment ?? payment.mutableCopy() as? SKMutablePayment {
-            mutablePayment.applicationUsername = ApphudStoreKitWrapper.shared.appropriateApplicationUsername()
-            apphudAdd(mutablePayment)
+
+            // avoid issues with mutableCopy function
+            let validate = (mutablePayment.productIdentifier as NSString).responds(to: Selector(("length")))
+
+            if validate && mutablePayment.productIdentifier.count > 0 {
+                mutablePayment.applicationUsername = ApphudStoreKitWrapper.shared.appropriateApplicationUsername()
+                apphudAdd(mutablePayment)
+            } else {
+                apphudAdd(payment)
+            }
         } else {
             apphudAdd(payment)
         }

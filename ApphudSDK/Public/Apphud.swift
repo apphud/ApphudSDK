@@ -14,7 +14,7 @@ import Foundation
 import UserNotifications
 import SwiftUI
 
-internal let apphud_sdk_version = "3.1.0"
+internal let apphud_sdk_version = "3.1.2"
 
 /**
  Public Callback object provide -> [String: Bool]
@@ -197,7 +197,7 @@ final public class Apphud: NSObject {
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
     public static func fetchProducts() async throws -> [Product] {
         if ApphudAsyncStoreKit.shared.productsLoaded {
-            return Array(ApphudAsyncStoreKit.shared.products)
+            return await ApphudAsyncStoreKit.shared.products()
         } else {
             return try await ApphudAsyncStoreKit.shared.fetchProducts()
         }
@@ -222,6 +222,7 @@ final public class Apphud: NSObject {
 
      - returns: `ApphudAsyncPurchaseResult` struct.
      */
+    @MainActor
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
     public static func purchase(_ product: Product, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
         await ApphudAsyncStoreKit.shared.purchase(product: product, apphudProduct: apphudProductFor(product), isPurchasing: isPurchasing)
@@ -236,6 +237,7 @@ final public class Apphud: NSObject {
 
      - returns: `ApphudPurchaseResult` object.
      */
+    @MainActor
     @available(iOS 13.0.0, macOS 11.0, watchOS 6.0, tvOS 13.0, *)
     public static func purchase(_ product: ApphudProduct, isPurchasing: Binding<Bool>? = nil) async -> ApphudPurchaseResult {
         await ApphudInternal.shared.purchase(productId: product.productId, product: product, validate: true, isPurchasing: isPurchasing)

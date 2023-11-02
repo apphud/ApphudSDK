@@ -67,17 +67,19 @@ class ApphudLoggerService {
     // MARK: - Duration Logs
 
     internal func add(key: DurationLog, value: Double, retryLog: ApphudRetryLog) {
-        if durationLogs.count != 0 {
-            durationLogsTimer.invalidate()
+        DispatchQueue.main.async {
+            if self.durationLogs.count != 0 {
+                self.durationLogsTimer.invalidate()
+            }
+            self.durationLogsTimer = Timer.scheduledTimer(timeInterval: 5.0, target: self, selector: #selector(self.durationTimerAction), userInfo: nil, repeats: false)
+
+            var params: [String: AnyHashable] = ["endpoint": key.rawValue, "duration": Double(round(100 * value) / 100)]
+
+            params["retries"] = retryLog.count
+            params["error_code"] = retryLog.errorCode
+
+            self.durationLogs.append(params)
         }
-        durationLogsTimer = Timer.scheduledTimer(timeInterval: 5.0, target: self, selector: #selector(durationTimerAction), userInfo: nil, repeats: false)
-
-        var params: [String: AnyHashable] = ["endpoint": key.rawValue, "duration": Double(round(100 * value) / 100)]
-
-        params["retries"] = retryLog.count
-        params["error_code"] = retryLog.errorCode
-
-        self.durationLogs.append(params)
     }
 
     @objc private func durationTimerAction() {

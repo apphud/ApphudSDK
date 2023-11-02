@@ -17,20 +17,11 @@ internal class ApphudAsyncStoreKit {
     var transactionsListener = ApphudAsyncTransactionObserver()
     var productsLoaded = false
 
-    private var _products = Set<Product>()
-    private let productsQueue = DispatchQueue(label: "com.apphud.StoreKit2ProductsQueue", attributes: .concurrent)
+    private var productsStorage = ApphudProductsStorage()
 
-    internal var products: Set<Product> {
-        get {
-            productsQueue.sync {
-                return self._products
-            }
-        }
-        set {
-            productsQueue.async(flags: .barrier) {
-                self._products = newValue
-            }
-        }
+    func products() async -> [Product] {
+        let prs = await productsStorage.readProducts()
+        return Array(prs)
     }
 
     func fetchProducts() async throws -> [Product] {
@@ -38,23 +29,42 @@ internal class ApphudAsyncStoreKit {
         return try await fetchProducts(ids, isLoadingAllAvailable: true)
     }
 
-    func fetchProduct(_ id: String) async throws -> Product? {
-        if let product = products.first(where: { $0.id == id }) {
+
+    func fetchProductIfNeeded(_ id: String) async throws {
+        _ = try await fetchProduct(id, discardable: true)
+    }
+
+    func fetchProduct(_ id: String, discardable: Bool = false) async throws -> Product? {
+
+        if let product = await productsStorage.readProducts().first(where: { $0.id == id }) {
             return product
         }
-        return try await fetchProducts([id], isLoadingAllAvailable: false).first
+
+        if await productsStorage.isRequested(id) && discardable {
+            apphudLog("Product [\(id)] is already requested, skipping")
+            return nil
+        }
+
+        do {
+            await productsStorage.request(id)
+            let products = try await fetchProducts([id], isLoadingAllAvailable: false)
+            await productsStorage.finishRequest(id)
+            return products.first
+        } catch {
+            await productsStorage.finishRequest(id)
+            throw error
+        }
     }
 
     func fetchProducts(_ ids: Set<String>, isLoadingAllAvailable: Bool) async throws -> [Product] {
         do {
+            apphudLog("Requesting products from the App Store: \(ids)")
             let loadedProducts = try await Product.products(for: ids)
             if loadedProducts.count > 0 {
                 apphudLog("Successfully fetched Products from the App Store:\n \(loadedProducts.map { $0.id })")
             }
-
-            var currentProducts = products
-            currentProducts.formUnion(loadedProducts)
-            products = currentProducts
+            
+            await productsStorage.append(loadedProducts)
 
             if isLoadingAllAvailable { productsLoaded = true }
 
@@ -65,11 +75,10 @@ internal class ApphudAsyncStoreKit {
         }
     }
 
+    @MainActor
     func purchase(product: Product, apphudProduct: ApphudProduct?, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
         self.isPurchasing = true
-        var newProducts = self.products
-        newProducts.insert(product)
-        self.products = newProducts
+        await productsStorage.append(product)
         isPurchasing?.wrappedValue = true
         var options = Set<Product.PurchaseOption>()
         if let uuidString = ApphudStoreKitWrapper.shared.appropriateApplicationUsername(), let uuid = UUID(uuidString: uuidString) {
@@ -144,14 +153,14 @@ final class ApphudAsyncTransactionObserver {
         }
 
         if !ApphudUtils.shared.storeKitObserverMode {
-            Task {
+            Task { @MainActor in
                 _ = await ApphudInternal.shared.handleTransaction(transaction)
                 await transaction.finish()
             }
         } else {
             apphudLog("Received transaction [\(transaction.id), \(transaction.productID)] from StoreKit2")
-            Task {
-                _ = try? await ApphudAsyncStoreKit.shared.fetchProduct(transaction.productID)
+            Task { @MainActor in
+                try? await ApphudAsyncStoreKit.shared.fetchProductIfNeeded(transaction.productID)
             }
             ApphudInternal.shared.setNeedToCheckTransactions()
         }

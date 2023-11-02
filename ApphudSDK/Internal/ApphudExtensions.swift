@@ -28,6 +28,20 @@ internal func apphudVisibleViewController() -> UIViewController? {
 }
 #endif
 
+extension Sequence {
+    func asyncMap<T>(
+        _ transform: (Element) async throws -> T
+    ) async rethrows -> [T] {
+        var values = [T]()
+
+        for element in self {
+            try await values.append(transform(element))
+        }
+
+        return values
+    }
+}
+
 extension Date {
     internal var apphudIsoString: String {
         String.apphudIsoDateFormatter.string(from: self)
@@ -461,14 +475,14 @@ extension SKProduct {
         introductoryPrice != nil && introductoryPrice?.paymentMode == SKProductDiscount.PaymentMode.freeTrial
     }
 
-    func apphudSubmittableParameters(_ purchased: Bool = false) -> [String: Any] {
+    func apphudSubmittableParameters(_ purchased: Bool = false) async -> [String: Any] {
         var params: [String: Any] = [
             "product_id": productIdentifier,
             "price": price.floatValue
         ]
 
         if #available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *) {
-            if let productStruct = ApphudAsyncStoreKit.shared.products.first(where: { $0.id == productIdentifier }), let adamID = productStruct.adamId {
+            if let productStruct = await ApphudAsyncStoreKit.shared.products().first(where: { $0.id == productIdentifier }), let adamID = productStruct.adamId {
                 params["adam_id"] = adamID
             }
         } else {

@@ -37,7 +37,7 @@ extension ApphudInternal {
 
             if ApphudAsyncStoreKit.shared.isPurchasing { return }
 
-            Task {
+            Task { @MainActor in
                 for await result in StoreKit.Transaction.currentEntitlements {
                     if case .verified(let transaction) = result {
                         await handleTransaction(transaction)
@@ -75,7 +75,7 @@ extension ApphudInternal {
             self.isSubmittingReceipt = false
 
             let product = await ApphudStoreKitWrapper.shared.fetchProduct(productID)
-            _ = try? await ApphudAsyncStoreKit.shared.fetchProduct(productID)
+            try? await ApphudAsyncStoreKit.shared.fetchProductIfNeeded(productID)
             let receipt = await appStoreReceipt()
             let isRecentlyPurchased: Bool = purchaseDate > Date().addingTimeInterval(-600)
             return await withCheckedContinuation { continuation in
@@ -86,14 +86,18 @@ extension ApphudInternal {
                     trx.append(transactionId)
                     self.lastUploadedTransactions = trx
 
-                    self.submitReceipt(product: product,
-                                       apphudProduct: nil,
-                                       transactionIdentifier: String(transactionId),
-                                       transactionProductIdentifier: productID,
-                                       transactionState: isRecentlyPurchased ? .purchased : nil,
-                                       receiptString: receipt,
-                                       notifyDelegate: true) { _ in
-                        continuation.resume(returning: true)
+                    Task {
+                        await self.submitReceipt(product: product,
+                                           apphudProduct: nil,
+                                           transactionIdentifier: String(transactionId),
+                                           transactionProductIdentifier: productID,
+                                           transactionState: isRecentlyPurchased ? .purchased : nil,
+                                           receiptString: receipt,
+                                           notifyDelegate: true) { _ in
+                            Task { @MainActor in
+                                continuation.resume(returning: true)
+                            }
+                        }
                     }
                 }
             }
@@ -206,14 +210,16 @@ extension ApphudInternal {
         let finalProduct = product ?? ApphudStoreKitWrapper.shared.products.first(where: { $0.productIdentifier == productId })
 
         let block: ((SKProduct?) -> Void) = { pr in
-            self.submitReceipt(product: pr,
-                               apphudProduct: apphudProduct,
-                               transactionIdentifier: transaction?.transactionIdentifier,
-                               transactionProductIdentifier: productId,
-                               transactionState: transaction?.transactionState,
-                               receiptString: receiptString,
-                               notifyDelegate: eligibilityCheck,
-                               callback: callback)
+            Task {
+                await self.submitReceipt(product: pr,
+                                   apphudProduct: apphudProduct,
+                                   transactionIdentifier: transaction?.transactionIdentifier,
+                                   transactionProductIdentifier: productId,
+                                   transactionState: transaction?.transactionState,
+                                   receiptString: receiptString,
+                                   notifyDelegate: eligibilityCheck,
+                                   callback: callback)
+            }
         }
 
         if finalProduct == nil && productId != nil {
@@ -233,7 +239,7 @@ extension ApphudInternal {
                                 receiptString: String?,
                                 notifyDelegate: Bool,
                                 eligibilityCheck: Bool = false,
-                                callback: ApphudErrorCallback?) {
+                                callback: ApphudErrorCallback?) async {
 
         if callback != nil {
             if eligibilityCheck || self.submitReceiptCallbacks.count > 0 {
@@ -269,12 +275,17 @@ extension ApphudInternal {
 
         params["user_id"] = Apphud.userID()
 
-        product.map { params["product_info"] = $0.apphudSubmittableParameters(hasMadePurchase) }
+
+        if let info = await product?.apphudSubmittableParameters(hasMadePurchase) {
+            params["product_info"] = info
+        }
 
         if !eligibilityCheck {
             let mainProductID: String? = product?.productIdentifier ?? transactionProductIdentifier
             let other_products = ApphudStoreKitWrapper.shared.products.filter { $0.productIdentifier != mainProductID }
-            params["other_products_info"] = other_products.map { $0.apphudSubmittableParameters() }
+            params["other_products_info"] = await other_products.asyncMap { p in
+                await p.apphudSubmittableParameters()
+            }
         }
 
         apphudProduct?.id.map { params["product_bundle_id"] = $0 }
@@ -352,6 +363,7 @@ extension ApphudInternal {
 
     // MARK: - Internal purchase methods
 
+    @MainActor
     @available(iOS 13.0.0, macOS 11.0, watchOS 6.0, tvOS 13.0, *)
     internal func purchase(productId: String, product: ApphudProduct?, validate: Bool, isPurchasing: Binding<Bool>? = nil, value: Double? = nil) async -> ApphudPurchaseResult {
         await withCheckedContinuation { continuation in
