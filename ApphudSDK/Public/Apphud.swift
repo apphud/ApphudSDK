@@ -14,7 +14,7 @@ import Foundation
 import UserNotifications
 import SwiftUI
 
-internal let apphud_sdk_version = "3.1.2"
+internal let apphud_sdk_version = "3.1.3"
 
 /**
  Public Callback object provide -> [String: Bool]
