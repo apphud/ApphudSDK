@@ -24,4 +24,20 @@ actor ApphudProductsStorage {
     func readProducts() -> Set<Product> {
         products
     }
+
+    // the code below only applies to single product requests
+    // see: func fetchProduct(_ id: String, discardable: Bool = false) async throws -> Product?
+    private var requestedProductIds = Set<String>()
+
+    func request(_ id: String) {
+        requestedProductIds.insert(id)
+    }
+
+    func isRequested(_ id: String) -> Bool {
+        requestedProductIds.contains(id)
+    }
+
+    func finishRequest(_ id: String) {
+        requestedProductIds.remove(id)
+    }
 }

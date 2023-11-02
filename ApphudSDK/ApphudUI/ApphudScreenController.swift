@@ -171,7 +171,7 @@ class ApphudScreenController: UIViewController {
 
         let js = "window.screenInfo"
         self.webView.evaluateJavaScript(js) { (result, _) in
-            Task { @MainActor in
+            DispatchQueue.main.async {
                 if let dict = result as? [String: Any] {
                     let screen = ApphudScreen(dictionary: dict)
                     self.screen = screen

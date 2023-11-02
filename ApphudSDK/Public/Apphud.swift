@@ -269,7 +269,7 @@ final public class Apphud: NSObject {
         if ApphudInternal.shared.paywallsAreReady() {
             callback(ApphudInternal.shared.paywalls)
         } else {
-            Task { @MainActor in
+            DispatchQueue.main.async {
                 ApphudInternal.shared.customPaywallsLoadedCallbacks.append(callback)
             }
         }
@@ -302,7 +302,7 @@ final public class Apphud: NSObject {
             // already fetched but empty, refresh
             ApphudInternal.shared.refreshStoreKitProductsWithCallback(callback: callback)
         } else {
-            Task { @MainActor in
+            DispatchQueue.main.async {
                 // not yet fetched, can add to blocks array
                 ApphudInternal.shared.customProductsFetchedBlocks.append(callback)
             }

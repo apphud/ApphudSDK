@@ -29,16 +29,36 @@ internal class ApphudAsyncStoreKit {
         return try await fetchProducts(ids, isLoadingAllAvailable: true)
     }
 
-    func fetchProduct(_ id: String) async throws -> Product? {
+
+    func fetchProductIfNeeded(_ id: String) async throws {
+        _ = try await fetchProduct(id, discardable: true)
+    }
+
+    func fetchProduct(_ id: String, discardable: Bool = false) async throws -> Product? {
 
         if let product = await productsStorage.readProducts().first(where: { $0.id == id }) {
             return product
         }
-        return try await fetchProducts([id], isLoadingAllAvailable: false).first
+
+        if await productsStorage.isRequested(id) && discardable {
+            apphudLog("Product [\(id)] is already requested, skipping")
+            return nil
+        }
+
+        do {
+            await productsStorage.request(id)
+            let products = try await fetchProducts([id], isLoadingAllAvailable: false)
+            await productsStorage.finishRequest(id)
+            return products.first
+        } catch {
+            await productsStorage.finishRequest(id)
+            throw error
+        }
     }
 
     func fetchProducts(_ ids: Set<String>, isLoadingAllAvailable: Bool) async throws -> [Product] {
         do {
+            apphudLog("Requesting products from the App Store: \(ids)")
             let loadedProducts = try await Product.products(for: ids)
             if loadedProducts.count > 0 {
                 apphudLog("Successfully fetched Products from the App Store:\n \(loadedProducts.map { $0.id })")
@@ -140,7 +160,7 @@ final class ApphudAsyncTransactionObserver {
         } else {
             apphudLog("Received transaction [\(transaction.id), \(transaction.productID)] from StoreKit2")
             Task { @MainActor in
-                _ = try? await ApphudAsyncStoreKit.shared.fetchProduct(transaction.productID)
+                try? await ApphudAsyncStoreKit.shared.fetchProductIfNeeded(transaction.productID)
             }
             ApphudInternal.shared.setNeedToCheckTransactions()
         }

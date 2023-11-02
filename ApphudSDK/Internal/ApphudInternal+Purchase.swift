@@ -75,7 +75,7 @@ extension ApphudInternal {
             self.isSubmittingReceipt = false
 
             let product = await ApphudStoreKitWrapper.shared.fetchProduct(productID)
-            _ = try? await ApphudAsyncStoreKit.shared.fetchProduct(productID)
+            try? await ApphudAsyncStoreKit.shared.fetchProductIfNeeded(productID)
             let receipt = await appStoreReceipt()
             let isRecentlyPurchased: Bool = purchaseDate > Date().addingTimeInterval(-600)
             return await withCheckedContinuation { continuation in

@@ -166,7 +166,7 @@ internal func apphudPerformOnMainThread(callback: @escaping () -> Void) {
     if Thread.isMainThread {
         callback()
     } else {
-        Task { @MainActor in
+        DispatchQueue.main.async {
             callback()
         }
     }
