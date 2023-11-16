@@ -562,9 +562,13 @@ final class ApphudInternal: NSObject {
     // MARK: - Push Notifications API
 
     internal func submitPushNotificationsToken(token: Data, callback: ApphudBoolCallback?) {
+        let tokenString = token.map { String(format: "%02.2hhx", $0) }.joined()
+        submitPushNotificationsTokenString(tokenString, callback: callback)
+    }
+
+    internal func submitPushNotificationsTokenString(_ tokenString: String, callback: ApphudBoolCallback?) {
         performWhenUserRegistered {
 
-            let tokenString = token.map { String(format: "%02.2hhx", $0) }.joined()
             guard tokenString != "", self.submittedPushToken != tokenString else {
                 apphudLog("Already submitted the same push token, exiting")
                 callback?(true)

@@ -90,6 +90,7 @@ final public class Apphud: NSObject {
      - parameter observerMode: Optional. Sets SDK to Observer (i.e. Analytics) mode. If you purchase products by your own code, then pass `true`. If you purchase products using `Apphud.purchase(..)` method, then pass `false`. Default value is `false`.
      - parameter callback: Optional. Called when user is successfully registered in Apphud [or used from cache]. Callback can be used to fetch A/B experiment parameters from paywalls, like `json`,  `experimentName` or `variationName`.
      */
+    @MainActor
     @objc public static func start(apiKey: String, userID: String? = nil, observerMode: Bool = false, callback: (() -> Void)? = nil) {
         ApphudInternal.shared.initialize(apiKey: apiKey, inputUserID: userID, observerMode: observerMode)
         ApphudInternal.shared.performWhenUserRegistered { callback?() }
@@ -104,6 +105,7 @@ final public class Apphud: NSObject {
     - parameter observerMode: Optional. Sets SDK to Observer (Analytics) mode. If you purchase products by your own code, then pass `true`. If you purchase products using `Apphud.purchase(product)` method, then pass `false`. Default value is `false`.
     - parameter callback: Optional. Called when user is successfully registered in Apphud [or used from cache]. Callback can be used to fetch A/B experiment parameters from paywalls, like `json`,  `experimentName` or `variationName`.
     */
+    @MainActor
     @objc public static func startManually(apiKey: String, userID: String? = nil, deviceID: String? = nil, observerMode: Bool = false, callback: (() -> Void)? = nil) {
         ApphudInternal.shared.initialize(apiKey: apiKey, inputUserID: userID, inputDeviceID: deviceID, observerMode: observerMode)
         ApphudInternal.shared.performWhenUserRegistered { callback?() }
@@ -703,6 +705,15 @@ final public class Apphud: NSObject {
     */
     @objc public static func submitPushNotificationsToken(token: Data, callback: ApphudBoolCallback?) {
         ApphudInternal.shared.submitPushNotificationsToken(token: token, callback: callback)
+    }
+
+    /**
+     Submit device push token to Apphud as String.
+     - parameter token: Push token as String object.
+     - parameter callback: Returns true if successfully sent.
+    */
+    @objc public static func submitPushNotificationsTokenString(string: String, callback: ApphudBoolCallback?) {
+        ApphudInternal.shared.submitPushNotificationsTokenString(string, callback: callback)
     }
 
     /**
