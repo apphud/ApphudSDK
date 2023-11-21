@@ -4,14 +4,14 @@
 
 ## Greetings!
 
-Apphud SDK is an open-source Swift library to manage auto-renewable subscriptions and other in-app purchases in your app.
+Apphud SDK is an open-source Swift library to manage [auto-renewable subscriptions](https://apphud.com/blog/swift-tutorial-auto-renewable-subscriptions-in-ios) and other in-app purchases in your app.
 <p align="center">
 <img src="https://apphud.com/images/greetings.webp" width="30%" height="30%" />
 </p>
 
 ## What is Apphud?
 
-Apphud is all-in-one infrastructure for your app growth. Apphud helps marketing and product management teams to make right decisions based on the data and tools.
+Apphud is all-in-one infrastructure for your [app growth](https://apphud.com/blog/5-growth-cases-white-paper). Apphud helps marketing and product management teams to make right decisions based on the data and tools.
 
 ## Subscriptions Infrastructure
 
@@ -22,7 +22,7 @@ Integrate in-app purchases and subscriptions in your mobile app in 2 lines of co
 
 ## Real-time Revenue Analytics
 
- View key subscription metrics in our [dashboard](https://docs.apphud.com/docs/dashboard) and [charts](https://docs.apphud.com/docs/charts), like MRR, Subscriber Retention (Cohorts), Churn rate, ARPU, Trial Conversions, Proceeds, Refunds, etc.
+ View key subscription metrics in our [dashboard](https://docs.apphud.com/docs/dashboard) and [charts](https://docs.apphud.com/docs/charts), like [MRR](https://apphud.com/blog/what-is-mrr), Subscriber Retention (Cohorts), [Churn rate](https://apphud.com/blog/churn-rate), [ARPU](https://apphud.com/blog/how-arpu-arppu), Trial Conversions, Proceeds, Refunds, etc.
 
 <p align="center">
 <img src="https://apphud.com/images/why.webp"  width="35%" height="35%" />
@@ -38,7 +38,7 @@ Send subscription events to your favorite third party platforms with automatic c
 
 ## A/B Experiments
 
-Test different in-app purchases and paywalls. Run experiments to find the best combination of prices and purchase screen parameters that maximize ROI.
+Test different in-app purchases and [paywalls](https://apphud.com/blog/best-performing-paywallls). Run experiments to find the [best combination of prices and purchase screen parameters](https://apphud.com/blog/best-practices-for-paywall-ab-tests) that maximize ROI.
 
 <p align="center">
 <img src="https://apphud.com/images/ab_tests.webp"  width="35%" height="35%" />
@@ -46,14 +46,14 @@ Test different in-app purchases and paywalls. Run experiments to find the best c
 
 ## Web-to-App
 
-Web-to-App solution overcomes IDFA limitations in the post iOS 14.5 era. Using this solution you can run paid campaigns in Facebook or TikTok and get real-time attribution with nearly 100% accuracy.
+[Web-to-App](https://apphud.com/blog/web-to-app) solution overcomes IDFA limitations in the post iOS 14.5 era. Using this solution you can run paid campaigns in Facebook or TikTok and get real-time attribution with nearly 100% accuracy.
 <p align="center">
 <img src="https://1612099904-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2F-LpcBgCSJyU0DTawIxFp%2Fuploads%2FY9kRJOi4QaGn2Rp0Wksz%2Fweb-to-app.png?alt=media&token=9d851fc0-34a3-4035-8a3d-03b728e313e0"  width="50%" height="50%" />
 </p>
 
 ## Rules
 
-Apphud may win back lapsed subscribers, reduce churn rate, get cancellation insights, send push notifications and many more using the mechanics below. This mechanics are called Rules. Choose between manual, scheduled and automated rule. Manual rules will be performed manually, scheduled rule will be performed on a certain time, automated rule will be triggered after certain event. Use our visual web editor to create you custom screen or screen sequence for Rule, and analyze user stats from every created screen.
+Apphud may win back lapsed subscribers, [reduce churn rate](https://apphud.com/blog/reduce-churn), get cancellation insights, send push notifications and many more using the mechanics below. This mechanics are called Rules. Choose between manual, scheduled and automated rule. Manual rules will be performed manually, scheduled rule will be performed on a certain time, automated rule will be triggered after certain event. Use our visual web editor to create you custom screen or screen sequence for Rule, and analyze user stats from every created screen.
 <p align="center">
 <img src="https://apphud.com/images/rules.webp"  width="35%" height="35%" />
 </p>
@@ -62,13 +62,13 @@ Apphud may win back lapsed subscribers, reduce churn rate, get cancellation insi
 
 **Complete mobile in-app purchases stack with no extra costs.** Don’t waste time and money on building your own in-app purchases infrastructure. Use Apphud for free until your app revenue increases $10,000 per month.
 
-**Focused on data accuracy.** Apphud provides the highest accuracy on app revenue tracking. Analyze all important app metrics with a confidence.
+**Focused on data accuracy.** Apphud provides the [highest accuracy on app revenue tracking](https://apphud.com/blog/apphud-data-accuracy-research). Analyze all important app metrics with a confidence.
 
 **Trusted by thousands of mobile apps worldwide.** From small apps earning a few thousands per month to a leading mobile-focused companies.
 
 **Support that really cares**. With Apphud you can be sure you’re not alone with in-app subscription growth challenges. We proud of our zero-ignored tickets support – answering to every request in minutes! Customers success and priority support for Enterprise clients.
 
-**Retain users and grow revenue**. Use our Rules to engage and re-engage subscribers with no code required. Run pricing experiments to find a better price.
+**Retain users and grow revenue**. Use our Rules to engage and re-engage subscribers with no code required. Run [A/B pricing experiments](https://apphud.com/blog/ab-testing-with-apphud) to find a better price.
 
 ## Installation
 
