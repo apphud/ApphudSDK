@@ -4,7 +4,9 @@
 
 ## Greetings!
 
-Apphud SDK is an open-source Swift library to manage [auto-renewable subscriptions](https://apphud.com/blog/swift-tutorial-auto-renewable-subscriptions-in-ios) and other in-app purchases in your app.
+Apphud SDK is an open-source library for iOS and Android to manage [auto-renewable subscriptions](https://apphud.com/blog/swift-tutorial-auto-renewable-subscriptions-in-ios) and other in-app purchases in your app.
+
+Apphud has SDKs in [iOS (Swift)](https://github.com/apphud/ApphudSDK), [Android (Kotlin)](https://github.com/apphud/ApphudSDK-android), and cross-platform SDKs: [React Native](https://github.com/apphud/ApphudSDK-react-native) and [Flutter](https://github.com/apphud/ApphudSDK-flutter).
 <p align="center">
 <img src="https://apphud.com/images/greetings.webp" width="30%" height="30%" />
 </p>
@@ -44,14 +46,14 @@ Test different in-app purchases and [paywalls](https://apphud.com/blog/best-perf
 <img src="https://apphud.com/images/ab_tests.webp"  width="35%" height="35%" />
 </p>
 
-## Web-to-App
+## Web-to-App (iOS)
 
 [Web-to-App](https://apphud.com/blog/web-to-app) solution overcomes IDFA limitations in the post iOS 14.5 era. Using this solution you can run paid campaigns in Facebook or TikTok and get real-time attribution with nearly 100% accuracy.
 <p align="center">
 <img src="https://1612099904-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2F-LpcBgCSJyU0DTawIxFp%2Fuploads%2FY9kRJOi4QaGn2Rp0Wksz%2Fweb-to-app.png?alt=media&token=9d851fc0-34a3-4035-8a3d-03b728e313e0"  width="50%" height="50%" />
 </p>
 
-## Rules
+## Rules (iOS)
 
 Apphud may win back lapsed subscribers, [reduce churn rate](https://apphud.com/blog/reduce-churn), get cancellation insights, send push notifications and many more using the mechanics below. This mechanics are called Rules. Choose between manual, scheduled and automated rule. Manual rules will be performed manually, scheduled rule will be performed on a certain time, automated rule will be triggered after certain event. Use our visual web editor to create you custom screen or screen sequence for Rule, and analyze user stats from every created screen.
 <p align="center">
