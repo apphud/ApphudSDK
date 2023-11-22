@@ -723,6 +723,7 @@ final public class Apphud: NSObject {
      Returns `true` if push notification was successfully handled by Apphud.
      */
     #if os(iOS)
+    @MainActor
     @discardableResult @objc public static func handlePushNotification(apsInfo: [AnyHashable: Any]) -> Bool {
         return ApphudRulesManager.shared.handleNotification(apsInfo)
     }

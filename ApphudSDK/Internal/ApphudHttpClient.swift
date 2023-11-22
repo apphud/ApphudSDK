@@ -24,6 +24,8 @@ internal struct ApphudAPIArrayResponse<T: Decodable>: Decodable {
     var results: [T]
 }
 
+typealias ApphudParsedResponse = (Bool, [String: Any]?, Data?, Error?, Int)
+typealias ApphudHTTPResponse = (Bool, [String: Any]?, Data?, Error?, Int, Double)
 typealias ApphudHTTPResponseCallback = (Bool, [String: Any]?, Data?, Error?, Int, Double) -> Void
 typealias ApphudStringCallback = (String?, Error?) -> Void
 /**
@@ -111,7 +113,7 @@ public class ApphudHttpClient {
 
     private let GET_TIMEOUT: TimeInterval = 10.0
     private let POST_CUSTOMERS_TIMEOUT: TimeInterval = 10.0
-    private let POST_TIMEOUT: TimeInterval = 30.0
+    private let POST_TIMEOUT: TimeInterval = 10.0
 
     internal func requestInstance(url: URL) -> URLRequest? {
         var request = URLRequest(url: url)
@@ -127,12 +129,30 @@ public class ApphudHttpClient {
         }
     }
 
-    internal func startRequest(path: ApphudEndpoint, apiVersion: ApphudApiVersion = .APIV1, params: [String: Any]?, method: ApphudHttpMethod, useDecoder: Bool = false, callback: ApphudHTTPResponseCallback?) {
+    internal func startRequest(path: ApphudEndpoint, apiVersion: ApphudApiVersion = .APIV1, params: [String: Any]?, method: ApphudHttpMethod, useDecoder: Bool = false, retry: Bool = false, callback: ApphudHTTPResponseCallback?) {
 
         let timeout = path == .customers ? POST_CUSTOMERS_TIMEOUT : nil
 
         if let request = makeRequest(path: path.value, apiVersion: apiVersion, params: params, method: method, defaultTimeout: timeout), !suspended {
-            start(request: request, useDecoder: useDecoder, callback: callback)
+            Task(priority: .userInitiated) {
+
+                let retries: Int
+                let retryDelay: TimeInterval
+
+                if retry {
+                    retries = 3
+                    retryDelay = 1.0
+                } else {
+                    retries = 0
+                    retryDelay = 0
+                }
+
+                let response = await start(request: request, useDecoder: useDecoder, retries: retries, delay: retryDelay)
+
+                DispatchQueue.main.async {
+                    callback?(response.0, response.1, response.2, response.3, response.4, response.5)
+                }
+            }
         } else {
             apphudLog("Unable to perform API requests, because your account has been suspended.", forceDisplay: true)
         }
@@ -287,67 +307,79 @@ public class ApphudHttpClient {
         task.resume()
     }
 
-    private func start(request: URLRequest, useDecoder: Bool = false, callback: ApphudHTTPResponseCallback?) {
+    private func start(request: URLRequest, useDecoder: Bool = false, retries: Int, delay: TimeInterval) async -> ApphudHTTPResponse {
 
         let startDate = Date()
+        let method = request.httpMethod ?? ""
 
-        let task = session.dataTask(with: request) { (data, response, error) in
+        do {
+            let (data, response) = retries > 0 ? try await URLSession.shared.data(for: request, retries: retries, delay: delay) : try await URLSession.shared.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                return (false, nil, nil, nil, NSURLErrorUnknown, 0)
+            }
+
+            let apphudResponse: ApphudParsedResponse = parseResponse(request: request, httpResponse: httpResponse, data: data, parseJson: !useDecoder || apphudIsSandbox())
 
             let requestDuration = Date().timeIntervalSince(startDate)
+            
+            let finalHttpResponse: ApphudHTTPResponse = (apphudResponse.0, apphudResponse.1, apphudResponse.2, apphudResponse.3, apphudResponse.4, requestDuration)
 
-            var dictionary: [String: Any]?
+            return finalHttpResponse
 
-            do {
-                if data != nil && (!useDecoder || apphudIsSandbox()) {
-                    dictionary = try JSONSerialization.jsonObject(with: data!, options: []) as? [String: Any]
-                }
-            } catch {
+        } catch {
 
+            let code = (error as NSError?)?.code ?? NSURLErrorUnknown
+
+            if ApphudUtils.shared.logLevel == .all {
+                apphudLog("Request \(method) \(request.url?.absoluteString ?? "") failed with code: \(code) after: \(retries) retries error: \(error.localizedDescription)", logLevel: .all)
+            } else {
+                apphudLog("Request \(method) \(request.url?.absoluteString ?? "") failed with code: \(code) after: \(retries) retries error: \(error.localizedDescription)")
             }
 
-            DispatchQueue.main.async {
-                if let httpResponse = response as? HTTPURLResponse {
-
-                    let method = request.httpMethod ?? ""
-
-                    let code = httpResponse.statusCode
-
-                    if code >= 200 && code < 300 {
-
-                        if let dictionary = dictionary {
-                            if ApphudUtils.shared.logLevel == .all,
-                               let json = try? JSONSerialization.data(withJSONObject: dictionary, options: .prettyPrinted),
-                               let string = String(data: json, encoding: .utf8) {
-                                apphudLog("Request \(method) \(request.url?.absoluteString ?? "") success with response: \n\(string)", logLevel: .all)
-                            } else {
-                                apphudLog("Request \(method) \(request.url?.absoluteString ?? "") success")
-                            }
-                        }
-
-                        callback?(true, dictionary, data, nil, code, requestDuration)
-                        return
-                    }
-
-                    if ApphudUtils.shared.logLevel == .all {
-                        apphudLog("Request \(method) \(request.url?.absoluteString ?? "") failed with code \(code), error: \(error?.localizedDescription ?? "") response: \(dictionary ?? [:])", logLevel: .all)
-                    } else {
-                        apphudLog("Request \(method) \(request.url?.absoluteString ?? "") failed with code \(code), error: \(error?.localizedDescription ?? "")")
-                    }
-
-                    var finalError = error
-
-                    if code == 422 && dictionary != nil {
-                        finalError = self.parseError(dictionary!)
-                    }
-
-                    callback?(false, nil, data, finalError, code, requestDuration)
-                } else {
-                    let code = (error as NSError?)?.code ?? NSURLErrorUnknown
-                    callback?(false, nil, data, error, code, requestDuration)
-                }
-            }
+            // Handle any errors that occurred during the request
+            return (false, nil, nil, error, code, 0)
         }
-        task.resume()
+    }
+
+    private func parseResponse(request: URLRequest, httpResponse: HTTPURLResponse, data: Data, parseJson: Bool) -> ApphudParsedResponse {
+
+        let method = request.httpMethod ?? ""
+        let code = httpResponse.statusCode
+
+        let dictionary: [String: Any]?
+        if parseJson {
+            dictionary = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any]
+        } else {
+            dictionary = nil
+        }
+
+        if code >= 200 && code < 300 {
+            if let dictionary = dictionary {
+                if ApphudUtils.shared.logLevel == .all,
+                   let json = try? JSONSerialization.data(withJSONObject: dictionary, options: .prettyPrinted),
+                   let string = String(data: json, encoding: .utf8) {
+                    apphudLog("Request \(method) \(request.url?.absoluteString ?? "") success with response: \n\(string)", logLevel: .all)
+                } else {
+                    apphudLog("Request \(method) \(request.url?.absoluteString ?? "") success")
+                }
+            }
+            return (true, dictionary, data, nil, code)
+        }
+
+        if ApphudUtils.shared.logLevel == .all {
+            apphudLog("Request \(method) \(request.url?.absoluteString ?? "") failed with code: \(code)", logLevel: .all)
+        } else {
+            apphudLog("Request \(method) \(request.url?.absoluteString ?? "") failed with code: \(code)")
+        }
+
+        if code == 422 && dictionary != nil {
+            let modifiedError = self.parseError(dictionary!)
+            return (false, nil, data, modifiedError, code)
+        } else {
+            let error = ApphudError(message: "HTTP Request Failed")
+            return (false, nil, data, error, code)
+        }
     }
 
     private func parseError(_ dictionary: [String: Any]) -> Error? {

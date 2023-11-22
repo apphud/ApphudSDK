@@ -264,6 +264,7 @@ extension ApphudInternal {
         if let receipt = receiptString {
             params["receipt_data"] = receipt
         }
+        
         if let transactionID = transactionIdentifier {
             params["transaction_id"] = transactionID
         }
@@ -274,7 +275,6 @@ extension ApphudInternal {
         let hasMadePurchase = transactionState == .purchased
 
         params["user_id"] = Apphud.userID()
-
 
         if let info = await product?.apphudSubmittableParameters(hasMadePurchase) {
             params["product_info"] = info
@@ -308,7 +308,7 @@ extension ApphudInternal {
 
         apphudLog("Uploading App Store Receipt...")
 
-        httpClient?.startRequest(path: .subscriptions, params: params, method: .post, useDecoder: true) { (result, _, data, error, errorCode, duration) in
+        httpClient?.startRequest(path: .subscriptions, params: params, method: .post, useDecoder: true, retry: (hasMadePurchase && !fallbackMode)) { (result, _, data, error, errorCode, duration) in
 
             if !result && hasMadePurchase && self.fallbackMode {
                 self.requiresReceiptSubmission = true
