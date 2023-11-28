@@ -19,7 +19,7 @@ extension ApphudInternal {
 
         if let productIDs = (fallbackProducts ?? delegate?.apphudProductIdentifiers()), productIDs.count > 0 {
             let products = productIDs.map { ApphudProduct(id: $0, name: $0, productId: $0, store: "app_store", skProduct: nil) }
-            let group = ApphudGroup(id: "Untitled", name: "Untitled")
+            let group = ApphudGroup(id: "Untitled", name: "Untitled", products: products)
             continueWithProductGroups([group], errorCode: nil, writeToCache: false)
         } else {
             if !needToUpdateProductGroups || fallbackMode {

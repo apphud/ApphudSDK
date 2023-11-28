@@ -346,7 +346,7 @@ final class ApphudInternal: NSObject {
         isRegisteringUser = true
 
         #warning("in observer mode need to fetch products too, for Updating currency and fetch products in Rules")
-
+        #warning("make async fetch on demand ")
         continueToFetchProducts(needToUpdateProductGroups: needToUpdateProductGroups, fallbackProducts: nil)
 
         if #available(iOS 15.0, *) {
