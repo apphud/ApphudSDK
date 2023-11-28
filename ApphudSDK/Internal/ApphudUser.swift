@@ -13,6 +13,7 @@ private let ApphudUserCacheKey = "ApphudUserCacheKey"
 internal struct ApphudCurrency: Codable {
     let countryCode: String
     let code: String
+    let storeId: String?
 }
 
 internal struct ApphudUser: Codable {

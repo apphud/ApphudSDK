@@ -99,15 +99,44 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         }
 
         return await withCheckedContinuation { continuation in
-            fetchProduct(productId: productId) { product in
-                continuation.resume(returning: product)
+            fetchProducts(productIds: [productId]) { prds in
+                continuation.resume(returning: prds?.first(where: { $0.productIdentifier == productId }))
             }
         }
     }
 
-    func fetchProduct(productId: String, callback: @escaping (SKProduct?) -> Void) {
-        singleFetcher.fetchStoreKitProducts(identifiers: Set([productId])) { products, _ in
-            callback(products.first(where: { $0.productIdentifier == productId }))
+    func fetchProducts(_ productIds: [String]) async -> [SKProduct]? {
+
+        var available = [SKProduct]()
+        productIds.forEach { id in
+            if let p = products.first(where: { $0.productIdentifier == id }) {
+                available.append(p)
+            }
+        }
+
+        if available.count == productIds.count {
+            return available
+        }
+
+
+        return await withCheckedContinuation { continuation in
+            fetchProducts(productIds: productIds) { products in
+                continuation.resume(returning: products)
+            }
+        }
+    }
+
+    func fetchProducts(productIds: [String], callback: @escaping ([SKProduct]?) -> Void) {
+        singleFetcher.fetchStoreKitProducts(identifiers: Set(productIds)) { prds, _ in
+
+            var available = [SKProduct]()
+            productIds.forEach { id in
+                if let p = prds.first(where: { $0.productIdentifier == id }) {
+                    available.append(p)
+                }
+            }
+
+            callback(available)
         }
     }
 
@@ -328,6 +357,8 @@ private class ApphudProductsFetcher: NSObject, SKProductsRequestDelegate {
         productsRequest = SKProductsRequest(productIdentifiers: identifiers)
         productsRequest?.delegate = self
         productsRequest?.start()
+
+        apphudLog("started requesting products: \(identifiers)", logLevel: .debug)
     }
 
     public func productsRequest(_ request: SKProductsRequest, didReceive response: SKProductsResponse) {

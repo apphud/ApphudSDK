@@ -223,8 +223,8 @@ extension ApphudInternal {
         }
 
         if finalProduct == nil && productId != nil {
-            ApphudStoreKitWrapper.shared.fetchProduct(productId: productId!) { pr in
-                block(pr)
+            ApphudStoreKitWrapper.shared.fetchProducts(productIds: [productId!]) { prds in
+                block(prds?.first(where: { $0.productIdentifier == productId! }))
             }
         } else {
             block(finalProduct)
@@ -383,7 +383,8 @@ extension ApphudInternal {
                 purchase(product: skProduct, apphudProduct: apphudProduct, validate: validate, value: value, callback: callback)
             } else {
                 apphudLog("Product with id \(productId) not found, re-fetching from App Store...")
-                ApphudStoreKitWrapper.shared.fetchProduct(productId: productId) { product in
+                ApphudStoreKitWrapper.shared.fetchProducts(productIds: [productId]) { prds in
+                    let product = prds?.first(where: { $0.productIdentifier == productId })
                     if let product = product {
                         self.purchase(product: product, apphudProduct: nil, validate: validate, value: value, callback: callback)
                     } else {
@@ -471,11 +472,6 @@ extension ApphudInternal {
             }
         }
 
-        // 4. Try to find subscription by Apphud Product Group ID
-        if subscription == nil, let groupID = self.groupID(productId: product.id) {
-            subscription = currentUser?.subscriptions.first(where: { self.groupID(productId: $0.productId) == groupID})
-        }
-
         return ApphudAsyncPurchaseResult(subscription: subscription, nonRenewingPurchase: purchase, transaction: transaction, error: error)
     }
 
@@ -499,11 +495,6 @@ extension ApphudInternal {
                     break
                 }
             }
-        }
-
-        // 3. Try to find subscription by Apphud Product Group ID
-        if subscription == nil, let groupID = self.groupID(productId: productId) {
-            subscription = currentUser?.subscriptions.first(where: { self.groupID(productId: $0.productId) == groupID})
         }
 
         return ApphudPurchaseResult(subscription, purchase, transaction, error ?? transaction?.error)

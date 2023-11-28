@@ -19,7 +19,7 @@ extension ApphudInternal {
 
         if let productIDs = (fallbackProducts ?? delegate?.apphudProductIdentifiers()), productIDs.count > 0 {
             let products = productIDs.map { ApphudProduct(id: $0, name: $0, productId: $0, store: "app_store", skProduct: nil) }
-            let group = ApphudGroup(id: "Untitled", name: "Untitled", products: products)
+            let group = ApphudGroup(id: "Untitled", name: "Untitled")
             continueWithProductGroups([group], errorCode: nil, writeToCache: false)
         } else {
             if !needToUpdateProductGroups || fallbackMode {
@@ -92,22 +92,25 @@ extension ApphudInternal {
 
     internal func allAvailableProductIDs() -> Set<String> {
         var productIDs = [String]()
-        productGroups.forEach { group in
-            productIDs.append(contentsOf: group.products.map { $0.productId })
+
+        paywalls.forEach { p in
+            productIDs.append(contentsOf: p.products.map { $0.productId })
         }
+
         return Set(productIDs)
     }
 
     internal func continueToFetchStoreKitProducts() {
 
-        guard self.productGroups.count > 0 else {
+        let productIds = allAvailableProductIDs()
+
+        guard productIds.count > 0 else {
             return
         }
 
-        ApphudStoreKitWrapper.shared.fetchProducts(identifiers: allAvailableProductIDs()) { storeKitProducts, error in
+        ApphudStoreKitWrapper.shared.fetchProducts(identifiers: productIds) { storeKitProducts, error in
 
-            self.updateProductGroupsWithStoreKitProducts()
-            ApphudInternal.shared.performAllStoreKitProductsFetchedCallbacks()
+            self.performAllStoreKitProductsFetchedCallbacks()
             NotificationCenter.default.post(name: Apphud.didFetchProductsNotification(), object: storeKitProducts)
             ApphudInternal.shared.delegate?.apphudDidFetchStoreKitProducts(storeKitProducts, error)
             ApphudInternal.shared.delegate?.apphudDidFetchStoreKitProducts(storeKitProducts)
@@ -115,7 +118,7 @@ extension ApphudInternal {
             self.customProductsFetchedBlocks.removeAll()
             self.updatePaywallsWithStoreKitProducts(paywalls: self.paywalls) // double call, but it's okay, because user may call refreshStorKitProducts method
             self.respondedStoreKitProducts = true
-            self.continueToUpdateCurrencyIfNeeded()
+//            self.continueToUpdateCurrencyIfNeeded()
         }
     }
 
@@ -234,8 +237,8 @@ extension ApphudInternal {
 
     internal var allAvailableProducts: [ApphudProduct] {
         var products = [ApphudProduct]()
-        productGroups.forEach { group in
-            products.append(contentsOf: group.products)
+        paywalls.forEach { paywall in
+            products.append(contentsOf: paywall.products)
         }
         return products
     }
@@ -281,26 +284,6 @@ extension ApphudInternal {
                 product.skProduct = ApphudStoreKitWrapper.shared.products.first(where: { $0.productIdentifier == product.productId })
             })
         }
-    }
-
-    internal func updateProductGroupsWithStoreKitProducts() {
-        productGroups.forEach { group in
-            group.products.forEach { product in
-                product.skProduct = ApphudStoreKitWrapper.shared.products.first(where: { $0.productIdentifier == product.productId })
-            }
-        }
-    }
-
-    internal func groupID(productId: String) -> String? {
-
-        for group in productGroups {
-            let productIds = group.products.map { $0.productId }
-            if productIds.contains(productId) {
-                return group.id
-            }
-        }
-
-        return nil
     }
 
     internal func cacheGroups(groups: [ApphudGroup]) {

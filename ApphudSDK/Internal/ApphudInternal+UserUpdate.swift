@@ -106,6 +106,20 @@ extension ApphudInternal {
         }
     }
 
+
+    @available(iOS 15.0, *)
+    internal func updateUserStorefrontIfNeeded() async {
+        let store = await ApphudAsyncStoreKit.shared.fetchStorefront()
+
+        apphudLog("Did fetch storefront: \(store?.id) / \(store?.countryCode)")
+
+        guard let store = store, self.currentUser?.currency?.storeId != store.id else { return }
+
+
+
+        setNeedsToUpdateUser = true
+    }
+
     internal func updateUserCurrencyIfNeeded(priceLocale: Locale?) {
         guard let priceLocale = priceLocale else { return }
         guard let countryCode = priceLocale.regionCode else { return }
@@ -191,7 +205,14 @@ extension ApphudInternal {
         params["is_debug"] = apphudIsSandbox()
         params["is_new"] = isFreshInstall && currentUser == nil
         params["need_paywalls"] = !didPreparePaywalls
+        params["need_placements"] = !didPreparePaywalls
         params["opt_out"] = ApphudUtils.shared.optOutOfTracking
+
+        if #available(iOS 15.0, *), let store = ApphudAsyncStoreKit.shared.storefront, currentUser?.currency?.storeId != store.id {
+            params["store_id"] = store.id
+            params["country_code"] = store.countryCode
+        }
+
         appInstallationDate.map { params["first_seen"] = $0 }
         Bundle.main.bundleIdentifier.map { params["bundle_id"] = $0 }
         // do not automatically pass currentUserID here,because we have separate method updateUserID

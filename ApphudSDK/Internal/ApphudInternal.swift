@@ -345,8 +345,13 @@ final class ApphudInternal: NSObject {
         guard self.httpClient != nil else {return}
         isRegisteringUser = true
 
-        // in observer mode need to fetch products too, for Updating currency and Rules
+        #warning("in observer mode need to fetch products too, for Updating currency and fetch products in Rules")
+
         continueToFetchProducts(needToUpdateProductGroups: needToUpdateProductGroups, fallbackProducts: nil)
+
+        if #available(iOS 15.0, *) {
+            Task(priority: .background) { await updateUserStorefrontIfNeeded() }
+        }
 
         registerUser(skipRegistration: skipRegistration)
     }

@@ -164,6 +164,10 @@ final public class Apphud: NSObject {
 
     // MARK: - Async/Await Concurrency Methods
 
+    public static func placements() async -> [ApphudPlacement] {
+        []
+    }
+
     /**
      Asynchronous method which returns paywalls configured in Apphud Dashboard > Product Hub > Paywalls. Each paywall contains an array of `ApphudProduct` objects that you use for purchase. `ApphudProduct` is Apphud's wrapper around StoreKit's `SKProduct`/ `Product` models. Method returns immediately if paywalls are already loaded.
     */

@@ -226,7 +226,9 @@ class ApphudScreenController: UIViewController {
     internal func addObserverIfNeeded() {
         if !addedObserver {
             Apphud.fetchProducts { [weak self] _, _ in
-                self?.replaceMacroses()
+                Task {
+                    await self?.replaceMacroses()
+                }
             }
             addedObserver = true
         }

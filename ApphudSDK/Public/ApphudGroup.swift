@@ -22,11 +22,6 @@ public class ApphudGroup: NSObject, Codable {
     public var name: String
 
     /**
-     Products that belong to this permission group.
-     */
-    public var products: [ApphudProduct]
-
-    /**
      Returns `true` if this permission group has active subscription. Keep in mind, that this method doesn't take into account non-renewing purchases.
      */
 
@@ -45,32 +40,38 @@ public class ApphudGroup: NSObject, Codable {
 
     internal var id: String
 
+    /**
+     You should not operate with products from ApphudGroup directly. Use Paywalls or Paywalls within Placements.
+     @returns Products that belong to this permission group.
+     */
+//    internal var products: [ApphudProduct]
+
     private enum CodingKeys: String, CodingKey {
         case id
         case identifier
         case name
         case isDefault = "default"
         case jsonString = "json"
-        case products = "bundles"
+//        case products = "bundles"
     }
 
-    init(id: String, name: String, products: [ApphudProduct]) {
+    init(id: String, name: String) {
         self.id = id
         self.name = name
-        self.products = products
+//        self.products = products
     }
 
     required public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         id = try values.decode(String.self, forKey: .id)
         name = try values.decode(String.self, forKey: .name)
-        products = try values.decode([ApphudProduct].self, forKey: .products)
+//        products = try values.decode([ApphudProduct].self, forKey: .products)
     }
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
         try container.encode(name, forKey: .name)
-        try container.encode(products, forKey: .products)
+//        try container.encode(products, forKey: .products)
     }
 }

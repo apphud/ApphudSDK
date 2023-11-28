@@ -19,6 +19,14 @@ internal class ApphudAsyncStoreKit {
 
     private var productsStorage = ApphudProductsStorage()
 
+    internal var storefront: Storefront?
+
+    func fetchStorefront() async -> Storefront? {
+        let s = await Storefront.current
+        self.storefront = s
+        return s
+    }
+
     func products() async -> [Product] {
         let prs = await productsStorage.readProducts()
         return Array(prs)

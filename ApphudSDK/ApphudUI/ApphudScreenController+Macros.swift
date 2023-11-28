@@ -73,16 +73,19 @@ extension ApphudScreenController {
 
         self.macrosesMap = productsOffersMap
 
-        // replace macroses
-        self.replaceMacroses()
+        Task {
+            // replace macroses
+            await self.replaceMacroses()
+        }
     }
 
-    @objc func replaceMacroses() {
+    @objc func replaceMacroses() async {
 
-        if ApphudStoreKitWrapper.shared.products.count == 0 {
-            addObserverIfNeeded()
-            return
-        }
+        let mentionedProducts = macrosesMap.compactMap { $0["product_id"] }
+
+        let products = await ApphudStoreKitWrapper.shared.fetchProducts(mentionedProducts)
+
+        addObserverIfNeeded()
 
         var html: NSString = self.originalHTML! as NSString
 
@@ -92,7 +95,7 @@ extension ApphudScreenController {
 
             var replace_string = ""
 
-            if let product_id = macrosDict["product_id"], let product = ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == product_id}) {
+            if let product_id = macrosDict["product_id"], let product = products?.first(where: {$0.productIdentifier == product_id}) {
                 if let offer_id = macrosDict["offer_id"] {
                     replace_string = replaceStringFor(product: product, offerID: offer_id)
                 } else {
