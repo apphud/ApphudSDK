@@ -8,12 +8,11 @@
 
 import Foundation
 
-private let ApphudUserCacheKey = "ApphudUserCacheKey"
-
 internal struct ApphudCurrency: Codable {
     let countryCode: String
-    let code: String
+    let code: String?
     let storeId: String?
+    let countryCodeAlpha3: String?
 }
 
 internal struct ApphudUser: Codable {
@@ -27,6 +26,7 @@ internal struct ApphudUser: Codable {
     var subscriptions: [ApphudSubscription]
     var purchases: [ApphudNonRenewingPurchase]
     var paywalls: [ApphudPaywall]?
+    var placements: [ApphudPlacement]?
 
     var currency: ApphudCurrency?
 
@@ -37,6 +37,7 @@ internal struct ApphudUser: Codable {
         case subscriptions
         case purchases
         case paywalls
+        case placements
         case currency
         case autorenewables
         case nonrenewables
@@ -46,6 +47,7 @@ internal struct ApphudUser: Codable {
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         self.paywalls = try? values.decode([ApphudPaywall].self, forKey: .paywalls)
+        self.placements = try? values.decode([ApphudPlacement].self, forKey: .placements)
         self.userId = try values.decode(String.self, forKey: .userId)
 
         self.currency = try? values.decode(ApphudCurrency.self, forKey: .currency)
@@ -109,17 +111,19 @@ internal struct ApphudUser: Codable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(userId, forKey: .userId)
         try? container.encode(paywalls, forKey: .paywalls)
+        try? container.encode(placements, forKey: .placements)
 
         try container.encode(subscriptions, forKey: .autorenewables)
         try container.encode(purchases, forKey: .nonrenewables)
         try? container.encode(currency, forKey: .currency)
     }
 
-    init?(userID: String, subscriptions: [ApphudSubscription] = [], purchases: [ApphudNonRenewingPurchase] = [], paywalls: [ApphudPaywall] = []) {
+    init?(userID: String, subscriptions: [ApphudSubscription] = [], purchases: [ApphudNonRenewingPurchase] = [], paywalls: [ApphudPaywall] = [], placements: [ApphudPlacement] = []) {
         self.userId = userID
         self.subscriptions = subscriptions
         self.purchases = purchases
         self.paywalls = paywalls
+        self.placements = placements
     }
 
 
@@ -136,20 +140,19 @@ internal struct ApphudUser: Codable {
     }
 
     private static let ApphudMigrateCachesKey = "ApphudMigrateCachesKey"
-    private static let ApphudUserKey = "ApphudUser"
 
     func toCacheV2() {
 
         let encoder = JSONEncoder()
         do {
             let data = try encoder.encode(self)
-            apphudDataToCache(data: data, key: Self.ApphudUserKey)
+            apphudDataToCache(data: data, key: ApphudUserCacheKey)
         } catch {
             apphudLog("Failed to save user to cache: \(error)")
         }
     }
 
-    static func fromCacheV2(_ newInstall: Bool = false) -> ApphudUser? {
+    static func fromCacheV2() -> ApphudUser? {
 
         if !UserDefaults.standard.bool(forKey: Self.ApphudMigrateCachesKey) {
             do {
@@ -162,7 +165,7 @@ internal struct ApphudUser: Codable {
         }
 
         do {
-            if let data = apphudDataFromCache(key: Self.ApphudUserKey, cacheTimeout: 86_400*90).objectsData {
+            if let data = apphudDataFromCache(key: ApphudUserCacheKey, cacheTimeout: 86_400*90).objectsData {
                 let decoder = JSONDecoder()
                 decoder.keyDecodingStrategy = .convertFromSnakeCase
                 let user = try decoder.decode(ApphudUser.self, from: data)
@@ -184,7 +187,7 @@ internal struct ApphudUser: Codable {
 
         if user != nil {
             let data = try encoder.encode(user)
-            apphudDataToCache(data: data, key: Self.ApphudUserKey)
+            apphudDataToCache(data: data, key: ApphudUserCacheKey)
             apphudLog("Successfully migrated user to CacheV2")
         }
 
@@ -194,7 +197,7 @@ internal struct ApphudUser: Codable {
     }
 
     static func clearCache() {
-        apphudDataClearCache(key: ApphudUserKey)
+        apphudDataClearCache(key: ApphudUserCacheKey)
         clearCacheLegacy()
     }
 

@@ -55,6 +55,7 @@ extension ApphudInternal {
     }
 
     private func _checkPromoEligibilitiesForRegisteredUser(products: [SKProduct]) async -> [String: Bool] {
+        #warning("test eligibilities for promo and intro")
 
         var response = [String: Bool]()
         for product in products {
@@ -64,7 +65,7 @@ extension ApphudInternal {
         apphudLog("Products fetched, check promo eligibility")
 
         for product in products {
-            if let sub = currentUser?.subscriptions.first(where: { $0.productId == product.productIdentifier }) {
+            if (currentUser?.subscriptions.first(where: { $0.productId == product.productIdentifier })) != nil {
                 response[product.productIdentifier] = true
             } else if #available(iOS 15, *) {
                 for await result in StoreKit.Transaction.currentEntitlements {

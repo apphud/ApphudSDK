@@ -118,7 +118,11 @@ internal func apphudDidMigrate() {
 }
 
 internal func apphudShouldMigrate() -> Bool {
-    return !UserDefaults.standard.bool(forKey: "ApphudSubscriptionsMigrated")
+    if #available(iOS 15.0, *) {
+        return false
+    } else {
+        return !UserDefaults.standard.bool(forKey: "ApphudSubscriptionsMigrated")
+    }
 }
 
 internal func apphudDataClearCache(key: String) {

@@ -223,17 +223,6 @@ class ApphudScreenController: UIViewController {
         }
     }
 
-    internal func addObserverIfNeeded() {
-        if !addedObserver {
-            Apphud.fetchProducts { [weak self] _, _ in
-                Task {
-                    await self?.replaceMacroses()
-                }
-            }
-            addedObserver = true
-        }
-    }
-
     // MARK: - Handle Loader
 
     func startLoading() {

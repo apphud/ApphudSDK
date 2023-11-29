@@ -57,13 +57,16 @@ public class ApphudProduct: NSObject, Codable {
     // MARK: - Private
 
     internal var id: String?
+
     @objc public internal(set) var paywallId: String?
+    @objc internal var placementId: String?
 
     private enum CodingKeys: String, CodingKey {
         case id
         case name
         case store
         case productId
+        case placementId
     }
 
     init(id: String?, name: String?, productId: String, store: String, skProduct: SKProduct?) {

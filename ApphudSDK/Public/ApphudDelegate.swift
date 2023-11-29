@@ -44,27 +44,11 @@ public protocol ApphudDelegate {
     func apphudDidChangeUserID(_ userID: String)
 
     /**
-     Deprecated. Use `func getPaywalls` method instead.
-        
-     This method gets called when products are fetched from App Store. Returns optional Error from StoreKit, if exists.
-     */
-    func apphudDidFetchStoreKitProducts(_ products: [SKProduct], _ error: Error?)
-    func apphudDidFetchStoreKitProducts(_ products: [SKProduct])
-
-    /**
      Implements mechanism of purchasing In-App Purchase initiated directly from the App Store page.
      
      You must return a callback block which will be called when a payment is finished. If you don't implement this method or return `nil` then a payment will not start; you can also save the product and return `nil` to initiate a payment later by yourself. Read Apple documentation for details: https://developer.apple.com/documentation/storekit/in-app_purchase/promoting_in-app_purchases
      */
     func apphudShouldStartAppStoreDirectPurchase(_ product: SKProduct) -> ((ApphudPurchaseResult) -> Void)?
-
-    /**
-        Optional. Specify a list of product identifiers to fetch from the App Store.
-        If you don't implement this method or return empty array, then product identifiers will be fetched from Apphud servers.
-     
-        Implementing this delegate method gives you more reliabality on fetching products and a little more speed on loading due to skipping Apphud request, but also gives less flexibility because you have to hardcode product identifiers this way.
-     */
-    func apphudProductIdentifiers() -> [String]
 
     /**
         Called when Apphud SDK detects a purchase that was made outside of Apphud SDK purchase methods. It is also useful to intercept purchases made using Promo Codes for in-app purchases. If user redeems promo code for in-app purchase in the App Store, then opens the app, this delegate method will be called, so you will be able to handle successful payment on your side.
@@ -81,16 +65,21 @@ public protocol ApphudDelegate {
 
     /**
         Called when user is registered in Apphud [or used from cache]. This method is called once per app lifecycle.
-        The `rawPaywalls` array may not yet have `SKProducts`, so this method should not be used for paywalls management.
+        Keep in mind that `rawPaywalls` and `rawPlacements` arrays may not yet have Storekit Products, however they will appear later in runtime. `rawPlacements` array is nil if developer didn't yet set up placements in Apphud Product > Placements.
 
-        However, if using A/B Testing, `rawPaywalls` can be used to fetch `experimentName`, `variationName` or other parameters like `json` from your experimental paywall.
+        - Note: `ApphudPaywall` and `ApphudPlacement` are both classes, which means that when StoreKit products are loaded, they will appear in the same instances.
     */
-    func userDidLoad(rawPaywalls: [ApphudPaywall])
+    func userDidLoad(rawPaywalls: [ApphudPaywall], rawPlacements: [ApphudPlacement]?)
 
     /**
      Called when paywalls are fully loaded with their `SKProducts` / `Products`. This is a duplicate for `Apphud.paywallsDidLoadCallback {}` method.
     */
     func paywallsDidFullyLoad(paywalls: [ApphudPaywall])
+
+    /**
+     Called when placements are fully loaded with their Paywalls and StoreKit products.
+    */
+    func placementsDidFullyLoad(placements: [ApphudPlacement])
 }
 
 @available(macOS 10.14.4, *)
@@ -98,12 +87,10 @@ public extension ApphudDelegate {
     func apphudSubscriptionsUpdated(_ subscriptions: [ApphudSubscription]) {}
     func apphudNonRenewingPurchasesUpdated(_ purchases: [ApphudNonRenewingPurchase]) {}
     func apphudDidChangeUserID(_ userID: String) {}
-    func apphudDidFetchStoreKitProducts(_ products: [SKProduct], _ error: Error?) {}
-    func apphudDidFetchStoreKitProducts(_ products: [SKProduct]) {}
     func apphudShouldStartAppStoreDirectPurchase(_ product: SKProduct) -> ((ApphudPurchaseResult) -> Void)? { nil }
-    func apphudProductIdentifiers() -> [String] { [] }
     func apphudDidObservePurchase(result: ApphudPurchaseResult) -> Bool { false }
     func handleDeferredTransaction(transaction: SKPaymentTransaction) {}
-    func userDidLoad(rawPaywalls: [ApphudPaywall]) {}
+    func userDidLoad(rawPaywalls: [ApphudPaywall], rawPlacements: [ApphudPlacement]) {}
     func paywallsDidFullyLoad(paywalls: [ApphudPaywall]) {}
+    func placementsDidFullyLoad(placements: [ApphudPlacement]) {}
 }

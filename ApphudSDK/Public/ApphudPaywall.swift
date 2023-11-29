@@ -55,14 +55,7 @@ public class ApphudPaywall: NSObject, Codable {
      A/B test experiment name
      */
     @objc public var experimentName: String?
-    /**
-     A/B test variation name
-     */
-    @objc public var variationName: String?
-    /**
-     A/B test paywall identifier
-     */
-    @objc public var fromPaywall: String?
+
     /**
      Insert any parameters you need into custom JSON. It could be titles, descriptions, localisations, font, background and color parameters, URLs to media content, etc. Parameters count are not limited.
      */
@@ -85,6 +78,7 @@ public class ApphudPaywall: NSObject, Codable {
     internal var id: String
     private var jsonString: String?
     internal var name: String
+    internal var placementId: String?
 
     private enum CodingKeys: String, CodingKey {
         case id
@@ -103,8 +97,6 @@ public class ApphudPaywall: NSObject, Codable {
         id = try values.decode(String.self, forKey: .id)
         name = try values.decode(String.self, forKey: .name)
         experimentName = try? values.decode(String.self, forKey: .experimentName)
-        fromPaywall = try? values.decode(String.self, forKey: .fromPaywall)
-        variationName = try? values.decode(String.self, forKey: .variationName)
         identifier = try values.decode(String.self, forKey: .identifier)
         jsonString = try? values.decode(String.self, forKey: .jsonString)
         isDefault = try values.decode(Bool.self, forKey: .isDefault)
@@ -115,33 +107,10 @@ public class ApphudPaywall: NSObject, Codable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
         try? container.encode(experimentName, forKey: .experimentName)
-        try? container.encode(fromPaywall, forKey: .fromPaywall)
-        try? container.encode(variationName, forKey: .variationName)
         try container.encode(name, forKey: .name)
         try container.encode(identifier, forKey: .identifier)
         try? container.encode(jsonString, forKey: .jsonString)
         try container.encode(isDefault, forKey: .isDefault)
         try container.encode(products, forKey: .products)
-    }
-
-    static func clearCache() {
-        guard let folderURLAppSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {return}
-        guard let folderURLCaches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {return}
-        let fileURLOne = folderURLAppSupport.appendingPathComponent("ApphudPaywalls")
-        let fileURLTwo = folderURLCaches.appendingPathComponent("ApphudPaywalls")
-        if FileManager.default.fileExists(atPath: fileURLOne.path) {
-            do {
-                try FileManager.default.removeItem(at: fileURLOne)
-            } catch {
-                apphudLog("failed to clear apphud cache, error: \(error)", forceDisplay: true)
-            }
-        }
-        if FileManager.default.fileExists(atPath: fileURLTwo.path) {
-            do {
-                try FileManager.default.removeItem(at: fileURLTwo)
-            } catch {
-                apphudLog("failed to clear apphud cache, error: \(error)", forceDisplay: true)
-            }
-        }
     }
 }

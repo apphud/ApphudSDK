@@ -7,11 +7,34 @@
 
 import Foundation
 
-public struct ApphudPlacement: Codable {
-    
-    public var identifier: String
-    public var name: String
-    public var paywall: ApphudPaywall?
+public class ApphudPlacement: Codable {
 
+    /**
+     Placement identifier configured in Apphud Product Hub > Placements.
+     */
+    public var identifier: String
+
+    /**
+     Paywall associated with this Placement.
+     */
+    public var paywall: ApphudPaywall? {
+        paywalls.first
+    }
+
+    /**
+     Developer can create his own Placement in runtime as a fallback.
+     */
+    public init(identifier: String, paywall: ApphudPaywall) {
+        self.identifier = identifier
+        self.paywalls = [paywall]
+        self.id = identifier
+    }
+
+    /** For Internal Use
+     */
+    internal var paywalls: [ApphudPaywall]
+
+    /** For Internal Use
+     */
     internal var id: String
 }

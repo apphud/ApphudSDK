@@ -9,6 +9,7 @@
 import Foundation
 #if canImport(UIKit)
 import UIKit
+import StoreKit
 #endif
 
 extension ApphudInternal {
@@ -43,7 +44,9 @@ extension ApphudInternal {
 
         currentUser?.toCacheV2()
 
-        checkUserID(tellDelegate: true)
+        Task { @MainActor in
+            checkUserID(tellDelegate: true)
+        }
 
         /**
          If user previously didn't have subscriptions or subscriptions states don't match, or subscription product identifiers don't match
@@ -53,7 +56,7 @@ extension ApphudInternal {
         return (hasSubscriptionChanges, hasPurchasesChanges)
     }
 
-    private func checkUserID(tellDelegate: Bool) {
+    @MainActor private func checkUserID(tellDelegate: Bool) {
         guard let userID = self.currentUser?.userId else {return}
         if self.currentUserID != userID {
             self.currentUserID = userID
@@ -106,35 +109,69 @@ extension ApphudInternal {
         }
     }
 
+    @available(iOS 15.0, macOS 12.0, *)
+    internal func fetchCurrencyWithMaxTimeout(_ completion: @escaping () -> Void) {
 
-    @available(iOS 15.0, *)
-    internal func updateUserStorefrontIfNeeded() async {
-        let store = await ApphudAsyncStoreKit.shared.fetchStorefront()
+        Task {
+            let result = await Storefront.current
+            if let store = result, currentUser?.currency?.countryCodeAlpha3 != store.countryCode {
+                storefrontCurrency = ApphudCurrency(countryCode: store.countryCode,
+                                                    code: nil,
+                                                    storeId: store.id,
+                                                    countryCodeAlpha3: store.countryCode)
+                setNeedsToUpdateUser = true
+            }
+            if !currencyTaskFinished {
+                completion()
+            }
+        }
 
-        apphudLog("Did fetch storefront: \(store?.id) / \(store?.countryCode)")
-
-        guard let store = store, self.currentUser?.currency?.storeId != store.id else { return }
-
-
-
-        setNeedsToUpdateUser = true
+        // Task for the timeout
+        Task {
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+            if !currencyTaskFinished {
+                completion()
+            }
+        }
     }
 
-    internal func updateUserCurrencyIfNeeded(priceLocale: Locale?) {
+    internal func fetchCurrencyLegacy() async {
+
+        var skProducts: [SKProduct] = ApphudStoreKitWrapper.shared.products
+
+        if skProducts.isEmpty {
+            let groups: [ApphudGroup]?
+            if permissionGroups != nil {
+                groups = permissionGroups
+            } else {
+                groups = await fetchPermissionGroups()
+            }
+
+            var productIds = [String]()
+
+            groups?.forEach({ group in
+                productIds.append(contentsOf: group.products.compactMap{ $0.productId })
+            })
+
+            let result = await ApphudStoreKitWrapper.shared.fetchAllProducts(identifiers: Set(productIds))
+            skProducts = result.0
+            self.handleDidFetchAllProducts(storeKitProducts: result.0, error: result.1)
+        }
+
+        let priceLocale = skProducts.first?.priceLocale
+
         guard let priceLocale = priceLocale else { return }
         guard let countryCode = priceLocale.regionCode else { return }
         guard let currencyCode = priceLocale.currencyCode else { return }
-        guard self.currentUser != nil else { return }
+        guard countryCode != currentUser?.currency?.countryCode else { return }
+        guard currencyCode != currentUser?.currency?.code else { return }
 
-        if countryCode == self.currentUser?.currency?.countryCode && currencyCode == self.currentUser?.currency?.code {return}
+        storefrontCurrency = ApphudCurrency(countryCode: countryCode, 
+                                            code: currencyCode,
+                                            storeId: nil,
+                                            countryCodeAlpha3: nil)
 
-        let params: [String: String] = ["country_code": countryCode, "currency_code": currencyCode]
-
-        updateUser(fields: params, delay: 2.0) { (result, _, data, _, _, _) in
-            if result {
-                self.parseUser(data: data)
-            }
-        }
+        setNeedsToUpdateUser = true
     }
 
     internal func updateUserID(userID: String) {
@@ -185,7 +222,6 @@ extension ApphudInternal {
     }
 
     private func updateUser(fields: [String: Any], delay: Double = 0, callback: @escaping ApphudHTTPResponseCallback) {
-        setNeedsToUpdateUser = false
 
         #if os(macOS)
         var params = apphudCurrentDeviceMacParameters() as [String: Any]
@@ -208,17 +244,27 @@ extension ApphudInternal {
         params["need_placements"] = !didPreparePaywalls
         params["opt_out"] = ApphudUtils.shared.optOutOfTracking
 
-        if #available(iOS 15.0, *), let store = ApphudAsyncStoreKit.shared.storefront, currentUser?.currency?.storeId != store.id {
-            params["store_id"] = store.id
-            params["country_code"] = store.countryCode
+        if let currency = storefrontCurrency, (currentUser?.currency?.countryCode != currency.countryCode || currentUser?.currency?.countryCodeAlpha3 != currency.countryCodeAlpha3) {
+
+            if currency.countryCodeAlpha3 != nil {
+                params["store_id"] = currency.storeId
+                params["country_code_alpha3"] = currency.countryCodeAlpha3
+            } else {
+                params["country_code"] = currency.countryCode
+                params["currency_code"] = currency.code
+            }
         }
+
+        // retry on http level only if setNeedsToUpdateUser = true, otherwise let retry on initial launch level
+        let needsHTTPLevelRetries = setNeedsToUpdateUser
+        setNeedsToUpdateUser = false
 
         appInstallationDate.map { params["first_seen"] = $0 }
         Bundle.main.bundleIdentifier.map { params["bundle_id"] = $0 }
         // do not automatically pass currentUserID here,because we have separate method updateUserID
 
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [self] in
-            httpClient?.startRequest(path: .customers, params: params, method: .post, useDecoder: true) { done, response, data, error, errorCode, duration in
+            httpClient?.startRequest(path: .customers, params: params, method: .post, useDecoder: true, retry: needsHTTPLevelRetries) { done, response, data, error, errorCode, duration in
                 if  errorCode == 403 {
                     apphudLog("Unable to perform API requests, because your account has been suspended.", forceDisplay: true)
                     ApphudHttpClient.shared.unauthorized = true
@@ -367,10 +413,11 @@ extension ApphudInternal {
             }
         }
 
-        httpClient?.startRequest(path: .properties, params: params, method: .post) { (result, _, _, error, code, _) in
+        self.pendingUserProperties.removeAll()
+
+        httpClient?.startRequest(path: .properties, params: params, method: .post, retry: true) { (result, _, _, error, code, _) in
             if result {
                 if canSaveToCache { self.userPropertiesCache = properties }
-                self.pendingUserProperties.removeAll()
                 apphudLog("User Properties successfully updated.")
             } else {
                 apphudLog("User Properties update failed: \(error?.localizedDescription ?? "") with code: \(code)")
@@ -378,9 +425,9 @@ extension ApphudInternal {
         }
     }
 
-    private var userPropertiesCache: [[String: Any?]]? {
+    internal var userPropertiesCache: [[String: Any?]]? {
         get {
-            let cache = apphudDataFromCache(key: "ApphudUserPropertiesCache", cacheTimeout: 86_400*7)
+            let cache = apphudDataFromCache(key: ApphudUserPropertiesCacheKey, cacheTimeout: 86_400*7)
             if let data = cache.objectsData, !cache.expired,
                 let object = try? JSONSerialization.jsonObject(with: data, options: []) as? [[String: Any?]] {
                 return object
@@ -390,7 +437,9 @@ extension ApphudInternal {
         }
         set {
             if newValue != nil, let data = try? JSONSerialization.data(withJSONObject: newValue!, options: .prettyPrinted) {
-                apphudDataToCache(data: data, key: "ApphudUserPropertiesCache")
+                apphudDataToCache(data: data, key: ApphudUserPropertiesCacheKey)
+            } else if newValue == nil {
+                apphudDataClearCache(key: ApphudUserPropertiesCacheKey)
             }
         }
     }

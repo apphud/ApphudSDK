@@ -85,8 +85,6 @@ extension ApphudScreenController {
 
         let products = await ApphudStoreKitWrapper.shared.fetchProducts(mentionedProducts)
 
-        addObserverIfNeeded()
-
         var html: NSString = self.originalHTML! as NSString
 
         for macrosDict in self.macrosesMap {

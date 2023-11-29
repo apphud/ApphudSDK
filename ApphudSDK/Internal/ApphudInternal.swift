@@ -16,6 +16,11 @@ internal typealias HasPurchasesChanges = (hasSubscriptionChanges: Bool, hasNonRe
 internal typealias ApphudPaywallsCallback = ([ApphudPaywall]) -> Void
 internal typealias ApphudRetryLog = (count: Int, errorCode: Int)
 
+internal let ApphudUserCacheKey = "ApphudUser"
+internal let ApphudPlacementsCacheKey = "ApphudPlacements"
+internal let ApphudPaywallsCacheKey = "ApphudPaywalls"
+internal let ApphudProductGroupsCacheKey = "ApphudProductGroups"
+internal let ApphudUserPropertiesCacheKey = "ApphudUserPropertiesCache"
 internal let ApphudFlagString = "ApphudReinstallFlag"
 
 internal let ApphudInitializeGuardText = "Attempted to use Apphud SDK method earlier than initialization. You should initialize SDK first."
@@ -35,11 +40,8 @@ final class ApphudInternal: NSObject {
     // MARK: - Receipt and products properties
 
     internal var customPaywallsLoadedCallbacks = [ApphudPaywallsCallback]()
-    internal var productGroupsFetchedCallbacks = [ApphudVoidCallback]()
     internal var storeKitProductsFetchedCallbacks = [ApphudVoidCallback]()
-    internal var customProductsFetchedBlocks = [ApphudStoreKitProductsCallback]()
-    internal var productGroups = [ApphudGroup]()
-    internal var paywalls = [ApphudPaywall]()
+
 
     internal var submitReceiptRetries: ApphudRetryLog = (0, 0)
     internal var submitReceiptCallbacks = [ApphudErrorCallback?]()
@@ -58,19 +60,28 @@ final class ApphudInternal: NSObject {
     internal var lastUploadedPaywallEvent = [String: AnyHashable]()
     internal var lastUploadedPaywallEventDate: Date?
     internal var observerModePurchasePaywallIdentifier: String?
+    internal var observerModePurchasePlacementIdentifier: String?
 
     // MARK: - User registering properties
     internal var currentUser: ApphudUser?
     internal var currentDeviceID: String = ""
     internal var currentUserID: String = ""
+    internal var storefrontCurrency: ApphudCurrency?
+
+    internal var paywalls = [ApphudPaywall]()
+    internal var placements: [ApphudPlacement]?
+    internal var permissionGroups: [ApphudGroup]?
+
     internal var reinstallTracked: Bool = false
     internal var delayedInitilizationParams: (apiKey: String, userID: String?, device: String?, observerMode: Bool)?
     internal var setNeedsToUpdateUser: Bool = false {
         didSet {
-            if setNeedsToUpdateUser {
-                self.perform(#selector(updateCurrentUser), with: nil, afterDelay: 2.0)
-            } else {
-                NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(updateCurrentUser), object: nil)
+            DispatchQueue.main.async {
+                if self.setNeedsToUpdateUser {
+                    self.perform(#selector(self.updateCurrentUser), with: nil, afterDelay: 2.0)
+                } else {
+                    NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(self.updateCurrentUser), object: nil)
+                }
             }
         }
     }
@@ -142,7 +153,7 @@ final class ApphudInternal: NSObject {
 
     internal var fallbackMode = false
     internal var registrationStartedAt: Date?
-
+    internal var currencyTaskFinished = false
     internal var isInitialized: Bool {
         httpClient != nil
     }
@@ -230,6 +241,7 @@ final class ApphudInternal: NSObject {
 
     // MARK: - Initialization
 
+    @MainActor
     internal func initialize(apiKey: String, inputUserID: String?, inputDeviceID: String? = nil, observerMode: Bool) {
 
         #if os(iOS) || os(tvOS)
@@ -244,9 +256,10 @@ final class ApphudInternal: NSObject {
         if httpClient == nil {
             ApphudStoreKitWrapper.shared.setupObserver()
             httpClient = ApphudHttpClient.shared
-            httpClient!.apiKey = apiKey
-            apphudLog("Started Apphud SDK (\(ApphudHttpClient.shared.sdkVersion))", forceDisplay: true)
         }
+
+        httpClient!.apiKey = apiKey
+        apphudLog("Started Apphud SDK (\(ApphudHttpClient.shared.sdkVersion))", forceDisplay: true)
 
         guard allowIdentifyUser == true else {
             apphudLog("Abort initializing, because Apphud SDK already initialized. You can only call `Apphud.start()` once per app lifecycle. Or if `Apphud.logout()` was called previously.", forceDisplay: true)
@@ -254,14 +267,16 @@ final class ApphudInternal: NSObject {
         }
         allowIdentifyUser = false
 
-        identify(inputUserID: inputUserID, inputDeviceID: inputDeviceID, observerMode: observerMode)
+        Task(priority: .userInitiated) {
+            await identify(inputUserID: inputUserID, inputDeviceID: inputDeviceID, observerMode: observerMode)
+        }
     }
 
-    internal func identify(inputUserID: String?, inputDeviceID: String? = nil, observerMode: Bool) {
-
+    internal func identify(inputUserID: String?, inputDeviceID: String? = nil, observerMode: Bool) async {
         ApphudUtils.shared.storeKitObserverMode = observerMode
 
-        var deviceID = ApphudKeychain.loadDeviceID()
+        var deviceID = await ApphudKeychain.loadDeviceID()
+        let userIDFromKeychain = await ApphudKeychain.loadUserID()
 
         isFreshInstall = deviceID == nil
         isRedownload = deviceID != nil && UserDefaults.standard.string(forKey: ApphudFlagString) == nil
@@ -275,17 +290,21 @@ final class ApphudInternal: NSObject {
 
         if deviceID == nil {
             deviceID = generatedUUID
-            ApphudKeychain.saveDeviceID(deviceID: deviceID!)
+            await ApphudKeychain.saveDeviceID(deviceID: deviceID!)
         }
 
         self.currentDeviceID = deviceID!
 
-        self.currentUser = ApphudUser.fromCacheV2(isFreshInstall)
-        let userIDFromKeychain = ApphudKeychain.loadUserID()
+        setupObservers()
+
+        let cachedUser = ApphudUser.fromCacheV2()
+        let cachedPwls = cachedPaywalls()
+        let cachedPlacements = cachedPlacements()
+        let cachedGroups = cachedGroups()
 
         if inputUserID?.count ?? 0 > 0 {
             self.currentUserID = inputUserID!
-        } else if let existingUserID = self.currentUser?.userId {
+        } else if let existingUserID = cachedUser?.userId {
             self.currentUserID = existingUserID
         } else if userIDFromKeychain != nil {
             self.currentUserID = userIDFromKeychain!
@@ -296,20 +315,33 @@ final class ApphudInternal: NSObject {
         var isIdenticalUserIds = true
         if self.currentUserID != userIDFromKeychain {
             isIdenticalUserIds = false
-            ApphudKeychain.saveUserID(userID: self.currentUserID)
+            await ApphudKeychain.saveUserID(userID: self.currentUserID)
         }
 
-        let cachedGroups = cachedGroups()
-        self.productGroups = cachedGroups.objects ?? []
-
-        let cachedPwls = cachedPaywalls()
+        self.currentUser = cachedUser
         self.paywalls = cachedPwls.objects ?? []
+        // placements and permissionGroups arrays can be nil
+        self.placements = cachedPlacements.objects
+        self.permissionGroups = cachedGroups.objects
 
-        setupObservers()
-
-        DispatchQueue.main.async {
-            self.continueToRegisteringUser(skipRegistration: self.skipRegistration(isIdenticalUserIds: isIdenticalUserIds, hasCashedUser: self.currentUser != nil, hasCachedPaywalls: !cachedPwls.expired), needToUpdateProductGroups: cachedGroups.expired)
+        if #available(iOS 15.0, macOS 12.0, *) {
+            await withCheckedContinuation { continuation in
+                fetchCurrencyWithMaxTimeout {
+                    if !self.currencyTaskFinished {
+                        self.currencyTaskFinished = true
+                        continuation.resume()
+                    }
+                }
+            }
+        } else {
+            performWhenUserRegistered {
+                Task.detached {
+                    await self.fetchCurrencyLegacy()
+                }
+            }
         }
+
+        self.continueToRegisteringUser(skipRegistration: self.skipRegistration(isIdenticalUserIds: isIdenticalUserIds, hasCashedUser: self.currentUser != nil, hasCachedPaywalls: !cachedPwls.expired))
     }
 
     private func skipRegistration(isIdenticalUserIds: Bool, hasCashedUser: Bool, hasCachedPaywalls: Bool) -> Bool {
@@ -332,28 +364,14 @@ final class ApphudInternal: NSObject {
         }
     }
 
-    internal func logout() {
-        ApphudUser.clearCache()
-        ApphudKeychain.resetValues()
-        ApphudPaywall.clearCache()
-        allowIdentifyUser = true
-        apphudLog("User logged out. Apphud SDK is uninitialized.", logLevel: .all)
-    }
-
     internal func continueToRegisteringUser(skipRegistration: Bool = false, needToUpdateProductGroups: Bool = true) {
         guard !isRegisteringUser else {return}
         guard self.httpClient != nil else {return}
         isRegisteringUser = true
 
-        #warning("in observer mode need to fetch products too, for Updating currency and fetch products in Rules")
-        #warning("make async fetch on demand ")
-        continueToFetchProducts(needToUpdateProductGroups: needToUpdateProductGroups, fallbackProducts: nil)
-
-        if #available(iOS 15.0, *) {
-            Task(priority: .background) { await updateUserStorefrontIfNeeded() }
+        DispatchQueue.main.async {
+            self.registerUser(skipRegistration: skipRegistration)
         }
-
-        registerUser(skipRegistration: skipRegistration)
     }
 
     @objc private func registerUser(skipRegistration: Bool = false) {
@@ -372,7 +390,9 @@ final class ApphudInternal: NSObject {
             }
 
             if self.isApplicationActive && !self.didHandleBecomeActive {
-                self.handleDidBecomeActive()
+                Task { @MainActor in
+                    self.handleDidBecomeActive()
+                }
             }
         }
     }
@@ -454,6 +474,7 @@ final class ApphudInternal: NSObject {
         #endif
     }
 
+    @MainActor
     @objc private func handleDidBecomeActive() {
 
         didHandleBecomeActive = true
@@ -508,32 +529,6 @@ final class ApphudInternal: NSObject {
             if self.userRegisteredCallbacks.count > 0 {
                 apphudLog("All scheduled blocks performed, removing..")
                 self.userRegisteredCallbacks.removeAll()
-            }
-        }
-    }
-
-    /// Returns false if products groups map dictionary not yet received, block is added to array and will be performed later.
-    @discardableResult internal func performWhenProductGroupsFetched(callback : @escaping ApphudVoidCallback) -> Bool {
-        if self.productGroups.count > 0 {
-            DispatchQueue.main.async {
-                callback()
-            }
-            return true
-        } else {
-            productGroupsFetchedCallbacks.append(callback)
-            return false
-        }
-    }
-
-    internal func performAllProductGroupsFetchedCallbacks() {
-        DispatchQueue.main.async {
-            for block in self.productGroupsFetchedCallbacks {
-                apphudLog("Performing scheduled block..")
-                block()
-            }
-            if self.productGroupsFetchedCallbacks.count > 0 {
-                apphudLog("All scheduled blocks performed, removing..")
-                self.productGroupsFetchedCallbacks.removeAll()
             }
         }
     }
@@ -734,6 +729,68 @@ final class ApphudInternal: NSObject {
                 }
             }
         }
+    }
+
+    @MainActor
+    internal func logout() {
+        currencyTaskFinished = false
+        ApphudKeychain.resetValues()
+
+        ApphudUser.clearCache()
+        currentUser = nil
+        currentUserID = ""
+        currentDeviceID = ""
+
+        /** Permissions groups never change, no need to clear from cache.
+        apphudDataClearCache(key: ApphudProductGroupsCacheKey)
+        permissionGroups = nil
+        */
+
+        apphudDataClearCache(key: ApphudPaywallsCacheKey)
+        didPreparePaywalls = false
+        paywalls.removeAll()
+
+        apphudDataClearCache(key: ApphudPlacementsCacheKey)
+        placements?.removeAll()
+
+        userRegisteredCallbacks.removeAll()
+        customPaywallsLoadedCallbacks.removeAll()
+        storeKitProductsFetchedCallbacks.removeAll()
+        submitReceiptCallbacks.removeAll()
+
+        userPropertiesCache = nil
+        submitReceiptRetries = (0, 0)
+        restorePurchasesCallback = nil
+        isSubmittingReceipt = false
+        lastUploadedTransactions.removeAll()
+        lastUploadedPaywallEvent.removeAll()
+        lastUploadedPaywallEventDate = nil
+        reinstallTracked = false
+        delayedInitilizationParams = nil
+        setNeedsToUpdateUser = false
+        setNeedsToUpdateUserProperties = false
+        pendingUserProperties.removeAll()
+        userRegisterRetries = (0, 0)
+        paywallEventsRetriesCount = 0
+        productsFetchRetries = (0, 0)
+        isRegisteringUser = false
+        respondedStoreKitProducts = false
+        fallbackMode = false
+        registrationStartedAt = nil
+        didSubmitAppsFlyerAttribution = false
+        didSubmitAdjustAttribution = false
+        didSubmitProductPrices = false
+        didSubmitAppleAdsAttribution = false
+        submittedAFData = nil
+        submittedAdjustData = nil
+        submittedFirebaseId = nil
+        submittedPushToken = nil
+
+        observerModePurchasePaywallIdentifier = nil
+        observerModePurchasePlacementIdentifier = nil
+
+        allowIdentifyUser = true
+        apphudLog("User logged out. Apphud SDK is uninitialized.", logLevel: .all)
     }
 }
 

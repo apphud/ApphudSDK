@@ -11,80 +11,9 @@ import StoreKit
 
 extension ApphudInternal {
 
-    @objc internal func refetchProducts() {
-        continueToFetchProducts(needToUpdateProductGroups: true, fallbackProducts: nil)
-    }
-
-    @objc internal func continueToFetchProducts(needToUpdateProductGroups: Bool = true, fallbackProducts: [String]?) {
-
-        if let productIDs = (fallbackProducts ?? delegate?.apphudProductIdentifiers()), productIDs.count > 0 {
-            let products = productIDs.map { ApphudProduct(id: $0, name: $0, productId: $0, store: "app_store", skProduct: nil) }
-            let group = ApphudGroup(id: "Untitled", name: "Untitled", products: products)
-            continueWithProductGroups([group], errorCode: nil, writeToCache: false)
-        } else {
-            if !needToUpdateProductGroups || fallbackMode {
-                apphudLog("Using cached product groups structure")
-                self.continueWithProductGroups(productGroups, errorCode: nil, writeToCache: false)
-            } else {
-                getProductGroups { groups, _, code in
-                    self.continueWithProductGroups(groups, errorCode: code, writeToCache: true)
-                }
-            }
-        }
-    }
-
-    fileprivate func continueWithProductGroups(_ productGroups: [ApphudGroup]?, errorCode: Int?, writeToCache: Bool) {
-
-        // perform even if productsGroupsMap is nil or empty
-        self.performAllProductGroupsFetchedCallbacks()
-
-        guard let groups = productGroups, groups.count > 0 else {
-            let noInternetErrorCode = errorCode == NSURLErrorNotConnectedToInternet
-            self.scheduleProductsFetchRetry(noInternetErrorCode, errorCode: errorCode ?? 0)
-            return
-        }
-
-        self.productsFetchRetries = (0, 0)
-        self.productGroups = groups
-
-        if writeToCache {
-            cacheGroups(groups: groups)
-        }
-
-        self.continueToFetchStoreKitProducts()
-    }
-
-    fileprivate func scheduleProductsFetchRetry(_ noInternetError: Bool, errorCode: Int) {
-        guard httpClient != nil, httpClient!.canRetry else {
-            return
-        }
-        guard productsFetchRetries.count < maxNumberOfProductsFetchRetries else {
-            apphudLog("Reached max number of product fetch retries \(productsFetchRetries.count). Exiting..", forceDisplay: true)
-            return
-        }
-
-        var delay: TimeInterval
-
-        if noInternetError {
-            delay = 1.0
-        } else {
-            delay = 1.0
-            productsFetchRetries.count += 1
-            productsFetchRetries.errorCode = errorCode
-        }
-
-        if fallbackMode {
-            delay *= 3.0
-        }
-
-        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(refetchProducts), object: nil)
-        perform(#selector(refetchProducts), with: nil, afterDelay: delay)
-        apphudLog("No Product Identifiers found in Apphud. Probably you forgot to add products in Apphud Settings? Scheduled products fetch retry in \(delay) seconds.", forceDisplay: true)
-    }
-
     internal func fetchAllAvailableProductIDs() async -> Set<String> {
         await withCheckedContinuation({ continuation in
-            performWhenProductGroupsFetched {
+            performWhenUserRegistered {
                 continuation.resume(returning: self.allAvailableProductIDs())
             }
         })
@@ -97,10 +26,14 @@ extension ApphudInternal {
             productIDs.append(contentsOf: p.products.map { $0.productId })
         }
 
+        permissionGroups?.forEach({ group in
+            productIDs.append(contentsOf: group.products.map { $0.productId })
+        })
+
         return Set(productIDs)
     }
 
-    internal func continueToFetchStoreKitProducts() {
+    internal func continueToFetchStoreKitProducts() async {
 
         let productIds = allAvailableProductIDs()
 
@@ -108,40 +41,46 @@ extension ApphudInternal {
             return
         }
 
-        ApphudStoreKitWrapper.shared.fetchProducts(identifiers: productIds) { storeKitProducts, error in
-
-            self.performAllStoreKitProductsFetchedCallbacks()
-            NotificationCenter.default.post(name: Apphud.didFetchProductsNotification(), object: storeKitProducts)
-            ApphudInternal.shared.delegate?.apphudDidFetchStoreKitProducts(storeKitProducts, error)
-            ApphudInternal.shared.delegate?.apphudDidFetchStoreKitProducts(storeKitProducts)
-            self.customProductsFetchedBlocks.forEach { block in block(storeKitProducts, error) }
-            self.customProductsFetchedBlocks.removeAll()
-            self.updatePaywallsWithStoreKitProducts(paywalls: self.paywalls) // double call, but it's okay, because user may call refreshStorKitProducts method
-            self.respondedStoreKitProducts = true
-//            self.continueToUpdateCurrencyIfNeeded()
-        }
+        let result = await ApphudStoreKitWrapper.shared.fetchAllProducts(identifiers: productIds)
+        handleDidFetchAllProducts(storeKitProducts: result.0, error: result.1)
     }
 
-    private func continueToUpdateCurrencyIfNeeded() {
-        guard let locale = ApphudStoreKitWrapper.shared.products.first?.priceLocale else {
-            return
-        }
-
-        self.performWhenUserRegistered {
-            self.updateUserCurrencyIfNeeded(priceLocale: locale)
-        }
+    internal func handleDidFetchAllProducts(storeKitProducts: [SKProduct], error: Error?) {
+        self.performAllStoreKitProductsFetchedCallbacks()
+        self.updatePaywallsWithStoreKitProducts(paywalls: self.paywalls) // double call, but it's okay, because user may call refreshStorKitProducts method
+        self.respondedStoreKitProducts = true
     }
 
     internal func refreshStoreKitProductsWithCallback(callback: (([SKProduct], Error?) -> Void)?) {
+        Task(priority: .userInitiated) {
 
-        callback.map { self.customProductsFetchedBlocks.append($0) }
+            if permissionGroups == nil {
+                _ = await fetchPermissionGroups()
+            }
 
-        if self.currentUser == nil {
-            continueToRegisteringUser()
-        } else if productGroups.count > 0 {
-            continueToFetchStoreKitProducts()
-        } else {
-            continueToFetchProducts(fallbackProducts: nil)
+            let availableIds = ApphudInternal.shared.allAvailableProductIDs()
+            if availableIds.isEmpty {
+                let msg = "None of the products have been added to any permission groups or paywalls."
+                let error = ApphudError(message: msg)
+                apphudLog(msg, forceDisplay: true)
+                callback?([], error)
+            } else {
+                let result = await ApphudStoreKitWrapper.shared.fetchAllProducts(identifiers: availableIds)
+                self.handleDidFetchAllProducts(storeKitProducts: result.0, error: result.1)
+                apphudPerformOnMainThread { callback?(result.0, result.1) }
+            }
+        }
+    }
+
+    internal func fetchPermissionGroups() async -> [ApphudGroup]? {
+        await withCheckedContinuation { continuation in
+            ApphudInternal.shared.getProductGroups { groups, _, _ in
+                Task {
+                    groups.map { self.cacheGroups(groups: $0) }
+                }
+                self.permissionGroups = groups
+                continuation.resume(returning: groups)
+            }
         }
     }
 
@@ -152,7 +91,7 @@ extension ApphudInternal {
             return
         }
 
-        httpClient?.startRequest(path: .products, apiVersion: .APIV2, params: ["observer_mode": ApphudUtils.shared.storeKitObserverMode, "device_id": currentDeviceID], method: .get, useDecoder: true) { _, _, data, error, code, duration in
+        httpClient?.startRequest(path: .products, apiVersion: .APIV3, params: ["observer_mode": ApphudUtils.shared.storeKitObserverMode, "device_id": currentDeviceID], method: .get, useDecoder: true) { _, _, data, error, code, duration in
 
             if error == nil {
                 ApphudLoggerService.shared.add(key: .products, value: duration, retryLog: self.productsFetchRetries)
@@ -188,11 +127,26 @@ extension ApphudInternal {
 
         self.paywalls = pwls
 
-        if writeToCache { self.cachePaywalls(paywalls: paywalls) }
+        currentUser?.placements.map { self.placements = $0 }
+
+        if writeToCache {
+            Task.detached(priority: .utility) {
+                self.cachePaywalls(paywalls: self.paywalls)
+                self.placements.map { self.cachePlacements(placements: $0) }
+            }
+        }
 
         if !didPreparePaywalls {
-            delegate?.userDidLoad(rawPaywalls: paywalls)
+            Task.detached { @MainActor in
+                self.delegate?.userDidLoad(rawPaywalls: self.paywalls, rawPlacements: self.placements)
+            }
             didPreparePaywalls = true
+        }
+
+        if !ApphudStoreKitWrapper.shared.didFetch {
+            Task.detached {
+                await self.continueToFetchStoreKitProducts()
+            }
         }
 
         self.performWhenStoreKitProductFetched {
@@ -201,34 +155,8 @@ extension ApphudInternal {
             self.customPaywallsLoadedCallbacks.forEach { block in block(self.paywalls) }
             self.customPaywallsLoadedCallbacks.removeAll()
             self.delegate?.paywallsDidFullyLoad(paywalls: self.paywalls)
-        }
-    }
-    private func fetchPaywallsIfNeeded(forceRefresh: Bool = false, callback: @escaping ([ApphudPaywall]?, Error?, Bool) -> Void) {
-
-        guard paywalls.isEmpty || forceRefresh else {
-            apphudLog("Using cached paywalls")
-            callback(paywalls, nil, false)
-            return
-        }
-
-        httpClient?.startRequest(path: .paywalls, apiVersion: .APIV2, params: ["device_id": currentDeviceID], method: .get, useDecoder: true) { _, _, data, error, _, _ in
-
-            if let data = data {
-                typealias ApphudArrayResponse = ApphudAPIDataResponse<ApphudAPIArrayResponse <ApphudPaywall> >
-
-                let jsonDecoder = JSONDecoder()
-                jsonDecoder.keyDecodingStrategy = .convertFromSnakeCase
-
-                do {
-                    let response = try jsonDecoder.decode(ApphudArrayResponse.self, from: data)
-                    let paywalls = response.data.results
-                    callback(paywalls, nil, true)
-                } catch {
-                    apphudLog("Failed to decode paywalls with error: \(error)")
-                    callback(nil, error, false)
-                }
-            } else {
-                callback(nil, error, false)
+            if let plmnts = self.placements {
+                self.delegate?.placementsDidFullyLoad(placements: plmnts)
             }
         }
     }
@@ -236,10 +164,21 @@ extension ApphudInternal {
     // MARK: - Product Groups Helper Methods
 
     internal var allAvailableProducts: [ApphudProduct] {
+        
         var products = [ApphudProduct]()
+
+        placements?.forEach({ placement in
+            placement.paywall.map { products.append(contentsOf: $0.products) }
+        })
+
         paywalls.forEach { paywall in
             products.append(contentsOf: paywall.products)
         }
+
+        permissionGroups?.forEach({ group in
+            products.append(contentsOf: group.products)
+        })
+
         return products
     }
 
@@ -284,6 +223,41 @@ extension ApphudInternal {
                 product.skProduct = ApphudStoreKitWrapper.shared.products.first(where: { $0.productIdentifier == product.productId })
             })
         }
+
+        placements?.forEach { placement in
+
+            let p = placement.paywall
+            p?.placementId = placement.id
+            let products = p?.products
+
+            products?.forEach({ product in
+                product.paywallId = placement.paywall?.id
+                product.paywallIdentifier = placement.paywall?.identifier
+                product.placementId = placement.id
+                product.skProduct = ApphudStoreKitWrapper.shared.products.first(where: { $0.productIdentifier == product.productId })
+            })
+        }
+    }
+
+    internal func cachePaywalls(paywalls: [ApphudPaywall]) {
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        if let data = try? encoder.encode(paywalls) {
+            apphudDataToCache(data: data, key: "ApphudPaywalls")
+        }
+    }
+
+    internal func cachedPaywalls() -> (objects: [ApphudPaywall]?, expired: Bool) {
+        let dataFromCache = apphudDataFromCache(key: "ApphudPaywalls", cacheTimeout: cacheTimeout)
+        if let data = dataFromCache.objectsData {
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            if let paywalls = try? decoder.decode([ApphudPaywall].self, from: data) {
+                return (paywalls, dataFromCache.expired)
+            }
+        }
+
+        return (nil, true)
     }
 
     internal func cacheGroups(groups: [ApphudGroup]) {
@@ -308,21 +282,21 @@ extension ApphudInternal {
         return (nil, true)
     }
 
-    internal func cachePaywalls(paywalls: [ApphudPaywall]) {
+    internal func cachePlacements(placements: [ApphudPlacement]) {
         let encoder = JSONEncoder()
         encoder.keyEncodingStrategy = .convertToSnakeCase
-        if let data = try? encoder.encode(paywalls) {
-            apphudDataToCache(data: data, key: "ApphudPaywalls")
+        if let data = try? encoder.encode(placements) {
+            apphudDataToCache(data: data, key: "ApphudPlacements")
         }
     }
 
-    internal func cachedPaywalls() -> (objects: [ApphudPaywall]?, expired: Bool) {
-        let dataFromCache = apphudDataFromCache(key: "ApphudPaywalls", cacheTimeout: cacheTimeout)
+    internal func cachedPlacements() -> (objects: [ApphudPlacement]?, expired: Bool) {
+        let dataFromCache = apphudDataFromCache(key: "ApphudPlacements", cacheTimeout: cacheTimeout)
         if let data = dataFromCache.objectsData {
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase
-            if let paywalls = try? decoder.decode([ApphudPaywall].self, from: data) {
-                return (paywalls, dataFromCache.expired)
+            if let placements = try? decoder.decode([ApphudPlacement].self, from: data) {
+                return (placements, dataFromCache.expired)
             }
         }
 

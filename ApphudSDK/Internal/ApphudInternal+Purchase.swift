@@ -290,9 +290,22 @@ extension ApphudInternal {
 
         apphudProduct?.id.map { params["product_bundle_id"] = $0 }
         params["paywall_id"] = apphudProduct?.paywallId
+        params["placement_id"] = apphudProduct?.placementId
 
         if hasMadePurchase && params["paywall_id"] == nil && observerModePurchasePaywallIdentifier != nil {
-            let paywall = paywalls.first(where: {$0.identifier == observerModePurchasePaywallIdentifier})
+
+            var paywall: ApphudPaywall?
+
+            if observerModePurchasePlacementIdentifier != nil {
+                let placement = placements?.first(where: { $0.identifier == observerModePurchasePlacementIdentifier })
+                if params["placement_id"] == nil && placement != nil {
+                    params["placement_id"] = placement?.id
+                }
+                paywall = placement?.paywalls.first(where: {$0.identifier == observerModePurchasePaywallIdentifier})
+            } else {
+                paywall = paywalls.first(where: {$0.identifier == observerModePurchasePaywallIdentifier})
+            }
+
             params["paywall_id"] = paywall?.id
             let apphudP = paywall?.products.first(where: { $0.productId == transactionProductIdentifier })
             apphudP?.id.map { params["product_bundle_id"] = $0 }
@@ -333,6 +346,8 @@ extension ApphudInternal {
             self.isSubmittingReceipt = false
 
             if result {
+                self.observerModePurchasePaywallIdentifier = nil
+                self.observerModePurchasePlacementIdentifier = nil
                 self.submitReceiptRetries = (0, 0)
                 self.requiresReceiptSubmission = false
                 let hasChanges = self.parseUser(data: data)
@@ -412,10 +427,10 @@ extension ApphudInternal {
     // MARK: - Private purchase methods
 
     private func purchase(product: SKProduct, apphudProduct: ApphudProduct?, validate: Bool, value: Double? = nil, callback: ((ApphudPurchaseResult) -> Void)?) {
-        ApphudLoggerService.shared.paywallCheckoutInitiated(apphudProduct?.paywallId, product.productIdentifier)
+        ApphudLoggerService.shared.paywallCheckoutInitiated(paywallId: apphudProduct?.paywallId, placementId: apphudProduct?.placementId, productId: product.productIdentifier)
         ApphudStoreKitWrapper.shared.purchase(product: product, value: value) { transaction, error in
             if let error = error as? SKError {
-                ApphudLoggerService.shared.paywallPaymentCancelled(apphudProduct?.paywallId, product.productIdentifier, error)
+                ApphudLoggerService.shared.paywallPaymentCancelled(paywallId: apphudProduct?.paywallId, placementId: apphudProduct?.placementId, productId: product.productIdentifier, error)
             }
             if validate {
                 self.handleTransaction(product: product, transaction: transaction, error: error, apphudProduct: apphudProduct, callback: callback)
@@ -430,14 +445,15 @@ extension ApphudInternal {
 
         ApphudStoreKitWrapper.shared.purchase(product: skProduct, discount: discount) { transaction, error in
             if let error = error as? SKError {
-                ApphudLoggerService.shared.paywallPaymentCancelled(product?.paywallId, skProduct.productIdentifier, error)
+                ApphudLoggerService.shared.paywallPaymentCancelled(paywallId: product?.paywallId, placementId: product?.placementId, productId: skProduct.productIdentifier, error)
             }
             self.handleTransaction(product: skProduct, transaction: transaction, error: error, apphudProduct: product, callback: callback)
         }
     }
 
-    internal func willPurchaseProductFromPaywall(identifier: String?) {
-        observerModePurchasePaywallIdentifier = identifier
+    internal func willPurchaseProductFrom(paywallId: String, placementId: String?) {
+        observerModePurchasePaywallIdentifier = paywallId
+        observerModePurchasePlacementIdentifier = placementId
     }
 
     private func handleTransaction(product: SKProduct, transaction: SKPaymentTransaction, error: Error?, apphudProduct: ApphudProduct?, callback: ((ApphudPurchaseResult) -> Void)?) {

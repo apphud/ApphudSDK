@@ -19,14 +19,6 @@ internal class ApphudAsyncStoreKit {
 
     private var productsStorage = ApphudProductsStorage()
 
-    internal var storefront: Storefront?
-
-    func fetchStorefront() async -> Storefront? {
-        let s = await Storefront.current
-        self.storefront = s
-        return s
-    }
-
     func products() async -> [Product] {
         let prs = await productsStorage.readProducts()
         return Array(prs)
@@ -94,7 +86,8 @@ internal class ApphudAsyncStoreKit {
         }
 
         do {
-            ApphudLoggerService.shared.paywallCheckoutInitiated(apphudProduct?.paywallId, product.id)
+
+            ApphudLoggerService.shared.paywallCheckoutInitiated(paywallId: apphudProduct?.paywallId, placementId: apphudProduct?.placementId, productId: product.id)
             let result = try await product.purchase(options: options)
             var transaction: StoreKit.Transaction?
 
@@ -106,7 +99,7 @@ internal class ApphudAsyncStoreKit {
             case .pending:
                 break
             case .userCancelled:
-                ApphudLoggerService.shared.paywallPaymentCancelled(apphudProduct?.paywallId, product: product)
+                ApphudLoggerService.shared.paywallPaymentCancelled(paywallId: apphudProduct?.paywallId, placementId: apphudProduct?.placementId, product: product)
                 break
             default:
                 break

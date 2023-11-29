@@ -74,7 +74,15 @@ extension AppDelegate: ApphudUIDelegate {
 }
 
 extension AppDelegate: ApphudDelegate {
+    func userDidLoad(rawPaywalls: [ApphudSDK.ApphudPaywall], rawPlacements: [ApphudSDK.ApphudPlacement]?) {
+        print("User loaded, paywalls and placements are available")
+    }
+    
     func paywallsDidFullyLoad(paywalls: [ApphudPaywall]) {
         print("paywalls are ready")
+    }
+
+    func placementsDidFullyLoad(placements: [ApphudPlacement]) {
+        print("placements are ready")
     }
 }
