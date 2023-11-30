@@ -47,7 +47,7 @@ extension ApphudInternal {
 
     internal func handleDidFetchAllProducts(storeKitProducts: [SKProduct], error: Error?) {
         self.performAllStoreKitProductsFetchedCallbacks()
-        self.updatePaywallsWithStoreKitProducts(paywalls: self.paywalls) // double call, but it's okay, because user may call refreshStorKitProducts method
+        self.updatePaywallsAndPlacements() // double call, but it's okay, because user may call refreshStorKitProducts method
         self.respondedStoreKitProducts = true
     }
 
@@ -126,8 +126,8 @@ extension ApphudInternal {
         }
 
         self.paywalls = pwls
-
         currentUser?.placements.map { self.placements = $0 }
+        updatePaywallsAndPlacements()
 
         if writeToCache {
             Task.detached(priority: .utility) {
@@ -143,6 +143,7 @@ extension ApphudInternal {
             didPreparePaywalls = true
         }
 
+
         if !ApphudStoreKitWrapper.shared.didFetch {
             Task.detached {
                 await self.continueToFetchStoreKitProducts()
@@ -150,7 +151,7 @@ extension ApphudInternal {
         }
 
         self.performWhenStoreKitProductFetched {
-            self.updatePaywallsWithStoreKitProducts(paywalls: self.paywalls)
+            self.updatePaywallsAndPlacements()
             completionBlock?(self.paywalls, nil)
             self.customPaywallsLoadedCallbacks.forEach { block in block(self.paywalls) }
             self.customPaywallsLoadedCallbacks.removeAll()
@@ -194,7 +195,7 @@ extension ApphudInternal {
 
         if paywallsContainsProducts {return true}
 
-        updatePaywallsWithStoreKitProducts(paywalls: paywalls)
+        updatePaywallsAndPlacements()
 
         paywalls.forEach { paywall in
             paywall.products.forEach { p in
@@ -211,7 +212,7 @@ extension ApphudInternal {
         return paywallsContainsProducts
     }
 
-    internal func updatePaywallsWithStoreKitProducts(paywalls: [ApphudPaywall]) {
+    internal func updatePaywallsAndPlacements() {
         performWhenUserRegistered {
             self.paywallsLoadTime = Date().timeIntervalSince(self.initDate)
         }

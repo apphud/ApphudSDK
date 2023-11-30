@@ -77,7 +77,7 @@ public protocol ApphudDelegate {
     func paywallsDidFullyLoad(paywalls: [ApphudPaywall])
 
     /**
-     Called when placements are fully loaded with their Paywalls and StoreKit products.
+     Called when placements are fully loaded with their Paywalls and StoreKit products. Not called if no placements added.
     */
     func placementsDidFullyLoad(placements: [ApphudPlacement])
 }

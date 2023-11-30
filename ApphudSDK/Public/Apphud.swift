@@ -167,7 +167,7 @@ final public class Apphud: NSObject {
     // MARK: - Placements
 
     /**
-     Asynchronous method which returns paywalls configured in Apphud Dashboard > Product Hub > Paywalls. Each paywall contains an array of `ApphudProduct` objects that you use for purchase. `ApphudProduct` is Apphud's wrapper around StoreKit's `SKProduct`/ `Product` models. Method returns immediately if paywalls are already loaded.
+     Asynchronous method which returns placements configured in Apphud Dashboard > Product Hub > Placements. Each placement contains `ApphudPaywall` object that you use for purchase. Method returns immediately if placements are already loaded.
     */
     public static func placements() async -> [ApphudPlacement]? {
         await withCheckedContinuation { continuation in
@@ -178,7 +178,7 @@ final public class Apphud: NSObject {
     }
 
     /**
-     Asynchronous method which returns a placement for given identifier. Placement contains  `ApphudPaywal` configured in Apphud Product Hub > Placements. Method returns immediately if placements are already loaded.
+     Asynchronous method which returns placement by its identifier configured in Apphud Dashboard > Product Hub > Placements. Each placement contains `ApphudPaywall` object that you use for purchase.. Method returns immediately if placements are already loaded.
     */
     public static func placement(_ identifier: String) async -> ApphudPlacement? {
         await placements()?.first(where: { $0.identifier == identifier })
