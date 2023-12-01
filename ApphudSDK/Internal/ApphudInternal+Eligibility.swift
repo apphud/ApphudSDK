@@ -55,7 +55,6 @@ extension ApphudInternal {
     }
 
     private func _checkPromoEligibilitiesForRegisteredUser(products: [SKProduct]) async -> [String: Bool] {
-        #warning("test eligibilities for promo and intro")
 
         var response = [String: Bool]()
         for product in products {

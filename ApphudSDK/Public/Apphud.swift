@@ -115,6 +115,7 @@ final public class Apphud: NSObject {
      Updates user ID value.
      - parameter userID: Required. New user ID value.
      */
+    @MainActor
     @objc public static func updateUserID(_ userID: String) {
         ApphudInternal.shared.updateUserID(userID: userID)
     }
@@ -427,16 +428,18 @@ final public class Apphud: NSObject {
 
     /**
      Purchases subscription (promotional) offer and automatically submits App Store Receipt to Apphud.
-     
+
      - parameter product: Required. This is an `SKProduct` object that user wants to purchase.
      - parameter discountID: Required. This is a `SKProductDiscount` Identifier String object that you would like to apply.
      - parameter callback: Optional. Returns `ApphudPurchaseResult` object.
      
      - Note: This method automatically sends in-app purchase receipt to Apphud, so you don't need to call `submitReceipt` method.
      */
-    @objc public static func purchasePromo(_ product: SKProduct, discountID: String, _ callback: ((ApphudPurchaseResult) -> Void)?) {
-        let apphudProduct = ApphudInternal.shared.allAvailableProducts.first(where: { $0.productId == product.productIdentifier })
-        ApphudInternal.shared.purchasePromo(skProduct: product, apphudProduct: apphudProduct, discountID: discountID, callback: callback)
+    @objc public static func purchasePromo(apphudProduct: ApphudProduct, discountID: String, _ callback: ((ApphudPurchaseResult) -> Void)?) {
+        ApphudInternal.shared.purchasePromo(skProduct: nil, apphudProduct: apphudProduct, discountID: discountID, callback: callback)
+    }
+    @objc public static func purchasePromo(_ skProduct: SKProduct, discountID: String, _ callback: ((ApphudPurchaseResult) -> Void)?) {
+        ApphudInternal.shared.purchasePromo(skProduct: skProduct, apphudProduct: nil, discountID: discountID, callback: callback)
     }
 
     /**
@@ -683,6 +686,7 @@ final public class Apphud: NSObject {
     /**
      Presents Apphud screen that was delayed for presentation, i.e. `false` was returned in `apphudShouldShowScreen` delegate method.
      */
+    @MainActor
     @objc public static func showPendingScreen() {
         return ApphudRulesManager.shared.showPendingScreen()
     }
@@ -690,12 +694,14 @@ final public class Apphud: NSObject {
     /**
         Screen view controller that is pending for presentation. This is the screen that is triggered by your pending Rule. You can use `showPendingScreen` method or present this controller manually.
      */
+    @MainActor
     @objc public static func pendingScreenController() -> UIViewController? {
         return ApphudRulesManager.shared.pendingController
     }
     /**
         Rule with a screen that was delayed for presentation.
      */
+    @MainActor
     @objc public static func pendingRule() -> ApphudRule? {
         return ApphudRulesManager.shared.pendingRule()
     }

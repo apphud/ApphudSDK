@@ -42,12 +42,14 @@ extension ApphudInternal {
         }
 
         let result = await ApphudStoreKitWrapper.shared.fetchAllProducts(identifiers: productIds)
-        handleDidFetchAllProducts(storeKitProducts: result.0, error: result.1)
+        await handleDidFetchAllProducts(storeKitProducts: result.0, error: result.1)
     }
 
-    internal func handleDidFetchAllProducts(storeKitProducts: [SKProduct], error: Error?) {
+    internal func handleDidFetchAllProducts(storeKitProducts: [SKProduct], error: Error?) async {
         self.performAllStoreKitProductsFetchedCallbacks()
-        self.updatePaywallsAndPlacements() // double call, but it's okay, because user may call refreshStorKitProducts method
+        await MainActor.run {
+            self.updatePaywallsAndPlacements()
+        }
         self.respondedStoreKitProducts = true
     }
 
@@ -66,7 +68,7 @@ extension ApphudInternal {
                 callback?([], error)
             } else {
                 let result = await ApphudStoreKitWrapper.shared.fetchAllProducts(identifiers: availableIds)
-                self.handleDidFetchAllProducts(storeKitProducts: result.0, error: result.1)
+                await handleDidFetchAllProducts(storeKitProducts: result.0, error: result.1)
                 apphudPerformOnMainThread { callback?(result.0, result.1) }
             }
         }
@@ -117,7 +119,7 @@ extension ApphudInternal {
         }
     }
 
-    internal func preparePaywalls(pwls: [ApphudPaywall], writeToCache: Bool = true, completionBlock: (([ApphudPaywall]?, Error?) -> Void)?) {
+    @MainActor internal func preparePaywalls(pwls: [ApphudPaywall], writeToCache: Bool = true, completionBlock: (([ApphudPaywall]?, Error?) -> Void)?) {
 
         if UserDefaults.standard.bool(forKey: swizzlePaymentDisabledKey) != true && httpClient!.canSwizzlePayment() {
             ApphudStoreKitWrapper.shared.enableSwizzle()
@@ -193,51 +195,24 @@ extension ApphudInternal {
             }
         }
 
-        if paywallsContainsProducts {return true}
-
-        updatePaywallsAndPlacements()
-
-        paywalls.forEach { paywall in
-            paywall.products.forEach { p in
-                if p.skProduct != nil {
-                    paywallsContainsProducts = true
-                }
-            }
-        }
-
-        if respondedStoreKitProducts {
-            return true
-        }
-
-        return paywallsContainsProducts
+        return respondedStoreKitProducts || paywallsContainsProducts
     }
 
+    @MainActor
     internal func updatePaywallsAndPlacements() {
         performWhenUserRegistered {
             self.paywallsLoadTime = Date().timeIntervalSince(self.initDate)
         }
 
         paywalls.forEach { paywall in
-            paywall.products.forEach({ product in
-                product.paywallId = paywall.id
-                product.paywallIdentifier = paywall.identifier
-                product.skProduct = ApphudStoreKitWrapper.shared.products.first(where: { $0.productIdentifier == product.productId })
-            })
+            paywall.update()
         }
 
         placements?.forEach { placement in
-
-            let p = placement.paywall
-            p?.placementId = placement.id
-            let products = p?.products
-
-            products?.forEach({ product in
-                product.paywallId = placement.paywall?.id
-                product.paywallIdentifier = placement.paywall?.identifier
-                product.placementId = placement.id
-                product.skProduct = ApphudStoreKitWrapper.shared.products.first(where: { $0.productIdentifier == product.productId })
-            })
+            placement.paywall?.update(placementId: placement.id)
         }
+
+        apphudLog("Did update Paywalls and Placements, has StoreKit Products: \(ApphudStoreKitWrapper.shared.products.count > 0)")
     }
 
     internal func cachePaywalls(paywalls: [ApphudPaywall]) {

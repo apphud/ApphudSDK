@@ -30,8 +30,7 @@ import UIKit
 /**
  A public protocol that provides access to Apphud's main public methods, describing the behavior of the Rules state and custom Rules view presentation
  */
-
-@objc public protocol ApphudUIDelegate {
+@MainActor @objc public protocol ApphudUIDelegate {
     /**
         You can return `false` to ignore this rule. You should only do this if you want to handle your rules by yourself. Default implementation is `true`.
      */

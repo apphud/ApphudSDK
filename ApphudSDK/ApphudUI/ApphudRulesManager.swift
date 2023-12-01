@@ -13,6 +13,7 @@ import UIKit
 #endif
 
 #if os(iOS)
+@MainActor
 internal class ApphudRulesManager {
     static let shared = ApphudRulesManager()
     var pendingController: UIViewController?

@@ -112,7 +112,7 @@ public class ApphudHttpClient {
     }()
 
     private let GET_TIMEOUT: TimeInterval = 10.0
-    private let POST_CUSTOMERS_TIMEOUT: TimeInterval = apphudIsSandbox() ? 20.0 : 10.0
+    private let POST_CUSTOMERS_TIMEOUT: TimeInterval = 10.0
     private let POST_TIMEOUT: TimeInterval = 10.0
 
     internal func requestInstance(url: URL) -> URLRequest? {
@@ -140,7 +140,7 @@ public class ApphudHttpClient {
                 let retryDelay: TimeInterval
 
                 if retry {
-                    retries = 3
+                    retries = 5
                     retryDelay = 1.0
                 } else {
                     retries = 0

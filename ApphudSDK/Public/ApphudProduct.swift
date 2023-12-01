@@ -17,7 +17,7 @@ import StoreKit
  - Note: For more information  - [Product Hub Documentation](https://docs.apphud.com/docs/product-hub)
  */
 
-public class ApphudProduct: NSObject, Codable {
+public class ApphudProduct: NSObject, Codable, ObservableObject {
 
     /**
      Product identifier from App Store Connect.
@@ -39,7 +39,11 @@ public class ApphudProduct: NSObject, Codable {
      
      May be `nil` if product identifier is invalid, or product is not available in App Store Connect.
      */
-    @objc public internal(set) var skProduct: SKProduct?
+    @Published @objc public internal(set) var skProduct: SKProduct? {
+        willSet {
+            objectWillChange.send()
+        }
+    }
 
     /**
     Returns Product struct for given Product Id. Makes async request to Apple, if not yet fetched. Or returns immediately, if available. Throwable.

@@ -44,7 +44,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     var purchasingProductID: String?
     var purchasingValue: ApphudCustomPurchaseValue?
-    var isPurchasing: Bool = false
+    private(set) var isPurchasing: Bool = false
 
     private var refreshRequest: SKReceiptRefreshRequest?
 

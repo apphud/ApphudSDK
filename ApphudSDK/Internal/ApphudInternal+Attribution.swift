@@ -13,86 +13,78 @@ extension ApphudInternal {
     // MARK: - Attribution
     internal func addAttribution(data: [AnyHashable: Any]?, from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ((Bool) -> Void)?) {
         performWhenUserRegistered {
+            Task {
+                var params: [String: Any] = ["device_id": self.currentDeviceID]
 
-            var params: [String: Any] = ["device_id": self.currentDeviceID]
-
-            switch provider {
-            case .firebase:
-                guard identifer != nil, self.submittedFirebaseId != identifer else {
-                    callback?(false)
-                    return
-                }
-                params["firebase_id"] = identifer
-            case .appsFlyer:
-                guard identifer != nil else {
-                    callback?(false)
-                    return
-                }
-                guard !self.isSendingAppsFlyer else {
-                    apphudLog("Already submitted AppsFlyer attribution, skipping", forceDisplay: true)
-                    callback?(false)
-                    return
-                }
-                params["appsflyer_id"] = identifer
-
-                if data != nil {
-                    params["appsflyer_data"] = data
-
-                    guard self.submittedPreviouslyAF(data: data!) else {
+                switch provider {
+                case .firebase:
+                    guard identifer != nil, self.submittedFirebaseId != identifer else {
+                        callback?(false)
+                        return
+                    }
+                    params["firebase_id"] = identifer
+                case .appsFlyer:
+                    guard identifer != nil else {
+                        callback?(false)
+                        return
+                    }
+                    guard !self.isSendingAppsFlyer else {
                         apphudLog("Already submitted AppsFlyer attribution, skipping", forceDisplay: true)
                         callback?(false)
                         return
                     }
-                }
-                self.isSendingAppsFlyer = true
-            case .adjust:
-                guard !self.isSendingAdjust else {
-                    apphudLog("Already submitted Adjust attribution, skipping", forceDisplay: true)
-                    callback?(false)
-                    return
-                }
-                if data != nil {
-                    params["adjust_data"] = data
+                    params["appsflyer_id"] = identifer
 
-                    guard self.submittedPreviouslyAdjust(data: data!) else {
+                    if data != nil {
+                        params["appsflyer_data"] = data
+
+                        guard self.submittedPreviouslyAF(data: data!) else {
+                            apphudLog("Already submitted AppsFlyer attribution, skipping", forceDisplay: true)
+                            callback?(false)
+                            return
+                        }
+                    }
+                    self.isSendingAppsFlyer = true
+                case .adjust:
+                    guard !self.isSendingAdjust else {
                         apphudLog("Already submitted Adjust attribution, skipping", forceDisplay: true)
                         callback?(false)
                         return
                     }
-                }
-                self.isSendingAdjust = true
-            case .appleAdsAttribution:
-                guard identifer != nil else {
-                    callback?(false)
-                    return
-                }
-                guard !self.didSubmitAppleAdsAttribution else {
-                    apphudLog("Already submitted Apple Ads Attribution, exiting", forceDisplay: true)
-                    callback?(false)
-                    return
-                }
-                self.getAppleAttribution(identifer!) {(appleAttributionData, isAttributionExist) in
-                    if let data = appleAttributionData {
-                        if isAttributionExist {
-                            params["search_ads_data"] = data
-                        } else {
+                    if data != nil {
+                        params["adjust_data"] = data
+
+                        guard self.submittedPreviouslyAdjust(data: data!) else {
+                            apphudLog("Already submitted Adjust attribution, skipping", forceDisplay: true)
                             callback?(false)
+                            return
                         }
+                    }
+                    self.isSendingAdjust = true
+                case .appleAdsAttribution:
+                    guard identifer != nil else {
+                        callback?(false)
+                        return
+                    }
+                    guard !self.didSubmitAppleAdsAttribution else {
+                        apphudLog("Already submitted Apple Ads Attribution, exiting", forceDisplay: true)
+                        callback?(false)
+                        return
+                    }
+
+                    if let searchAdsData = await self.getAppleAttribution(identifer!) {
+                        params["search_ads_data"] = searchAdsData
                     } else {
-                        params["search_ads_data"] = ["token": identifer]
+                        callback?(false)
+                        return
                     }
-
-                    self.startAttributionRequest(params: params, provider: provider, identifer: identifer) { result in
-                        callback?(result)
-                    }
+                default:
+                    return
                 }
-                return
-            default:
-                return
-            }
 
-            // to avoid 404 problems on backend
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                // to avoid 404 problems on backend
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+
                 self.startAttributionRequest(params: params, provider: provider, identifer: identifer) { result in
                     if result {
                         switch provider {
@@ -126,7 +118,7 @@ extension ApphudInternal {
     }
 
     func startAttributionRequest(params: [String: Any], provider: ApphudAttributionProvider, identifer: String?, callback: ((Bool) -> Void)?) {
-        self.httpClient?.startRequest(path: .attribution, params: params, method: .post) { (result, _, _, _, _, _) in
+        self.httpClient?.startRequest(path: .attribution, params: params, method: .post, retry: true) { (result, _, _, _, _, _) in
             switch provider {
             case .adjust:
                 // to avoid sending the same data several times in a row
@@ -167,29 +159,32 @@ extension ApphudInternal {
         }
     }
 
+    @MainActor
     @objc internal func forceSendAttributionDataIfNeeded() {
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(forceSendAttributionDataIfNeeded), object: nil)
         automaticallySubmitAppsFlyerAttributionIfNeeded()
         automaticallySubmitAdjustAttributionIfNeeded()
     }
 
-    @objc internal func getAppleAttribution(_ appleAttibutionToken: String, completion: @escaping ([AnyHashable: Any]?, Bool) -> Void) {
-        let request = NSMutableURLRequest(url: URL(string: "https://api-adservices.apple.com/api/v1/")!)
+    @objc internal func getAppleAttribution(_ appleAttibutionToken: String) async -> [AnyHashable: Any]? {
+
+        var request = URLRequest(url: URL(string: "https://api-adservices.apple.com/api/v1/")!)
         request.httpMethod = "POST"
         request.setValue("text/plain", forHTTPHeaderField: "Content-Type")
         request.httpBody = Data(appleAttibutionToken.utf8)
 
-        let task = URLSession.shared.dataTask(with: request as URLRequest) { (data, _, _) in
-
-            if let data = data,
-               let result = try? JSONSerialization.jsonObject(with: data, options: .allowFragments) as? [String: Any],
-               let attribution = result["attribution"] as? Bool {
-                completion(result, attribution)
+        let response = try? await URLSession.shared.data(for: request, retries: 5, delay: 0.5)
+        if let data = response?.0,
+           let result = try? JSONSerialization.jsonObject(with: data, options: .allowFragments) as? [String: Any],
+           let attribution = result["attribution"] as? Bool {
+            if attribution {
+                return result
             } else {
-                completion(nil, false)
+                return nil
             }
+        } else {
+            return ["token": appleAttibutionToken]
         }
-        task.resume()
     }
 
     @objc internal func automaticallySubmitAppsFlyerAttributionIfNeeded() {
@@ -222,12 +217,7 @@ extension ApphudInternal {
         }
 
         if data != nil {
-            addAttribution(data: data!, from: .adjust, callback: { result in
-                if !result {
-                    self.perform(#selector(self.automaticallySubmitAdjustAttributionIfNeeded), with: nil, afterDelay: 7.0)
-                    apphudLog("Adjust attribution still not submitted, will retry in 7 seconds")
-                }
-            })
+            addAttribution(data: data!, from: .adjust, callback: nil)
         } else {
             apphudLog("Couldn't automatically resubmit Adjust attribution, exiting.", forceDisplay: true)
         }

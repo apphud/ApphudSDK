@@ -37,12 +37,12 @@ public enum ApphudPaywallID: String {
  - Important: For more information  - [Paywalls Documentation](https://docs.apphud.com/docs/paywalls)
  */
 
-public class ApphudPaywall: NSObject, Codable {
+public class ApphudPaywall: NSObject, Codable, ObservableObject {
 
     /**
      Array of products
      */
-    @objc public internal(set) var products: [ApphudProduct]
+    @Published @objc public internal(set) var products: [ApphudProduct]
     /**
      Your custom paywall identifier from Apphud Dashboard
      */
@@ -79,6 +79,18 @@ public class ApphudPaywall: NSObject, Codable {
     private var jsonString: String?
     internal var name: String
     internal var placementId: String?
+
+    @MainActor
+    internal func update(placementId: String? = nil) {
+        objectWillChange.send()
+        self.placementId = placementId
+        products.forEach({ product in
+            product.paywallId = id
+            product.paywallIdentifier = identifier
+            product.placementId = placementId
+            product.skProduct = ApphudStoreKitWrapper.shared.products.first(where: { $0.productIdentifier == product.productId })
+        })
+    }
 
     private enum CodingKeys: String, CodingKey {
         case id

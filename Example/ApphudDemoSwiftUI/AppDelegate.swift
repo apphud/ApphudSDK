@@ -59,7 +59,9 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 }
 
 extension AppDelegate: ApphudDelegate {
+    func userDidLoad(rawPaywalls: [ApphudSDK.ApphudPaywall], rawPlacements: [ApphudSDK.ApphudPlacement]?) {
 
+    }
 }
 
 extension AppDelegate: ApphudUIDelegate {

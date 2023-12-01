@@ -22,6 +22,7 @@
 		2861BB152B175D1500B65779 /* ApphudPlacement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2861BB142B175D1500B65779 /* ApphudPlacement.swift */; };
 		2861BB172B175D2100B65779 /* ApphudSafeSet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2861BB162B175D2100B65779 /* ApphudSafeSet.swift */; };
 		288AD5922AE21FDC008A9883 /* ApphudProductsStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 288AD5912AE21FDC008A9883 /* ApphudProductsStorage.swift */; };
+		28B081032B19DB8B0003E2E8 /* ApphudInternal+Currency.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28B081022B19DB8B0003E2E8 /* ApphudInternal+Currency.swift */; };
 		2C576FEBC6A7A1201CF910EF585433B8 /* ApphudSDK-dummy.m in Sources */ = {isa = PBXBuildFile; fileRef = 0260E6F5CCE995DE3CFF8FD457284F75 /* ApphudSDK-dummy.m */; };
 		2C5D2EE289288DB3F0CA065E6C6CB99C /* ApphudUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4850F4EE7A092B2F9F14ECF9D9604BA1 /* ApphudUtils.swift */; };
 		397E8220413828B74039C073633EFAC2 /* ApphudInternal+Purchase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D3DB3B1448AA61239EA3D934546620E /* ApphudInternal+Purchase.swift */; };
@@ -190,6 +191,7 @@
 		2861BB162B175D2100B65779 /* ApphudSafeSet.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudSafeSet.swift; sourceTree = "<group>"; };
 		288AD5912AE21FDC008A9883 /* ApphudProductsStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApphudProductsStorage.swift; sourceTree = "<group>"; };
 		289CB33283303C37828CBF86581F6337 /* index.html */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.html.documentation; name = index.html; path = docs/documentation/apphudsdk/apphudsubscriptionstatus/expired/index.html; sourceTree = "<group>"; };
+		28B081022B19DB8B0003E2E8 /* ApphudInternal+Currency.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "ApphudInternal+Currency.swift"; sourceTree = "<group>"; };
 		28C0A3D4422CC2730F89BA771FA87424 /* index.html */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.html.documentation; name = index.html; path = docs/documentation/apphudsdk/apphudsubscription/issandbox/index.html; sourceTree = "<group>"; };
 		28FF905ACBDFC9029B1C7B8BD86F398A /* apphudwillpurchase(product:offerid:screenname:).json */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.json; name = "apphudwillpurchase(product:offerid:screenname:).json"; path = "docs/data/documentation/apphudsdk/apphuduidelegate/apphudwillpurchase(product:offerid:screenname:).json"; sourceTree = "<group>"; };
 		292DE3FBFF74F2E50CA07F6E56B18107 /* index.html */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.html.documentation; name = index.html; path = docs/documentation/apphudsdk/apphuduserpropertykey/gender/index.html; sourceTree = "<group>"; };
@@ -719,6 +721,7 @@
 				15C3B715D70FB506A6307B51861955AA /* ApphudInternal+Fallback.swift */,
 				5E06AC5FA70AC38E819A130C23C575CF /* ApphudInternal+Product.swift */,
 				9D3DB3B1448AA61239EA3D934546620E /* ApphudInternal+Purchase.swift */,
+				28B081022B19DB8B0003E2E8 /* ApphudInternal+Currency.swift */,
 				6879F494A410F2A4FF2FDA69F3E1AE75 /* ApphudInternal+UserUpdate.swift */,
 				5CA58316D6AC3152218F8214393E60C4 /* ApphudKeychain.swift */,
 				1C70D1B4B2C95C19394C8F6D0041D88E /* ApphudLoggerService.swift */,
@@ -1614,6 +1617,7 @@
 				BFC407F86C7271413067C9AFE8059AB4 /* ApphudUser.swift in Sources */,
 				3BB5C86F6B8455D8FA79FFF02D48D6FE /* ApphudUserProperty.swift in Sources */,
 				C574D6E8575BD1D285DF805BAA756F71 /* ApphudUserPropertyKey.swift in Sources */,
+				28B081032B19DB8B0003E2E8 /* ApphudInternal+Currency.swift in Sources */,
 				2C5D2EE289288DB3F0CA065E6C6CB99C /* ApphudUtils.swift in Sources */,
 				2861BB152B175D1500B65779 /* ApphudPlacement.swift in Sources */,
 			);

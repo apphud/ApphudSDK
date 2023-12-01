@@ -155,6 +155,10 @@ final class ApphudAsyncTransactionObserver {
 
         if !ApphudUtils.shared.storeKitObserverMode {
             Task { @MainActor in
+                if ApphudStoreKitWrapper.shared.purchasingProductID == transaction.productID && ApphudStoreKitWrapper.shared.isPurchasing {
+                    return
+                }
+
                 _ = await ApphudInternal.shared.handleTransaction(transaction)
                 await transaction.finish()
             }

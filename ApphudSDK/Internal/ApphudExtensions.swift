@@ -16,6 +16,7 @@ typealias ApphudVoidCallback = (() -> Void)
 typealias ApphudErrorCallback = ((Error?) -> Void)
 
 #if os(iOS)
+@MainActor
 internal func apphudVisibleViewController() -> UIViewController? {
 
     let keyWindow = UIApplication.shared.windows.filter {$0.isKeyWindow}.first
@@ -177,6 +178,7 @@ internal func apphudPerformOnMainThread(callback: @escaping () -> Void) {
 }
 
 #if os(macOS)
+@MainActor
 internal func apphudCurrentDeviceMacParameters() -> [String: String] {
     let app_version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? ""
 
@@ -203,6 +205,7 @@ internal func apphudCurrentDeviceMacParameters() -> [String: String] {
 }
 
 #elseif os(watchOS)
+@MainActor
 internal func apphudCurrentDeviceWatchParameters() -> [String: String] {
 
     let family: String = "Watch"
@@ -235,6 +238,7 @@ internal func apphudCurrentDeviceWatchParameters() -> [String: String] {
 }
 
 #else
+@MainActor
 internal func apphudCurrentDeviceiOSParameters() -> [String: String] {
 
     var family = ""
