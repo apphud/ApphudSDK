@@ -55,7 +55,7 @@ extension ApphudSubscriptionStatus {
      This function can only be used in Swift
      */
     func toStringDuplicate() -> String {
-        
+
         switch self {
         case .trial:
             return "trial"

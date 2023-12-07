@@ -78,7 +78,7 @@ extension ApphudInternal {
             var productIds = [String]()
 
             groups?.forEach({ group in
-                productIds.append(contentsOf: group.products.compactMap{ $0.productId })
+                productIds.append(contentsOf: group.products.compactMap { $0.productId })
             })
 
             let result = await ApphudStoreKitWrapper.shared.fetchAllProducts(identifiers: Set(productIds))

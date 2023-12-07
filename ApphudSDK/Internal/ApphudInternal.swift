@@ -42,7 +42,6 @@ final class ApphudInternal: NSObject {
     internal var customPaywallsLoadedCallbacks = [ApphudPaywallsCallback]()
     internal var storeKitProductsFetchedCallbacks = [ApphudVoidCallback]()
 
-
     internal var submitReceiptRetries: ApphudRetryLog = (0, 0)
     internal var submitReceiptCallbacks = [ApphudErrorCallback?]()
     internal var restorePurchasesCallback: (([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void)?
@@ -69,7 +68,7 @@ final class ApphudInternal: NSObject {
     internal var storefrontCurrency: ApphudCurrency?
 
     internal var paywalls = [ApphudPaywall]()
-    internal var placements: [ApphudPlacement]?
+    internal var placements = [ApphudPlacement]()
     internal var permissionGroups: [ApphudGroup]?
 
     internal var reinstallTracked: Bool = false
@@ -326,8 +325,8 @@ final class ApphudInternal: NSObject {
 
         self.currentUser = cachedUser
         self.paywalls = cachedPwls.objects ?? []
-        // placements and permissionGroups arrays can be nil
-        self.placements = cachedPlacements.objects
+        self.placements = cachedPlacements.objects ?? []
+        // permissionGroups array can be nil
         self.permissionGroups = cachedGroups.objects
 
         await fetchCurrencyIfNeeded()
@@ -546,16 +545,15 @@ final class ApphudInternal: NSObject {
         }
     }
 
+    @MainActor
     internal func performAllStoreKitProductsFetchedCallbacks() {
-        DispatchQueue.main.async {
-            for block in self.storeKitProductsFetchedCallbacks {
-                apphudLog("Performing scheduled block..")
-                block()
-            }
-            if self.storeKitProductsFetchedCallbacks.count > 0 {
-                apphudLog("All scheduled blocks performed, removing..")
-                self.storeKitProductsFetchedCallbacks.removeAll()
-            }
+        for block in self.storeKitProductsFetchedCallbacks {
+            apphudLog("Performing scheduled block..")
+            block()
+        }
+        if self.storeKitProductsFetchedCallbacks.count > 0 {
+            apphudLog("All scheduled blocks performed, removing..")
+            self.storeKitProductsFetchedCallbacks.removeAll()
         }
     }
 
@@ -627,7 +625,7 @@ final class ApphudInternal: NSObject {
             self.lastUploadedPaywallEventDate = Date()
         }
 
-        submitPaywallEvent(params: params) { (result, _, _, _, code, _) in }
+        submitPaywallEvent(params: params) { (_, _, _, _, _, _) in }
     }
 
     internal func submitPaywallEvent(params: [String: AnyHashable], callback: @escaping ApphudHTTPResponseCallback) {
@@ -724,7 +722,7 @@ final class ApphudInternal: NSObject {
         paywalls.removeAll()
 
         apphudDataClearCache(key: ApphudPlacementsCacheKey)
-        placements?.removeAll()
+        placements.removeAll()
 
         userRegisteredCallbacks.removeAll()
         customPaywallsLoadedCallbacks.removeAll()

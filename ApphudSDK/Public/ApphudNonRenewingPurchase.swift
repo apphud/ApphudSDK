@@ -66,7 +66,6 @@ public class ApphudNonRenewingPurchase: Codable {
         return (productId, canceledAt, purchasedAt, isSandbox, isLocal)
     }
 
-
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: ApphudIAPCodingKeys.self)
         try container.encode(productId, forKey: .productId)

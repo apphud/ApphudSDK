@@ -322,7 +322,7 @@ public class ApphudHttpClient {
             let apphudResponse: ApphudParsedResponse = parseResponse(request: request, httpResponse: httpResponse, data: data, parseJson: !useDecoder || apphudIsSandbox())
 
             let requestDuration = Date().timeIntervalSince(startDate)
-            
+
             let finalHttpResponse: ApphudHTTPResponse = (apphudResponse.0, apphudResponse.1, apphudResponse.2, apphudResponse.3, apphudResponse.4, requestDuration)
 
             return finalHttpResponse

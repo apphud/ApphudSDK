@@ -14,56 +14,7 @@ import Foundation
 import UserNotifications
 import SwiftUI
 
-internal let apphud_sdk_version = "3.1.4"
-
-/**
- Public Callback object provide -> [String: Bool]
- */
-public typealias ApphudEligibilityCallback = (([String: Bool]) -> Void)
-
-/**
- Public Callback object provide -> Bool
- */
-public typealias ApphudBoolCallback = ((Bool) -> Void)
-
-/// List of available attribution providers
-/// has to make Int in order to support Objective-C
-@objc public enum ApphudAttributionProvider: Int {
-    case appsFlyer
-    case adjust
-
-    @available(*, unavailable, message: "Apple Search Ads attribution via iAd framework is no longer supported by Apple. Just remove this code and use appleAdsAttribution provider via AdServices framework. For more information visit: https://docs.apphud.com/docs/apple-search-ads")
-    case appleSearchAds
-
-    case appleAdsAttribution // For iOS 14.3+ devices only, Apple Search Ads attribution via AdServices.framework
-    case firebase
-
-    @available(*, deprecated, message: "Facebook integration is no longer needed from SDK and has been voided. You can safely remove this line of code.")
-    case facebook
-
-    /**
-     case branch
-     Branch integration doesn't require any additional code from Apphud SDK
-     More details: https://docs.apphud.com/docs/branch
-     */
-
-    func toString() -> String {
-        switch self {
-        case .appsFlyer:
-            return "AppsFlyer"
-        case .adjust:
-            return "Adjust"
-        case .facebook:
-            return "Facebook"
-        case .appleAdsAttribution:
-            return "Apple Ads Attribution"
-        case .firebase:
-            return "Firebase"
-        default:
-            return "Unavailable"
-        }
-    }
-}
+internal let apphud_sdk_version = "3.2.0"
 
 // MARK: - Initialization
 
@@ -79,21 +30,20 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
  -  [Make a Purchase](https://docs.apphud.com/docs/making-purchases)
  -  [Check Subscription Status](https://docs.apphud.com/docs/checking-subscription-status)
  */
-
 final public class Apphud: NSObject {
 
     /**
-     Initializes Apphud SDK. You should call it during app launch.
-     
-     - parameter apiKey: Required. Your api key.
-     - parameter userID: Optional. You can provide your own unique user identifier. If `nil` passed then UUID will be generated instead.
-     - parameter observerMode: Optional. Sets SDK to Observer (i.e. Analytics) mode. If you purchase products by your own code, then pass `true`. If you purchase products using `Apphud.purchase(..)` method, then pass `false`. Default value is `false`.
-     - parameter callback: Optional. Called when user is successfully registered in Apphud [or used from cache]. Callback can be used to fetch A/B experiment parameters from paywalls, like `json`,  `experimentName` or `variationName`.
+     Initializes Apphud SDK. Call this during the app's launch.
+
+     - parameter apiKey: Required. Your API key.
+     - parameter userID: Optional. Provide your own unique user identifier, or if `nil`, a UUID will be generated.
+     - parameter observerMode: Optional. Sets SDK to Observer (Analytics) mode. Pass `true` if you handle product purchases with your own code, or `false` if you use the `Apphud.purchase(..)` method. The default value is `false`. This mode influences analytics and data collection behaviors.
+     - parameter callback: Optional. Called when the user is successfully registered in Apphud [or retrieved from cache]. Use this to fetch A/B experiment parameters from paywalls, such as `json` and `experimentName`.
      */
     @MainActor
-    @objc public static func start(apiKey: String, userID: String? = nil, observerMode: Bool = false, callback: (() -> Void)? = nil) {
+    public static func start(apiKey: String, userID: String? = nil, observerMode: Bool = false, callback: (([ApphudPaywall], [ApphudPlacement]) -> Void)? = nil) {
         ApphudInternal.shared.initialize(apiKey: apiKey, inputUserID: userID, observerMode: observerMode)
-        ApphudInternal.shared.performWhenUserRegistered { callback?() }
+        ApphudInternal.shared.performWhenUserRegistered { callback?(ApphudInternal.shared.paywalls, ApphudInternal.shared.placements) }
     }
 
     /**
@@ -103,17 +53,18 @@ final public class Apphud: NSObject {
     - parameter userID: Optional. You can provide your own unique user identifier. If `nil` passed then UUID will be generated instead.
     - parameter deviceID: Optional. You can provide your own unique device identifier. If `nil` passed then UUID will be generated instead.
     - parameter observerMode: Optional. Sets SDK to Observer (Analytics) mode. If you purchase products by your own code, then pass `true`. If you purchase products using `Apphud.purchase(product)` method, then pass `false`. Default value is `false`.
-    - parameter callback: Optional. Called when user is successfully registered in Apphud [or used from cache]. Callback can be used to fetch A/B experiment parameters from paywalls, like `json`,  `experimentName` or `variationName`.
+    - parameter callback: Optional. Called when user is successfully registered in Apphud [or used from cache]. Callback can be used to fetch A/B experiment parameters from paywalls, like `json` and  `experimentName`.
     */
     @MainActor
-    @objc public static func startManually(apiKey: String, userID: String? = nil, deviceID: String? = nil, observerMode: Bool = false, callback: (() -> Void)? = nil) {
+    public static func startManually(apiKey: String, userID: String? = nil, deviceID: String? = nil, observerMode: Bool = false, callback: (([ApphudPaywall], [ApphudPlacement]) -> Void)? = nil) {
         ApphudInternal.shared.initialize(apiKey: apiKey, inputUserID: userID, inputDeviceID: deviceID, observerMode: observerMode)
-        ApphudInternal.shared.performWhenUserRegistered { callback?() }
+        ApphudInternal.shared.performWhenUserRegistered { callback?(ApphudInternal.shared.paywalls, ApphudInternal.shared.placements) }
     }
 
     /**
-     Updates user ID value.
-     - parameter userID: Required. New user ID value.
+     Updates the user ID. Use this when you need to change the user identifier during the app's runtime.
+
+     - parameter userID: Required. The new user ID value.
      */
     @MainActor
     @objc public static func updateUserID(_ userID: String) {
@@ -121,45 +72,48 @@ final public class Apphud: NSObject {
     }
 
     /**
-     Returns current userID that identifies user across his multiple devices. 
-     
-     This value may change in runtime, see `apphudDidChangeUserID(_ userID : String)` delegate method for details.
+     Returns the current userID that identifies the user across multiple devices.
+
+     Note: This value may change during runtime. Observe the `apphudDidChangeUserID(_ userID: String)` delegate method for changes.
      */
     @objc public static func userID() -> String {
         return ApphudInternal.shared.currentUserID
     }
 
     /**
-     Returns current device ID. You should use it only if you want to implement custom logout/login flow by saving User ID & Device ID pair for each app user.
+     Returns the current device ID. Use this method if you need to implement a custom logout/login flow by saving a User ID & Device ID pair for each app user. This allows for a more controlled management of user sessions and device associations.
+
+     - Returns: A string representing the current device ID.
      */
     @objc public static func deviceID() -> String {
         return ApphudInternal.shared.currentDeviceID
     }
 
     /**
-     Logs out current user, clears all saved data and resets SDK to uninitialized state. You will need to call `Apphud.start()` or `Apphud.startManually()` again to initilize SDK with a new user.
+     Logs out the current user, clears all saved data, and resets the SDK to an uninitialized state. After calling this method, you must reinitialize the SDK with `Apphud.start(...)` or `Apphud.manually(...)` for a new user.
 
-     This might be useful if you have your custom logout/login flow and you want to take control of each logged-in user's subscription status.
+     This method is particularly useful in scenarios involving custom logout/login flows, allowing you to manage the subscription status of each user more effectively.
 
-     __Note__: If previous user had active subscription, the new logged-in user can still restore purchases on this device and both users will be merged under the previous paid one, because Apple ID is tied to a device.
+     __Note__: If the previous user had an active subscription, a new logged-in user can still restore purchases on the same device. In this case, both users will be merged under the account of the user with the active subscription, due to the Apple ID being tied to the device.
      */
-
     @MainActor
     @objc public static func logout() {
         ApphudInternal.shared.logout()
     }
 
     /**
-     Set a delegate.
-     - parameter delegate: Required. Any ApphudDelegate conformable object.
+     Sets a delegate for receiving Apphud SDK callbacks.
+
+     - parameter delegate: Required. An object conforming to the ApphudDelegate protocol. This delegate will receive various SDK events and state updates, enabling custom handling of subscription and user status changes.
      */
     public static func setDelegate(_ delegate: ApphudDelegate) {
         ApphudInternal.shared.delegate = delegate
     }
 
     /**
-     Set a UI delegate.
-     - parameter delegate: Required. Any ApphudUIDelegate conformable object.
+     Sets a UI delegate for handling UI-related interactions with the Apphud SDK.
+
+     - parameter delegate: Required. An object conforming to the ApphudUIDelegate protocol. This delegate is responsible for handling UI events and interactions that arise from the SDK, such as presenting subscription screens or handling user input.
      */
     @objc public static func setUIDelegate(_ delegate: ApphudUIDelegate) {
         ApphudInternal.shared.uiDelegate = delegate
@@ -168,28 +122,58 @@ final public class Apphud: NSObject {
     // MARK: - Placements
 
     /**
-     Asynchronous method which returns placements configured in Apphud Dashboard > Product Hub > Placements. Each placement contains `ApphudPaywall` object that you use for purchase. Method returns immediately if placements are already loaded.
-    */
-    public static func placements() async -> [ApphudPlacement]? {
+     Asynchronously retrieves the placements configured in Product Hub > Placements. The method takes into account the user's involvement in A/B testing, if applicable. Awaits until the inner `SKProduct`s are loaded from the App Store.
+
+     For immediate access without awaiting `SKProduct`s, use `ApphudDelegate`'s `userDidLoad` method or the callback in `Apphud.start(...)`.
+
+     - Returns: An array of `ApphudPlacement` objects, representing the configured placements.
+     */
+    public static func placements() async -> [ApphudPlacement] {
         await withCheckedContinuation { continuation in
-            ApphudInternal.shared.performWhenUserRegistered {
+            Apphud.paywallsDidLoadCallback { _ in
                 continuation.resume(returning: ApphudInternal.shared.placements)
             }
         }
     }
 
     /**
-     Asynchronous method which returns placement by its identifier configured in Apphud Dashboard > Product Hub > Placements. Each placement contains `ApphudPaywall` object that you use for purchase.. Method returns immediately if placements are already loaded.
-    */
+     Asynchronously retrieve a specific placement by identifier configured in Product Hub > Placements. The method takes into account the user's involvement in A/B testing, if applicable. Awaits until the inner `SKProduct`s are loaded from the App Store.
+
+     For immediate access without awaiting `SKProduct`s, use `ApphudDelegate`'s `userDidLoad` method or the callback in `Apphud.start(...)`.
+
+     - parameter identifier: The unique identifier for the desired placement.
+     - Returns: An optional `ApphudPlacement` object if found, or `nil` if no matching placement is found.
+     */
     public static func placement(_ identifier: String) async -> ApphudPlacement? {
-        await placements()?.first(where: { $0.identifier == identifier })
+        await placements().first(where: { $0.identifier == identifier })
+    }
+
+    /**
+     Retrieves the placements configured in Product Hub > Placements. The method takes into account the user's involvement in A/B testing, if applicable. Awaits until the inner `SKProduct`s are loaded from the App Store.
+
+     For immediate access without awaiting `SKProduct`s, use `ApphudDelegate`'s `userDidLoad` method or the callback in `Apphud.start(...)`.
+
+     - parameter callback: A closure that takes an array of `ApphudPlacement` objects and returns void.
+     */
+    public static func placementsDidLoadCallback(_ callback: @escaping ([ApphudPlacement]) -> Void) {
+        if ApphudInternal.shared.paywallsAreReady() {
+            callback(ApphudInternal.shared.placements)
+        } else {
+            Apphud.paywallsDidLoadCallback { _ in
+                callback(ApphudInternal.shared.placements)
+            }
+        }
     }
 
     // MARK: - Paywalls
 
     /**
-     Asynchronous method which returns paywalls configured in Apphud Dashboard > Product Hub > Paywalls. Each paywall contains an array of `ApphudProduct` objects that you use for purchase. `ApphudProduct` is Apphud's wrapper around StoreKit's `SKProduct`/ `Product` models. Method returns immediately if paywalls are already loaded.
-    */
+     Asynchronously retrieves the paywalls configured in Product Hub > Paywalls. The method takes into account the user's involvement in A/B testing, if applicable. Awaits until the inner `SKProduct`s are loaded from the App Store.
+
+     For immediate access without awaiting `SKProduct`s, use `ApphudDelegate`'s `userDidLoad` method or the callback in `Apphud.start(...)`.
+
+     - Returns: An array of `ApphudPaywall` objects, representing the configured paywalls.
+     */
     @objc public static func paywalls() async -> [ApphudPaywall] {
         await withCheckedContinuation { continuation in
             Apphud.paywallsDidLoadCallback { pwls in continuation.resume(returning: pwls) }
@@ -197,19 +181,24 @@ final public class Apphud: NSObject {
     }
 
     /**
-     Asynchronous method which returns a paywall for given identifier. Paywall contains an array of `ApphudProduct` objects that you use for purchase. `ApphudProduct` is Apphud's wrapper around StoreKit's `SKProduct`/ `Product` models. Method returns immediately if paywalls are already loaded.
-    */
+     Asynchronously retrieve a specific paywall by identifier configured in Product Hub > Paywalls. The method takes into account the user's involvement in A/B testing, if applicable. Awaits until the inner `SKProduct`s are loaded from the App Store.
+
+     For immediate access without awaiting `SKProduct`s, use `ApphudDelegate`'s `userDidLoad` method or the callback in `Apphud.start(...)`.
+
+     - parameter identifier: The unique identifier for the desired paywall.
+     - Returns: An optional `ApphudPaywall` object if found, or `nil` if no matching paywall is found.
+     */
     @objc public static func paywall(_ identifier: String) async -> ApphudPaywall? {
         await paywalls().first(where: { $0.identifier == identifier })
     }
 
     /**
-     Returns paywalls configured in Apphud Dashboard > Product Hub > Paywalls. Each paywall contains an array of `ApphudProduct` objects that you use for purchase.
-     `ApphudProduct` is Apphud's wrapper around `SKProduct`/ `Product` models. This is a duplicate for `paywallsDidFullyLoad` method of ApphudDelegate.
+     Retrieves the paywalls configured in Product Hub > Paywalls. The method takes into account the user's involvement in A/B testing, if applicable. Awaits until the inner `SKProduct`s are loaded from the App Store.
 
-     This callback is called when paywalls are populated with their `StoreKit` products. Callback is called immediately if paywalls are already loaded.
-     It is safe to call this method multiple times – previous callback will not be overwritten, but will be added to array and once paywalls are loaded, all callbacks will be called.
-    */
+     For immediate access without awaiting `SKProduct`s, use `ApphudDelegate`'s `userDidLoad` method or the callback in `Apphud.start(...)`.
+
+     - parameter callback: A closure that takes an array of `ApphudPaywall` objects and returns void.
+     */
     @objc public static func paywallsDidLoadCallback(_ callback: @escaping ([ApphudPaywall]) -> Void) {
         if ApphudInternal.shared.paywallsAreReady() {
             callback(ApphudInternal.shared.paywalls)
@@ -221,17 +210,17 @@ final public class Apphud: NSObject {
     }
 
     /**
-        If you want to use A/B experiments while running SDK in `Observer Mode` you should manually send paywall and placement identifiers to Apphud by using this method.
+     Notifies Apphud when a purchase process is initiated from a paywall in `Observer Mode`, enabling the use of A/B experiments. This method should be called right before executing your own purchase method, and it's specifically required only when the SDK is in Observer Mode.
 
-        - Important: You must call this method right before your own purchase method.
+     - Important: Call this method immediately before your custom purchase method in Observer Mode.
 
-        - parameter paywallIdentifier: Required. Your Paywall ID from Apphud Product Hub > Paywalls.
-        - parameter placementIdentifier: Optional. If using placements, pass Placement ID from Apphud Product Hub > Placements. Otherwise pass `nil`.
+     - parameter paywallIdentifier: Required. The Paywall ID from Apphud Product Hub > Paywalls.
+     - parameter placementIdentifier: Optional. The Placement ID from Apphud Product Hub > Placements if using placements; otherwise, pass `nil`.
 
-        Example:
+     Example usage:
      ```swift
-        Apphud.willPurchaseProductFromPaywall("main_paywall")
-        YourClass.purchase(someProduct)
+     Apphud.willPurchaseProductFrom(paywallIdentifier: "main_paywall", placementIdentifier: "some_placement")
+     YourClass.purchase(someProduct)
      ```
      */
     @objc public static func willPurchaseProductFrom(paywallIdentifier: String, placementIdentifier: String?) {
@@ -239,19 +228,19 @@ final public class Apphud: NSObject {
     }
 
     /**
-     Logs "Paywall Shown" event that will be used in Apphud Dashboard.
+    Logs a "Paywall Shown" event which is required for A/B Testing analytics.
 
-     - Note: For more information  - [Paywall Shown Event Documentation](https://docs.apphud.com/docs/events#paywall-shown)
-     */
+    - parameter paywall: The `ApphudPaywall` instance that was shown to the user.
+    */
     @objc public static func paywallShown(_ paywall: ApphudPaywall) {
         ApphudLoggerService.shared.paywallShown(paywallId: paywall.id, placementId: paywall.placementId)
     }
 
     /**
-     Logs "Paywall Closed" event that will be used in Apphud Dashboard.
+    Logs a "Paywall Closed" event which is required for A/B Testing analytics.
 
-     - Note: For more information  - [Paywall Closed Event Documentation](https://docs.apphud.com/docs/events#paywall-closed)
-     */
+    - parameter paywall: The `ApphudPaywall` instance that was shown to the user.
+    */
     @objc public static func paywallClosed(_ paywall: ApphudPaywall) {
         ApphudLoggerService.shared.paywallClosed(paywallId: paywall.id, placementId: paywall.placementId)
     }
@@ -263,21 +252,12 @@ final public class Apphud: NSObject {
 
     // MARK: - Products
     /**
-     Fetches SKProducts asynchronously from the App Store.
-     - returns: Array of `SKProduct` objects that you added in Apphud > Product Hub > Paywalls.
+     Fetches product structures (`Product` structs) asynchronously from the App Store. This method throws an error if there is a problem in fetching the products.
+
+     - Returns: An array of `Product` structs. Ensure that you have added the product identifiers in the Apphud dashboard (Apphud > Product Hub > Products) for this method to return valid results.
+
+     - Throws: An error if the products could not be fetched successfully.
      */
-    @objc public static func fetchSKProducts() async -> [SKProduct] {
-        await withCheckedContinuation { continuation in
-            Apphud.fetchProducts { prds, _ in continuation.resume(returning: prds) }
-        }
-    }
-
-    /**
-     Fetches Product structs asynchronously from the App Store. Throwable.
-
-     - returns: Array of `Product` structs. Note that you have to add product identifiers in Apphud > Product Hub > Paywalls.
-     */
-
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
     public static func fetchProducts() async throws -> [Product] {
         if ApphudAsyncStoreKit.shared.productsLoaded {
@@ -288,25 +268,34 @@ final public class Apphud: NSObject {
     }
 
     /**
-    Returns existing `SKProducts`array or fetches products added within Paywalls from the App Store. Note that you have to add all product identifiers in Apphud Dashboard > Product Hub > Paywalls.
+     Fetches `SKProduct` objects asynchronously from the App Store. This method is used to retrieve the products that you have configured in the Apphud dashboard (Apphud > Product Hub > Products).
 
-     - Important: Best practise is not to use this method, but implement paywalls logic by adding your paywall configuration in Apphud Dashboard > Product Hub > Paywalls.
-    */
-    @objc public static func fetchProducts(_ callback: @escaping ([SKProduct], Error?) -> Void) {
-        if ApphudStoreKitWrapper.shared.products.count > 0 && ApphudStoreKitWrapper.shared.didFetch {
-            callback(ApphudStoreKitWrapper.shared.products, nil)
-        } else {
-            ApphudInternal.shared.refreshStoreKitProductsWithCallback(callback: callback)
+     - Returns: An array of `SKProduct` objects corresponding to the products added in the Apphud > Product Hub > Products section.
+     */
+    @objc public static func fetchSKProducts() async -> [SKProduct] {
+        await withCheckedContinuation { continuation in
+            Apphud.fetchProducts { prds, _ in continuation.resume(returning: prds) }
         }
     }
 
     /**
-     Retrieves an array of `SKProduct` objects that were added in the Apphud dashboard (Apphud > Product Hub > Paywalls).
-     @returns: An array of `SKProduct` objects, or `nil` if products have not been fetched from the App Store.
+     Retrieves an array of existing `SKProduct` objects or fetches products from the App Store that have been added in the Apphud Dashboard under Product Hub > Products.
 
-     - Note: This method returns `nil` if the products have not yet been fetched from the App Store. To ensure proper functionality, configure Paywalls with their associated products. Without this configuration, this property will consistently return `nil`.
+     - parameter callback: A closure that is called upon completion. It returns an array of `SKProduct` objects and an optional `Error` if the fetch operation encountered any issues.
+     - Returns: The method doesn't return a value directly but instead provides the result through the `callback` parameter.
 
-     - Important: Best Practice: Instead of directly using this method, it's recommended to implement paywall logic through the Apphud Dashboard (Product Hub > Paywalls). By doing so, you can manage your paywalls more effectively and leverage Apphud's built-in functionalities for paywall management.
+     - Important: Best practice is to manage products using placements configurations in the Apphud Product Hub > Placements, rather than directly fetching products. Implementing placements logic via the dashboard allows for more organized and scalable management of your app's placements and paywalls.
+     */
+    @objc public static func fetchProducts(_ callback: @escaping ([SKProduct], Error?) -> Void) {
+        ApphudInternal.shared.refreshStoreKitProductsWithCallback(callback: callback)
+    }
+
+    /**
+     Retrieves an array of `SKProduct` objects that were added in the Apphud dashboard (Apphud > Product Hub > Products). This property returns `nil` if the products have not been fetched from the App Store yet.
+
+     - Note: This method returns `nil` if the products have not yet been fetched from the App Store. To ensure functionality, configure Product Hub in Apphud.
+
+     - Important: As a best practice, instead of using this method directly, implement your paywall logic through the Apphud Dashboard for more effective paywall management and to leverage Apphud's functionalities.
      */
     @objc(storeKitProducts)
     public static var products: [SKProduct]? {
@@ -318,20 +307,23 @@ final public class Apphud: NSObject {
     }
 
     /**
-     Returns `SKProduct` object by product identifier. Note that you have to add this product identifier in Apphud Dashboard > Product Hub > Paywalls.
+     Retrieves an `SKProduct` object based on its product identifier. This method is used to access product details for items you've added in the Apphud Dashboard under Product Hub > Products.
 
-     - Note: Will return `nil` if product is not yet fetched from the App Store.
+     - parameter productIdentifier: The unique identifier for the product. Ensure this identifier matches one added in the Apphud Dashboard.
+     - Returns: An optional `SKProduct` object corresponding to the provided identifier. Returns `nil` if the product has not been fetched from the App Store yet.
 
-     - Important: Best practise is not to use this method, but implement paywalls logic by adding your paywall configuration in Apphud Dashboard > Product Hub > Paywalls.
+     - Note: This method will return `nil` if the product associated with the given identifier has not yet been fetched from the App Store. Ensure that your product identifiers are correctly set up in the App Store Connect and Apphud Dashboard.
+     - Important: Best practice is to manage and retrieve products through placements configurations added in the Apphud Dashboard under Product Hub > Placements. Direct use of this method is discouraged in favor of a more structured approach to managing your app's placements and paywalls.
      */
     @objc public static func product(productIdentifier: String) -> SKProduct? {
         ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == productIdentifier})
     }
 
     /**
-     Returns corresponding `ApphudProduct` that matches `Product` struct, if found.
+     Retrieves the corresponding `ApphudProduct` for a given StoreKit 2 `Product` struct, if it exists.
 
-     - returns: `ApphudProduct` struct.
+     - parameter product: The `Product` struct from StoreKit 2.
+     - Returns: An optional `ApphudProduct` struct that matches the given `Product` struct.
      */
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
     public static func apphudProductFor(_ product: Product) -> ApphudProduct? {
@@ -339,9 +331,9 @@ final public class Apphud: NSObject {
     }
 
     /**
-     Permission groups configured in Apphud dashboard > Product Hub > Products. Note that this method may be empty at the first launch of the app until prloducts are loaded. Groups are cached on device.
+     Asynchronously fetches permission groups configured in the Apphud > Product Hub. Note that this method may return an empty array at the first app launch until products are loaded. Groups are cached on the device.
 
-     - Important:You should not use this method in Observer Mode as it may return incorrect data.
+     - Returns: An optional array of `ApphudGroup` objects, representing the permission groups.
      */
     @objc public static func permissionGroups() async -> [ApphudGroup]? {
         if let groups = ApphudInternal.shared.permissionGroups {
@@ -354,13 +346,11 @@ final public class Apphud: NSObject {
     // MARK: - Make Purchase
 
     /**
-     Initiates purchase of `ApphudProduct` object from your `ApphudPaywall` and automatically submits App Store Receipt to Apphud.
-     
-     - parameter product: Required. `ApphudProduct` object from your `ApphudPaywall`. You must first configure paywalls in Apphud Dashboard > Product Hub > Paywalls.
-     
-     - parameter callback: Optional. Returns `ApphudPurchaseResult` object.
-     
-     - Note: You are not required to purchase product using Apphud SDK methods. You can purchase subscription or any in-app purchase using your own code. App Store receipt will be sent to Apphud anyway.
+     Initiates the purchase of an `ApphudProduct` object from an `ApphudPaywall` and optionally from `ApphudPlacement` and automatically submits the App Store Receipt to Apphud.
+
+     - parameter product: Required. An `ApphudProduct` object from your `ApphudPaywall`. Configure placements and paywalls in Apphud Dashboard > Product Hub before using.
+     - parameter callback: Optional. Returns an `ApphudPurchaseResult` object.
+     - Note: You can purchase products using your own code; Apphud will still receive the App Store receipt.
      */
     @objc(purchaseApphudProduct:callback:)
     public static func purchase(_ product: ApphudProduct, callback: ((ApphudPurchaseResult) -> Void)?) {
@@ -368,15 +358,12 @@ final public class Apphud: NSObject {
     }
 
     /**
-     Deprecated. Purchase product by product identifier. Use this method if you don't use Apphud Paywalls logic.
-     
-     - parameter product: Required. Identifier of the product that user wants to purchase. If you don't use Apphud paywalls, you can use this purchase method.
-     
-     - parameter callback: Optional. Returns `ApphudPurchaseResult` object.
-     
-     - Note: A/B Experiments feature will not work if you purchase products by your own code or by using this method. If you want to use A/B experiments, you must use Apphud Paywalls and initiate purchase of  `ApphudProduct` object instead.
-     
-     - Important: Best practise is not to use this method, but implement paywalls logic by adding your paywall configuration in Apphud Dashboard > Product Hub > Paywalls.
+     Deprecated. Initiates the purchase of a product by its identifier. Use this method if you do not implement Apphud Placements logic.
+
+     - parameter productId: Required. The identifier of the product to purchase.
+     - parameter callback: Optional. Returns an `ApphudPurchaseResult` object.
+     - Note: A/B Experiments will not work with this method. Use `ApphudProduct` objects with Placements for A/B experiments.
+     - Important: Best practice is to use Apphud Placements configured in Apphud Dashboard > Product Hub > Placements.
      */
     @objc(purchaseById:callback:)
     public static func purchase(_ productId: String, callback: ((ApphudPurchaseResult) -> Void)?) {
@@ -384,13 +371,11 @@ final public class Apphud: NSObject {
     }
 
     /**
-     Initiates asynchronous purchase of `Product` struct and automatically submits transaction to Apphud. Keep in mind that A/B testing functionality will not work if purchase is made using this method. Please use `purchase(_ product: ApphudProduct)` instead, or call `willPurchaseProductFromPaywall(_ identifier: String)`.
+     Initiates an asynchronous purchase of a `Product` struct and submits the transaction to Apphud. A/B testing functionality is not supported with this method.
 
      - parameter product: Required. A `Product` struct from StoreKit 2.
-
-     - parameter isPurchasing: Optional. A binding to a Boolean value that determines whether the payment is currently in process. Can be used in SwiftUI.
-
-     - returns: `ApphudAsyncPurchaseResult` struct.
+     - parameter isPurchasing: Optional. A binding to a Boolean value indicating the purchase process status. Useful in SwiftUI.
+     - Returns: An `ApphudAsyncPurchaseResult` struct.
      */
     @MainActor
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
@@ -399,13 +384,11 @@ final public class Apphud: NSObject {
     }
 
     /**
-     Initiates asynchronous purchase of `ApphudProduct` object from your `ApphudPaywall` and automatically submits App Store Receipt to Apphud.
+     Initiates an asynchronous purchase of an `ApphudProduct` object from an `ApphudPaywall` and automatically submits the App Store Receipt to Apphud.
 
-     - parameter product: Required. `ApphudProduct` object from your `ApphudPaywall`. You must first configure paywalls in Apphud Dashboard > Product Hub > Paywalls.
-
-     - parameter isPurchasing: Optional. A binding to a Boolean value that determines whether the payment is currently in process. Can be used in SwiftUI.
-
-     - returns: `ApphudPurchaseResult` object.
+     - parameter product: Required. An `ApphudProduct` object from your `ApphudPaywall`. Configure placements and paywalls in Apphud Dashboard > Product Hub before using.
+     - parameter isPurchasing: Optional. A binding to a Boolean value indicating the purchase process status. Useful in SwiftUI.
+     - Returns: An `ApphudPurchaseResult` object.
      */
     @MainActor
     @available(iOS 13.0.0, macOS 11.0, watchOS 6.0, tvOS 13.0, *)
@@ -414,26 +397,13 @@ final public class Apphud: NSObject {
     }
 
     /**
-     Purchases product and automatically submits App Store Receipt to Apphud. This method doesn't wait until Apphud validates receipt from Apple and immediately returns transaction object. This method may be useful if you don't care about receipt validation in callback.
-     
-     - parameter productId: Required. Identifier of the product that user wants to purchase.
-     - parameter callback: Optional. Returns `ApphudPurchaseResult` object.
-     
-     - Note: When using this method properties `subscription` and `nonRenewingPurchase` in `ApphudPurchaseResult` will always be `nil` !
-     */
-    @objc(purchaseWithoutValidationById:callback:)
-    public static func purchaseWithoutValidation(_ productId: String, callback: ((ApphudPurchaseResult) -> Void)?) {
-        ApphudInternal.shared.purchase(productId: productId, product: nil, validate: false, callback: callback)
-    }
+     Purchases a subscription with a promotional offer and automatically submits the App Store Receipt to Apphud.
 
-    /**
-     Purchases subscription (promotional) offer and automatically submits App Store Receipt to Apphud.
+     - parameter apphudProduct: Required. An `ApphudProduct` object representing the subscription to be purchased.
+     - parameter discountID: Required. The identifier of the `SKProductDiscount` to be applied to the purchase.
+     - parameter callback: Optional. Returns an `ApphudPurchaseResult` object upon completion.
 
-     - parameter product: Required. This is an `SKProduct` object that user wants to purchase.
-     - parameter discountID: Required. This is a `SKProductDiscount` Identifier String object that you would like to apply.
-     - parameter callback: Optional. Returns `ApphudPurchaseResult` object.
-     
-     - Note: This method automatically sends in-app purchase receipt to Apphud, so you don't need to call `submitReceipt` method.
+     - Note: This method automatically sends the in-app purchase receipt to Apphud.
      */
     @objc public static func purchasePromo(apphudProduct: ApphudProduct, discountID: String, _ callback: ((ApphudPurchaseResult) -> Void)?) {
         ApphudInternal.shared.purchasePromo(skProduct: nil, apphudProduct: apphudProduct, discountID: discountID, callback: callback)
@@ -443,7 +413,9 @@ final public class Apphud: NSObject {
     }
 
     /**
-     Displays an offer code redemption sheet.
+     Presents the offer code redemption sheet on iOS 14 and later. This allows users to redeem offer codes provided by Apple.
+
+     - Available on iOS 14.0 and later.
      */
     @available(iOS 14.0, *)
     @objc public static func presentOfferCodeRedemptionSheet() {
@@ -451,7 +423,13 @@ final public class Apphud: NSObject {
     }
 
     /**
-     Experimental `purchase` method. Pass custom value for purchases.  Custom value will be sent to AppsFlyer and Facebook for value optimization. You can try to send your subscriptions LTV or ARPPU as custom value. Must be sent in USD. Contact support manager for details.
+     Experimental purchase method allowing the passing of a custom value for purchases. This custom value is sent to AppsFlyer and Facebook for value optimization, such as subscription Lifetime Value (LTV) or Average Revenue Per Paying User (ARPPU), in USD.
+
+     - parameter product: Required. An `ApphudProduct` object for the purchase.
+     - parameter value: Required. The custom value in USD to be sent for analytics.
+     - parameter callback: Optional. Returns an `ApphudPurchaseResult` object.
+
+     - Note: Contact your support manager for detailed guidance on using this method.
      */
     @objc(purchaseApphudProduct:value:callback:)
     public static func purchase(_ product: ApphudProduct, value: Double, callback: ((ApphudPurchaseResult) -> Void)?) {
@@ -459,9 +437,12 @@ final public class Apphud: NSObject {
     }
 
     /**
-     __Note: This method must be used only in Observer Mode__. If you make purchases with Apphud, use `purchase(_ product: ApphudProduct, value: Double, callback: ((ApphudPurchaseResult) -> Void)?)` method instead.
-     
-     Sets custom value (in USD) for purchases. You should call this method before starting a purchase. Custom value will be sent to AppsFlyer and Facebook for value optimization. You can try to send your subscriptions LTV or ARPPU as custom value. Must be sent in USD. Contact support manager for details.
+     Sets a custom value for purchases in Observer Mode. This value is sent to AppsFlyer and Facebook for value optimization, like subscriptions LTV or ARPPU, in USD. Call this method before starting a purchase.
+
+     - parameter value: Required. The custom value in USD.
+     - parameter productId: Required. The product identifier for which the custom value is set.
+     - Note: This method is intended for use only in Observer Mode. If you are making purchases with Apphud, use the `purchase(_:value:callback:)` method.
+     - Important: Contact your support manager for detailed guidance on using this method.
      */
     @objc public static func setCustomPurchaseValue(_ value: Double, productId: String) {
         ApphudStoreKitWrapper.shared.purchasingValue = ApphudCustomPurchaseValue(productId, value)
@@ -470,51 +451,48 @@ final public class Apphud: NSObject {
     // MARK: - Check Status
 
     /**
-     Returns `true` if user has active subscription or non renewing purchase (lifetime).
-     
-     Use this method to determine whether or not user has active premium access. If you have consumable purchases, this method won't operate correctly, because Apphud SDK doesn't differ consumables from non-consumables.
-     
-     - Important: You should not use this method if you have consumable in-app purchases, like coin packs.
+     Determines if the user has active premium access through a subscription or a non-renewing purchase (lifetime).
+
+     - Important: Do not use this method if you offer consumable in-app purchases (like coin packs) as the SDK does not differentiate consumables from non-consumables.
+     - Returns: `true` if the user has an active subscription or an active non-renewing purchase.
      */
     @objc public static func hasPremiumAccess() -> Bool {
         hasActiveSubscription() || (nonRenewingPurchases()?.first(where: { $0.isActive() }) != nil)
     }
 
     /**
-     Returns `true` if user has active subscription.
-     
-     Use this method to determine whether or not user has active premium subscription.
-     
-     - Important: Note that if you have lifetime (nonconsumable) or consumable purchases, you must use another ``Apphud/isNonRenewingPurchaseActive(productIdentifier:)`` method.
+     Checks if the user has an active premium subscription.
+
+     - Important: If your app includes lifetime (non-consumable) or consumable purchases, you should use the `Apphud.isNonRenewingPurchaseActive(productIdentifier:)` method to check their status.
+     - Returns: `true` if the user currently has an active subscription.
      */
     @objc public static func hasActiveSubscription() -> Bool {
         subscriptions()?.first(where: { $0.isActive() }) != nil
     }
 
     /**
-     This notification is called when any subscription or non-renewing purchase is purchased or updated. SDK also checks for purchase updates when app becomes active. Update your UI on any purchase changes. Also useful for SwiftUI.
-    */
+     Notification triggered when any subscription or non-renewing purchase is purchased or updated. The SDK also checks for updates when the app becomes active. This notification can be used to update the UI in response to purchase changes and is also useful in SwiftUI contexts.
+
+     - Returns: The notification name for subscription or non-renewing purchase updates.
+     */
     @objc public static func didUpdateNotification() -> Notification.Name {
         return Notification.Name("ApphudDidUpdateNotification")
     }
 
     /**
-     Returns subscription object that current user has ever purchased. Subscriptions are cached on device.
-     
-     You should check `Apphud.hasActiveSubscription()` method or `subscription.isActive()` value to determine whether or not to unlock premium functionality to the user.
-     
-     If you have more than one subscription group in your app, use `subscriptions()` method and get `isActive` value for your desired subscription.
-     
-     - Note: If returned object is not `nil`, it doesn't mean that subsription is active.
+     Retrieves the most recently purchased subscription object for the current user. Subscriptions are cached on the device.
+
+     - Note: A non-nil return value does not guarantee that the subscription is active. Use the `Apphud.hasActiveSubscription()` method or check the `isActive` property of the subscription to determine if premium functionality should be unlocked for the user.
+     - Returns: The most recent `ApphudSubscription` object if available, otherwise `nil`.
      */
     public static func subscription() -> ApphudSubscription? {
         return ApphudInternal.shared.currentUser?.subscriptions.first
     }
 
     /**
-     Returns an array of all subscriptions that this user has ever purchased. Subscriptions are cached on device.
-     
-     Use this method if you have more than one subsription group in your app.
+     Retrieves all subscriptions that the user has ever purchased. This method is useful if your app has more than one subscription group.
+
+     - Returns: An array of `ApphudSubscription` objects representing all subscriptions ever purchased by the user, or `nil` if the SDK is not initialized.
      */
     public static func subscriptions() -> [ApphudSubscription]? {
         guard ApphudInternal.shared.isInitialized else {
@@ -525,7 +503,9 @@ final public class Apphud: NSObject {
     }
 
     /**
-     Returns an array of all standard in-app purchases (consumables, nonconsumables or nonrenewing subscriptions) that this user has ever purchased. Purchases are cached on device. This array is sorted by purchase date. Apphud only tracks consumables if they were purchased after integrating Apphud SDK.
+     Retrieves all non-renewing purchases (consumables, non-consumables, or non-renewing subscriptions) made by the user. Purchases are cached on the device and sorted by purchase date. Note that Apphud only tracks consumables if they were purchased after integrating the Apphud SDK.
+
+     - Returns: An array of `ApphudNonRenewingPurchase` objects representing all standard in-app purchases made by the user, or `nil` if the SDK is not initialized.
      */
     public static func nonRenewingPurchases() -> [ApphudNonRenewingPurchase]? {
         guard ApphudInternal.shared.isInitialized else {
@@ -536,9 +516,10 @@ final public class Apphud: NSObject {
     }
 
     /**
-     Returns `true` if current user has purchased standard in-app purchase with given product identifier. Returns `false` if this product is refunded or never purchased. Includes consumables, nonconsumables or non-renewing subscriptions. Apphud only tracks consumables if they were purchased after integrating Apphud SDK.
-     
-     - Note: Purchases are sorted by purchase date, so it returns Bool value for the most recent purchase by given product identifier.
+     Checks if the user has an active non-renewing purchase with a specific product identifier. This includes consumables, non-consumables, or non-renewing subscriptions. Note that Apphud only tracks consumables if they were purchased after integrating the Apphud SDK.
+
+     - parameter productIdentifier: The product identifier for the in-app purchase to check.
+     - Returns: `true` if the user has an active purchase with the given product identifier; `false` if the product is refunded, never purchased, or inactive.
      */
     public static func isNonRenewingPurchaseActive(productIdentifier: String) -> Bool {
         nonRenewingPurchases()?.first(where: {$0.productId == productIdentifier})?.isActive() ?? false
@@ -547,9 +528,9 @@ final public class Apphud: NSObject {
     // MARK: - Restore Purchases
 
     /**
-     Restores user purchases asynchronously. You should call this method after user taps "Restore" button in your app.
+     Restores the user's purchases asynchronously. This method should be called when the user taps the "Restore" button in your app.
 
-     - returns: Optional error. If error is nil, then you can check premium status by using `Apphud.hasActiveSubscription()` or `Apphud.hasPremiumAccess()` methods.
+     - Returns: An optional `Error`. If the error is `nil`, you can check the user's premium status using the `Apphud.hasActiveSubscription()` or `Apphud.hasPremiumAccess()` methods.
      */
     @objc @discardableResult public static func restorePurchases() async -> Error? {
         return await withCheckedContinuation({ continunation in
@@ -560,11 +541,10 @@ final public class Apphud: NSObject {
     }
 
     /**
-     Implements `Restore Purchases` mechanism. Basically it just sends current App Store Receipt to Apphud and returns subscriptions info.
+     Implements the `Restore Purchases` mechanism. This method sends the current App Store Receipt to Apphud and returns information about the user's subscriptions and in-app purchases.
 
-     - parameter callback: Required. Returns array of subscription (or subscriptions in case you have more than one subscription group), array of standard in-app purchases and an error. All of three parameters are optional.
-
-     - Note: Even if callback returns some subscription, it doesn't mean that subscription is active. You should check `subscription.isActive()` value.
+     - parameter callback: Required. A closure that returns an array of `ApphudSubscription` objects, an array of `ApphudNonRenewingPurchase` objects, and an optional `Error`.
+     - Note: The presence of a subscription in the callback does not guarantee that it is active. You should check the `isActive()` property on each subscription.
      */
     public static func restorePurchases(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {
         ApphudInternal.shared.restorePurchases(callback: callback)
@@ -573,18 +553,18 @@ final public class Apphud: NSObject {
     // MARK: - Receipts
 
     /**
-     If you already have a live app with paying users and you want Apphud to track their purchases, you should import their App Store receipts into Apphud. Call this method at launch of your app for your paying users. This method should be used only to migrate existing paying users that are not yet tracked by Apphud.
+     Migrates existing purchases to Apphud. This method is intended for importing App Store receipts for users who are already paying but are not yet tracked by Apphud. It should be used only for migrating existing paying users at the launch of your app.
 
      Example:
 
      ```swift
-        // hasPurchases - is your own boolean value indicating that current user is paying user.
+        // hasPurchases - is your own boolean value indicating that the current user is a paying user.
         if hasPurchases {
             Apphud.migratePurchasesIfNeeded { _, _, _ in}
         }
      ```
-
-     - Note: You can remove this method after a some period of time, i.e. when you are sure that all paying users are already synced with Apphud.
+     Note: This method can be removed after a certain period, such as when you are confident that all paying users have been synced with Apphud.
+     Deprecated: No longer needed for iOS 15 and later, as purchases migrate automatically.
      */
     @available(iOS, deprecated: 15.0, message: "No longer needed for iOS 15+. Purchases migrate automatically.")
     public static func migratePurchasesIfNeeded(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {
@@ -599,29 +579,33 @@ final public class Apphud: NSObject {
     }
 
     /**
-     Returns base64 encoded App Store receipt string, if available.
-     */
+     Retrieves the base64-encoded App Store receipt string, if available.
+
+     - Returns: A base64-encoded string representing the App Store receipt, or nil if the receipt is not available.
+    */
     @objc public static func appStoreReceipt() -> String? {
         apphudReceiptDataString()
     }
 
     /**
-     Fetches raw receipt info in a wrapped `ApphudReceipt` model class. This might be useful to get `original_application_version` value.
-     */
+    Fetches raw receipt information in an ApphudReceipt model class. This is useful for accessing details like the original_application_version.
+
+    - parameter completion: A closure that is called with the ApphudReceipt object containing the receipt information.
+    */
     @objc public static func fetchRawReceiptInfo(_ completion: @escaping (ApphudReceipt?) -> Void) {
         ApphudReceipt.getRawReceipt(completion: completion)
     }
 
     // MARK: - Promotionals
     /**
-     You can grant free promotional subscription to user. Returns `true` in a callback if promotional was granted. After this `hasActiveSubscription()` method will return `true`.
+     Grants a free promotional subscription to the user. This method updates the user's subscription status, and after this, the `hasActiveSubscription()` method will return `true`.
 
-     - parameter daysCount: Required. Number of days of free premium usage. For lifetime promotionals just pass extremely high value, like 10000.
-     - parameter productId: Optional*. Recommended. Product Id of promotional subscription. See __Note__ message above for details.
-     - parameter permissionGroup: Optional*. Permission Group of promotional subscription. Use this parameter in case you have multiple permission groups. See __Note__ message above for details.
-     - parameter callback: Optional. Returns `true` if promotional subscription was granted.
+     - parameter daysCount: Required. The number of days for the free premium access. For a lifetime promotional, pass an extremely high value, like 100000.
+     - parameter productId: Optional*. It's recommended to provide the Product Id of the promotional subscription. Read the note below for more details.
+     - parameter permissionGroup: Optional*. The Permission Group of the promotional subscription. Use this parameter if you have multiple permission groups.
+     - parameter callback: Optional. Returns `true` if the promotional subscription was successfully granted.
 
-     - Note: You should pass either `productId` (recommended) or `permissionGroup` OR both parameters `nil`. Sending both `productId` and `permissionGroup` parameters will result in `productId` being used. Docs](https://docs.apphud.com/docs/product-hub)
+     - Note: Either `productId` (recommended) or `permissionGroup` should be passed, or both parameters can be `nil`. If both `productId` and `permissionGroup` are provided, `productId` will be used. [Documentation](https://docs.apphud.com/docs/product-hub)
      */
     @objc public static func grantPromotional(daysCount: Int, productId: String?, permissionGroup: ApphudGroup?, callback: ApphudBoolCallback?) {
         ApphudInternal.shared.grantPromotional(daysCount, permissionGroup, productId: productId, callback: callback)
@@ -630,43 +614,36 @@ final public class Apphud: NSObject {
     // MARK: - User Properties
 
     /**
-
-     Set custom user property. Value must be one of: `Int`, `Float`, `Double`, `Bool`, `String`, `NSNumber`, `NSString`, `NSNull`, `nil`.
+     Sets a custom user property in Apphud. The value assigned to this property must be of one of the following types: `Int`, `Float`, `Double`, `Bool`, `String`, `NSNumber`, `NSString`, `NSNull`, or `nil`.
 
      Example:
-     ```swift
-     // use built-in property key
-     Apphud.setUserProperty(key: .email, value: "user4@example.com", setOnce: true)
-     // use custom property key
-     Apphud.setUserProperty(key: .init("custom_test_property_1"), value: 0.5)
-     ```
-     #### You can use several built-in keys with their value types:
-     
-     `.email`: User email. Value must be String.
+     ````swift
+     Apphud.setUserProperty(key: .init("custom_prop_1"), value: 0.5)
+     ````
 
-     `.name`: User name. Value must be String.
+     There are several built-in keys provided by Apphud, each expecting a specific value type:
 
-     `.phone`: User phone number. Value must be String.
+     - `.email`: The user's email. The value must be a `String`.
+     - `.name`: The user's name. The value must be a `String`.
+     - `.phone`: The user's phone number. The value must be a `String`.
+     - `.age`: The user's age. The value must be an `Int`.
+     - `.gender`: The user's gender. The value must be a `String`, with accepted values being "male", "female", or "other".
+     - `.cohort`: The cohort the user belongs to, typically indicating when they installed the app. The value must be a `String`.
 
-     `.age`: User age. Value must be Int.
+     Parameters:
+     - `key`: Required. This can be initialized with a custom `String` or by using one of the built-in keys provided by Apphud.
+     - `value`: Required/Optional. The value to be set for the specified key. Pass `nil` or `NSNull` to remove the property from Apphud.
+     - `setOnce`: Optional. A Boolean value where passing `true` will make the property non-updatable, meaning it can only be set once.
 
-     `.gender`: User gender. Value must be one of: "male", "female", "other".
-
-     `.cohort`: User install cohort. Value must be String.
-
-     - parameter key: Required. Initialize class with custom string or using built-in keys. See example above.
-     - parameter value: Required/Optional. Pass `nil` or `NSNull` to remove given property from Apphud.
-     - parameter setOnce: Optional. Pass `true` to make this property non-updatable.
-
+     Note: Custom user properties are useful for segmenting your user base within Apphud for targeted analysis or marketing efforts. Ensure the values you set are accurate and relevant to your app's functionality and user experience.
      */
-
     @objc public static func setUserProperty(key: ApphudUserPropertyKey, value: Any?, setOnce: Bool = false) {
         ApphudInternal.shared.setUserProperty(key: key, value: value, setOnce: setOnce, increment: false)
     }
 
     /**
 
-    Increment custom user property. Value must be one of: `Int`, `Float`, `Double` or `NSNumber`.
+    Increments a custom user property. Value must be one of: `Int`, `Float`, `Double` or `NSNumber`.
 
     Example:
      ```swift
@@ -684,7 +661,9 @@ final public class Apphud: NSObject {
     // MARK: - Rules & Screens Methods
     #if os(iOS)
     /**
-     Presents Apphud screen that was delayed for presentation, i.e. `false` was returned in `apphudShouldShowScreen` delegate method.
+     Presents an Apphud Screen that was previously delayed for presentation. This is typically used in conjunction with the `apphudShouldShowScreen` delegate method, where returning `false` would delay the Screen's presentation.
+
+     - Note: Call this method to show a Screen that was delayed due to specific conditions or user actions in your app. This helps in managing the user experience more effectively, ensuring Screens are presented at the most appropriate time.
      */
     @MainActor
     @objc public static func showPendingScreen() {
@@ -692,14 +671,21 @@ final public class Apphud: NSObject {
     }
 
     /**
-        Screen view controller that is pending for presentation. This is the screen that is triggered by your pending Rule. You can use `showPendingScreen` method or present this controller manually.
+     Retrieves the view controller for the Screen that is pending presentation. This screen is usually triggered by a pending Rule in Apphud. You have the option to present this Screen manually or use the `showPendingScreen` method.
+
+     - Returns: An optional `UIViewController` representing the Screen that is pending for presentation. Returns `nil` if there is no Screen currently pending.
+     - Note: Use this method to retrieve the view controller for a delayed Screen if you need to present it manually or modify it before presentation.
      */
     @MainActor
     @objc public static func pendingScreenController() -> UIViewController? {
         return ApphudRulesManager.shared.pendingController
     }
+
     /**
-        Rule with a screen that was delayed for presentation.
+     Retrieves the Apphud Rule associated with a Screen that was delayed for presentation.
+
+     - Returns: An optional `ApphudRule` object representing the Rule that triggered the delayed Screen. Returns `nil` if there is no pending Rule.
+     - Note: This method is useful for understanding which Rule led to the delay of a Screen and can help in making decisions on when to present the Screen or take other actions.
      */
     @MainActor
     @objc public static func pendingRule() -> ApphudRule? {
@@ -709,30 +695,38 @@ final public class Apphud: NSObject {
     // MARK: - Push Notifications
 
     /**
-     Submit device push token to Apphud.
-     - parameter token: Push token in Data class.
-     - parameter callback: Returns true if successfully sent.
-    */
+     Submits the device's push token to Apphud. This is essential for enabling Apphud to send push notifications to the device.
+
+     - parameter token: The push token, provided as a Data object.
+     - parameter callback: An optional closure that returns `true` if the token was successfully sent to Apphud.
+
+     - Note: Ensure that the push token is obtained correctly from your app's notification setup process before submitting it to Apphud.
+     */
     @objc public static func submitPushNotificationsToken(token: Data, callback: ApphudBoolCallback?) {
         ApphudInternal.shared.submitPushNotificationsToken(token: token, callback: callback)
     }
 
     /**
-     Submit device push token to Apphud as String.
-     - parameter token: Push token as String object.
-     - parameter callback: Returns true if successfully sent.
-    */
+     Submits the device's push token to Apphud as a String. This method provides an alternative way to submit the token if you have it in a string format.
+
+     - parameter token: The push token as a String object.
+     - parameter callback: An optional closure that returns `true` if the token was successfully sent to Apphud.
+
+     - Note: Use this method if your push token is already converted into a String format. Ensure the token is accurate for successful submission.
+     */
     @objc public static func submitPushNotificationsTokenString(string: String, callback: ApphudBoolCallback?) {
         ApphudInternal.shared.submitPushNotificationsTokenString(string, callback: callback)
     }
 
-    /**
-     Handles push notification payload. Use this method to handle incoming Rules. Apphud handles only push notifications that were created by Apphud.
-     - parameter apsInfo: Payload of push notification.
-     
-     Returns `true` if push notification was successfully handled by Apphud.
-     */
     #if os(iOS)
+    /**
+     Handles an incoming push notification payload. This method is used to process Rules-related notifications created by Apphud.
+
+     - parameter apsInfo: The payload of the push notification.
+     - Returns: `true` if the push notification was successfully handled by Apphud.
+
+     - Note: This method should be used in your push notification handling logic to allow Apphud to manage notifications related to its Rules.
+     */
     @MainActor
     @discardableResult @objc public static func handlePushNotification(apsInfo: [AnyHashable: Any]) -> Bool {
         return ApphudRulesManager.shared.handleNotification(apsInfo)
@@ -741,18 +735,25 @@ final public class Apphud: NSObject {
     // MARK: - Attribution
 
     /**
-     Submit Advertising Identifier (IDFA) to Apphud. This is used to properly match user with attribution platforms (AppsFlyer, Facebook, etc.)
+     Submits the Advertising Identifier (IDFA) to Apphud. This identifier is used for accurately matching the user with attribution platforms like AppsFlyer, Facebook, etc.
+
+     - parameter idfa: The Advertising Identifier (IDFA) as a String.
+
+     - Note: Providing IDFA helps in enhancing the accuracy of attribution data, which is crucial for understanding marketing performance and user acquisition efforts.
      */
     @objc public static func setAdvertisingIdentifier(_ idfa: String) {
         ApphudInternal.shared.advertisingIdentifier = idfa
     }
 
     /**
-     Submit attribution data to Apphud from your attribution network provider.
-     - parameter data: Required. Attribution dictionary.
-     - parameter provider: Required. Attribution provider name. Available values: .appsFlyer. Will be added more soon.
-     - parameter identifier: Optional. Identifier that matches Apphud and Attrubution provider. Required for AppsFlyer. 
-     - parameter callback: Optional. Returns true if successfully sent.
+     Submits attribution data to Apphud from your chosen attribution network provider.
+
+     - parameter data: Required. The attribution data dictionary.
+     - parameter provider: Required. The name of the attribution provider. Currently supports `.appsFlyer` with more to be added soon.
+     - parameter identifier: Optional. An identifier that matches between Apphud and the Attribution provider. This is required for AppsFlyer.
+     - parameter callback: Optional. A closure that returns `true` if the data was successfully sent to Apphud.
+
+     - Note: Properly setting up attribution data is key for tracking and optimizing user acquisition strategies and measuring the ROI of marketing campaigns.
      */
     @objc public static func addAttribution(data: [AnyHashable: Any]?, from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ApphudBoolCallback?) {
         ApphudInternal.shared.addAttribution(data: data, from: provider, identifer: identifer, callback: callback)
@@ -761,16 +762,16 @@ final public class Apphud: NSObject {
     // MARK: - Eligibility Checks
 
     /**
-        Checks whether the given product is eligible for purchasing introductory offer (`free trial`, `pay as you go` or `pay up front` modes).
-     
-        New and returning customers are eligible for introductory offers including free trials as follows:
-     
-        * New subscribers are always eligible.
-     
-        * Lapsed subscribers who renew are eligible if they haven't previously used an introductory offer for the given product (or any product within the same subscription group).
-     
-        - parameter product: Required. This is an `SKProduct` object for which you want to check intro offers eligibility.
-        - parameter callback: Returns true if product is eligible for purchasing introductory offer.
+     Checks whether the given product is eligible for an introductory offer, which includes `free trial`, `pay as you go`, or `pay up front` options.
+
+     Eligibility criteria:
+     - New subscribers are always eligible.
+     - Lapsed subscribers who renew are eligible if they haven't previously used an introductory offer for the given product or any product within the same subscription group.
+
+     - parameter product: Required. The `SKProduct` object for which you want to check introductory offer eligibility.
+     - parameter callback: A closure that returns `true` if the product is eligible for an introductory offer.
+
+     - Note: This check is essential for offering introductory prices correctly according to Apple's guidelines.
      */
     @objc public static func checkEligibilityForIntroductoryOffer(product: SKProduct, callback: @escaping ApphudBoolCallback) {
         guard product.introductoryPrice != nil else {
@@ -784,14 +785,16 @@ final public class Apphud: NSObject {
     }
 
     /**
-        Checks whether the given product is eligible for purchasing any of it's promotional offers.
-     
-        Only customers who already purchased subscription are eligible for promotional offer for the given product (or any product within the same subscription group).
-        
-        - parameter product: Required. This is an `SKProduct` object for which you want to check promo offers eligibility.
-        - parameter callback: Returns true if product is eligible for purchasing promotional any of it's promotional offers.
-        */    
+     Checks whether the given product is eligible for any of its promotional offers.
 
+     Eligibility criteria:
+     - Only customers who have already purchased a subscription are eligible for promotional offers for the given product or any product within the same subscription group.
+
+     - parameter product: Required. The `SKProduct` object for which you want to check promotional offer eligibility.
+     - parameter callback: A closure that returns `true` if the product is eligible for any of its promotional offers.
+
+     - Note: Use this method to determine if a user can be offered a discount on a subscription renewal or upgrade.
+     */
     @objc public static func checkEligibilityForPromotionalOffer(product: SKProduct, callback: @escaping ApphudBoolCallback) {
         ApphudInternal.shared.checkEligibilitiesForPromotionalOffers(products: [product]) { result in
             callback(result[product.productIdentifier] ?? false)
@@ -799,21 +802,25 @@ final public class Apphud: NSObject {
     }
 
     /**
-     Checks promotional offers eligibility for multiple products at once.
-     
-     - parameter products: Required. This is an array of `SKProduct` objects for which you want to check promo offers eligibilities.
-     - parameter callback: Returns dictionary with product identifiers and boolean values.
-     */ 
+     Checks the eligibility for promotional offers for multiple products simultaneously.
+
+     - parameter products: Required. An array of `SKProduct` objects for which you want to check promotional offers eligibility.
+     - parameter callback: A closure that returns a dictionary with product identifiers as keys and boolean values indicating eligibility.
+
+     - Note: This method is useful for batch processing multiple products, especially when setting up a store or special offers section in your app.
+     */
     @objc public static func checkEligibilitiesForPromotionalOffers(products: [SKProduct], callback: @escaping ApphudEligibilityCallback) {
         ApphudInternal.shared.checkEligibilitiesForPromotionalOffers(products: products, callback: callback)
     }
 
     /**
-        Checks introductory offers eligibility for multiple products at once.
-     
-        - parameter products: Required. This is an array of `SKProduct` objects for which you want to check introductory offers eligibilities.
-        - parameter callback: Returns dictionary with product identifiers and boolean values.
-     */ 
+     Checks the eligibility for introductory offers for multiple products simultaneously.
+
+     - parameter products: Required. An array of `SKProduct` objects for which you want to check introductory offers eligibility.
+     - parameter callback: A closure that returns a dictionary with product identifiers as keys and boolean values indicating eligibility.
+
+     - Note: Use this method to efficiently determine introductory offer eligibility for a range of products, aiding in dynamic pricing and offer strategies.
+     */
     @objc public static func checkEligibilitiesForIntroductoryOffers(products: [SKProduct], callback: @escaping ApphudEligibilityCallback) {
         ApphudInternal.shared.checkEligibilitiesForIntroductoryOffers(products: products, callback: callback)
     }
@@ -821,21 +828,29 @@ final public class Apphud: NSObject {
     // MARK: - Other
 
     /**
-        Must be called before SDK initialization. If called, some user parameters like IDFA, IDFV, IP address will not be tracked by Apphud.
+     Opts the user out of tracking. This method should be called before SDK initialization. When called, it prevents the tracking of certain user parameters like IDFA, IDFV, and IP address by Apphud.
+
+     - Note: Consider the privacy implications and ensure compliance with relevant data protection regulations when opting users out of tracking.
      */
     @objc public static func optOutOfTracking() {
         ApphudUtils.shared.optOutOfTracking = true
     }
 
     /**
-        Enables debug logs. You should call this method before SDK initialization.
+     Enables debug logs for the Apphud SDK. This method should be called before initializing the SDK.
+
+     - Note: Debug logs are helpful for development and troubleshooting but should be disabled in production builds for performance and security reasons.
      */
     @objc public static func enableDebugLogs() {
         ApphudUtils.enableDebugLogs()
     }
 
     /**
-        Returns `true` if current build is running on sumulator or Debug/TestFlight modes. Returns `false` if current build is App Store build.
+     Determines if the current build is running in a sandbox environment, such as during development, testing, or TestFlight, as opposed to a production App Store build.
+
+     - Returns: `true` if the build is a sandbox (development, TestFlight) build; `false` if it's an App Store build.
+
+     - Note: Use this method to differentiate behavior or configurations between development/testing and production environments.
      */
     @objc public static func isSandbox() -> Bool {
         return apphudIsSandbox()

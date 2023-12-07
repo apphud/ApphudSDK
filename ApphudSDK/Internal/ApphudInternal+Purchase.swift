@@ -83,7 +83,7 @@ extension ApphudInternal {
             return await withCheckedContinuation { continuation in
                 performWhenUserRegistered {
                     apphudLog("Submitting transaction \(transactionId), \(productID) from StoreKit2..")
-                    
+
                     var trx = self.lastUploadedTransactions
                     trx.append(transactionId)
                     self.lastUploadedTransactions = trx
@@ -266,7 +266,7 @@ extension ApphudInternal {
         if let receipt = receiptString {
             params["receipt_data"] = receipt
         }
-        
+
         if let transactionID = transactionIdentifier {
             params["transaction_id"] = transactionID
         }
@@ -303,7 +303,7 @@ extension ApphudInternal {
             var paywall: ApphudPaywall?
 
             if observerModePurchasePlacementIdentifier != nil {
-                let placement = placements?.first(where: { $0.identifier == observerModePurchasePlacementIdentifier })
+                let placement = placements.first(where: { $0.identifier == observerModePurchasePlacementIdentifier })
                 if params["placement_id"] == nil && placement != nil {
                     params["placement_id"] = placement?.id
                 }
@@ -457,9 +457,11 @@ extension ApphudInternal {
         purchasingProduct = apphudProduct
 
         ApphudStoreKitWrapper.shared.purchase(product: product, value: value) { transaction, error in
-            if let error = error as? SKError {
-                ApphudLoggerService.shared.paywallPaymentCancelled(paywallId: apphudProduct?.paywallId, placementId: apphudProduct?.placementId, productId: product.productIdentifier, error)
+
+            if let error = error {
+                ApphudLoggerService.shared.paywallPaymentError(paywallId: apphudProduct?.paywallId, placementId: apphudProduct?.placementId, productId: product.productIdentifier, error: error.apphudErrorMessage())
             }
+
             if validate {
                 self.handleTransaction(product: product, transaction: transaction, error: error, apphudProduct: apphudProduct, callback: callback)
             } else {
@@ -474,9 +476,10 @@ extension ApphudInternal {
         purchasingProduct = product
 
         ApphudStoreKitWrapper.shared.purchase(product: skProduct, discount: discount) { transaction, error in
-            if let error = error as? SKError {
-                ApphudLoggerService.shared.paywallPaymentCancelled(paywallId: product?.paywallId, placementId: product?.placementId, productId: skProduct.productIdentifier, error)
+            if let error = error {
+                ApphudLoggerService.shared.paywallPaymentError(paywallId: product?.paywallId, placementId: product?.placementId, productId: skProduct.productIdentifier, error: error.apphudErrorMessage())
             }
+
             self.handleTransaction(product: skProduct, transaction: transaction, error: error, apphudProduct: product, callback: callback)
         }
     }

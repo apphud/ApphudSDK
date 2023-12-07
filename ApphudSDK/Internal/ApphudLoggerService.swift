@@ -33,34 +33,28 @@ class ApphudLoggerService {
     // MARK: - Paywalls logs
 
     internal func paywallShown(paywallId: String?, placementId: String?) {
-        ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_shown", "properties": ["paywall_id": paywallId, "placement_id": placementId].compactMapValues{ $0 } ])
+        ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_shown", "properties": ["paywall_id": paywallId, "placement_id": placementId].compactMapValues { $0 } ])
     }
 
     internal func paywallClosed(paywallId: String?, placementId: String?) {
-        ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_closed", "properties":  ["paywall_id": paywallId, "placement_id": placementId].compactMapValues{ $0 }])
+        ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_closed", "properties": ["paywall_id": paywallId, "placement_id": placementId].compactMapValues { $0 }])
     }
 
     internal func paywallCheckoutInitiated(paywallId: String?, placementId: String?, productId: String?) {
-        ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_checkout_initiated", "properties": ["paywall_id": paywallId, "placement_id": placementId, "product_id": productId].compactMapValues{ $0 } ])
+        ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_checkout_initiated", "properties": ["paywall_id": paywallId, "placement_id": placementId, "product_id": productId].compactMapValues { $0 } ])
     }
 
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
     internal func paywallPaymentCancelled(paywallId: String?, placementId: String?, product: Product) {
-        ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_payment_cancelled", "properties": ["paywall_id": paywallId, "placement_id": placementId, "product_id": product.id].compactMapValues{ $0 }])
+        paywallPaymentError(paywallId: paywallId, placementId: placementId, productId: product.id, error: "userCancelled")
     }
 
-    internal func paywallPaymentCancelled(paywallId: String?, placementId: String?, productId: String?, _ error: SKError?) {
+    internal func paywallPaymentError(paywallId: String?, placementId: String?, productId: String?, error: String) {
 
-        guard let error = error else {return}
-
-        if error.code == SKError.Code.paymentCancelled {
-            ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_payment_cancelled", "properties": ["paywall_id": paywallId, "placement_id": placementId, "product_id": productId ?? ""].compactMapValues{ $0 }])
+        if error == "userCancelled" || error == "paymentCancelled" {
+            ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_payment_cancelled", "properties": ["paywall_id": paywallId, "placement_id": placementId, "product_id": productId ?? ""].compactMapValues { $0 }])
         } else {
-
-            let underlying_error_code = (error as NSError?)?.apphudUnderlyingErrorCode ?? -1
-            let underlying_error_description = (error as NSError?)?.apphudUnderlyingErrorDescription
-
-            ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_payment_error", "properties": ["paywall_id": paywallId, "placement_id": placementId, "product_id": productId, "error_code": "\(error.code)", "underlying_error_code": "\(underlying_error_code)", "underlying_error_description": "\(underlying_error_description ?? "")"].compactMapValues{ $0 }])
+            ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_payment_error", "properties": ["paywall_id": paywallId, "placement_id": placementId, "product_id": productId, "error_message": error].compactMapValues { $0 }])
         }
     }
 

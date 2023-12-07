@@ -46,7 +46,7 @@ extension ApphudInternal {
     }
 
     internal func handleDidFetchAllProducts(storeKitProducts: [SKProduct], error: Error?) async {
-        self.performAllStoreKitProductsFetchedCallbacks()
+        await self.performAllStoreKitProductsFetchedCallbacks()
         await MainActor.run {
             self.updatePaywallsAndPlacements()
         }
@@ -134,7 +134,7 @@ extension ApphudInternal {
         if writeToCache {
             Task.detached(priority: .utility) {
                 self.cachePaywalls(paywalls: self.paywalls)
-                self.placements.map { self.cachePlacements(placements: $0) }
+                self.cachePlacements(placements: self.placements)
             }
         }
 
@@ -144,7 +144,6 @@ extension ApphudInternal {
             }
             didPreparePaywalls = true
         }
-
 
         if !ApphudStoreKitWrapper.shared.didFetch {
             Task.detached {
@@ -158,19 +157,17 @@ extension ApphudInternal {
             self.customPaywallsLoadedCallbacks.forEach { block in block(self.paywalls) }
             self.customPaywallsLoadedCallbacks.removeAll()
             self.delegate?.paywallsDidFullyLoad(paywalls: self.paywalls)
-            if let plmnts = self.placements {
-                self.delegate?.placementsDidFullyLoad(placements: plmnts)
-            }
+            self.delegate?.placementsDidFullyLoad(placements: self.placements)
         }
     }
 
     // MARK: - Product Groups Helper Methods
 
     internal var allAvailableProducts: [ApphudProduct] {
-        
+
         var products = [ApphudProduct]()
 
-        placements?.forEach({ placement in
+        placements.forEach({ placement in
             placement.paywall.map { products.append(contentsOf: $0.products) }
         })
 
@@ -208,7 +205,7 @@ extension ApphudInternal {
             paywall.update()
         }
 
-        placements?.forEach { placement in
+        placements.forEach { placement in
             placement.paywall?.update(placementId: placement.id)
         }
 

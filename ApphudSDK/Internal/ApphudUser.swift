@@ -126,8 +126,7 @@ internal struct ApphudUser: Codable {
         self.placements = placements
     }
 
-
-    //MARK: - INTERNAL AND LEGACY METHODS
+    // MARK: - INTERNAL AND LEGACY METHODS
 
     internal func subscriptionsStates() -> Set<String> {
         let states = subscriptions.map { $0.stateDescription }

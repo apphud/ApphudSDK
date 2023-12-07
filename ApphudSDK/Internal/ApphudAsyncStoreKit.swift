@@ -29,7 +29,6 @@ internal class ApphudAsyncStoreKit {
         return try await fetchProducts(ids, isLoadingAllAvailable: true)
     }
 
-
     func fetchProductIfNeeded(_ id: String) async throws {
         _ = try await fetchProduct(id, discardable: true)
     }
@@ -63,7 +62,7 @@ internal class ApphudAsyncStoreKit {
             if loadedProducts.count > 0 {
                 apphudLog("Successfully fetched Products from the App Store:\n \(loadedProducts.map { $0.id })")
             }
-            
+
             await productsStorage.append(loadedProducts)
 
             if isLoadingAllAvailable { productsLoaded = true }
@@ -116,6 +115,8 @@ internal class ApphudAsyncStoreKit {
             return ApphudInternal.shared.asyncPurchaseResult(product: product, transaction: transaction, error: nil)
 
         } catch {
+            ApphudLoggerService.shared.paywallPaymentError(paywallId: apphudProduct?.paywallId, placementId: apphudProduct?.placementId, productId: product.id, error: error.apphudErrorMessage())
+
             self.isPurchasing = false
             isPurchasing?.wrappedValue = false
             return ApphudInternal.shared.asyncPurchaseResult(product: product, transaction: nil, error: error)

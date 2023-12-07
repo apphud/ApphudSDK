@@ -10,7 +10,7 @@ import Foundation
 import StoreKit
 internal typealias ApphudCustomPurchaseValue = (productId: String, value: Double)
 internal typealias ApphudStoreKitProductsCallback = ([SKProduct], Error?) -> Void
-fileprivate typealias ApphudStoreKitFetcherCallback = ([SKProduct], Error?, ApphudProductsFetcher) -> Void
+private typealias ApphudStoreKitFetcherCallback = ([SKProduct], Error?, ApphudProductsFetcher) -> Void
 internal typealias ApphudTransactionCallback = (SKPaymentTransaction, Error?) -> Void
 
 public let _ApphudWillFinishTransactionNotification = Notification.Name(rawValue: "ApphudWillFinishTransactionNotification")
@@ -59,7 +59,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     }
 
     func restoreTransactions() {
-        
+
         Task { @MainActor in
             SKPaymentQueue.default().restoreCompletedTransactions()
         }
@@ -124,7 +124,6 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         if available.count == productIds.count {
             return available
         }
-
 
         return await withCheckedContinuation { continuation in
             fetchProducts(productIds: productIds) { products in

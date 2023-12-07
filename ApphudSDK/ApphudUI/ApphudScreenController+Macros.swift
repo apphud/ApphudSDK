@@ -61,7 +61,7 @@ extension ApphudScreenController {
                 .replacingOccurrences(of: " ", with: "")
 
             let components = filtered.components(separatedBy: "|||")
-            
+
             var dict = [String: String]()
             dict["macros"] = macros
             (components.first).map { dict["product_id"] = $0 }
