@@ -14,21 +14,20 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
 
-        ApphudUtils.enableAllLogs()
+//        Apphud.enableDebugLogs()
+        Apphud.start(apiKey: "app_4sY9cLggXpMDDQMmvc5wXUPGReMp8G")
 
-      Apphud.start(apiKey: "app_4sY9cLggXpMDDQMmvc5wXUPGReMp8G", observerMode: true)
+        /** Custom User Properties Examples */
+        Apphud.setUserProperty(key: .email, value: "user@example.com", setOnce: true)
+        Apphud.setUserProperty(key: .init("custom_prop_1"), value: 0.5)
+        Apphud.setUserProperty(key: .init("custom_prop_2"), value: true)
+        Apphud.incrementUserProperty(key: .init("coins_count"), by: 2)
+        Apphud.setDelegate(self)
+        Apphud.setUIDelegate(self)
 
-      /** Custom User Properties Examples */
-      Apphud.setUserProperty(key: .email, value: "user@example.com", setOnce: true)
-      Apphud.setUserProperty(key: .init("custom_prop_1"), value: 0.5)
-      Apphud.setUserProperty(key: .init("custom_prop_2"), value: true)
-      Apphud.incrementUserProperty(key: .init("coins_count"), by: 2)
-      Apphud.setDelegate(self)
-      Apphud.setUIDelegate(self)
+        registerForNotifications()
 
-      registerForNotifications()
-
-      return true
+        return true
     }
 
     func registerForNotifications() {

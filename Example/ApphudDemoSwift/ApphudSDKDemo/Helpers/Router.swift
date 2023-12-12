@@ -15,7 +15,6 @@ class Router: NSObject {
     func showRepeatPaywall(_ id: PaywallID, purchaseCallback: @escaping (Bool) -> Void, completion: @escaping () -> Void) {
         let storyBoard: UIStoryboard = UIStoryboard(name: "Main", bundle: nil)
         let paywallRepeatController = storyBoard.instantiateViewController(withIdentifier: "PaywallViewController") as! PaywallViewController
-        paywallRepeatController.paywallID = id
         paywallRepeatController.purchaseCallback = purchaseCallback
         paywallRepeatController.dismissCompletion = completion
         let nc = UINavigationController(rootViewController: paywallRepeatController)

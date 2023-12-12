@@ -13,11 +13,11 @@ import SwiftUI
 
 enum PaywallID: String {
     case main // should be equal to identifier in your Apphud > Paywalls
+    case onboarding
 }
 
 class PaywallViewController: UIViewController {
 
-    var paywallID: PaywallID!
     var dismissCompletion: (() -> Void)?
     var purchaseCallback: ((Bool) -> Void)? // callback style
 
@@ -51,23 +51,20 @@ class PaywallViewController: UIViewController {
     }
 
     private func loadPaywalls() async {
-        let paywalls = await Apphud.paywalls()
-        self.handlePaywallsReady(paywalls: paywalls)
+        let placements = await Apphud.placements()
+        let placement = placements.first(where: { $0.identifier == PaywallID.onboarding.rawValue }) ?? placements.first
+        if let paywall = placement?.paywall {
+            self.handlePaywallReady(paywall: paywall)
+        }
     }
 
-    private func handlePaywallsReady(paywalls: [ApphudPaywall]) {
-        // retrieve current paywall with identifier
-        self.paywall = paywalls.first(where: { $0.identifier == paywallID.rawValue })
-
-        if paywall == nil {
-            print("Couldn't find Paywall with Identifier: \(paywallID.rawValue)")
-        }
-
+    private func handlePaywallReady(paywall: ApphudPaywall) {
+        self.paywall = paywall
         // retrieve the products [ApphudProduct] from current paywall
-        self.products = self.paywall?.products ?? []
+        self.products = paywall.products
 
         // send Apphud log, that your paywall shown
-        self.paywall.map { Apphud.paywallShown($0) }
+        Apphud.paywallShown(paywall)
 
         // setup your UI
         self.updateUI()
