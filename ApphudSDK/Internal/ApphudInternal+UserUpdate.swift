@@ -72,7 +72,7 @@ extension ApphudInternal {
             if self.requiresReceiptSubmission {
                 self.submitAppStoreReceipt()
             }
-            return (true, 0)
+            return (self.currentUser != nil, 0)
         }
 
         let fields = initialCall ? ["user_id": self.currentUserID, "initial_call": true] : [:]

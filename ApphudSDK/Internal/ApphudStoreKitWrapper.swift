@@ -383,7 +383,7 @@ private class ApphudProductsFetcher: NSObject, SKProductsRequestDelegate, Identi
         productsRequest?.delegate = self
         productsRequest?.start()
 
-        apphudLog("Started Requesting Products: \(ids)", logLevel: .debug)
+        apphudLog("Fetcher [\(id.uuidString)] Started Requesting Products: \(ids)", logLevel: .debug)
     }
 
     public func productsRequest(_ request: SKProductsRequest, didReceive response: SKProductsResponse) {
@@ -392,7 +392,7 @@ private class ApphudProductsFetcher: NSObject, SKProductsRequestDelegate, Identi
             apphudLog("Failed to load SKProducts from the App Store, because product identifiers are invalid:\n \(response.invalidProductIdentifiers)\n\tFor more details visit: https://docs.apphud.com/docs/testing-troubleshooting#failed-to-load-skproducts-from-the-app-store-error", forceDisplay: true)
         }
         if response.products.count > 0 {
-            apphudLog("Successfully fetched SKProducts from the App Store:\n \(response.products.map { $0.productIdentifier })")
+            apphudLog("Fetcher [\(id.uuidString)] Successfully fetched SKProducts from the App Store:\n \(response.products.map { $0.productIdentifier })")
         }
         self.callback = nil
         self.productsRequest = nil

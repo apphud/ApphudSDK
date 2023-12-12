@@ -7,6 +7,9 @@
 
 import Foundation
 
+/**
+ A placement is a specific location within a user's journey (such as onboarding, settings, etc.) where its internal paywall is intended to be displayed.
+ */
 public class ApphudPlacement: Codable {
 
     /**
@@ -15,26 +18,16 @@ public class ApphudPlacement: Codable {
     public var identifier: String
 
     /**
-     Paywall associated with this Placement.
-     */
+     Represents the paywall linked with this specific Placement.
+
+     Returns `nil` if no paywalls are enabled in the placement configuration or if the user doesn't meet the audience criteria.
+    */
     public var paywall: ApphudPaywall? {
         paywalls.first
-    }
-
-    /**
-     Developer can create his own Placement in runtime as a fallback.
-     */
-    public init(identifier: String, paywall: ApphudPaywall) {
-        self.identifier = identifier
-        self.paywalls = [paywall]
-        self.id = identifier
     }
 
     /** For Internal Use
      */
     internal var paywalls: [ApphudPaywall]
-
-    /** For Internal Use
-     */
     internal var id: String
 }

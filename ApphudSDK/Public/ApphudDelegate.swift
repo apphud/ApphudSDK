@@ -73,13 +73,11 @@ public protocol ApphudDelegate {
     func handleDeferredTransaction(transaction: SKPaymentTransaction)
 
     /**
-     Called once per app lifecycle when the user is registered in Apphud or retrieved from cache. This method provides initial data about paywalls and placements.
+    Called once per app lifecycle when the user is registered in Apphud or retrieved from cache. The `user` parameter contains a record of all purchases tracked by Apphud and associated raw placements and paywalls for that user.
 
-     - parameter rawPaywalls: An array of `ApphudPaywall` objects. Note that `SKProduct` information may not be immediately available.
-     - parameter rawPlacements: An array of `ApphudPlacement` objects. Configure your placements in Apphud Product > Placements.
-     - Note: `ApphudPaywall` and `ApphudPlacement` are classes. When StoreKit products are loaded, they will appear in the same instances.
-     */
-    func userDidLoad(rawPaywalls: [ApphudPaywall], rawPlacements: [ApphudPlacement])
+    - parameter user: An instance of `ApphudUser` representing a user in Apphud.
+    */
+    func userDidLoad(user: ApphudUser)
 
     /**
      Called when paywalls are fully loaded with their associated `SKProducts`. This method serves a similar purpose to the `Apphud.paywallsDidLoadCallback {}` method.
@@ -106,7 +104,7 @@ public extension ApphudDelegate {
     func apphudShouldStartAppStoreDirectPurchase(_ product: SKProduct) -> ((ApphudPurchaseResult) -> Void)? { nil }
     func apphudDidObservePurchase(result: ApphudPurchaseResult) -> Bool { false }
     func handleDeferredTransaction(transaction: SKPaymentTransaction) {}
-    func userDidLoad(rawPaywalls: [ApphudPaywall], rawPlacements: [ApphudPlacement]) {}
+    func userDidLoad(user: ApphudUser) {}
     func paywallsDidFullyLoad(paywalls: [ApphudPaywall]) {}
     func placementsDidFullyLoad(placements: [ApphudPlacement]) {}
 }

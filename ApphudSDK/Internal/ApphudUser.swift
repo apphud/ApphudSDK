@@ -15,20 +15,54 @@ internal struct ApphudCurrency: Codable {
     let countryCodeAlpha3: String?
 }
 
-internal struct ApphudUser: Codable {
+public struct ApphudUser: Codable {
+
     /**
      Unique user identifier. This can be updated later.
      */
-    var userId: String
-    /**
-     An array of subscriptions that user has ever purchased.
-     */
-    var subscriptions: [ApphudSubscription]
-    var purchases: [ApphudNonRenewingPurchase]
-    var paywalls: [ApphudPaywall]?
-    var placements: [ApphudPlacement]?
+    public let userId: String
 
-    var currency: ApphudCurrency?
+    /**
+     An array of subscriptions of any statuses that user has ever purchased.
+     */
+    public let subscriptions: [ApphudSubscription]
+
+    /**
+     An array of non-renewing purchases of any statuses that user has ever purchased.
+     */
+    public let purchases: [ApphudNonRenewingPurchase]
+
+    /**
+    A list of paywall placements, potentially altered based on the user's involvement in A/B testing, if any. A placement is a specific location within a user's journey (such as onboarding, settings, etc.) where its internal paywall is intended to be displayed.
+
+     - Important: This function doesn't await until inner `SKProduct`s are loaded from the App Store. That means placements may or may not have inner StoreKit products at the time you call this function.
+
+    To get placements with awaiting for StoreKit products, use await Apphud.placements() or
+     Apphud.placementsDidLoadCallback(...) functions.
+
+    - Returns: An array of `ApphudPlacement` objects, representing the configured placements.
+    */
+    public func rawPlacements() -> [ApphudPlacement] {
+        ApphudInternal.shared.placements
+    }
+
+    /**
+    A list of paywalls, potentially altered based on the user's involvement in A/B testing, if any.
+
+    - Important: This function doesn't await until inner `SKProduct`s are loaded from the App Store. That means paywalls may or may not have inner StoreKit products at the time you call this function.
+
+    To get paywalls with awaiting for StoreKit products, use await Apphud.paywalls() or
+     Apphud.paywallsDidLoadCallback(...) functions.
+
+    - Returns: An array of `ApphudPaywall` objects, representing the configured paywalls.
+    */
+    func rawPaywalls() -> [ApphudPaywall] {
+        ApphudInternal.shared.paywalls
+    }
+
+    internal let paywalls: [ApphudPaywall]?
+    internal let placements: [ApphudPlacement]?
+    internal let currency: ApphudCurrency?
 
     // MARK: - Initializer Methods
 
@@ -44,7 +78,7 @@ internal struct ApphudUser: Codable {
         case swizzleDisabled
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         self.paywalls = try? values.decode([ApphudPaywall].self, forKey: .paywalls)
         self.placements = try? values.decode([ApphudPlacement].self, forKey: .placements)
@@ -52,24 +86,16 @@ internal struct ApphudUser: Codable {
 
         self.currency = try? values.decode(ApphudCurrency.self, forKey: .currency)
 
-        let subs = try? values.decodeIfPresent([ApphudSubscription].self, forKey: .autorenewables)
-        var purchs: [ApphudNonRenewingPurchase]?
-        do {
-            purchs = try values.decodeIfPresent([ApphudNonRenewingPurchase].self, forKey: .nonrenewables)
-        } catch {
-            apphudLog("purchases parse error: \(error)")
-        }
+        let parsedSubs = try? values.decodeIfPresent([ApphudSubscription].self, forKey: .autorenewables)
+        let parsedPurchs = try? values.decodeIfPresent([ApphudNonRenewingPurchase].self, forKey: .nonrenewables)
 
-        if subs != nil && purchs != nil {
-            self.subscriptions = subs!
-            self.purchases = purchs!
-        } else {
+        var subs = parsedSubs ?? []
+        var purchs = parsedPurchs ?? []
+
+        if parsedSubs == nil || parsedPurchs == nil {
 
             let swizzleDisabled = (try? values.decodeIfPresent(Bool.self, forKey: .swizzleDisabled)) ?? false
             UserDefaults.standard.set(swizzleDisabled, forKey: ApphudInternal.shared.swizzlePaymentDisabledKey)
-
-            self.subscriptions = []
-            self.purchases = []
 
             var IAPContainer = try values.nestedUnkeyedContainer(forKey: .subscriptions)
             while !IAPContainer.isAtEnd {
@@ -79,10 +105,10 @@ internal struct ApphudUser: Codable {
                     let kind = try item.decode(String.self, forKey: .kind)
                     if kind == ApphudIAPKind.autorenewable.rawValue {
                         let s = try ApphudSubscription(with: item)
-                        subscriptions.append(s)
+                        subs.append(s)
                     } else {
                         let p = try ApphudNonRenewingPurchase(with: item)
-                        purchases.append(p)
+                        purchs.append(p)
                     }
                 } catch {
                     apphudLog("IAPContainer Error: \(error)")
@@ -90,7 +116,7 @@ internal struct ApphudUser: Codable {
             }
         }
 
-        subscriptions.sort {
+        subs.sort {
             if ($0.isActive() && $1.isActive()) || (!$0.isActive() && !$1.isActive()) {
                 return $0.expiresDate > $1.expiresDate
             } else {
@@ -98,16 +124,19 @@ internal struct ApphudUser: Codable {
             }
         }
 
-        purchases.sort {
+        purchs.sort {
             if ($0.isActive() && $1.isActive()) || (!$0.isActive() && !$1.isActive()) {
                 return $0.purchasedAt > $1.purchasedAt
             } else {
                 return $0.isActive()
             }
         }
+
+        self.subscriptions = subs
+        self.purchases = purchs
     }
 
-    func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(userId, forKey: .userId)
         try? container.encode(paywalls, forKey: .paywalls)
@@ -124,6 +153,7 @@ internal struct ApphudUser: Codable {
         self.purchases = purchases
         self.paywalls = paywalls
         self.placements = placements
+        self.currency = nil
     }
 
     // MARK: - INTERNAL AND LEGACY METHODS

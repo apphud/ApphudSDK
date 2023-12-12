@@ -38,12 +38,12 @@ final public class Apphud: NSObject {
      - parameter apiKey: Required. Your API key.
      - parameter userID: Optional. Provide your own unique user identifier, or if `nil`, a UUID will be generated.
      - parameter observerMode: Optional. Sets SDK to Observer (Analytics) mode. Pass `true` if you handle product purchases with your own code, or `false` if you use the `Apphud.purchase(..)` method. The default value is `false`. This mode influences analytics and data collection behaviors.
-     - parameter callback: Optional. Called when the user is successfully registered in Apphud [or retrieved from cache]. Use this to fetch A/B experiment parameters from paywalls, such as `json` and `experimentName`.
+     - parameter callback: Optional. Called when the user is successfully registered in Apphud [or retrieved from cache]. Use this to fetch raw placements or paywalls.
      */
     @MainActor
-    public static func start(apiKey: String, userID: String? = nil, observerMode: Bool = false, callback: (([ApphudPaywall], [ApphudPlacement]) -> Void)? = nil) {
+    public static func start(apiKey: String, userID: String? = nil, observerMode: Bool = false, callback: ((ApphudUser) -> Void)? = nil) {
         ApphudInternal.shared.initialize(apiKey: apiKey, inputUserID: userID, observerMode: observerMode)
-        ApphudInternal.shared.performWhenUserRegistered { callback?(ApphudInternal.shared.paywalls, ApphudInternal.shared.placements) }
+        ApphudInternal.shared.performWhenUserRegistered { callback?(ApphudInternal.shared.currentUser!) }
     }
 
     /**
@@ -53,12 +53,12 @@ final public class Apphud: NSObject {
     - parameter userID: Optional. You can provide your own unique user identifier. If `nil` passed then UUID will be generated instead.
     - parameter deviceID: Optional. You can provide your own unique device identifier. If `nil` passed then UUID will be generated instead.
     - parameter observerMode: Optional. Sets SDK to Observer (Analytics) mode. If you purchase products by your own code, then pass `true`. If you purchase products using `Apphud.purchase(product)` method, then pass `false`. Default value is `false`.
-    - parameter callback: Optional. Called when user is successfully registered in Apphud [or used from cache]. Callback can be used to fetch A/B experiment parameters from paywalls, like `json` and  `experimentName`.
+    - parameter callback: Optional. Called when user is successfully registered in Apphud [or used from cache]. Use this to fetch raw placements or paywalls.
     */
     @MainActor
-    public static func startManually(apiKey: String, userID: String? = nil, deviceID: String? = nil, observerMode: Bool = false, callback: (([ApphudPaywall], [ApphudPlacement]) -> Void)? = nil) {
+    public static func startManually(apiKey: String, userID: String? = nil, deviceID: String? = nil, observerMode: Bool = false, callback: ((ApphudUser) -> Void)? = nil) {
         ApphudInternal.shared.initialize(apiKey: apiKey, inputUserID: userID, inputDeviceID: deviceID, observerMode: observerMode)
-        ApphudInternal.shared.performWhenUserRegistered { callback?(ApphudInternal.shared.paywalls, ApphudInternal.shared.placements) }
+        ApphudInternal.shared.performWhenUserRegistered { callback?(ApphudInternal.shared.currentUser!) }
     }
 
     /**
@@ -119,100 +119,141 @@ final public class Apphud: NSObject {
         ApphudInternal.shared.uiDelegate = delegate
     }
 
-    // MARK: - Placements
+    // MARK: - Placements & Paywalls
 
     /**
-     Asynchronously retrieves the placements configured in Product Hub > Placements. The method takes into account the user's involvement in A/B testing, if applicable. Awaits until the inner `SKProduct`s are loaded from the App Store.
+     Asynchronously retrieves the paywall placements configured in Product Hub > Placements, potentially altered based on the user's involvement in A/B testing, if any. Awaits until the inner `SKProduct`s are loaded from the App Store.
 
-     For immediate access without awaiting `SKProduct`s, use `ApphudDelegate`'s `userDidLoad` method or the callback in `Apphud.start(...)`.
+     A placement is a specific location within a user's journey (such as onboarding, settings, etc.) where its internal paywall is intended to be displayed.
+
+     For immediate access without awaiting `SKProduct`s, use `rawPlacements()` method.
 
      - Returns: An array of `ApphudPlacement` objects, representing the configured placements.
      */
+    @MainActor
     public static func placements() async -> [ApphudPlacement] {
         await withCheckedContinuation { continuation in
-            Apphud.paywallsDidLoadCallback { _ in
+            ApphudInternal.shared.performWhenOfferingsReady {
                 continuation.resume(returning: ApphudInternal.shared.placements)
             }
         }
     }
 
     /**
-     Asynchronously retrieve a specific placement by identifier configured in Product Hub > Placements. The method takes into account the user's involvement in A/B testing, if applicable. Awaits until the inner `SKProduct`s are loaded from the App Store.
+    A list of paywall placements, potentially altered based on the user's involvement in A/B testing, if any. A placement is a specific location within a user's journey (such as onboarding, settings, etc.) where its internal paywall is intended to be displayed.
+
+     - Important: This function doesn't await until inner `SKProduct`s are loaded from the App Store. That means placements may or may not have inner StoreKit products at the time you call this function.
+
+    To get placements with awaiting for StoreKit products, use await Apphud.placements() or
+     Apphud.placementsDidLoadCallback(...) functions.
+
+    - Returns: An array of `ApphudPlacement` objects, representing the configured placements.
+    */
+    public func rawPlacements() -> [ApphudPlacement] {
+        ApphudInternal.shared.placements
+    }
+
+    /**
+     Asynchronously retrieve a specific placement by identifier configured in Product Hub > Placements, potentially altered based on the user's involvement in A/B testing, if any. Awaits until the inner `SKProduct`s are loaded from the App Store.
+
+     A placement is a specific location within a user's journey (such as onboarding, settings, etc.) where its internal paywall is intended to be displayed.
 
      For immediate access without awaiting `SKProduct`s, use `ApphudDelegate`'s `userDidLoad` method or the callback in `Apphud.start(...)`.
 
      - parameter identifier: The unique identifier for the desired placement.
      - Returns: An optional `ApphudPlacement` object if found, or `nil` if no matching placement is found.
      */
+    @MainActor
     public static func placement(_ identifier: String) async -> ApphudPlacement? {
         await placements().first(where: { $0.identifier == identifier })
     }
 
     /**
-     Retrieves the placements configured in Product Hub > Placements. The method takes into account the user's involvement in A/B testing, if applicable. Awaits until the inner `SKProduct`s are loaded from the App Store.
+     Retrieves the placements configured in Product Hub > Placements, potentially altered based on the user's involvement in A/B testing, if any. Awaits until the inner `SKProduct`s are loaded from the App Store.
+
+     A placement is a specific location within a user's journey (such as onboarding, settings, etc.) where its internal paywall is intended to be displayed.
 
      For immediate access without awaiting `SKProduct`s, use `ApphudDelegate`'s `userDidLoad` method or the callback in `Apphud.start(...)`.
 
      - parameter callback: A closure that takes an array of `ApphudPlacement` objects and returns void.
      */
+    @MainActor
     public static func placementsDidLoadCallback(_ callback: @escaping ([ApphudPlacement]) -> Void) {
-        if ApphudInternal.shared.paywallsAreReady() {
+        ApphudInternal.shared.performWhenOfferingsReady {
             callback(ApphudInternal.shared.placements)
-        } else {
-            Apphud.paywallsDidLoadCallback { _ in
-                callback(ApphudInternal.shared.placements)
+        }
+    }
+
+    /**
+     Asynchronously retrieves the paywalls configured in Product Hub > Paywalls, potentially altered based on the user's involvement in A/B testing, if any. Awaits until the inner `SKProduct`s are loaded from the App Store.
+
+     For immediate access without awaiting `SKProduct`s, use `rawPaywalls()` method.
+
+     - Important: This is deprecated method. Retrieve paywalls from within placements instead. See documentation for details: https://docs.apphud.com/docs/placements
+
+     - Returns: An array of `ApphudPaywall` objects, representing the configured paywalls.
+     */
+    @available(*, deprecated, message: "Deprecated in favor of placements()")
+    @MainActor
+    @objc public static func paywalls() async -> [ApphudPaywall] {
+        await withCheckedContinuation { continuation in
+            ApphudInternal.shared.performWhenOfferingsReady {
+                continuation.resume(returning: ApphudInternal.shared.paywalls)
             }
         }
     }
 
-    // MARK: - Paywalls
-
     /**
-     Asynchronously retrieves the paywalls configured in Product Hub > Paywalls. The method takes into account the user's involvement in A/B testing, if applicable. Awaits until the inner `SKProduct`s are loaded from the App Store.
+    A list of paywalls, potentially altered based on the user's involvement in A/B testing, if any.
 
-     For immediate access without awaiting `SKProduct`s, use `ApphudDelegate`'s `userDidLoad` method or the callback in `Apphud.start(...)`.
+    - Important: This function doesn't await until inner `SKProduct`s are loaded from the App Store. That means paywalls may or may not have inner StoreKit products at the time you call this function.
 
-     - Returns: An array of `ApphudPaywall` objects, representing the configured paywalls.
-     */
-    @objc public static func paywalls() async -> [ApphudPaywall] {
-        await withCheckedContinuation { continuation in
-            Apphud.paywallsDidLoadCallback { pwls in continuation.resume(returning: pwls) }
-        }
+    To get paywalls with awaiting for StoreKit products, use await Apphud.paywalls() or
+     Apphud.paywallsDidLoadCallback(...) functions.
+
+    - Returns: An array of `ApphudPaywall` objects, representing the configured paywalls.
+    */
+    func rawPaywalls() -> [ApphudPaywall] {
+        ApphudInternal.shared.paywalls
     }
 
     /**
-     Asynchronously retrieve a specific paywall by identifier configured in Product Hub > Paywalls. The method takes into account the user's involvement in A/B testing, if applicable. Awaits until the inner `SKProduct`s are loaded from the App Store.
+     Asynchronously retrieve a specific paywall by identifier configured in Product Hub > Paywalls, potentially altered based on the user's involvement in A/B testing, if any. Awaits until the inner `SKProduct`s are loaded from the App Store.
 
      For immediate access without awaiting `SKProduct`s, use `ApphudDelegate`'s `userDidLoad` method or the callback in `Apphud.start(...)`.
+
+     - Important: This is deprecated method. Retrieve paywalls from within placements instead. See documentation for details: https://docs.apphud.com/docs/placements
 
      - parameter identifier: The unique identifier for the desired paywall.
      - Returns: An optional `ApphudPaywall` object if found, or `nil` if no matching paywall is found.
      */
+    @available(*, deprecated, message: "Deprecated in favor of placement(_ identifier: String)")
+    @MainActor
     @objc public static func paywall(_ identifier: String) async -> ApphudPaywall? {
         await paywalls().first(where: { $0.identifier == identifier })
     }
 
     /**
-     Retrieves the paywalls configured in Product Hub > Paywalls. The method takes into account the user's involvement in A/B testing, if applicable. Awaits until the inner `SKProduct`s are loaded from the App Store.
+     Retrieves the paywalls configured in Product Hub > Paywalls, potentially altered based on the user's involvement in A/B testing, if any. Awaits until the inner `SKProduct`s are loaded from the App Store.
 
      For immediate access without awaiting `SKProduct`s, use `ApphudDelegate`'s `userDidLoad` method or the callback in `Apphud.start(...)`.
 
+     - Important: This is deprecated method. Retrieve paywalls from within placements instead. See documentation for details: https://docs.apphud.com/docs/placements
+
      - parameter callback: A closure that takes an array of `ApphudPaywall` objects and returns void.
      */
+    @available(*, deprecated, message: "Deprecated in favor of placementsDidLoadCallback(...)")
+    @MainActor
     @objc public static func paywallsDidLoadCallback(_ callback: @escaping ([ApphudPaywall]) -> Void) {
-        if ApphudInternal.shared.paywallsAreReady() {
+        ApphudInternal.shared.performWhenOfferingsReady {
             callback(ApphudInternal.shared.paywalls)
-        } else {
-            DispatchQueue.main.async {
-                ApphudInternal.shared.customPaywallsLoadedCallbacks.append(callback)
-            }
         }
     }
 
     /**
      Notifies Apphud when a purchase process is initiated from a paywall in `Observer Mode`, enabling the use of A/B experiments. This method should be called right before executing your own purchase method, and it's specifically required only when the SDK is in Observer Mode.
 
-     - Important: Call this method immediately before your custom purchase method in Observer Mode.
+     - Important: Observer mode only. Call this method immediately before your custom purchase method.
 
      - parameter paywallIdentifier: Required. The Paywall ID from Apphud Product Hub > Paywalls.
      - parameter placementIdentifier: Optional. The Placement ID from Apphud Product Hub > Placements if using placements; otherwise, pass `nil`.
@@ -243,11 +284,6 @@ final public class Apphud: NSObject {
     */
     @objc public static func paywallClosed(_ paywall: ApphudPaywall) {
         ApphudLoggerService.shared.paywallClosed(paywallId: paywall.id, placementId: paywall.placementId)
-    }
-
-    @available(*, unavailable, renamed: "paywalls()")
-    public static var paywalls: [ApphudPaywall] {
-        []
     }
 
     // MARK: - Products

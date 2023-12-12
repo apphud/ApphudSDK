@@ -414,7 +414,8 @@ final class ApphudInternal: NSObject {
 
         let serverIsUnreachable = [NSURLErrorCannotConnectToHost, NSURLErrorTimedOut, 500, 502, 503].contains(errorCode)
         if serverIsUnreachable {
-            executeFallback()
+            // do not execute until placements are added to fallback
+//            executeFallback()
         }
 
         if retryImmediately.contains(errorCode) {
@@ -522,8 +523,10 @@ final class ApphudInternal: NSObject {
 
     internal func performAllUserRegisteredBlocks() {
         DispatchQueue.main.async {
-            for block in self.userRegisteredCallbacks {
-                block()
+            if self.currentUser != nil {
+                for block in self.userRegisteredCallbacks {
+                    block()
+                }
             }
             if self.userRegisteredCallbacks.count > 0 {
                 apphudLog("All scheduled blocks performed, removing..")

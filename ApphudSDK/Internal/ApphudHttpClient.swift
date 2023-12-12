@@ -112,7 +112,7 @@ public class ApphudHttpClient {
     }()
 
     private let GET_TIMEOUT: TimeInterval = 10.0
-    private let POST_CUSTOMERS_TIMEOUT: TimeInterval = 10.0
+    public var POST_CUSTOMERS_TIMEOUT: TimeInterval = 10.0
     private let POST_TIMEOUT: TimeInterval = 10.0
 
     internal func requestInstance(url: URL) -> URLRequest? {

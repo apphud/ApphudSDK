@@ -140,7 +140,9 @@ extension ApphudInternal {
 
         if !didPreparePaywalls {
             Task.detached { @MainActor in
-                self.delegate?.userDidLoad(rawPaywalls: self.paywalls, rawPlacements: self.placements)
+                self.currentUser.map {
+                    self.delegate?.userDidLoad(user: $0)
+                }
             }
             didPreparePaywalls = true
         }
@@ -158,6 +160,15 @@ extension ApphudInternal {
             self.customPaywallsLoadedCallbacks.removeAll()
             self.delegate?.paywallsDidFullyLoad(paywalls: self.paywalls)
             self.delegate?.placementsDidFullyLoad(placements: self.placements)
+        }
+    }
+
+    @MainActor
+    internal func performWhenOfferingsReady(callback: @escaping () -> Void) {
+        if ApphudInternal.shared.paywallsAreReady() {
+            callback()
+        } else {
+            ApphudInternal.shared.customPaywallsLoadedCallbacks.append { _ in callback() }
         }
     }
 
