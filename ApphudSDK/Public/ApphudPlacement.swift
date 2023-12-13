@@ -22,9 +22,12 @@ public class ApphudPlacement: Codable {
 
      Returns `nil` if no paywalls are enabled in the placement configuration or if the user doesn't meet the audience criteria.
     */
-    public var paywall: ApphudPaywall? {
-        paywalls.first
-    }
+    public var paywall: ApphudPaywall? { paywalls.first }
+
+    /**
+     A/B experiment name if it's paywall, if any.
+     */
+    public var experimentName: String? { paywall?.experimentName }
 
     /** For Internal Use
      */

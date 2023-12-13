@@ -56,7 +56,7 @@ extension ApphudInternal {
 
         // Task for the timeout
         Task {
-            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+            try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 seconds
             if !currencyTaskFinished {
                 completion()
             }

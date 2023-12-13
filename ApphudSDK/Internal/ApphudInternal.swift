@@ -414,8 +414,7 @@ final class ApphudInternal: NSObject {
 
         let serverIsUnreachable = [NSURLErrorCannotConnectToHost, NSURLErrorTimedOut, 500, 502, 503].contains(errorCode)
         if serverIsUnreachable {
-            // do not execute until placements are added to fallback
-//            executeFallback()
+            executeFallback()
         }
 
         if retryImmediately.contains(errorCode) {
