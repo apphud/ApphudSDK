@@ -185,6 +185,10 @@ extension ApphudInternal {
         params["need_placements"] = !didPreparePaywalls
         params["opt_out"] = ApphudUtils.shared.optOutOfTracking
 
+        if params["user_id"] == nil, let userId = currentUser?.userId {
+            params["user_id"] = userId
+        }
+
         if let currency = storefrontCurrency, (currentUser?.currency?.countryCode != currency.countryCode || currentUser?.currency?.countryCodeAlpha3 != currency.countryCodeAlpha3) {
 
             if currency.countryCodeAlpha3 != nil {
