@@ -66,7 +66,7 @@ extension ApphudInternal {
         for product in products {
             if (currentUser?.subscriptions.first(where: { $0.productId == product.productIdentifier })) != nil {
                 response[product.productIdentifier] = true
-            } else if #available(iOS 15, *) {
+            } else if #available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *) {
                 for await result in StoreKit.Transaction.currentEntitlements {
                     if case .verified(let transaction) = result {
                         let productStruct = try? await ApphudAsyncStoreKit.shared.fetchProduct(transaction.productID)
@@ -139,7 +139,7 @@ extension ApphudInternal {
         }
 
         for product in products {
-            if #available(iOS 15, *) {
+            if #available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *) {
                 if let productStruct = try? await ApphudAsyncStoreKit.shared.fetchProduct(product.productIdentifier), let sub = productStruct.subscription {
                     response[product.productIdentifier] = await sub.isEligibleForIntroOffer
                 }

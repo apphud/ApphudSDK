@@ -10,7 +10,7 @@ import StoreKit
 
 extension ApphudInternal {
     internal func fetchCurrencyIfNeeded() async {
-        if #available(iOS 15.0, macOS 12.0, *) {
+        if #available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *) {
             if currentUser?.currency?.countryCodeAlpha3 != nil {
                 Task.detached {
                     await self.fetchStorefrontCurrency()
@@ -25,7 +25,7 @@ extension ApphudInternal {
         }
     }
 
-    @available(iOS 15.0, *)
+    @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
     private func fetchStorefrontCurrency() async {
         await withCheckedContinuation { continuation in
             fetchCurrencyWithMaxTimeout {
@@ -37,7 +37,7 @@ extension ApphudInternal {
         }
     }
 
-    @available(iOS 15.0, macOS 12.0, *)
+    @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
     private func fetchCurrencyWithMaxTimeout(_ completion: @escaping () -> Void) {
 
         Task {

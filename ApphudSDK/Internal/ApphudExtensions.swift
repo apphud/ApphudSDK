@@ -670,7 +670,7 @@ extension SKProduct {
 
 extension Error {
     func apphudErrorMessage() -> String {
-        if #available(iOS 15.0, macOS 12.0, *), let storeKitError = self as? StoreKitError {
+        if #available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *), let storeKitError = self as? StoreKitError {
             switch storeKitError {
             case .unknown:
                 return "unknown"
@@ -687,7 +687,7 @@ extension Error {
             @unknown default:
                 return "unknown"
             }
-        } else if #available(iOS 15.0, macOS 12.0, *), let purchaseError = self as? Product.PurchaseError {
+        } else if #available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *), let purchaseError = self as? Product.PurchaseError {
             switch purchaseError {
             case .ineligibleForOffer:
                 return "ineligibleForOffer"
