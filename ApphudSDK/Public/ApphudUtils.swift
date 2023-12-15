@@ -30,11 +30,16 @@ public class ApphudUtils: NSObject {
         shared.logLevel = .all
     }
 
+    // Should not be used directly by developer
+    @objc public class func useStoreKitV2() {
+        shared.useStoreKitV2 = true
+    }
+
     internal static let shared = ApphudUtils()
     private(set) var logLevel: ApphudLogLevel = .off
     internal var storeKitObserverMode = false
     internal var optOutOfTracking = false
-
+    private(set) var useStoreKitV2 = false
     internal var isFlutter: Bool {
         ApphudHttpClient.shared.sdkType.lowercased() == "flutter"
     }

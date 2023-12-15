@@ -5,9 +5,6 @@
 //  Created by Renat Kurbanov on 29.04.2021.
 //
 
-#if canImport(UIKit)
-import UIKit
-#endif
 import Foundation
 
 /**
@@ -22,14 +19,14 @@ public class ApphudGroup: NSObject, Codable {
     public var name: String
 
     /**
-     Products that belong to this permission group.
+     You should not operate with products from ApphudGroup directly. Use Paywalls or Paywalls within Placements.
+     @returns Products that belong to this permission group.
      */
     public var products: [ApphudProduct]
 
     /**
      Returns `true` if this permission group has active subscription. Keep in mind, that this method doesn't take into account non-renewing purchases.
      */
-
     public var hasAccess: Bool {
 
         for subscription in ApphudInternal.shared.currentUser?.subscriptions ?? [] {

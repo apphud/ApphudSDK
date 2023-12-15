@@ -7,13 +7,11 @@
 //
 
 import Foundation
-#if canImport(UIKit)
-import UIKit
-#endif
+import StoreKit
 
 extension ApphudInternal {
 
-    @discardableResult internal func parseUser(data: Data?) -> HasPurchasesChanges {
+    @discardableResult internal func parseUser(data: Data?) async -> HasPurchasesChanges {
 
         guard let data = data else {
             return (false, false)
@@ -33,7 +31,7 @@ extension ApphudInternal {
         }
 
         if let pwls = currentUser?.paywalls {
-            self.preparePaywalls(pwls: pwls, writeToCache: true, completionBlock: nil)
+            await preparePaywalls(pwls: pwls, writeToCache: true, completionBlock: nil)
         } else {
             didPreparePaywalls = true
         }
@@ -43,7 +41,9 @@ extension ApphudInternal {
 
         currentUser?.toCacheV2()
 
-        checkUserID(tellDelegate: true)
+        Task { @MainActor in
+            checkUserID(tellDelegate: true)
+        }
 
         /**
          If user previously didn't have subscriptions or subscriptions states don't match, or subscription product identifiers don't match
@@ -53,7 +53,7 @@ extension ApphudInternal {
         return (hasSubscriptionChanges, hasPurchasesChanges)
     }
 
-    private func checkUserID(tellDelegate: Bool) {
+    @MainActor private func checkUserID(tellDelegate: Bool) {
         guard let userID = self.currentUser?.userId else {return}
         if self.currentUserID != userID {
             self.currentUserID = userID
@@ -64,65 +64,52 @@ extension ApphudInternal {
         }
     }
 
-    internal func createOrGetUser(shouldUpdateUserID: Bool, skipRegistration: Bool = false, delay: Double = 0, callback: @escaping (Bool, Int) -> Void) {
+    @MainActor
+    internal func createOrGetUser(initialCall: Bool, skipRegistration: Bool = false, delay: Double = 0) async -> (Bool, Int) {
         if skipRegistration {
             apphudLog("Loading user from cache, because cache is not expired.")
-            self.preparePaywalls(pwls: self.paywalls, writeToCache: false, completionBlock: nil)
+            preparePaywalls(pwls: self.paywalls, writeToCache: false, completionBlock: nil)
             if self.requiresReceiptSubmission {
                 self.submitAppStoreReceipt()
             }
-            callback(true, 0)
-            return
+            return (self.currentUser != nil, 0)
         }
 
-        let needLogging = shouldUpdateUserID
-        let fields = shouldUpdateUserID ? ["user_id": self.currentUserID] : [:]
+        let fields = initialCall ? ["user_id": self.currentUserID, "initial_call": true] : [:]
 
-        self.updateUser(fields: fields, delay: delay) { (result, response, data, error, code, duration) in
+        return await withCheckedContinuation { continuation in
+            updateUser(fields: fields, delay: delay) { (result, _, data, error, code, duration) in
 
-            let hasChanges = self.parseUser(data: data)
+                Task {
+                    let hasChanges = await self.parseUser(data: data)
 
-            let finalResult = result && self.currentUser != nil
+                    let finalResult = result && self.currentUser != nil
 
-            if finalResult {
-                ApphudLoggerService.lastUserUpdatedAt = Date()
+                    if finalResult {
+                        ApphudLoggerService.lastUserUpdatedAt = Date()
 
-                if needLogging {
-                    ApphudLoggerService.shared.add(key: .customers, value: duration, retryLog: self.userRegisterRetries)
+                        if initialCall {
+                            ApphudLoggerService.shared.add(key: .customers, value: duration, retryLog: self.userRegisterRetries)
+                        }
+
+                        self.notifyAboutUpdates(hasChanges)
+
+                        if self.requiresReceiptSubmission {
+                            self.submitAppStoreReceipt()
+                        }
+                    }
+
+                    if error != nil {
+                        apphudLog("Failed to register or get user, error:\(error!.localizedDescription)", forceDisplay: true)
+                    }
+
+                    continuation.resume(returning: (finalResult, code))
                 }
-
-                self.notifyAboutUpdates(hasChanges)
-
-                if self.requiresReceiptSubmission {
-                    self.submitAppStoreReceipt()
-                }
-            }
-
-            if error != nil {
-                apphudLog("Failed to register or get user, error:\(error!.localizedDescription)", forceDisplay: true)
-            }
-
-            callback(finalResult, code)
-        }
-    }
-
-    internal func updateUserCurrencyIfNeeded(priceLocale: Locale?) {
-        guard let priceLocale = priceLocale else { return }
-        guard let countryCode = priceLocale.regionCode else { return }
-        guard let currencyCode = priceLocale.currencyCode else { return }
-        guard self.currentUser != nil else { return }
-
-        if countryCode == self.currentUser?.currency?.countryCode && currencyCode == self.currentUser?.currency?.code {return}
-
-        let params: [String: String] = ["country_code": countryCode, "currency_code": currencyCode]
-
-        updateUser(fields: params, delay: 2.0) { (result, _, data, _, _, _) in
-            if result {
-                self.parseUser(data: data)
             }
         }
     }
 
+    @MainActor
     internal func updateUserID(userID: String) {
 
         guard self.currentUserID != userID else {
@@ -131,10 +118,11 @@ extension ApphudInternal {
         }
 
         let exist = performWhenUserRegistered {
-
             self.updateUser(fields: ["user_id": userID]) { (result, _, data, _, _, _) in
                 if result {
-                    self.parseUser(data: data)
+                    Task {
+                        await self.parseUser(data: data)
+                    }
                 }
             }
         }
@@ -147,8 +135,10 @@ extension ApphudInternal {
         performWhenUserRegistered {
             self.grantPromotional(duration, permissionGroup, productId: productId) { (result, _, data, _, _, _) in
                 if result {
-                    let hasChanges = self.parseUser(data: data)
-                    self.notifyAboutUpdates(hasChanges)
+                    Task {
+                        let hasChanges = await self.parseUser(data: data)
+                        await self.notifyAboutUpdates(hasChanges)
+                    }
                 }
                 callback?(result)
             }
@@ -170,9 +160,10 @@ extension ApphudInternal {
         httpClient?.startRequest(path: .promotions, params: params, method: .post, callback: callback)
     }
 
+    @MainActor
     private func updateUser(fields: [String: Any], delay: Double = 0, callback: @escaping ApphudHTTPResponseCallback) {
-        setNeedsToUpdateUser = false
 
+        //  Requires @MainActor since it collects data from UIDevice
         #if os(macOS)
         var params = apphudCurrentDeviceMacParameters() as [String: Any]
         #elseif os(watchOS)
@@ -191,13 +182,34 @@ extension ApphudInternal {
         params["is_debug"] = apphudIsSandbox()
         params["is_new"] = isFreshInstall && currentUser == nil
         params["need_paywalls"] = !didPreparePaywalls
+        params["need_placements"] = !didPreparePaywalls
         params["opt_out"] = ApphudUtils.shared.optOutOfTracking
+
+        if params["user_id"] == nil, let userId = currentUser?.userId {
+            params["user_id"] = userId
+        }
+
+        if let currency = storefrontCurrency, (currentUser?.currency?.countryCode != currency.countryCode || currentUser?.currency?.countryCodeAlpha3 != currency.countryCodeAlpha3) {
+
+            if currency.countryCodeAlpha3 != nil {
+                params["store_id"] = currency.storeId
+                params["country_code_alpha3"] = currency.countryCodeAlpha3
+            } else {
+                params["country_code"] = currency.countryCode
+                params["currency_code"] = currency.code
+            }
+        }
+
+        // retry on http level only if setNeedsToUpdateUser = true, otherwise let retry on initial launch level
+        let needsHTTPLevelRetries = params["initial_call"] == nil
+        setNeedsToUpdateUser = false
+
         appInstallationDate.map { params["first_seen"] = $0 }
         Bundle.main.bundleIdentifier.map { params["bundle_id"] = $0 }
         // do not automatically pass currentUserID here,because we have separate method updateUserID
 
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [self] in
-            httpClient?.startRequest(path: .customers, params: params, method: .post, useDecoder: true) { done, response, data, error, errorCode, duration in
+            httpClient?.startRequest(path: .customers, params: params, method: .post, useDecoder: true, retry: needsHTTPLevelRetries) { done, response, data, error, errorCode, duration in
                 if  errorCode == 403 {
                     apphudLog("Unable to perform API requests, because your account has been suspended.", forceDisplay: true)
                     ApphudHttpClient.shared.unauthorized = true
@@ -213,11 +225,12 @@ extension ApphudInternal {
     }
 
     @objc internal func updateCurrentUser() {
-        createOrGetUser(shouldUpdateUserID: false) { _, _ in
-            self.lastCheckDate = Date()
+        Task.detached(priority: .userInitiated) {
+            await self.createOrGetUser(initialCall: false)
         }
     }
 
+    @MainActor
     func notifyAboutUpdates(_ hasChanges: HasPurchasesChanges) {
         if hasChanges.hasSubscriptionChanges {
             self.delegate?.apphudSubscriptionsUpdated(self.currentUser!.subscriptions)
@@ -346,10 +359,11 @@ extension ApphudInternal {
             }
         }
 
-        httpClient?.startRequest(path: .properties, params: params, method: .post) { (result, _, _, error, code, _) in
+        self.pendingUserProperties.removeAll()
+
+        httpClient?.startRequest(path: .properties, params: params, method: .post, retry: true) { (result, _, _, error, code, _) in
             if result {
                 if canSaveToCache { self.userPropertiesCache = properties }
-                self.pendingUserProperties.removeAll()
                 apphudLog("User Properties successfully updated.")
             } else {
                 apphudLog("User Properties update failed: \(error?.localizedDescription ?? "") with code: \(code)")
@@ -357,9 +371,9 @@ extension ApphudInternal {
         }
     }
 
-    private var userPropertiesCache: [[String: Any?]]? {
+    internal var userPropertiesCache: [[String: Any?]]? {
         get {
-            let cache = apphudDataFromCache(key: "ApphudUserPropertiesCache", cacheTimeout: 86_400*7)
+            let cache = apphudDataFromCache(key: ApphudUserPropertiesCacheKey, cacheTimeout: 86_400*7)
             if let data = cache.objectsData, !cache.expired,
                 let object = try? JSONSerialization.jsonObject(with: data, options: []) as? [[String: Any?]] {
                 return object
@@ -369,7 +383,9 @@ extension ApphudInternal {
         }
         set {
             if newValue != nil, let data = try? JSONSerialization.data(withJSONObject: newValue!, options: .prettyPrinted) {
-                apphudDataToCache(data: data, key: "ApphudUserPropertiesCache")
+                apphudDataToCache(data: data, key: ApphudUserPropertiesCacheKey)
+            } else if newValue == nil {
+                apphudDataClearCache(key: ApphudUserPropertiesCacheKey)
             }
         }
     }

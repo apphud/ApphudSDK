@@ -10,6 +10,7 @@ import Foundation
 import StoreKit
 internal typealias ApphudCustomPurchaseValue = (productId: String, value: Double)
 internal typealias ApphudStoreKitProductsCallback = ([SKProduct], Error?) -> Void
+private typealias ApphudStoreKitFetcherCallback = ([SKProduct], Error?, ApphudProductsFetcher) -> Void
 internal typealias ApphudTransactionCallback = (SKPaymentTransaction, Error?) -> Void
 
 public let _ApphudWillFinishTransactionNotification = Notification.Name(rawValue: "ApphudWillFinishTransactionNotification")
@@ -34,18 +35,16 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         }
     }
 
-
     internal var didFetch: Bool = false
 
-    fileprivate let fetcher = ApphudProductsFetcher()
-    fileprivate let singleFetcher = ApphudProductsFetcher()
+    fileprivate var fetchers = ApphudSafeSet<ApphudProductsFetcher>()
 
     private var refreshReceiptCallback: (() -> Void)?
     private var paymentCallback: ApphudTransactionCallback?
 
     var purchasingProductID: String?
     var purchasingValue: ApphudCustomPurchaseValue?
-    var isPurchasing: Bool = false
+    private(set) var isPurchasing: Bool = false
 
     private var refreshRequest: SKReceiptRefreshRequest?
 
@@ -53,8 +52,6 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     func setupObserver() {
         SKPaymentQueue.default().add(self)
-
-
     }
 
     func enableSwizzle() {
@@ -62,7 +59,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     }
 
     func restoreTransactions() {
-        
+
         Task { @MainActor in
             SKPaymentQueue.default().restoreCompletedTransactions()
         }
@@ -75,20 +72,30 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         refreshRequest?.start()
     }
 
-    func fetchProducts(identifiers: Set<String>, callback: @escaping ApphudStoreKitProductsCallback) {
+    func fetchAllProducts(identifiers: Set<String>) async -> ([SKProduct], Error?) {
         let start = Date()
-        fetcher.fetchStoreKitProducts(identifiers: identifiers) { products, error in
-            if products.count > 0 {
-                self.productsLoadTime = Date().timeIntervalSince(start)
-            }
-            let existingIDS = self.products.map { $0.productIdentifier }
-            let uniqueProducts = products.filter { !existingIDS.contains($0.productIdentifier) }
-            var newProducts = self.products
-            newProducts.append(contentsOf: uniqueProducts)
-            self.products = newProducts
 
-            self.didFetch = true
-            callback(products, error)
+        apphudLog("Fetch All Products", logLevel: .all)
+
+        let fetcher = ApphudProductsFetcher()
+        fetchers.insert(fetcher)
+
+        return await withCheckedContinuation { continuation in
+            fetcher.fetchStoreKitProducts(identifiers: identifiers) { products, error, ftchr in
+                if products.count > 0 {
+                    self.productsLoadTime = Date().timeIntervalSince(start)
+                }
+                let existingIDS = self.products.map { $0.productIdentifier }
+                let uniqueProducts = products.filter { !existingIDS.contains($0.productIdentifier) }
+                var newProducts = self.products
+                newProducts.append(contentsOf: uniqueProducts)
+                self.products = newProducts
+
+                self.didFetch = true
+                self.fetchers.remove(ftchr)
+
+                continuation.resume(returning: (products, error))
+            }
         }
     }
 
@@ -99,15 +106,48 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         }
 
         return await withCheckedContinuation { continuation in
-            fetchProduct(productId: productId) { product in
-                continuation.resume(returning: product)
+            fetchProducts(productIds: [productId]) { prds in
+                continuation.resume(returning: prds?.first(where: { $0.productIdentifier == productId }))
             }
         }
     }
 
-    func fetchProduct(productId: String, callback: @escaping (SKProduct?) -> Void) {
-        singleFetcher.fetchStoreKitProducts(identifiers: Set([productId])) { products, _ in
-            callback(products.first(where: { $0.productIdentifier == productId }))
+    func fetchProducts(_ productIds: [String]) async -> [SKProduct]? {
+
+        var available = [SKProduct]()
+        productIds.forEach { id in
+            if let p = products.first(where: { $0.productIdentifier == id }) {
+                available.append(p)
+            }
+        }
+
+        if available.count == productIds.count {
+            return available
+        }
+
+        return await withCheckedContinuation { continuation in
+            fetchProducts(productIds: productIds) { products in
+                continuation.resume(returning: products)
+            }
+        }
+    }
+
+    func fetchProducts(productIds: [String], callback: @escaping ([SKProduct]?) -> Void) {
+        let fetcher = ApphudProductsFetcher()
+        fetchers.insert(fetcher)
+
+        fetcher.fetchStoreKitProducts(identifiers: Set(productIds)) { prds, _, ftchr in
+
+            var available = [SKProduct]()
+            productIds.forEach { id in
+                if let p = prds.first(where: { $0.productIdentifier == id }) {
+                    available.append(p)
+                }
+            }
+
+            callback(available)
+
+            self.fetchers.remove(ftchr)
         }
     }
 
@@ -316,43 +356,60 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 /*
  This class will be extended in the future.
  */
-private class ApphudProductsFetcher: NSObject, SKProductsRequestDelegate {
-    private var callback: ApphudStoreKitProductsCallback?
+private class ApphudProductsFetcher: NSObject, SKProductsRequestDelegate, Identifiable {
+
+    var id = UUID()
+
+    private var callback: ApphudStoreKitFetcherCallback?
 
     private var productsRequest: SKProductsRequest?
 
-    func fetchStoreKitProducts(identifiers: Set<String>, callback : @escaping ApphudStoreKitProductsCallback) {
+    var retries: Int = 3
+    var attempt: Int = 0
+
+    var identifiers: Set<String>?
+
+    func fetchStoreKitProducts(identifiers: Set<String>, callback : @escaping ApphudStoreKitFetcherCallback) {
         self.callback = callback
+        self.identifiers = identifiers
+        performFetch()
+    }
+
+    func performFetch() {
+        guard let ids = identifiers else {return}
         productsRequest?.delegate = nil
         productsRequest?.cancel()
-        productsRequest = SKProductsRequest(productIdentifiers: identifiers)
+        productsRequest = SKProductsRequest(productIdentifiers: ids)
         productsRequest?.delegate = self
         productsRequest?.start()
+
+        apphudLog("Fetcher [\(id.uuidString)] Started Requesting Products: \(ids)", logLevel: .debug)
     }
 
     public func productsRequest(_ request: SKProductsRequest, didReceive response: SKProductsResponse) {
-        DispatchQueue.main.async {
-            self.callback?(response.products, nil)
-            if response.invalidProductIdentifiers.count > 0 {
-                apphudLog("Failed to load SKProducts from the App Store, because product identifiers are invalid:\n \(response.invalidProductIdentifiers)\n\tFor more details visit: https://docs.apphud.com/docs/testing-troubleshooting#failed-to-load-skproducts-from-the-app-store-error", forceDisplay: true)
-            }
-            if response.products.count > 0 {
-                apphudLog("Successfully fetched SKProducts from the App Store:\n \(response.products.map { $0.productIdentifier })")
-            }
-            self.callback = nil
-            self.productsRequest = nil
+        self.callback?(response.products, nil, self)
+        if response.invalidProductIdentifiers.count > 0 {
+            apphudLog("Failed to load SKProducts from the App Store, because product identifiers are invalid:\n \(response.invalidProductIdentifiers)\n\tFor more details visit: https://docs.apphud.com/docs/testing-troubleshooting#failed-to-load-skproducts-from-the-app-store-error", forceDisplay: true)
         }
+        if response.products.count > 0 {
+            apphudLog("Fetcher [\(id.uuidString)] Successfully fetched SKProducts from the App Store:\n \(response.products.map { $0.productIdentifier })")
+        }
+        self.callback = nil
+        self.productsRequest = nil
     }
 
     func request(_ request: SKRequest, didFailWithError error: Error) {
-        DispatchQueue.main.async {
-            if (error as NSError).description.contains("Attempted to decode store response") {
-                apphudLog("Failed to load SKProducts from the App Store, error: \(error). [!] App Store features in iOS Simulator are not supported. For more details visit: https://docs.apphud.com/docs/testing-troubleshooting#attempted-to-decode-store-response-error-while-fetching-products", forceDisplay: true)
-            } else {
-                apphudLog("Failed to load SKProducts from the App Store, error: \(error)", forceDisplay: true)
-            }
+        if (error as NSError).description.contains("Attempted to decode store response") {
+            apphudLog("Failed to load SKProducts from the App Store, error: \(error). [!] App Store features in iOS Simulator are not supported. For more details visit: https://docs.apphud.com/docs/testing-troubleshooting#attempted-to-decode-store-response-error-while-fetching-products", forceDisplay: true)
+        } else {
+            apphudLog("Failed to load SKProducts from the App Store, error: \(error)", forceDisplay: true)
+        }
 
-            self.callback?([], error)
+        if attempt < retries {
+            attempt += 1
+            performFetch()
+        } else {
+            self.callback?([], error, self)
             self.callback = nil
             self.productsRequest = nil
         }

@@ -6,9 +6,6 @@
 //
 
 import Foundation
-#if canImport(UIKit)
-import UIKit
-#endif
 
 import StoreKit
 
@@ -38,40 +35,31 @@ extension ApphudInternal {
             self.performAllUserRegisteredBlocks()
         }
 
-        if self.paywalls.count > 0 && self.allAvailableProductIDs().count > 0 && self.productGroups.count > 0 {
-            self.preparePaywalls(pwls: self.paywalls, writeToCache: false, completionBlock: nil)
-            apphudLog("fallback mode with cached paywalls", logLevel: .all)
+        if self.paywalls.count > 0 && self.allAvailableProductIDs().count > 0 {
+            Task {
+                await preparePaywalls(pwls: self.paywalls, writeToCache: false, completionBlock: nil)
+                apphudLog("fallback mode with cached paywalls", logLevel: .all)
+            }
             return
         }
 
-        do {
-            let jsonData = try Data(contentsOf: url)
+        Task {
+            do {
+                let jsonData = try Data(contentsOf: url)
 
-            typealias ApphudArrayResponse = ApphudAPIDataResponse<ApphudAPIArrayResponse <ApphudPaywall> >
+                typealias ApphudArrayResponse = ApphudAPIDataResponse<ApphudAPIArrayResponse <ApphudPaywall> >
 
-            let decoder = JSONDecoder()
-            decoder.keyDecodingStrategy = .convertFromSnakeCase
+                let decoder = JSONDecoder()
+                decoder.keyDecodingStrategy = .convertFromSnakeCase
 
-            let pwlsResponse = try decoder.decode(ApphudArrayResponse.self, from: jsonData)
-            let pwls = pwlsResponse.data.results
+                let pwlsResponse = try decoder.decode(ApphudArrayResponse.self, from: jsonData)
+                let pwls = pwlsResponse.data.results
 
-            self.preparePaywalls(pwls: pwls, writeToCache: false, completionBlock: nil)
-
-            var allProductIds = [String]()
-            self.paywalls.forEach { p in
-                allProductIds.append(contentsOf: p.products.map { $0.productId })
+                await preparePaywalls(pwls: pwls, writeToCache: false, completionBlock: nil)
+                apphudLog("Fallback mode is active", logLevel: .all)
+            } catch {
+                apphudLog("Failed to parse fallback paywalls: \(error)")
             }
-
-            guard allProductIds.count > 0 else {
-                apphudLog("No products in fallback paywalls", logLevel: .all)
-                return
-            }
-
-            apphudLog("Fallback mode is active", logLevel: .all)
-            continueToFetchProducts(fallbackProducts: allProductIds)
-
-        } catch {
-            apphudLog("Failed to parse fallback paywalls: \(error)")
         }
     }
 

@@ -16,6 +16,7 @@ typealias ApphudVoidCallback = (() -> Void)
 typealias ApphudErrorCallback = ((Error?) -> Void)
 
 #if os(iOS)
+@MainActor
 internal func apphudVisibleViewController() -> UIViewController? {
 
     let keyWindow = UIApplication.shared.windows.filter {$0.isKeyWindow}.first
@@ -118,7 +119,11 @@ internal func apphudDidMigrate() {
 }
 
 internal func apphudShouldMigrate() -> Bool {
-    return !UserDefaults.standard.bool(forKey: "ApphudSubscriptionsMigrated")
+    if #available(iOS 15.0, *) {
+        return false
+    } else {
+        return !UserDefaults.standard.bool(forKey: "ApphudSubscriptionsMigrated")
+    }
 }
 
 internal func apphudDataClearCache(key: String) {
@@ -173,6 +178,7 @@ internal func apphudPerformOnMainThread(callback: @escaping () -> Void) {
 }
 
 #if os(macOS)
+@MainActor
 internal func apphudCurrentDeviceMacParameters() -> [String: String] {
     let app_version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? ""
 
@@ -199,6 +205,7 @@ internal func apphudCurrentDeviceMacParameters() -> [String: String] {
 }
 
 #elseif os(watchOS)
+@MainActor
 internal func apphudCurrentDeviceWatchParameters() -> [String: String] {
 
     let family: String = "Watch"
@@ -231,6 +238,7 @@ internal func apphudCurrentDeviceWatchParameters() -> [String: String] {
 }
 
 #else
+@MainActor
 internal func apphudCurrentDeviceiOSParameters() -> [String: String] {
 
     var family = ""
@@ -657,5 +665,101 @@ extension SKProduct {
         numberFormatter.locale = priceLocale
         let priceString = numberFormatter.string(from: discount.price)
         return priceString ?? ""
+    }
+}
+
+extension Error {
+    func apphudErrorMessage() -> String {
+        if #available(iOS 15.0, macOS 12.0, *), let storeKitError = self as? StoreKitError {
+            switch storeKitError {
+            case .unknown:
+                return "unknown"
+            case .networkError(let urlError):
+                return "URLError: " + String(urlError.code.rawValue)
+            case .notAvailableInStorefront:
+                return "notAvailableInStorefront"
+            case .notEntitled:
+                return "notEntitled"
+            case .systemError(let anyError):
+                return "systemError: " + anyError.localizedDescription
+            case .userCancelled:
+                return "userCancelled"
+            @unknown default:
+                return "unknown"
+            }
+        } else if #available(iOS 15.0, macOS 12.0, *), let purchaseError = self as? Product.PurchaseError {
+            switch purchaseError {
+            case .ineligibleForOffer:
+                return "ineligibleForOffer"
+            case .invalidOfferIdentifier:
+                return "invalidOfferIdentifier"
+            case .invalidOfferPrice:
+                return "invalidOfferPrice"
+            case .invalidOfferSignature:
+                return "invalidOfferSignature"
+            case .invalidQuantity:
+                return "invalidQuantity"
+            case .missingOfferParameters:
+                return "missingOfferParameters"
+            case .productUnavailable:
+                return "productUnavailable"
+            case .purchaseNotAllowed:
+                return "purchaseNotAllowed"
+            @unknown default:
+                return "unknown"
+            }
+        } else if let skError = self as? SKError {
+            switch skError.code {
+            case .clientInvalid:
+                return "clientInvalid"
+            case .cloudServiceNetworkConnectionFailed:
+                return "cloudServiceNetworkConnectionFailed"
+            case .cloudServicePermissionDenied:
+                return "cloudServicePermissionDenied"
+            case .cloudServiceRevoked:
+                return "cloudServiceRevoked"
+            case .ineligibleForOffer:
+                return "ineligibleForOffer"
+            case .invalidOfferIdentifier:
+                return "invalidOfferIdentifier"
+            case .invalidOfferPrice:
+                return "invalidOfferPrice"
+            case .invalidSignature:
+                return "invalidSignature"
+            case .unknown:
+                return "unknown"
+            case .paymentCancelled:
+                return "paymentCancelled"
+            case .paymentInvalid:
+                return "paymentInvalid"
+            case .paymentNotAllowed:
+                return "paymentNotAllowed"
+            case .storeProductNotAvailable:
+                return "storeProductNotAvailable"
+            case .privacyAcknowledgementRequired:
+                return "privacyAcknowledgementRequired"
+            case .unauthorizedRequestData:
+                return "unauthorizedRequestData"
+            case .missingOfferParams:
+                return "missingOfferParams"
+            case .overlayCancelled:
+                return "overlayCancelled"
+            case .overlayInvalidConfiguration:
+                return "overlayInvalidConfiguration"
+            case .overlayTimeout:
+                return "overlayTimeout"
+            case .unsupportedPlatform:
+                return "unsupportedPlatform"
+            case .overlayPresentedInBackgroundScene:
+                return "overlayPresentedInBackgroundScene"
+            @unknown default:
+                return "unknown"
+            }
+        } else if let urlError = self as? URLError {
+            return "URLError: " + String(urlError.code.rawValue)
+        } else {
+            let nsError = self as NSError
+            return "NSError: " + String(nsError.code)
+        }
     }
 }

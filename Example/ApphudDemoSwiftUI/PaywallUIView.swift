@@ -9,16 +9,17 @@ import SwiftUI
 import ApphudSDK
 import StoreKit
 
-enum PaywallID: String {
-    case main // should be equal to identifier in your Apphud > Paywalls
+// should be equal to identifier in your Apphud > Paywalls
+enum PlacementID: String {
+    case main
+    case onboarding
 }
 
 struct PaywallUIView: View {
 
     @Environment(\.presentationMode) var presentationMode
 
-    @State var paywall: ApphudPaywall?
-    var paywallID: PaywallID = .main
+    @State var placement: ApphudPlacement?
     @State var selectedProduct: ApphudProduct?
 
     @State var isPurchasing = false
@@ -63,9 +64,9 @@ struct PaywallUIView: View {
         })
         .interactiveDismissDisabled(isPurchasing)
         .task {
-            if let mainPaywall = await Apphud.paywall(ApphudPaywallID.main.rawValue) {
-                paywall = mainPaywall
-                selectedProduct = paywall?.products.first
+            if let place = await Apphud.placement(PlacementID.onboarding.rawValue) {
+                placement = place
+                selectedProduct = placement?.paywall?.products.first
             }
 
             do {
@@ -79,7 +80,7 @@ struct PaywallUIView: View {
 
     func planOptionsView() -> some View {
         VStack(spacing: 15) {
-            ForEach(paywall?.products ?? [], id: \.productId) { product in
+            ForEach(placement?.paywall?.products ?? [], id: \.productId) { product in
                 HStack {
                     paywallOptionView(product)
                 }
@@ -140,7 +141,7 @@ struct PaywallUIView: View {
 
     func startPurchaseStoreKit1() {
         guard let product = selectedProduct else {return}
-        Task {
+        Task { @MainActor in
             let result = await Apphud.purchase(product, isPurchasing: $isPurchasing)
             if result.success {
                 presentationMode.wrappedValue.dismiss()
@@ -151,13 +152,11 @@ struct PaywallUIView: View {
     func startPurchaseStoreKit2() {
         guard let product = selectedProduct else {return}
 
-        Task {
+        Task { @MainActor in
             guard let productStruct = try? await product.product() else {
                 return
             }
-
 //            Apphud.setCustomPurchaseValue(1.23, productId: product.productId)
-
             let result = await Apphud.purchase(productStruct, isPurchasing: $isPurchasing)
             if result.success {
                 presentationMode.wrappedValue.dismiss()

@@ -71,8 +71,6 @@ extension ApphudSubscriptionStatus {
             return "refunded"
         case .expired:
             return "expired"
-        default:
-            return ""
         }
     }
 }

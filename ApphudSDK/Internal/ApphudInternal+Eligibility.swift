@@ -27,7 +27,10 @@ extension ApphudInternal {
                     apphudLog("Restoring subscriptions for promo eligibility check")
                     self.submitReceipt(product: nil, apphudProduct: nil, transaction: nil, receiptString: receiptString, notifyDelegate: true, eligibilityCheck: true, callback: { _ in
                         UserDefaults.standard.set(true, forKey: didSendReceiptForPromoEligibility)
-                        self._checkPromoEligibilitiesForRegisteredUser(products: products, callback: callback)
+                        Task {
+                            let response = await self._checkPromoEligibilitiesForRegisteredUser(products: products)
+                            apphudPerformOnMainThread { callback(response) }
+                        }
                     })
                 } else {
                     apphudLog("Receipt not found on device, impossible to determine eligibility. This is probably missing sandbox receipt issue. This should never not happen on production, because there receipt always exists. For more information see: https://docs.apphud.com/docs/testing-troubleshooting. Exiting", forceDisplay: true)
@@ -39,7 +42,11 @@ extension ApphudInternal {
                 }
             } else {
                 apphudLog("Has purchased subscriptions or has checked receipt for promo eligibility")
-                self._checkPromoEligibilitiesForRegisteredUser(products: products, callback: callback)
+                Task {
+                    let response = await self._checkPromoEligibilitiesForRegisteredUser(products: products)
+                    apphudPerformOnMainThread { callback(response) }
+                }
+
             }
         }
         if !result {
@@ -47,35 +54,35 @@ extension ApphudInternal {
         }
     }
 
-    private func _checkPromoEligibilitiesForRegisteredUser(products: [SKProduct], callback: @escaping ApphudEligibilityCallback) {
+    private func _checkPromoEligibilitiesForRegisteredUser(products: [SKProduct]) async -> [String: Bool] {
 
         var response = [String: Bool]()
         for product in products {
             response[product.productIdentifier] = false
         }
 
-        let result = self.performWhenProductGroupsFetched {
+        apphudLog("Products fetched, check promo eligibility")
 
-            apphudLog("Products fetched, check promo eligibility")
-
-            for subscription in self.currentUser?.subscriptions ?? [] {
-                for product in products {
-                    let purchasedGroupId = self.groupID(productId: subscription.productId)
-                    let givenGroupId = self.groupID(productId: product.productIdentifier)
-                    if (subscription.productId == product.productIdentifier) ||
-                        (purchasedGroupId != nil && purchasedGroupId == givenGroupId) {
-                        // if the same product id or in the same apphud product group
-                        response[product.productIdentifier] = true
-                        // do not break, check all products
+        for product in products {
+            if (currentUser?.subscriptions.first(where: { $0.productId == product.productIdentifier })) != nil {
+                response[product.productIdentifier] = true
+            } else if #available(iOS 15, *) {
+                for await result in StoreKit.Transaction.currentEntitlements {
+                    if case .verified(let transaction) = result {
+                        let productStruct = try? await ApphudAsyncStoreKit.shared.fetchProduct(transaction.productID)
+                        if productStruct?.subscription != nil && productStruct?.subscription?.subscriptionGroupID == product.subscriptionGroupIdentifier {
+                            response[product.productIdentifier] = true
+                        }
                     }
                 }
+
+            } else {
+                response[product.productIdentifier] = currentUser?.subscriptions.count ?? 0 > 0
             }
-            apphudLog("Finished promo checking, response: \(response as AnyObject)")
-            callback(response)
         }
-        if !result {
-            apphudLog("Tried to check promo eligibility, but products not fetched, adding to schedule")
-        }
+
+        apphudLog("Finished promo checking, response: \(response as AnyObject)")
+        return response
     }
 
     /// Checks introductory offers eligibility (includes free trial, pay as you go or pay up front)
@@ -94,7 +101,12 @@ extension ApphudInternal {
                     apphudLog("Restoring subscriptions for intro eligibility check")
                     self.submitReceipt(product: nil, apphudProduct: nil, transaction: nil, receiptString: receiptString, notifyDelegate: true, eligibilityCheck: true, callback: { _ in
                         UserDefaults.standard.set(true, forKey: didSendReceiptForIntroEligibility)
-                        self._checkIntroEligibilitiesForRegisteredUser(products: products, callback: callback)
+                        Task {
+                            let response = await self._checkIntroEligibilitiesForRegisteredUser(products: products)
+                            apphudPerformOnMainThread {
+                                callback(response)
+                            }
+                        }
                     })
                 } else {
                     apphudLog("Receipt not found on device, impossible to determine eligibility. This is probably missing sandbox receipt issue. This should never not happen on production, because there receipt always exists. For more information see: https://docs.apphud.com/docs/testing-troubleshooting. Exiting", forceDisplay: true)
@@ -106,7 +118,12 @@ extension ApphudInternal {
                 }
             } else {
                 apphudLog("Has purchased subscriptions or has checked receipt for intro eligibility")
-                self._checkIntroEligibilitiesForRegisteredUser(products: products, callback: callback)
+                Task {
+                    let response = await self._checkIntroEligibilitiesForRegisteredUser(products: products)
+                    apphudPerformOnMainThread {
+                        callback(response)
+                    }
+                }
             }
         }
         if !result {
@@ -114,37 +131,26 @@ extension ApphudInternal {
         }
     }
 
-    private func _checkIntroEligibilitiesForRegisteredUser(products: [SKProduct], callback: @escaping ApphudEligibilityCallback) {
+    private func _checkIntroEligibilitiesForRegisteredUser(products: [SKProduct]) async -> [String: Bool] {
 
         var response = [String: Bool]()
         for product in products {
             response[product.productIdentifier] = true
         }
 
-        let result = self.performWhenProductGroupsFetched {
-
-            apphudLog("Products fetched, check intro eligibility")
-
-            for subscription in self.currentUser?.subscriptions ?? [] {
-                for product in products {
-                    let purchasedGroupId = self.groupID(productId: subscription.productId)
-                    let givenGroupId = self.groupID(productId: product.productIdentifier)
-
-                    if subscription.productId == product.productIdentifier ||
-                        (purchasedGroupId == givenGroupId && givenGroupId != nil) {
-                        // if purchased, then this subscription is eligible for intro only if not used intro and status expired
-                        let eligible = !subscription.isIntroductoryActivated && subscription.status == .expired
-                        response[product.productIdentifier] = eligible
-                        // do not break, check all products
-                    }
+        for product in products {
+            if #available(iOS 15, *) {
+                if let productStruct = try? await ApphudAsyncStoreKit.shared.fetchProduct(product.productIdentifier), let sub = productStruct.subscription {
+                    response[product.productIdentifier] = await sub.isEligibleForIntroOffer
                 }
+            } else if let sub = currentUser?.subscriptions.first(where: { $0.productId == product.productIdentifier }) {
+                let eligible = !sub.isIntroductoryActivated
+                response[product.productIdentifier] = eligible
             }
-            apphudLog("Finished intro checking, response: \(response as AnyObject)")
-            callback(response)
         }
 
-        if !result {
-            apphudLog("Tried to check intro eligibility, but products not fetched, adding to schedule")
-        }
+        apphudLog("Finished intro checking, response: \(response as AnyObject)")
+
+        return response
     }
 }

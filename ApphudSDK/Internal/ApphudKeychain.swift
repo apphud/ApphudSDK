@@ -36,6 +36,7 @@ let kSecMatchLimitOneValue = NSString(format: kSecMatchLimitOne)
 
 public class ApphudKeychain: NSObject {
 
+    @MainActor
     internal static var canUseKeychain: Bool {
     #if os(iOS) || os(tvOS)
         return UIApplication.shared.isProtectedDataAvailable
@@ -44,6 +45,7 @@ public class ApphudKeychain: NSObject {
     #endif
     }
 
+    @MainActor
     internal static var hasLocalStorageData: Bool {
         loadDeviceID(onlyFromDefaults: true) != nil && loadUserID(onlyFromDefaults: true) != nil
     }
@@ -53,6 +55,7 @@ public class ApphudKeychain: NSObject {
         return uuid
     }
 
+    @MainActor
     internal class func loadDeviceID(onlyFromDefaults: Bool = false) -> String? {
         if let deviceID = UserDefaults.standard.value(forKey: defaultsDeviceIdKey) as? String, deviceID.count > 0 {
             return deviceID
@@ -65,6 +68,7 @@ public class ApphudKeychain: NSObject {
         }
     }
 
+    @MainActor
     internal class func loadUserID(onlyFromDefaults: Bool = false) -> String? {
         if let userID = UserDefaults.standard.value(forKey: defaultsUserIdKey) as? String, userID.count > 0 {
             return userID
@@ -76,6 +80,7 @@ public class ApphudKeychain: NSObject {
         }
     }
 
+    @MainActor
     internal class func resetValues() {
         if canUseKeychain {
             saveUserID(userID: "")
@@ -83,6 +88,7 @@ public class ApphudKeychain: NSObject {
         }
     }
 
+    @MainActor
     internal class func saveUserID(userID: String) {
         UserDefaults.standard.set(userID, forKey: defaultsUserIdKey)
         if canUseKeychain {
@@ -90,6 +96,7 @@ public class ApphudKeychain: NSObject {
         }
     }
 
+    @MainActor
     internal class func saveDeviceID(deviceID: String) {
         UserDefaults.standard.set(deviceID, forKey: defaultsDeviceIdKey)
         if canUseKeychain {

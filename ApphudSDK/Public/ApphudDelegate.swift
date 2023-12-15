@@ -15,82 +15,85 @@ import StoreKit
 @available(macOS 10.14.4, *)
 public protocol ApphudDelegate {
     /**
-        Returns array of subscriptions that user ever purchased. Empty array means user never purchased a subscription. If you have just one subscription group in your app, you will always receive just one subscription in an array.
-     
-        This method is called when subscription is purchased or updated (for example, status changed from `trial` to `expired` or `isAutorenewEnabled` changed to `false`). SDK also checks for subscription updates when app becomes active.
+     Called when there is an update to the user's subscriptions. This includes new purchases, updates to existing subscriptions (e.g., status change from `trial` to `expired`, or change in `isAutorenewEnabled`).
+
+     This method provides an array of `ApphudSubscription` objects representing all subscriptions the user has ever purchased. An empty array indicates the user has never purchased a subscription. In apps with only one subscription group, this array will typically contain only one subscription.
+
+     - parameter subscriptions: An array of `ApphudSubscription` objects reflecting the user's subscription history and status.
+     - Note: The SDK checks for subscription updates both when this method is called and when the app becomes active, ensuring up-to-date subscription data.
      */
     func apphudSubscriptionsUpdated(_ subscriptions: [ApphudSubscription])
 
     /**
-        Called when any of non renewing purchases changes. Called when purchase is made or has been refunded.
+     Called when there is a change in the user's non-renewing purchases. This can occur when a new purchase is made or if a purchase is refunded.
+
+     - parameter purchases: An array of `ApphudNonRenewingPurchase` objects, each representing a non-renewing purchase made by the user.
+     - Note: Use this method to track and respond to changes in the user's non-renewing purchases, such as unlocking or revoking access to content or features.
      */
     func apphudNonRenewingPurchasesUpdated(_ purchases: [ApphudNonRenewingPurchase])
 
     /**
-        Called when user ID has been changed. Use this if you implement integrations with Analytics services.
-     
-        Please read following if you implement integrations: `https://docs.apphud.com/docs/initialization`
-     
-        This delegate method is called in 2 cases:
-     
-        * When Apphud has merged two users into a single user (for example, after user has restored purchases from his another device).
-        Merging users is done in the following way: after App Store receipt has been sent to Apphud, server tries to find the same receipt in the database.
-        If the same App Store receipt has been found, Apphud merges two users into a single user with two devices and then returns an original userID.
-     
-        __Note__: Only subscriber devices are mergable. If non-premium user uses the app from two different devices, Apphud won't be able to know that these devices belong to the same user.
-     
-        * After manual call of `updateUserID(userID : String)` method.
+     Called when the user's ID in Apphud changes. This is important for maintaining continuity in integrations with analytics services.
+
+     This method is called in two scenarios:
+     1. When Apphud merges two user accounts into one. This can happen if a user restores purchases from another device and Apphud identifies the same App Store receipt in its database. In this case, the two accounts are merged, and the original userID is returned.
+        - __Note__: Only subscriber devices are mergeable. Non-premium users on multiple devices cannot be merged unless they have a subscription.
+     2. After manually calling the `updateUserID(userID: String)` method.
+
+     - parameter userID: The new user ID assigned to the user.
+     - Note: For more information on user ID changes and their implications, refer to Apphud's documentation on initialization and user merging: `https://docs.apphud.com/docs/initialization`
      */
     func apphudDidChangeUserID(_ userID: String)
 
     /**
-     Deprecated. Use `func getPaywalls` method instead.
-        
-     This method gets called when products are fetched from App Store. Returns optional Error from StoreKit, if exists.
-     */
-    func apphudDidFetchStoreKitProducts(_ products: [SKProduct], _ error: Error?)
-    func apphudDidFetchStoreKitProducts(_ products: [SKProduct])
+     Implements the mechanism for handling In-App Purchases initiated directly from the App Store page.
 
-    /**
-     Implements mechanism of purchasing In-App Purchase initiated directly from the App Store page.
-     
-     You must return a callback block which will be called when a payment is finished. If you don't implement this method or return `nil` then a payment will not start; you can also save the product and return `nil` to initiate a payment later by yourself. Read Apple documentation for details: https://developer.apple.com/documentation/storekit/in-app_purchase/promoting_in-app_purchases
+     This method should return a callback block that will be executed when a payment is finished. If you don't implement this method or return `nil`, the payment will not start. Alternatively, you can save the product and return `nil` to initiate the payment later by yourself. For more details, refer to Apple's documentation on promoting In-App Purchases: https://developer.apple.com/documentation/storekit/in-app_purchase/promoting_in-app_purchases
+
+     - parameter product: The `SKProduct` object representing the product to be purchased.
+     - Returns: A closure of type `((ApphudPurchaseResult) -> Void)` that is called upon the completion of the purchase.
      */
     func apphudShouldStartAppStoreDirectPurchase(_ product: SKProduct) -> ((ApphudPurchaseResult) -> Void)?
 
     /**
-        Optional. Specify a list of product identifiers to fetch from the App Store.
-        If you don't implement this method or return empty array, then product identifiers will be fetched from Apphud servers.
-     
-        Implementing this delegate method gives you more reliabality on fetching products and a little more speed on loading due to skipping Apphud request, but also gives less flexibility because you have to hardcode product identifiers this way.
-     */
-    func apphudProductIdentifiers() -> [String]
+     Called when the Apphud SDK detects a purchase made outside of its standard purchase methods. This is particularly useful for handling purchases made with Promo Codes.
 
-    /**
-        Called when Apphud SDK detects a purchase that was made outside of Apphud SDK purchase methods. It is also useful to intercept purchases made using Promo Codes for in-app purchases. If user redeems promo code for in-app purchase in the App Store, then opens the app, this delegate method will be called, so you will be able to handle successful payment on your side.
-        
-        Return `true` if you would like Apphud SDK to finish this transaction. If you return `false`, then you must call `SKPaymentQueue.default().finishTransaction(transaction)`.
-        See optional `transaction` property of `result` object.
+     - parameter result: An `ApphudPurchaseResult` object containing details of the purchase.
+     - Returns: `true` if you want the Apphud SDK to finish the transaction. If you return `false`, you must manually call `SKPaymentQueue.default().finishTransaction(transaction)` on the transaction.
+     - Note: This method allows you to intercept and process purchases that occur through mechanisms like promo code redemption.
      */
     func apphudDidObservePurchase(result: ApphudPurchaseResult) -> Bool
 
     /**
-        Called when Apphud SDK detects a deferred or interrupted purchase, this may happen when SCA confirmation is needed, in the case of parental control and some other cases
+     Called when the Apphud SDK detects a deferred or interrupted purchase. This can happen in scenarios like required Strong Customer Authentication (SCA), parental control approvals, etc.
+
+     - parameter transaction: The `SKPaymentTransaction` object representing the deferred or interrupted transaction.
+     - Note: Use this method to handle cases where transaction completion is delayed or requires additional user interaction.
      */
     func handleDeferredTransaction(transaction: SKPaymentTransaction)
 
     /**
-        Called when user is registered in Apphud [or used from cache]. This method is called once per app lifecycle.
-        The `rawPaywalls` array may not yet have `SKProducts`, so this method should not be used for paywalls management.
+    Called once per app lifecycle when the user is registered in Apphud or retrieved from cache. The `user` parameter contains a record of all purchases tracked by Apphud and associated raw placements and paywalls for that user.
 
-        However, if using A/B Testing, `rawPaywalls` can be used to fetch `experimentName`, `variationName` or other parameters like `json` from your experimental paywall.
+    - parameter user: An instance of `ApphudUser` representing a user in Apphud.
     */
-    func userDidLoad(rawPaywalls: [ApphudPaywall])
+    func userDidLoad(user: ApphudUser)
 
     /**
-     Called when paywalls are fully loaded with their `SKProducts` / `Products`. This is a duplicate for `Apphud.paywallsDidLoadCallback {}` method.
-    */
+     Called when paywalls are fully loaded with their associated `SKProducts`. This method serves a similar purpose to the `Apphud.paywallsDidLoadCallback {}` method.
+
+     - parameter paywalls: An array of `ApphudPaywall` objects, now fully loaded with their respective `SKProducts`.
+     - Note: Use this method to update your UI or logic once all paywall data, including `SKProduct` details, are fully loaded.
+     */
     func paywallsDidFullyLoad(paywalls: [ApphudPaywall])
+
+    /**
+     Called when placements are fully loaded with their associated Paywalls and StoreKit products.
+
+     - parameter placements: An array of `ApphudPlacement` objects.
+     - Note: This is the point at which you can be sure that all placement data, including paywalls and associated StoreKit products, is available for use.
+     */
+    func placementsDidFullyLoad(placements: [ApphudPlacement])
 }
 
 @available(macOS 10.14.4, *)
@@ -98,12 +101,10 @@ public extension ApphudDelegate {
     func apphudSubscriptionsUpdated(_ subscriptions: [ApphudSubscription]) {}
     func apphudNonRenewingPurchasesUpdated(_ purchases: [ApphudNonRenewingPurchase]) {}
     func apphudDidChangeUserID(_ userID: String) {}
-    func apphudDidFetchStoreKitProducts(_ products: [SKProduct], _ error: Error?) {}
-    func apphudDidFetchStoreKitProducts(_ products: [SKProduct]) {}
     func apphudShouldStartAppStoreDirectPurchase(_ product: SKProduct) -> ((ApphudPurchaseResult) -> Void)? { nil }
-    func apphudProductIdentifiers() -> [String] { [] }
     func apphudDidObservePurchase(result: ApphudPurchaseResult) -> Bool { false }
     func handleDeferredTransaction(transaction: SKPaymentTransaction) {}
-    func userDidLoad(rawPaywalls: [ApphudPaywall]) {}
+    func userDidLoad(user: ApphudUser) {}
     func paywallsDidFullyLoad(paywalls: [ApphudPaywall]) {}
+    func placementsDidFullyLoad(placements: [ApphudPlacement]) {}
 }

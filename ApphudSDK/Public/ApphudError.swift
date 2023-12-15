@@ -6,9 +6,6 @@
 //  Copyright © 2020 Apphud Inc. All rights reserved.
 //
 
-#if canImport(UIKit)
-import UIKit
-#endif
 import Foundation
 
 /**
@@ -21,6 +18,10 @@ public class ApphudError: NSError {
 
     init(message: String) {
         super.init(domain: codeDomain, code: 0, userInfo: [NSLocalizedDescriptionKey: message])
+    }
+
+    init(httpErrorCode: Int) {
+        super.init(domain: codeDomain, code: httpErrorCode, userInfo: [NSLocalizedDescriptionKey: "HTTP Request Failed"])
     }
 
     required init?(coder: NSCoder) {
