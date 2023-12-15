@@ -8,6 +8,22 @@
 import Foundation
 
 /**
+ An enumeration for commonly used placement identifiers in Apphud. Ensure that the identifiers used here match those in the Apphud Product Hub -> Placements section. This enum facilitates the retrieval of specific placement configurations in your code.
+ ```swift
+ let placement = await Apphud.placement(ApphudPlacementID.onboarding.rawValue)
+ ```
+ */
+public enum ApphudPlacementID: String {
+    case main
+    case home
+    case onboarding
+    case settings
+    case content
+    case toolbar
+    case banner
+}
+
+/**
  A placement is a specific location within a user's journey (such as onboarding, settings, etc.) where its internal paywall is intended to be displayed.
  */
 public class ApphudPlacement: Codable {

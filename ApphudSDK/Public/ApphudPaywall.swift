@@ -7,13 +7,14 @@
 import Foundation
 
 /**
- Helper enum which contains most commonly used paywall identifiers. If you want to use this enum, your paywall identifiers must match to ones you use in Apphud Product Hub.
+ An enumeration for commonly used paywall identifiers in Apphud. Ensure that the identifiers used here match those in the Apphud Product Hub -> Paywalls section. This enum facilitates the retrieval of specific paywall configurations in your code.
  ```swift
  let paywall = await Apphud.paywall(ApphudPaywallID.onboarding.rawValue)
  ```
  */
 public enum ApphudPaywallID: String {
     case main
+    case home
     case onboarding
     case settings
     case content

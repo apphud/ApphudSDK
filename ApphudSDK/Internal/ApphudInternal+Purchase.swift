@@ -298,18 +298,18 @@ extension ApphudInternal {
 
         purchasingProduct = nil
 
-        if hasMadePurchase && params["paywall_id"] == nil && observerModePurchasePaywallIdentifier != nil {
+        if hasMadePurchase && params["paywall_id"] == nil && observerModePurchaseIdentifiers?.paywall != nil {
 
             var paywall: ApphudPaywall?
 
-            if observerModePurchasePlacementIdentifier != nil {
-                let placement = placements.first(where: { $0.identifier == observerModePurchasePlacementIdentifier })
+            if observerModePurchaseIdentifiers?.placement != nil {
+                let placement = placements.first(where: { $0.identifier == observerModePurchaseIdentifiers?.placement })
                 if params["placement_id"] == nil && placement != nil {
                     params["placement_id"] = placement?.id
                 }
-                paywall = placement?.paywalls.first(where: {$0.identifier == observerModePurchasePaywallIdentifier})
+                paywall = placement?.paywalls.first(where: {$0.identifier == observerModePurchaseIdentifiers?.paywall})
             } else {
-                paywall = paywalls.first(where: {$0.identifier == observerModePurchasePaywallIdentifier})
+                paywall = paywalls.first(where: {$0.identifier == observerModePurchaseIdentifiers?.paywall})
             }
 
             params["paywall_id"] = paywall?.id
@@ -354,8 +354,7 @@ extension ApphudInternal {
                 self.isSubmittingReceipt = false
 
                 if result {
-                    self.observerModePurchasePaywallIdentifier = nil
-                    self.observerModePurchasePlacementIdentifier = nil
+                    self.observerModePurchaseIdentifiers = nil
                     self.submitReceiptRetries = (0, 0)
                     self.requiresReceiptSubmission = false
                     let hasChanges = await self.parseUser(data: data)
@@ -485,8 +484,7 @@ extension ApphudInternal {
     }
 
     internal func willPurchaseProductFrom(paywallId: String, placementId: String?) {
-        observerModePurchasePaywallIdentifier = paywallId
-        observerModePurchasePlacementIdentifier = placementId
+        observerModePurchaseIdentifiers = (paywallId, placementId)
     }
 
     private func handleTransaction(product: SKProduct, transaction: SKPaymentTransaction, error: Error?, apphudProduct: ApphudProduct?, callback: ((ApphudPurchaseResult) -> Void)?) {

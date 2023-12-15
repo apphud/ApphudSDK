@@ -58,8 +58,7 @@ final class ApphudInternal: NSObject {
     // MARK: - Paywalls Events
     internal var lastUploadedPaywallEvent = [String: AnyHashable]()
     internal var lastUploadedPaywallEventDate: Date?
-    internal var observerModePurchasePaywallIdentifier: String?
-    internal var observerModePurchasePlacementIdentifier: String?
+    internal var observerModePurchaseIdentifiers: (paywall: String, placement: String?)?
 
     // MARK: - User registering properties
     internal var currentUser: ApphudUser?
@@ -758,9 +757,8 @@ final class ApphudInternal: NSObject {
         submittedAdjustData = nil
         submittedFirebaseId = nil
         submittedPushToken = nil
-
-        observerModePurchasePaywallIdentifier = nil
-        observerModePurchasePlacementIdentifier = nil
+        
+        observerModePurchaseIdentifiers = nil
 
         allowIdentifyUser = true
         apphudLog("User logged out. Apphud SDK is uninitialized.", logLevel: .all)
