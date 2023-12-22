@@ -111,13 +111,13 @@ extension ApphudInternal {
 
     @MainActor
     internal func updateUserID(userID: String) {
-
-        guard self.currentUserID != userID else {
-            apphudLog("Will not update User ID to \(userID), because current value is the same")
-            return
-        }
-
         let exist = performWhenUserRegistered {
+            
+            guard self.currentUserID != userID else {
+                apphudLog("Will not update User ID to \(userID), because current value is the same")
+                return
+            }
+
             self.updateUser(fields: ["user_id": userID]) { (result, _, data, _, _, _) in
                 if result {
                     Task {

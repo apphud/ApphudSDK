@@ -302,9 +302,6 @@ final class ApphudInternal: NSObject {
         await setupObservers()
 
         let cachedUser = ApphudUser.fromCacheV2()
-        let cachedPwls = cachedPaywalls()
-        let cachedPlacements = cachedPlacements()
-        let cachedGroups = cachedGroups()
 
         if inputUserID?.count ?? 0 > 0 {
             self.currentUserID = inputUserID!
@@ -316,21 +313,29 @@ final class ApphudInternal: NSObject {
             self.currentUserID = generatedUUID
         }
 
-        var isIdenticalUserIds = true
-        if self.currentUserID != userIDFromKeychain {
-            isIdenticalUserIds = false
-            await ApphudKeychain.saveUserID(userID: self.currentUserID)
-        }
-
         self.currentUser = cachedUser
-        self.paywalls = cachedPwls.objects ?? []
-        self.placements = cachedPlacements.objects ?? []
-        // permissionGroups array can be nil
-        self.permissionGroups = cachedGroups.objects
 
-        await fetchCurrencyIfNeeded()
+        Task(priority: .userInitiated) {
 
-        self.continueToRegisteringUser(skipRegistration: self.skipRegistration(isIdenticalUserIds: isIdenticalUserIds, hasCashedUser: self.currentUser != nil, hasCachedPaywalls: !cachedPwls.expired))
+            var isIdenticalUserIds = true
+            if self.currentUserID != userIDFromKeychain {
+                isIdenticalUserIds = false
+                await ApphudKeychain.saveUserID(userID: self.currentUserID)
+            }
+
+            let cachedPwls = cachedPaywalls()
+            let cachedPlacements = cachedPlacements()
+            let cachedGroups = cachedGroups()
+
+            self.paywalls = cachedPwls.objects ?? []
+            self.placements = cachedPlacements.objects ?? []
+            // permissionGroups array can be nil
+            self.permissionGroups = cachedGroups.objects
+
+            await fetchCurrencyIfNeeded()
+
+            self.continueToRegisteringUser(skipRegistration: self.skipRegistration(isIdenticalUserIds: isIdenticalUserIds, hasCashedUser: self.currentUser != nil, hasCachedPaywalls: !cachedPwls.expired))
+        }
     }
 
     private func skipRegistration(isIdenticalUserIds: Bool, hasCashedUser: Bool, hasCachedPaywalls: Bool) -> Bool {

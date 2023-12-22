@@ -263,7 +263,7 @@ extension ApphudInternal {
                                      "environment": environment,
                                      "observer_mode": ApphudUtils.shared.storeKitObserverMode]
 
-        if let receipt = receiptString {
+        if !ApphudUtils.shared.useStoreKitV2, let receipt = receiptString {
             params["receipt_data"] = receipt
         }
 
@@ -276,7 +276,7 @@ extension ApphudInternal {
 
         let hasMadePurchase = transactionState == .purchased
 
-        params["user_id"] = Apphud.userID()
+        params["user_id"] = currentUserID
 
         if let info = await product?.apphudSubmittableParameters(hasMadePurchase) {
             params["product_info"] = info

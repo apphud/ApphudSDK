@@ -31,7 +31,7 @@ extension ApphudInternal {
         fallbackMode = true
 
         if self.currentUser == nil {
-            self.currentUser = ApphudUser(userID: Apphud.userID())
+            self.currentUser = ApphudUser(userID: currentUserID)
             self.performAllUserRegisteredBlocks()
         }
 
