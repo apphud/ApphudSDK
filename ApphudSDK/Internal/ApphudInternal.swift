@@ -271,16 +271,15 @@ final class ApphudInternal: NSObject {
         }
         allowIdentifyUser = false
 
-        Task(priority: .userInitiated) {
-            await identify(inputUserID: inputUserID, inputDeviceID: inputDeviceID, observerMode: observerMode)
-        }
+        identify(inputUserID: inputUserID, inputDeviceID: inputDeviceID, observerMode: observerMode)
     }
 
-    internal func identify(inputUserID: String?, inputDeviceID: String? = nil, observerMode: Bool) async {
+    @MainActor
+    internal func identify(inputUserID: String?, inputDeviceID: String? = nil, observerMode: Bool) {
         ApphudUtils.shared.storeKitObserverMode = observerMode
 
-        var deviceID = await ApphudKeychain.loadDeviceID()
-        let userIDFromKeychain = await ApphudKeychain.loadUserID()
+        var deviceID = ApphudKeychain.loadDeviceID()
+        let userIDFromKeychain = ApphudKeychain.loadUserID()
 
         isFreshInstall = deviceID == nil
         isRedownload = deviceID != nil && UserDefaults.standard.string(forKey: ApphudFlagString) == nil
@@ -294,12 +293,12 @@ final class ApphudInternal: NSObject {
 
         if deviceID == nil {
             deviceID = generatedUUID
-            await ApphudKeychain.saveDeviceID(deviceID: deviceID!)
+            ApphudKeychain.saveDeviceID(deviceID: deviceID!)
         }
 
         self.currentDeviceID = deviceID!
 
-        await setupObservers()
+        setupObservers()
 
         let cachedUser = ApphudUser.fromCacheV2()
 
@@ -320,7 +319,9 @@ final class ApphudInternal: NSObject {
             var isIdenticalUserIds = true
             if self.currentUserID != userIDFromKeychain {
                 isIdenticalUserIds = false
-                await ApphudKeychain.saveUserID(userID: self.currentUserID)
+                Task { @MainActor in
+                    ApphudKeychain.saveUserID(userID: self.currentUserID)
+                }
             }
 
             let cachedPwls = cachedPaywalls()
