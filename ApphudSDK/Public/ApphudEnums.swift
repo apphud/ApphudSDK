@@ -32,6 +32,8 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
     @available(*, deprecated, message: "Facebook integration is no longer needed from SDK and has been voided. You can safely remove this line of code.")
     case facebook
 
+    case custom
+
     /**
      case branch
      Branch integration doesn't require any additional code from Apphud SDK
@@ -50,6 +52,8 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
             return "Apple Ads Attribution"
         case .firebase:
             return "Firebase"
+        case .custom:
+            return "Custom"
         default:
             return "Unavailable"
         }

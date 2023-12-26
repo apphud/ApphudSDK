@@ -17,6 +17,10 @@ extension ApphudInternal {
                 var params: [String: Any] = ["device_id": self.currentDeviceID]
 
                 switch provider {
+                case .custom:
+                    if let customAttribution = data as? [String: Any] {
+                        params.merge(customAttribution, uniquingKeysWith: { f, s in f})
+                    }
                 case .firebase:
                     guard identifer != nil, self.submittedFirebaseId != identifer else {
                         callback?(false)
