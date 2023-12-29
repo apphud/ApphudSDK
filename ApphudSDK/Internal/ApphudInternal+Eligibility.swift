@@ -15,8 +15,7 @@ extension ApphudInternal {
 
     internal func checkEligibilitiesForPromotionalOffers(products: [SKProduct], callback: @escaping ApphudEligibilityCallback) {
 
-        let result = performWhenUserRegistered {
-
+        performWhenUserRegistered {
             apphudLog("User registered, check promo eligibility")
 
             let didSendReceiptForPromoEligibility = "ReceiptForPromoSent"
@@ -46,11 +45,7 @@ extension ApphudInternal {
                     let response = await self._checkPromoEligibilitiesForRegisteredUser(products: products)
                     apphudPerformOnMainThread { callback(response) }
                 }
-
             }
-        }
-        if !result {
-            apphudLog("Tried to check promo eligibility, but user not registered, adding to schedule")
         }
     }
 
@@ -64,7 +59,7 @@ extension ApphudInternal {
         apphudLog("Products fetched, check promo eligibility")
 
         for product in products {
-            if (currentUser?.subscriptions.first(where: { $0.productId == product.productIdentifier })) != nil {
+            if await (currentUser?.subscriptions.first(where: { $0.productId == product.productIdentifier })) != nil {
                 response[product.productIdentifier] = true
             } else if #available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *) {
                 for await result in StoreKit.Transaction.currentEntitlements {
@@ -77,7 +72,7 @@ extension ApphudInternal {
                 }
 
             } else {
-                response[product.productIdentifier] = currentUser?.subscriptions.count ?? 0 > 0
+                response[product.productIdentifier] = await currentUser?.subscriptions.count ?? 0 > 0
             }
         }
 
@@ -88,8 +83,7 @@ extension ApphudInternal {
     /// Checks introductory offers eligibility (includes free trial, pay as you go or pay up front)
     internal func checkEligibilitiesForIntroductoryOffers(products: [SKProduct], callback: @escaping ApphudEligibilityCallback) {
 
-        let result = performWhenUserRegistered {
-
+        performWhenUserRegistered {
             apphudLog("User registered, check intro eligibility")
 
             // not found subscriptions, try to restore and try again
@@ -126,9 +120,6 @@ extension ApphudInternal {
                 }
             }
         }
-        if !result {
-            apphudLog("Tried to check intro eligibility, but user not registered, adding to schedule")
-        }
     }
 
     private func _checkIntroEligibilitiesForRegisteredUser(products: [SKProduct]) async -> [String: Bool] {
@@ -143,7 +134,7 @@ extension ApphudInternal {
                 if let productStruct = try? await ApphudAsyncStoreKit.shared.fetchProduct(product.productIdentifier), let sub = productStruct.subscription {
                     response[product.productIdentifier] = await sub.isEligibleForIntroOffer
                 }
-            } else if let sub = currentUser?.subscriptions.first(where: { $0.productId == product.productIdentifier }) {
+            } else if let sub = await currentUser?.subscriptions.first(where: { $0.productId == product.productIdentifier }) {
                 let eligible = !sub.isIntroductoryActivated
                 response[product.productIdentifier] = eligible
             }

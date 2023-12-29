@@ -42,7 +42,7 @@ public struct ApphudUser: Codable {
 
     - Returns: An array of `ApphudPlacement` objects, representing the configured placements.
     */
-    public func rawPlacements() -> [ApphudPlacement] {
+    @MainActor public func rawPlacements() -> [ApphudPlacement] {
         ApphudInternal.shared.placements
     }
 
@@ -56,7 +56,7 @@ public struct ApphudUser: Codable {
 
     - Returns: An array of `ApphudPaywall` objects, representing the configured paywalls.
     */
-    func rawPaywalls() -> [ApphudPaywall] {
+    @MainActor public func rawPaywalls() -> [ApphudPaywall] {
         ApphudInternal.shared.paywalls
     }
 
@@ -170,12 +170,11 @@ public struct ApphudUser: Codable {
 
     private static let ApphudMigrateCachesKey = "ApphudMigrateCachesKey"
 
-    func toCacheV2() {
-
+    func toCacheV2() async {
         let encoder = JSONEncoder()
         do {
             let data = try encoder.encode(self)
-            apphudDataToCache(data: data, key: ApphudUserCacheKey)
+            await ApphudDataActor.shared.apphudDataToCache(data: data, key: ApphudUserCacheKey)
         } catch {
             apphudLog("Failed to save user to cache: \(error)")
         }
@@ -194,7 +193,7 @@ public struct ApphudUser: Codable {
         }
 
         do {
-            if let data = apphudDataFromCache(key: ApphudUserCacheKey, cacheTimeout: 86_400*90).objectsData {
+            if let data = apphudDataFromCacheSync(key: ApphudUserCacheKey, cacheTimeout: 86_400*90).objectsData {
                 let decoder = JSONDecoder()
                 decoder.keyDecodingStrategy = .convertFromSnakeCase
                 let user = try decoder.decode(ApphudUser.self, from: data)
@@ -215,9 +214,12 @@ public struct ApphudUser: Codable {
         let user = try fromCacheLegacy()
 
         if user != nil {
-            let data = try encoder.encode(user)
-            apphudDataToCache(data: data, key: ApphudUserCacheKey)
-            apphudLog("Successfully migrated user to CacheV2")
+            Task {
+                if let data = try? encoder.encode(user) {
+                    await ApphudDataActor.shared.apphudDataToCache(data: data, key: ApphudUserCacheKey)
+                    apphudLog("Successfully migrated user to CacheV2")
+                }
+            }
         }
 
         UserDefaults.standard.setValue(true, forKey: Self.ApphudMigrateCachesKey)
@@ -225,11 +227,12 @@ public struct ApphudUser: Codable {
         return user
     }
 
-    static func clearCache() {
-        apphudDataClearCache(key: ApphudUserCacheKey)
-        clearCacheLegacy()
+    static func clearCache() async {
+        await ApphudDataActor.shared.apphudDataClearCache(key: ApphudUserCacheKey)
+        await clearCacheLegacy()
     }
 
+    @MainActor
     private static func clearCacheLegacy() {
         guard let folderURLAppSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {return}
         guard let folderURLCaches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {return}

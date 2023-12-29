@@ -10,7 +10,6 @@ import Foundation
 import StoreKit
 
 extension ApphudInternal {
-
     @discardableResult internal func parseUser(data: Data?) async -> HasPurchasesChanges {
 
         guard let data = data else {
@@ -20,26 +19,28 @@ extension ApphudInternal {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
 
-        let oldStates = currentUser?.subscriptionsStates()
-        let oldPurchasesStates = currentUser?.purchasesStates()
+        let oldStates = await currentUser?.subscriptionsStates()
+        let oldPurchasesStates = await currentUser?.purchasesStates()
 
         do {
             let response = try decoder.decode(ApphudUserResponse<ApphudUser>.self, from: data)
-            currentUser = response.data.results
+            await MainActor.run {
+                currentUser = response.data.results
+            }
         } catch {
             apphudLog("Failed to decode ApphudUser, error: \(error)")
         }
 
-        if let pwls = currentUser?.paywalls {
+        if let pwls = await currentUser?.paywalls {
             await preparePaywalls(pwls: pwls, writeToCache: true, completionBlock: nil)
         } else {
             didPreparePaywalls = true
         }
 
-        let newStates = currentUser?.subscriptionsStates()
-        let newPurchasesStates = currentUser?.purchasesStates()
+        let newStates = await currentUser?.subscriptionsStates()
+        let newPurchasesStates = await currentUser?.purchasesStates()
 
-        currentUser?.toCacheV2()
+        await currentUser?.toCacheV2()
 
         Task { @MainActor in
             checkUserID(tellDelegate: true)
@@ -48,8 +49,11 @@ extension ApphudInternal {
         /**
          If user previously didn't have subscriptions or subscriptions states don't match, or subscription product identifiers don't match
          */
-        let hasSubscriptionChanges = (oldStates != newStates && self.currentUser?.subscriptions != nil)
-        let hasPurchasesChanges = (oldPurchasesStates != newPurchasesStates && self.currentUser?.purchases != nil)
+        let currentSubs = await currentUser?.subscriptions
+        let currentPurchs = await currentUser?.purchases
+
+        let hasSubscriptionChanges = (oldStates != newStates && currentSubs != nil)
+        let hasPurchasesChanges = (oldPurchasesStates != newPurchasesStates && currentPurchs != nil)
         return (hasSubscriptionChanges, hasPurchasesChanges)
     }
 
@@ -111,8 +115,8 @@ extension ApphudInternal {
 
     @MainActor
     internal func updateUserID(userID: String) {
-        let exist = performWhenUserRegistered {
-            
+        performWhenUserRegistered {
+
             guard self.currentUserID != userID else {
                 apphudLog("Will not update User ID to \(userID), because current value is the same")
                 return
@@ -126,9 +130,6 @@ extension ApphudInternal {
                 }
             }
         }
-        if !exist {
-            apphudLog("Tried to make update user id: \(userID) request when user is not yet registered, addind to schedule..")
-        }
     }
 
     internal func grantPromotional(_ duration: Int, _ permissionGroup: ApphudGroup?, productId: String?, callback: ApphudBoolCallback?) {
@@ -137,7 +138,7 @@ extension ApphudInternal {
                 if result {
                     Task {
                         let hasChanges = await self.parseUser(data: data)
-                        await self.notifyAboutUpdates(hasChanges)
+                        self.notifyAboutUpdates(hasChanges)
                     }
                 }
                 callback?(result)
@@ -145,7 +146,7 @@ extension ApphudInternal {
         }
     }
 
-    private func grantPromotional(_ duration: Int, _ permissionGroup: ApphudGroup?, productId: String?, callback: @escaping ApphudHTTPResponseCallback) {
+    @MainActor private func grantPromotional(_ duration: Int, _ permissionGroup: ApphudGroup?, productId: String?, callback: @escaping ApphudHTTPResponseCallback) {
         var params: [String: Any] = [:]
         params["duration"] = duration
         params["user_id"] = currentUserID
@@ -311,8 +312,32 @@ extension ApphudInternal {
     }
 
     @objc internal func updateUserProperties() {
+        Task {
+            let values = await self.preparePropertiesParams()
+            guard let params = values.0, let properties = values.1 else {
+                return
+            }
+
+            let canSaveToCache = values.2
+
+            httpClient?.startRequest(path: .properties, params: params, method: .post, retry: true) { (result, _, _, error, code, _) in
+                if result {
+                    if canSaveToCache {
+                        Task {
+                            await ApphudDataActor.shared.setUserPropertiesCache(properties)
+                        }
+                    }
+                    apphudLog("User Properties successfully updated.")
+                } else {
+                    apphudLog("User Properties update failed: \(error?.localizedDescription ?? "") with code: \(code)")
+                }
+            }
+        }
+    }
+
+    private func preparePropertiesParams() async -> ([String: Any]?, [[String: Any?]]?, Bool) {
         setNeedsToUpdateUserProperties = false
-        guard pendingUserProperties.count > 0 else {return}
+        guard pendingUserProperties.count > 0 else { return (nil, nil, false) }
         var params = [String: Any]()
         params["device_id"] = self.currentDeviceID
 
@@ -330,8 +355,8 @@ extension ApphudInternal {
 
         if canSaveToCache == false {
             // if new properties are not cacheable, then remove old cache and send new props to backend and not cache them
-            self.userPropertiesCache = nil
-        } else if let cachedProperties = self.userPropertiesCache {
+            await ApphudDataActor.shared.setUserPropertiesCache(nil)
+        } else if let cachedProperties = await ApphudDataActor.shared.userPropertiesCache {
             var shouldSkipUpload = true
             if cachedProperties.count == properties.count {
                 for cachedProp in cachedProperties {
@@ -355,39 +380,13 @@ extension ApphudInternal {
             if shouldSkipUpload {
                 apphudLog("Skip uploading user properties, because values did not change") //: \n\n\(properties),\n\ncache:\n\n\(cachedProperties)")
                 self.pendingUserProperties.removeAll()
-                return
+                return (nil, nil, false)
             }
         }
 
         self.pendingUserProperties.removeAll()
 
-        httpClient?.startRequest(path: .properties, params: params, method: .post, retry: true) { (result, _, _, error, code, _) in
-            if result {
-                if canSaveToCache { self.userPropertiesCache = properties }
-                apphudLog("User Properties successfully updated.")
-            } else {
-                apphudLog("User Properties update failed: \(error?.localizedDescription ?? "") with code: \(code)")
-            }
-        }
-    }
-
-    internal var userPropertiesCache: [[String: Any?]]? {
-        get {
-            let cache = apphudDataFromCache(key: ApphudUserPropertiesCacheKey, cacheTimeout: 86_400*7)
-            if let data = cache.objectsData, !cache.expired,
-                let object = try? JSONSerialization.jsonObject(with: data, options: []) as? [[String: Any?]] {
-                return object
-            } else {
-                return nil
-            }
-        }
-        set {
-            if newValue != nil, let data = try? JSONSerialization.data(withJSONObject: newValue!, options: .prettyPrinted) {
-                apphudDataToCache(data: data, key: ApphudUserPropertiesCacheKey)
-            } else if newValue == nil {
-                apphudDataClearCache(key: ApphudUserPropertiesCacheKey)
-            }
-        }
+        return (params, properties, canSaveToCache)
     }
 }
 

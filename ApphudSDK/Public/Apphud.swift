@@ -14,7 +14,7 @@ import Foundation
 import UserNotifications
 import SwiftUI
 
-internal let apphud_sdk_version = "3.2.3"
+internal let apphud_sdk_version = "3.2.5"
 
 // MARK: - Initialization
 
@@ -76,7 +76,7 @@ final public class Apphud: NSObject {
 
      Note: This value may change during runtime. Observe the `apphudDidChangeUserID(_ userID: String)` delegate method for changes.
      */
-    @objc public static func userID() -> String {
+    @MainActor @objc public static func userID() -> String {
         return ApphudInternal.shared.currentUserID
     }
 
@@ -85,7 +85,7 @@ final public class Apphud: NSObject {
 
      - Returns: A string representing the current device ID.
      */
-    @objc public static func deviceID() -> String {
+    @MainActor @objc public static func deviceID() -> String {
         return ApphudInternal.shared.currentDeviceID
     }
 
@@ -96,9 +96,8 @@ final public class Apphud: NSObject {
 
      __Note__: If the previous user had an active subscription, a new logged-in user can still restore purchases on the same device. In this case, both users will be merged under the account of the user with the active subscription, due to the Apple ID being tied to the device.
      */
-    @MainActor
-    @objc public static func logout() {
-        ApphudInternal.shared.logout()
+    @objc public static func logout() async {
+        await ApphudInternal.shared.logout()
     }
 
     /**
@@ -124,7 +123,7 @@ final public class Apphud: NSObject {
     /**
      Asynchronously retrieves the paywall placements configured in Product Hub > Placements, potentially altered based on the user's involvement in A/B testing, if any. Awaits until the inner `SKProduct`s are loaded from the App Store.
 
-     A placement is a specific location within a user's journey (such as onboarding, settings, etc.) where its internal paywall is intended to be displayed.
+     A placement is a specific location within a user's journey (such as onboarding, settings, etc.) where its internal paywall is intended to be displayed. See documentation for details: https://docs.apphud.com/docs/placements
 
      For immediate access without awaiting `SKProduct`s, use `rawPlacements()` method.
 
@@ -144,12 +143,14 @@ final public class Apphud: NSObject {
 
      - Important: This function doesn't await until inner `SKProduct`s are loaded from the App Store. That means placements may or may not have inner StoreKit products at the time you call this function.
 
+     - Important: This function will return empty array if user is not yet loaded, or placements are not set up in the Product Hub.
+
     To get placements with awaiting for StoreKit products, use await Apphud.placements() or
      Apphud.placementsDidLoadCallback(...) functions.
 
     - Returns: An array of `ApphudPlacement` objects, representing the configured placements.
     */
-    public func rawPlacements() -> [ApphudPlacement] {
+    @MainActor public static func rawPlacements() -> [ApphudPlacement] {
         ApphudInternal.shared.placements
     }
 
@@ -189,7 +190,7 @@ final public class Apphud: NSObject {
 
      For immediate access without awaiting `SKProduct`s, use `rawPaywalls()` method.
 
-     - Important: This is deprecated method. Retrieve paywalls from within placements instead. See documentation for details: https://docs.apphud.com/docs/placements
+     - Important: This is deprecated method. Retrieve paywalls from within placements instead. See documentation for details: https://docs.apphud.com/docs/paywalls
 
      - Returns: An array of `ApphudPaywall` objects, representing the configured paywalls.
      */
@@ -208,12 +209,14 @@ final public class Apphud: NSObject {
 
     - Important: This function doesn't await until inner `SKProduct`s are loaded from the App Store. That means paywalls may or may not have inner StoreKit products at the time you call this function.
 
+    - Important: This function will return empty array if user is not yet loaded, or placements are not set up in the Product Hub.
+
     To get paywalls with awaiting for StoreKit products, use await Apphud.paywalls() or
      Apphud.paywallsDidLoadCallback(...) functions.
 
     - Returns: An array of `ApphudPaywall` objects, representing the configured paywalls.
     */
-    func rawPaywalls() -> [ApphudPaywall] {
+    @MainActor public static func rawPaywalls() -> [ApphudPaywall] {
         ApphudInternal.shared.paywalls
     }
 
@@ -361,7 +364,7 @@ final public class Apphud: NSObject {
      - parameter product: The `Product` struct from StoreKit 2.
      - Returns: An optional `ApphudProduct` struct that matches the given `Product` struct.
      */
-    @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
+    @MainActor @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
     public static func apphudProductFor(_ product: Product) -> ApphudProduct? {
         ApphudInternal.shared.allAvailableProducts.first(where: { $0.productId == product.id })
     }
@@ -372,7 +375,7 @@ final public class Apphud: NSObject {
      - Returns: An optional array of `ApphudGroup` objects, representing the permission groups.
      */
     @objc public static func permissionGroups() async -> [ApphudGroup]? {
-        if let groups = ApphudInternal.shared.permissionGroups {
+        if let groups = await ApphudInternal.shared.permissionGroups {
             return groups
         } else {
             return await ApphudInternal.shared.fetchPermissionGroups()
@@ -388,7 +391,7 @@ final public class Apphud: NSObject {
      - parameter callback: Optional. Returns an `ApphudPurchaseResult` object.
      - Note: You can purchase products using your own code; Apphud will still receive the App Store receipt.
      */
-    @objc(purchaseApphudProduct:callback:)
+    @MainActor @objc(purchaseApphudProduct:callback:)
     public static func purchase(_ product: ApphudProduct, callback: ((ApphudPurchaseResult) -> Void)?) {
         ApphudInternal.shared.purchase(productId: product.productId, product: product, validate: true, callback: callback)
     }
@@ -401,7 +404,7 @@ final public class Apphud: NSObject {
      - Note: A/B Experiments will not work with this method. Use `ApphudProduct` objects with Placements for A/B experiments.
      - Important: Best practice is to use Apphud Placements configured in Apphud Dashboard > Product Hub > Placements.
      */
-    @objc(purchaseById:callback:)
+    @MainActor @objc(purchaseById:callback:)
     public static func purchase(_ productId: String, callback: ((ApphudPurchaseResult) -> Void)?) {
         ApphudInternal.shared.purchase(productId: productId, product: nil, validate: true, callback: callback)
     }
@@ -467,7 +470,7 @@ final public class Apphud: NSObject {
 
      - Note: Contact your support manager for detailed guidance on using this method.
      */
-    @objc(purchaseApphudProduct:value:callback:)
+    @MainActor @objc(purchaseApphudProduct:value:callback:)
     public static func purchase(_ product: ApphudProduct, value: Double, callback: ((ApphudPurchaseResult) -> Void)?) {
         ApphudInternal.shared.purchase(productId: product.productId, product: product, validate: true, value: value, callback: callback)
     }
@@ -492,7 +495,7 @@ final public class Apphud: NSObject {
      - Important: Do not use this method if you offer consumable in-app purchases (like coin packs) as the SDK does not differentiate consumables from non-consumables.
      - Returns: `true` if the user has an active subscription or an active non-renewing purchase.
      */
-    @objc public static func hasPremiumAccess() -> Bool {
+    @MainActor @objc public static func hasPremiumAccess() -> Bool {
         hasActiveSubscription() || (nonRenewingPurchases()?.first(where: { $0.isActive() }) != nil)
     }
 
@@ -502,7 +505,7 @@ final public class Apphud: NSObject {
      - Important: If your app includes lifetime (non-consumable) or consumable purchases, you should use the `Apphud.isNonRenewingPurchaseActive(productIdentifier:)` method to check their status.
      - Returns: `true` if the user currently has an active subscription.
      */
-    @objc public static func hasActiveSubscription() -> Bool {
+    @MainActor @objc public static func hasActiveSubscription() -> Bool {
         subscriptions()?.first(where: { $0.isActive() }) != nil
     }
 
@@ -521,7 +524,7 @@ final public class Apphud: NSObject {
      - Note: A non-nil return value does not guarantee that the subscription is active. Use the `Apphud.hasActiveSubscription()` method or check the `isActive` property of the subscription to determine if premium functionality should be unlocked for the user.
      - Returns: The most recent `ApphudSubscription` object if available, otherwise `nil`.
      */
-    public static func subscription() -> ApphudSubscription? {
+    @MainActor public static func subscription() -> ApphudSubscription? {
         return ApphudInternal.shared.currentUser?.subscriptions.first
     }
 
@@ -530,7 +533,7 @@ final public class Apphud: NSObject {
 
      - Returns: An array of `ApphudSubscription` objects representing all subscriptions ever purchased by the user, or `nil` if the SDK is not initialized.
      */
-    public static func subscriptions() -> [ApphudSubscription]? {
+    @MainActor public static func subscriptions() -> [ApphudSubscription]? {
         guard ApphudInternal.shared.isInitialized else {
             apphudLog(ApphudInitializeGuardText, forceDisplay: true)
             return nil
@@ -543,7 +546,7 @@ final public class Apphud: NSObject {
 
      - Returns: An array of `ApphudNonRenewingPurchase` objects representing all standard in-app purchases made by the user, or `nil` if the SDK is not initialized.
      */
-    public static func nonRenewingPurchases() -> [ApphudNonRenewingPurchase]? {
+    @MainActor public static func nonRenewingPurchases() -> [ApphudNonRenewingPurchase]? {
         guard ApphudInternal.shared.isInitialized else {
             apphudLog(ApphudInitializeGuardText, forceDisplay: true)
             return nil
@@ -557,7 +560,7 @@ final public class Apphud: NSObject {
      - parameter productIdentifier: The product identifier for the in-app purchase to check.
      - Returns: `true` if the user has an active purchase with the given product identifier; `false` if the product is refunded, never purchased, or inactive.
      */
-    public static func isNonRenewingPurchaseActive(productIdentifier: String) -> Bool {
+    @MainActor public static func isNonRenewingPurchaseActive(productIdentifier: String) -> Bool {
         nonRenewingPurchases()?.first(where: {$0.productId == productIdentifier})?.isActive() ?? false
     }
 
@@ -568,10 +571,12 @@ final public class Apphud: NSObject {
 
      - Returns: An optional `Error`. If the error is `nil`, you can check the user's premium status using the `Apphud.hasActiveSubscription()` or `Apphud.hasPremiumAccess()` methods.
      */
-    @objc @discardableResult public static func restorePurchases() async -> Error? {
+    @MainActor @objc @discardableResult public static func restorePurchases() async -> Error? {
         return await withCheckedContinuation({ continunation in
-            ApphudInternal.shared.restorePurchases { _, _, error in
-                continunation.resume(returning: error)
+            Task { @MainActor in
+                ApphudInternal.shared.restorePurchases { _, _, error in
+                    continunation.resume(returning: error)
+                }
             }
         })
     }
@@ -582,7 +587,7 @@ final public class Apphud: NSObject {
      - parameter callback: Required. A closure that returns an array of `ApphudSubscription` objects, an array of `ApphudNonRenewingPurchase` objects, and an optional `Error`.
      - Note: The presence of a subscription in the callback does not guarantee that it is active. You should check the `isActive()` property on each subscription.
      */
-    public static func restorePurchases(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {
+    @MainActor public static func restorePurchases(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {
         ApphudInternal.shared.restorePurchases(callback: callback)
     }
 
@@ -603,7 +608,7 @@ final public class Apphud: NSObject {
      Deprecated: No longer needed for iOS 15 and later, as purchases migrate automatically.
      */
     @available(iOS, deprecated: 15.0, message: "No longer needed for iOS 15+. Purchases migrate automatically.")
-    public static func migratePurchasesIfNeeded(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {
+    @MainActor public static func migratePurchasesIfNeeded(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {
         if apphudShouldMigrate() {
             ApphudInternal.shared.restorePurchases { (subscriptions, purchases, error) in
                 if error == nil {

@@ -19,7 +19,7 @@ extension ApphudInternal {
                 switch provider {
                 case .custom:
                     if let customAttribution = data as? [String: Any] {
-                        params.merge(customAttribution, uniquingKeysWith: { f, s in f})
+                        params.merge(customAttribution, uniquingKeysWith: { f, _ in f})
                     }
                 case .firebase:
                     guard identifer != nil, self.submittedFirebaseId != identifer else {
@@ -42,7 +42,7 @@ extension ApphudInternal {
                     if data != nil {
                         params["appsflyer_data"] = data
 
-                        guard self.submittedPreviouslyAF(data: data!) else {
+                        guard await self.submittedPreviouslyAF(data: data!) else {
                             apphudLog("Already submitted AppsFlyer attribution, skipping", forceDisplay: true)
                             callback?(false)
                             return
@@ -58,7 +58,7 @@ extension ApphudInternal {
                     if data != nil {
                         params["adjust_data"] = data
 
-                        guard self.submittedPreviouslyAdjust(data: data!) else {
+                        guard await self.submittedPreviouslyAdjust(data: data!) else {
                             apphudLog("Already submitted Adjust attribution, skipping", forceDisplay: true)
                             callback?(false)
                             return
@@ -90,14 +90,16 @@ extension ApphudInternal {
                 try? await Task.sleep(nanoseconds: 2_000_000_000)
 
                 self.startAttributionRequest(params: params, provider: provider, identifer: identifer) { result in
-                    if result {
-                        switch provider {
-                        case .appsFlyer:
-                            self.submittedAFData = data
-                        case .adjust:
-                            self.submittedAdjustData = data
-                        default :
-                            break
+                    Task {
+                        if result {
+                            switch provider {
+                            case .appsFlyer:
+                                await ApphudDataActor.shared.setAFData(data)
+                            case .adjust:
+                                await ApphudDataActor.shared.setAdjustData(data)
+                            default :
+                                break
+                            }
                         }
                     }
                     callback?(result)
@@ -106,12 +108,12 @@ extension ApphudInternal {
         }
     }
 
-    func submittedPreviouslyAF(data: [AnyHashable: Any]) -> Bool {
-        return self.compareAttribution(first: data, second: self.submittedAFData ?? [:])
+    func submittedPreviouslyAF(data: [AnyHashable: Any]) async -> Bool {
+        return await self.compareAttribution(first: data, second: ApphudDataActor.shared.submittedAFData ?? [:])
     }
 
-    func submittedPreviouslyAdjust(data: [AnyHashable: Any]) -> Bool {
-        return self.compareAttribution(first: data, second: self.submittedAdjustData ?? [:])
+    func submittedPreviouslyAdjust(data: [AnyHashable: Any]) async -> Bool {
+        return await self.compareAttribution(first: data, second: ApphudDataActor.shared.submittedAdjustData ?? [:])
     }
 
     func compareAttribution(first: [AnyHashable: Any], second: [AnyHashable: Any]) -> Bool {

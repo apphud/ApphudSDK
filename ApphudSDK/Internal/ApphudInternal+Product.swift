@@ -13,13 +13,13 @@ extension ApphudInternal {
 
     internal func fetchAllAvailableProductIDs() async -> Set<String> {
         await withCheckedContinuation({ continuation in
-            performWhenUserRegistered {
+            performWhenUserRegistered { @MainActor in
                 continuation.resume(returning: self.allAvailableProductIDs())
             }
         })
     }
 
-    internal func allAvailableProductIDs() -> Set<String> {
+    @MainActor internal func allAvailableProductIDs() -> Set<String> {
         var productIDs = [String]()
 
         paywalls.forEach { p in
@@ -35,7 +35,7 @@ extension ApphudInternal {
 
     internal func continueToFetchStoreKitProducts() async {
 
-        let productIds = allAvailableProductIDs()
+        let productIds = await allAvailableProductIDs()
 
         guard productIds.count > 0 else {
             return
@@ -56,11 +56,11 @@ extension ApphudInternal {
     internal func refreshStoreKitProductsWithCallback(callback: (([SKProduct], Error?) -> Void)?) {
         Task(priority: .userInitiated) {
 
-            if permissionGroups == nil {
+            if await permissionGroups == nil {
                 _ = await fetchPermissionGroups()
             }
 
-            let availableIds = ApphudInternal.shared.allAvailableProductIDs()
+            let availableIds = await ApphudInternal.shared.allAvailableProductIDs()
             if availableIds.isEmpty {
                 let msg = "None of the products have been added to any permission groups or paywalls."
                 let error = ApphudError(message: msg)
@@ -78,10 +78,12 @@ extension ApphudInternal {
         await withCheckedContinuation { continuation in
             ApphudInternal.shared.getProductGroups { groups, _, _ in
                 Task {
-                    groups.map { self.cacheGroups(groups: $0) }
+                    if let g = groups {
+                        await self.cacheGroups(groups: g)
+                        await MainActor.run { self.permissionGroups = groups }
+                    }
+                    continuation.resume(returning: groups)
                 }
-                self.permissionGroups = groups
-                continuation.resume(returning: groups)
             }
         }
     }
@@ -133,8 +135,8 @@ extension ApphudInternal {
 
         if writeToCache {
             Task.detached(priority: .utility) {
-                self.cachePaywalls(paywalls: self.paywalls)
-                self.cachePlacements(placements: self.placements)
+                await self.cachePaywalls(paywalls: self.paywalls)
+                await self.cachePlacements(placements: self.placements)
             }
         }
 
@@ -174,7 +176,7 @@ extension ApphudInternal {
 
     // MARK: - Product Groups Helper Methods
 
-    internal var allAvailableProducts: [ApphudProduct] {
+    @MainActor internal var allAvailableProducts: [ApphudProduct] {
 
         var products = [ApphudProduct]()
 
@@ -193,7 +195,7 @@ extension ApphudInternal {
         return products
     }
 
-    internal func paywallsAreReady() -> Bool {
+    @MainActor internal func paywallsAreReady() -> Bool {
         var paywallsContainsProducts = false
         paywalls.forEach { paywall in
             paywall.products.forEach { p in
@@ -219,20 +221,18 @@ extension ApphudInternal {
         placements.forEach { placement in
             placement.paywall?.update(placementId: placement.id)
         }
-
-        apphudLog("Did update Paywalls and Placements, has StoreKit Products: \(ApphudStoreKitWrapper.shared.products.count > 0)")
     }
 
-    internal func cachePaywalls(paywalls: [ApphudPaywall]) {
+    internal func cachePaywalls(paywalls: [ApphudPaywall]) async {
         let encoder = JSONEncoder()
         encoder.keyEncodingStrategy = .convertToSnakeCase
         if let data = try? encoder.encode(paywalls) {
-            apphudDataToCache(data: data, key: "ApphudPaywalls")
+            await ApphudDataActor.shared.apphudDataToCache(data: data, key: "ApphudPaywalls")
         }
     }
 
-    internal func cachedPaywalls() -> (objects: [ApphudPaywall]?, expired: Bool) {
-        let dataFromCache = apphudDataFromCache(key: "ApphudPaywalls", cacheTimeout: cacheTimeout)
+    internal func cachedPaywalls() async -> (objects: [ApphudPaywall]?, expired: Bool) {
+        let dataFromCache = await ApphudDataActor.shared.apphudDataFromCache(key: "ApphudPaywalls", cacheTimeout: cacheTimeout)
         if let data = dataFromCache.objectsData {
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase
@@ -244,17 +244,16 @@ extension ApphudInternal {
         return (nil, true)
     }
 
-    internal func cacheGroups(groups: [ApphudGroup]) {
+    internal func cacheGroups(groups: [ApphudGroup]) async {
         let encoder = JSONEncoder()
         encoder.keyEncodingStrategy = .convertToSnakeCase
         if let data = try? encoder.encode(groups) {
-            apphudDataToCache(data: data, key: "ApphudProductGroups")
+            await ApphudDataActor.shared.apphudDataToCache(data: data, key: "ApphudProductGroups")
         }
     }
 
-    internal func cachedGroups() -> (objects: [ApphudGroup]?, expired: Bool) {
-
-        let dataFromCache = apphudDataFromCache(key: "ApphudProductGroups", cacheTimeout: cacheTimeout)
+    internal func cachedGroups() async -> (objects: [ApphudGroup]?, expired: Bool) {
+        let dataFromCache = await ApphudDataActor.shared.apphudDataFromCache(key: "ApphudProductGroups", cacheTimeout: cacheTimeout)
         if let data = dataFromCache.objectsData {
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase
@@ -266,16 +265,16 @@ extension ApphudInternal {
         return (nil, true)
     }
 
-    internal func cachePlacements(placements: [ApphudPlacement]) {
+    internal func cachePlacements(placements: [ApphudPlacement]) async {
         let encoder = JSONEncoder()
         encoder.keyEncodingStrategy = .convertToSnakeCase
         if let data = try? encoder.encode(placements) {
-            apphudDataToCache(data: data, key: "ApphudPlacements")
+            await ApphudDataActor.shared.apphudDataToCache(data: data, key: "ApphudPlacements")
         }
     }
 
-    internal func cachedPlacements() -> (objects: [ApphudPlacement]?, expired: Bool) {
-        let dataFromCache = apphudDataFromCache(key: "ApphudPlacements", cacheTimeout: cacheTimeout)
+    internal func cachedPlacements() async -> (objects: [ApphudPlacement]?, expired: Bool) {
+        let dataFromCache = await ApphudDataActor.shared.apphudDataFromCache(key: "ApphudPlacements", cacheTimeout: cacheTimeout)
         if let data = dataFromCache.objectsData {
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase

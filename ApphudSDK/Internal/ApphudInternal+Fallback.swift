@@ -11,7 +11,7 @@ import StoreKit
 
 extension ApphudInternal {
 
-    func executeFallback() {
+    @MainActor func executeFallback() {
 
         guard !didPreparePaywalls else {
             apphudLog("No need for fallback", logLevel: .debug)
@@ -36,34 +36,30 @@ extension ApphudInternal {
         }
 
         if self.paywalls.count > 0 && self.allAvailableProductIDs().count > 0 {
-            Task {
-                await preparePaywalls(pwls: self.paywalls, writeToCache: false, completionBlock: nil)
-                apphudLog("fallback mode with cached paywalls", logLevel: .all)
-            }
+            preparePaywalls(pwls: self.paywalls, writeToCache: false, completionBlock: nil)
+            apphudLog("fallback mode with cached paywalls", logLevel: .all)
             return
         }
 
-        Task {
-            do {
-                let jsonData = try Data(contentsOf: url)
+        do {
+            let jsonData = try Data(contentsOf: url)
 
-                typealias ApphudArrayResponse = ApphudAPIDataResponse<ApphudAPIArrayResponse <ApphudPaywall> >
+            typealias ApphudArrayResponse = ApphudAPIDataResponse<ApphudAPIArrayResponse <ApphudPaywall> >
 
-                let decoder = JSONDecoder()
-                decoder.keyDecodingStrategy = .convertFromSnakeCase
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
 
-                let pwlsResponse = try decoder.decode(ApphudArrayResponse.self, from: jsonData)
-                let pwls = pwlsResponse.data.results
+            let pwlsResponse = try decoder.decode(ApphudArrayResponse.self, from: jsonData)
+            let pwls = pwlsResponse.data.results
 
-                await preparePaywalls(pwls: pwls, writeToCache: false, completionBlock: nil)
-                apphudLog("Fallback mode is active", logLevel: .all)
-            } catch {
-                apphudLog("Failed to parse fallback paywalls: \(error)")
-            }
+            preparePaywalls(pwls: pwls, writeToCache: false, completionBlock: nil)
+            apphudLog("Fallback mode is active", logLevel: .all)
+        } catch {
+            apphudLog("Failed to parse fallback paywalls: \(error)")
         }
     }
 
-    func stubPurchase(product: SKProduct?) -> HasPurchasesChanges {
+    @MainActor func stubPurchase(product: SKProduct?) -> HasPurchasesChanges {
         guard let product = product, !Apphud.hasPremiumAccess() else {
             apphudLog("No need to stub purchase because already has premium access")
             return HasPurchasesChanges(false, false)
@@ -75,14 +71,18 @@ extension ApphudInternal {
 
             apphudLog("Creating stub subscription with 1 hour expiration..")
 
-            self.currentUser?.toCacheV2()
+            Task {
+                await self.currentUser?.toCacheV2()
+            }
 
             return HasPurchasesChanges(true, false)
         } else {
             let purchase = ApphudNonRenewingPurchase(product: product)
             self.currentUser = ApphudUser(userID: currentUserID, purchases: [purchase], paywalls: paywalls)
 
-            self.currentUser?.toCacheV2()
+            Task {
+                await self.currentUser?.toCacheV2()
+            }
 
             return HasPurchasesChanges(false, true)
         }

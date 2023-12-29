@@ -27,7 +27,7 @@ public class ApphudGroup: NSObject, Codable {
     /**
      Returns `true` if this permission group has active subscription. Keep in mind, that this method doesn't take into account non-renewing purchases.
      */
-    public var hasAccess: Bool {
+    @MainActor public var hasAccess: Bool {
 
         for subscription in ApphudInternal.shared.currentUser?.subscriptions ?? [] {
             if subscription.isActive() && subscription.groupId == id {
