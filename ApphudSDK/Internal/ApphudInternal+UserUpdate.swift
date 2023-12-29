@@ -116,7 +116,7 @@ extension ApphudInternal {
     @MainActor
     internal func updateUserID(userID: String) {
         performWhenUserRegistered {
-            
+
             guard self.currentUserID != userID else {
                 apphudLog("Will not update User ID to \(userID), because current value is the same")
                 return

@@ -28,7 +28,6 @@ internal let ApphudInitializeGuardText = "Attempted to use Apphud SDK method ear
 internal let submittedAFDataKey = "submittedAFDataKey"
 internal let submittedAdjustDataKey = "submittedAdjustDataKey"
 
-
 final class ApphudInternal: NSObject {
 
     internal static let shared = ApphudInternal()
@@ -725,7 +724,7 @@ final class ApphudInternal: NSObject {
         didSubmitAppleAdsAttribution = false
         submittedFirebaseId = nil
         submittedPushToken = nil
-        
+
         observerModePurchaseIdentifiers = nil
 
         allowIdentifyUser = true

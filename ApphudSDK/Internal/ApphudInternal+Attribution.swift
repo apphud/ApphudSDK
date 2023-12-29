@@ -19,7 +19,7 @@ extension ApphudInternal {
                 switch provider {
                 case .custom:
                     if let customAttribution = data as? [String: Any] {
-                        params.merge(customAttribution, uniquingKeysWith: { f, s in f})
+                        params.merge(customAttribution, uniquingKeysWith: { f, _ in f})
                     }
                 case .firebase:
                     guard identifer != nil, self.submittedFirebaseId != identifer else {
