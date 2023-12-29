@@ -14,7 +14,7 @@ extension ApphudInternal {
 
     // MARK: - Main Purchase and Submit Receipt methods
 
-    internal func restorePurchases(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {
+    @MainActor internal func restorePurchases(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {
         self.restorePurchasesCallback = { subs, purchases, error in
             if error != nil { ApphudStoreKitWrapper.shared.restoreTransactions() }
             callback(subs, purchases, error)
@@ -29,7 +29,7 @@ extension ApphudInternal {
         }
     }
 
-    @objc private func checkTransactionsNow() {
+    @MainActor @objc private func checkTransactionsNow() {
 
         if Apphud.hasPremiumAccess() || ApphudStoreKitWrapper.shared.isPurchasing {
             return
@@ -139,10 +139,12 @@ extension ApphudInternal {
     }
 
     @objc internal func submitAppStoreReceipt() {
-        submitReceiptRestore(allowsReceiptRefresh: false, transaction: nil)
+        Task { @MainActor in
+            submitReceiptRestore(allowsReceiptRefresh: false, transaction: nil)
+        }
     }
 
-    internal func submitReceiptRestore(allowsReceiptRefresh: Bool, transaction: SKPaymentTransaction?) {
+    @MainActor internal func submitReceiptRestore(allowsReceiptRefresh: Bool, transaction: SKPaymentTransaction?) {
 
         let receiptString = apphudReceiptDataString()
 
@@ -160,15 +162,12 @@ extension ApphudInternal {
             apphudLog("App Store receipt is missing, but got transaction. Will try to submit transaction instead..", forceDisplay: true)
         }
 
-        let exist = performWhenUserRegistered {
+        performWhenUserRegistered {
 
             self.submitReceipt(product: nil, apphudProduct: nil, transaction: transaction, receiptString: receiptString, notifyDelegate: true) { error in
                 self.restorePurchasesCallback?(self.currentUser?.subscriptions, self.currentUser?.purchases, error)
                 self.restorePurchasesCallback = nil
             }
-        }
-        if !exist {
-            apphudLog("Tried to make restore allows: \(allowsReceiptRefresh) request when user is not yet registered, addind to schedule..")
         }
     }
 
@@ -177,8 +176,10 @@ extension ApphudInternal {
         let block: (String?) -> Void = { receiptStr in
             if transaction != nil {
                 self.submitReceipt(product: product, apphudProduct: apphudProduct, transaction: transaction, receiptString: receiptStr, notifyDelegate: true) { error in
-                    let result = self.purchaseResult(productId: product.productIdentifier, transaction: transaction, error: error)
-                    callback?(result)
+                    Task { @MainActor in
+                        let result = self.purchaseResult(productId: product.productIdentifier, transaction: transaction, error: error)
+                        callback?(result)
+                    }
                 }
             } else {
                 apphudLog("Tried to make submitReceipt: \(product.productIdentifier) request but transaction doesn't exist, addind to schedule..")
@@ -303,13 +304,13 @@ extension ApphudInternal {
             var paywall: ApphudPaywall?
 
             if observerModePurchaseIdentifiers?.placement != nil {
-                let placement = placements.first(where: { $0.identifier == observerModePurchaseIdentifiers?.placement })
+                let placement = await placements.first(where: { $0.identifier == observerModePurchaseIdentifiers?.placement })
                 if params["placement_id"] == nil && placement != nil {
                     params["placement_id"] = placement?.id
                 }
                 paywall = placement?.paywalls.first(where: {$0.identifier == observerModePurchaseIdentifiers?.paywall})
             } else {
-                paywall = paywalls.first(where: {$0.identifier == observerModePurchaseIdentifiers?.paywall})
+                paywall = await paywalls.first(where: {$0.identifier == observerModePurchaseIdentifiers?.paywall})
             }
 
             params["paywall_id"] = paywall?.id
@@ -399,7 +400,7 @@ extension ApphudInternal {
         }
     }
 
-    internal func purchase(productId: String, product: ApphudProduct?, validate: Bool, value: Double? = nil, callback: ((ApphudPurchaseResult) -> Void)?) {
+    @MainActor internal func purchase(productId: String, product: ApphudProduct?, validate: Bool, value: Double? = nil, callback: ((ApphudPurchaseResult) -> Void)?) {
         if let apphudProduct = product, let skProduct = apphudProduct.skProduct {
             purchase(product: skProduct, apphudProduct: apphudProduct, validate: validate, value: value, callback: callback)
         } else {
@@ -461,11 +462,13 @@ extension ApphudInternal {
                 ApphudLoggerService.shared.paywallPaymentError(paywallId: apphudProduct?.paywallId, placementId: apphudProduct?.placementId, productId: product.productIdentifier, error: error.apphudErrorMessage())
             }
 
-            if validate {
-                self.handleTransaction(product: product, transaction: transaction, error: error, apphudProduct: apphudProduct, callback: callback)
-            } else {
-                self.handleTransaction(product: product, transaction: transaction, error: error, apphudProduct: apphudProduct, callback: nil)
-                callback?(ApphudPurchaseResult(nil, nil, transaction, error))
+            Task { @MainActor in
+                if validate {
+                    self.handleTransaction(product: product, transaction: transaction, error: error, apphudProduct: apphudProduct, callback: callback)
+                } else {
+                    self.handleTransaction(product: product, transaction: transaction, error: error, apphudProduct: apphudProduct, callback: nil)
+                    callback?(ApphudPurchaseResult(nil, nil, transaction, error))
+                }
             }
         }
     }
@@ -479,7 +482,9 @@ extension ApphudInternal {
                 ApphudLoggerService.shared.paywallPaymentError(paywallId: product?.paywallId, placementId: product?.placementId, productId: skProduct.productIdentifier, error: error.apphudErrorMessage())
             }
 
-            self.handleTransaction(product: skProduct, transaction: transaction, error: error, apphudProduct: product, callback: callback)
+            Task { @MainActor in
+                self.handleTransaction(product: skProduct, transaction: transaction, error: error, apphudProduct: product, callback: callback)
+            }
         }
     }
 
@@ -487,7 +492,7 @@ extension ApphudInternal {
         observerModePurchaseIdentifiers = (paywallId, placementId)
     }
 
-    private func handleTransaction(product: SKProduct, transaction: SKPaymentTransaction, error: Error?, apphudProduct: ApphudProduct?, callback: ((ApphudPurchaseResult) -> Void)?) {
+    @MainActor private func handleTransaction(product: SKProduct, transaction: SKPaymentTransaction, error: Error?, apphudProduct: ApphudProduct?, callback: ((ApphudPurchaseResult) -> Void)?) {
         if transaction.transactionState == .purchased || transaction.failedWithUnknownReason {
             self.submitReceipt(product: product, transaction: transaction, apphudProduct: apphudProduct) { (result) in
                 ApphudStoreKitWrapper.shared.finishTransaction(transaction)
@@ -500,7 +505,7 @@ extension ApphudInternal {
     }
 
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
-    internal func asyncPurchaseResult(product: Product, transaction: StoreKit.Transaction?, error: Error?) -> ApphudAsyncPurchaseResult {
+    @MainActor internal func asyncPurchaseResult(product: Product, transaction: StoreKit.Transaction?, error: Error?) -> ApphudAsyncPurchaseResult {
 
         // 1. try to find in app purchase by product id
         let purchase = currentUser?.purchases.first(where: {$0.productId == product.id})
@@ -522,7 +527,7 @@ extension ApphudInternal {
         return ApphudAsyncPurchaseResult(subscription: subscription, nonRenewingPurchase: purchase, transaction: transaction, error: error)
     }
 
-    private func purchaseResult(productId: String, transaction: SKPaymentTransaction?, error: Error?) -> ApphudPurchaseResult {
+    @MainActor private func purchaseResult(productId: String, transaction: SKPaymentTransaction?, error: Error?) -> ApphudPurchaseResult {
 
         // 1. try to find in app purchase by product id
         var purchase: ApphudNonRenewingPurchase?
