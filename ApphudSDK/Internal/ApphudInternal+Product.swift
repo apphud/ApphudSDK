@@ -221,8 +221,6 @@ extension ApphudInternal {
         placements.forEach { placement in
             placement.paywall?.update(placementId: placement.id)
         }
-
-        apphudLog("Did update Paywalls and Placements, has StoreKit Products: \(ApphudStoreKitWrapper.shared.products.count > 0)")
     }
 
     internal func cachePaywalls(paywalls: [ApphudPaywall]) async {

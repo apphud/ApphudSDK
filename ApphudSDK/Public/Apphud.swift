@@ -123,7 +123,7 @@ final public class Apphud: NSObject {
     /**
      Asynchronously retrieves the paywall placements configured in Product Hub > Placements, potentially altered based on the user's involvement in A/B testing, if any. Awaits until the inner `SKProduct`s are loaded from the App Store.
 
-     A placement is a specific location within a user's journey (such as onboarding, settings, etc.) where its internal paywall is intended to be displayed.
+     A placement is a specific location within a user's journey (such as onboarding, settings, etc.) where its internal paywall is intended to be displayed. See documentation for details: https://docs.apphud.com/docs/placements
 
      For immediate access without awaiting `SKProduct`s, use `rawPlacements()` method.
 
@@ -142,6 +142,8 @@ final public class Apphud: NSObject {
     A list of paywall placements, potentially altered based on the user's involvement in A/B testing, if any. A placement is a specific location within a user's journey (such as onboarding, settings, etc.) where its internal paywall is intended to be displayed.
 
      - Important: This function doesn't await until inner `SKProduct`s are loaded from the App Store. That means placements may or may not have inner StoreKit products at the time you call this function.
+
+     - Important: This function will return empty array if user is not yet loaded, or placements are not set up in the Product Hub.
 
     To get placements with awaiting for StoreKit products, use await Apphud.placements() or
      Apphud.placementsDidLoadCallback(...) functions.
@@ -188,7 +190,7 @@ final public class Apphud: NSObject {
 
      For immediate access without awaiting `SKProduct`s, use `rawPaywalls()` method.
 
-     - Important: This is deprecated method. Retrieve paywalls from within placements instead. See documentation for details: https://docs.apphud.com/docs/placements
+     - Important: This is deprecated method. Retrieve paywalls from within placements instead. See documentation for details: https://docs.apphud.com/docs/paywalls
 
      - Returns: An array of `ApphudPaywall` objects, representing the configured paywalls.
      */
@@ -206,6 +208,8 @@ final public class Apphud: NSObject {
     A list of paywalls, potentially altered based on the user's involvement in A/B testing, if any.
 
     - Important: This function doesn't await until inner `SKProduct`s are loaded from the App Store. That means paywalls may or may not have inner StoreKit products at the time you call this function.
+
+    - Important: This function will return empty array if user is not yet loaded, or placements are not set up in the Product Hub.
 
     To get paywalls with awaiting for StoreKit products, use await Apphud.paywalls() or
      Apphud.paywallsDidLoadCallback(...) functions.
