@@ -48,7 +48,7 @@ final class ApphudInternal: NSObject {
     internal var submitReceiptRetries: ApphudRetryLog = (0, 0)
     internal var submitReceiptCallbacks = [ApphudErrorCallback?]()
     internal var restorePurchasesCallback: (([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void)?
-    internal var isSubmittingReceipt: Bool = false
+    internal var submittingTransaction: String?
     internal var lastUploadedTransactions: [UInt64] {
         get {
             UserDefaults.standard.array(forKey: "ApphudLastUploadedTransactions") as? [UInt64] ?? [UInt64]()
@@ -701,8 +701,8 @@ final class ApphudInternal: NSObject {
 
         submitReceiptRetries = (0, 0)
         restorePurchasesCallback = nil
-        isSubmittingReceipt = false
-        lastUploadedTransactions.removeAll()
+        submittingTransaction = nil
+        lastUploadedTransactions = []
         lastUploadedPaywallEvent.removeAll()
         lastUploadedPaywallEventDate = nil
         reinstallTracked = false

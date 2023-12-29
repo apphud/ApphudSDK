@@ -74,7 +74,10 @@ extension ApphudInternal {
 
         if isActive {
             apphudLog("found transaction with ID: \(transactionId), \(productID), purchase date: \(purchaseDate)", logLevel: .debug)
-            self.isSubmittingReceipt = false
+            if self.submittingTransaction == String(transactionId) {
+                apphudLog("Already submitting the same transaction id \(transactionId), skipping", logLevel: .debug)
+                return false
+            }
 
             let product = await ApphudStoreKitWrapper.shared.fetchProduct(productID)
             try? await ApphudAsyncStoreKit.shared.fetchProductIfNeeded(productID)
@@ -252,11 +255,11 @@ extension ApphudInternal {
             }
         }
 
-        if isSubmittingReceipt {
-            apphudLog("Already submitting receipt, exiting")
+        if submittingTransaction != nil {
+            apphudLog("Already submitting some receipt (\(submittingTransaction!)), exiting")
             return
         }
-        isSubmittingReceipt = true
+        submittingTransaction = transactionIdentifier ?? transactionProductIdentifier ?? product?.productIdentifier ?? "Restoration"
 
         let environment = Apphud.isSandbox() ? ApphudEnvironment.sandbox.rawValue : ApphudEnvironment.production.rawValue
 
@@ -270,9 +273,6 @@ extension ApphudInternal {
 
         if let transactionID = transactionIdentifier {
             params["transaction_id"] = transactionID
-            if let uint64 = UInt64(transactionID) {
-                self.lastUploadedTransactions.append(uint64)
-            }
         }
         if let bundleID = Bundle.main.bundleIdentifier {
             params["bundle_id"] = bundleID
@@ -337,7 +337,7 @@ extension ApphudInternal {
             Task { @MainActor in
                 if !result && hasMadePurchase && self.fallbackMode {
                     self.requiresReceiptSubmission = true
-                    self.isSubmittingReceipt = false
+                    self.submittingTransaction = nil
                     let hasChanges = self.stubPurchase(product: product ?? apphudProduct?.skProduct)
                     self.notifyAboutUpdates(hasChanges)
                     self.submitReceiptCallbacks.forEach { callback in callback?(error)}
@@ -355,7 +355,7 @@ extension ApphudInternal {
                 }
 
                 self.forceSendAttributionDataIfNeeded()
-                self.isSubmittingReceipt = false
+                self.submittingTransaction = nil
 
                 if result {
                     self.observerModePurchaseIdentifiers = nil
