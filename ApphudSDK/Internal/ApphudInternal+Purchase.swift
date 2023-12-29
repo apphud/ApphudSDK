@@ -50,7 +50,7 @@ extension ApphudInternal {
     }
 
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
-    @discardableResult internal func handleTransaction(_ transaction: StoreKit.Transaction, forceSubmit: Bool = false) async -> Bool {
+    @discardableResult internal func handleTransaction(_ transaction: StoreKit.Transaction) async -> Bool {
         let transactionId = transaction.id
         let refundDate = transaction.revocationDate
         let expirationDate = transaction.expirationDate
@@ -60,7 +60,7 @@ extension ApphudInternal {
 
         let transactions = self.lastUploadedTransactions
 
-        if transactions.contains(transactionId) && !forceSubmit {
+        if transactions.contains(transactionId) {
             return false
         }
 
@@ -72,7 +72,7 @@ extension ApphudInternal {
             isActive = purchaseDate > Date().addingTimeInterval(-86_400) && refundDate == nil
         }
 
-        if isActive || forceSubmit {
+        if isActive {
             apphudLog("found transaction with ID: \(transactionId), \(productID), purchase date: \(purchaseDate)", logLevel: .debug)
             self.isSubmittingReceipt = false
 
@@ -270,6 +270,9 @@ extension ApphudInternal {
 
         if let transactionID = transactionIdentifier {
             params["transaction_id"] = transactionID
+            if let uint64 = UInt64(transactionID) {
+                self.lastUploadedTransactions.append(uint64)
+            }
         }
         if let bundleID = Bundle.main.bundleIdentifier {
             params["bundle_id"] = bundleID

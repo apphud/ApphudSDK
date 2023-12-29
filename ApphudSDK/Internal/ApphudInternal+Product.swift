@@ -80,8 +80,8 @@ extension ApphudInternal {
                 Task {
                     if let g = groups {
                         await self.cacheGroups(groups: g)
+                        await MainActor.run { self.permissionGroups = groups }
                     }
-                    await MainActor.run { self.permissionGroups = groups }
                     continuation.resume(returning: groups)
                 }
             }
@@ -233,8 +233,8 @@ extension ApphudInternal {
         }
     }
 
-    internal func cachedPaywalls() -> (objects: [ApphudPaywall]?, expired: Bool) {
-        let dataFromCache = apphudDataFromCache(key: "ApphudPaywalls", cacheTimeout: cacheTimeout)
+    internal func cachedPaywalls() async -> (objects: [ApphudPaywall]?, expired: Bool) {
+        let dataFromCache = await ApphudDataActor.shared.apphudDataFromCache(key: "ApphudPaywalls", cacheTimeout: cacheTimeout)
         if let data = dataFromCache.objectsData {
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase
@@ -254,9 +254,8 @@ extension ApphudInternal {
         }
     }
 
-    internal func cachedGroups() -> (objects: [ApphudGroup]?, expired: Bool) {
-
-        let dataFromCache = apphudDataFromCache(key: "ApphudProductGroups", cacheTimeout: cacheTimeout)
+    internal func cachedGroups() async -> (objects: [ApphudGroup]?, expired: Bool) {
+        let dataFromCache = await ApphudDataActor.shared.apphudDataFromCache(key: "ApphudProductGroups", cacheTimeout: cacheTimeout)
         if let data = dataFromCache.objectsData {
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase
@@ -276,8 +275,8 @@ extension ApphudInternal {
         }
     }
 
-    internal func cachedPlacements() -> (objects: [ApphudPlacement]?, expired: Bool) {
-        let dataFromCache = apphudDataFromCache(key: "ApphudPlacements", cacheTimeout: cacheTimeout)
+    internal func cachedPlacements() async -> (objects: [ApphudPlacement]?, expired: Bool) {
+        let dataFromCache = await ApphudDataActor.shared.apphudDataFromCache(key: "ApphudPlacements", cacheTimeout: cacheTimeout)
         if let data = dataFromCache.objectsData {
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase

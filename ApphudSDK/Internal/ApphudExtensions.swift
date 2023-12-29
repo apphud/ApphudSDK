@@ -127,7 +127,7 @@ internal func apphudShouldMigrate() -> Bool {
     }
 }
 
-internal func apphudDataFromCache(key: String, cacheTimeout: TimeInterval) -> (objectsData: Data?, expired: Bool) {
+internal func apphudDataFromCacheSync(key: String, cacheTimeout: TimeInterval) -> (objectsData: Data?, expired: Bool) {
     if var url = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first {
         url.appendPathComponent(key)
 

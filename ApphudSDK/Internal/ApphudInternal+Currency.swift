@@ -40,9 +40,10 @@ extension ApphudInternal {
     @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
     private func fetchCurrencyWithMaxTimeout(_ completion: @escaping () -> Void) {
 
-        Task { @MainActor in
+        Task {
             let result = await Storefront.current
-            if let store = result, currentUser?.currency?.countryCodeAlpha3 != store.countryCode {
+            if let store = result, await currentUser?.currency?.countryCodeAlpha3 != store.countryCode {
+
                 storefrontCurrency = ApphudCurrency(countryCode: store.countryCode,
                                                     code: nil,
                                                     storeId: store.id,
@@ -63,14 +64,14 @@ extension ApphudInternal {
         }
     }
 
-    @MainActor private func fetchCurrencyLegacy() async {
+    private func fetchCurrencyLegacy() async {
 
         var skProducts: [SKProduct] = ApphudStoreKitWrapper.shared.products
 
         if skProducts.isEmpty {
             let groups: [ApphudGroup]?
-            if permissionGroups != nil {
-                groups = permissionGroups
+            if await permissionGroups != nil {
+                groups = await permissionGroups
             } else {
                 groups = await fetchPermissionGroups()
             }
@@ -91,8 +92,8 @@ extension ApphudInternal {
         guard let priceLocale = priceLocale else { return }
         guard let countryCode = priceLocale.regionCode else { return }
         guard let currencyCode = priceLocale.currencyCode else { return }
-        guard countryCode != currentUser?.currency?.countryCode else { return }
-        guard currencyCode != currentUser?.currency?.code else { return }
+        guard await countryCode != currentUser?.currency?.countryCode else { return }
+        guard await currencyCode != currentUser?.currency?.code else { return }
 
         storefrontCurrency = ApphudCurrency(countryCode: countryCode,
                                             code: currencyCode,

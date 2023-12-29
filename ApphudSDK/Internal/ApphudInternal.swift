@@ -66,8 +66,9 @@ final class ApphudInternal: NSObject {
     // MARK: - User registering properties
     internal var currentDeviceID: String = ""
     internal var currentUserID: String = ""
+    internal var storefrontCurrency: ApphudCurrency?
+
     @MainActor internal var currentUser: ApphudUser?
-    @MainActor internal var storefrontCurrency: ApphudCurrency?
     @MainActor internal var paywalls = [ApphudPaywall]()
     @MainActor internal var placements = [ApphudPlacement]()
     @MainActor internal var permissionGroups: [ApphudGroup]?
@@ -154,7 +155,7 @@ final class ApphudInternal: NSObject {
     internal var respondedStoreKitProducts = false
 
     internal var purchasingProduct: ApphudProduct?
-
+    internal var pendingTransactionID: String?
     internal var fallbackMode = false
     internal var registrationStartedAt: Date?
     internal var currencyTaskFinished = false
@@ -293,9 +294,9 @@ final class ApphudInternal: NSObject {
                 }
             }
 
-            let cachedPwls = cachedPaywalls()
-            let cachedPlacements = cachedPlacements()
-            let cachedGroups = cachedGroups()
+            let cachedPwls = await cachedPaywalls()
+            let cachedPlacements = await cachedPlacements()
+            let cachedGroups = await cachedGroups()
 
             await MainActor.run {
                 self.paywalls = cachedPwls.objects ?? []
@@ -697,9 +698,6 @@ final class ApphudInternal: NSObject {
         storeKitProductsFetchedCallbacks.removeAll()
         submitReceiptCallbacks.removeAll()
 
-        Task.detached {
-            self.userPropertiesCache = nil
-        }
         submitReceiptRetries = (0, 0)
         restorePurchasesCallback = nil
         isSubmittingReceipt = false

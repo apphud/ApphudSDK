@@ -311,9 +311,33 @@ extension ApphudInternal {
         }
     }
 
-    @ApphudDataActor @objc internal func updateUserProperties() {
+    @objc internal func updateUserProperties() {
+        Task {
+            let values = await self.preparePropertiesParams()
+            guard let params = values.0, let properties = values.1 else {
+                return
+            }
+
+            let canSaveToCache = values.2
+
+            httpClient?.startRequest(path: .properties, params: params, method: .post, retry: true) { (result, _, _, error, code, _) in
+                if result {
+                    if canSaveToCache {
+                        Task {
+                            await ApphudDataActor.shared.setUserPropertiesCache(properties)
+                        }
+                    }
+                    apphudLog("User Properties successfully updated.")
+                } else {
+                    apphudLog("User Properties update failed: \(error?.localizedDescription ?? "") with code: \(code)")
+                }
+            }
+        }
+    }
+
+    private func preparePropertiesParams() async -> ([String: Any]?, [[String: Any?]]?, Bool) {
         setNeedsToUpdateUserProperties = false
-        guard pendingUserProperties.count > 0 else {return}
+        guard pendingUserProperties.count > 0 else { return (nil, nil, false) }
         var params = [String: Any]()
         params["device_id"] = self.currentDeviceID
 
@@ -331,8 +355,8 @@ extension ApphudInternal {
 
         if canSaveToCache == false {
             // if new properties are not cacheable, then remove old cache and send new props to backend and not cache them
-            self.userPropertiesCache = nil
-        } else if let cachedProperties = self.userPropertiesCache {
+            await ApphudDataActor.shared.setUserPropertiesCache(nil)
+        } else if let cachedProperties = await ApphudDataActor.shared.userPropertiesCache {
             var shouldSkipUpload = true
             if cachedProperties.count == properties.count {
                 for cachedProp in cachedProperties {
@@ -356,45 +380,13 @@ extension ApphudInternal {
             if shouldSkipUpload {
                 apphudLog("Skip uploading user properties, because values did not change") //: \n\n\(properties),\n\ncache:\n\n\(cachedProperties)")
                 self.pendingUserProperties.removeAll()
-                return
+                return (nil, nil, false)
             }
         }
 
         self.pendingUserProperties.removeAll()
 
-        httpClient?.startRequest(path: .properties, params: params, method: .post, retry: true) { (result, _, _, error, code, _) in
-            if result {
-                if canSaveToCache {
-                    Task {
-                        self.userPropertiesCache = properties
-                    }
-                }
-                apphudLog("User Properties successfully updated.")
-            } else {
-                apphudLog("User Properties update failed: \(error?.localizedDescription ?? "") with code: \(code)")
-            }
-        }
-    }
-
-    internal var userPropertiesCache: [[String: Any?]]? {
-        get {
-            let cache = apphudDataFromCache(key: ApphudUserPropertiesCacheKey, cacheTimeout: 86_400*7)
-            if let data = cache.objectsData, !cache.expired,
-                let object = try? JSONSerialization.jsonObject(with: data, options: []) as? [[String: Any?]] {
-                return object
-            } else {
-                return nil
-            }
-        }
-        set {
-            Task {
-                if newValue != nil, let data = try? JSONSerialization.data(withJSONObject: newValue!, options: .prettyPrinted) {
-                    await ApphudDataActor.shared.apphudDataToCache(data: data, key: ApphudUserPropertiesCacheKey)
-                } else if newValue == nil {
-                    await ApphudDataActor.shared.apphudDataClearCache(key: ApphudUserPropertiesCacheKey)
-                }
-            }
-        }
+        return (params, properties, canSaveToCache)
     }
 }
 

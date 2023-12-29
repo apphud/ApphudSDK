@@ -42,7 +42,7 @@ public struct ApphudUser: Codable {
 
     - Returns: An array of `ApphudPlacement` objects, representing the configured placements.
     */
-    @MainActor public static func rawPlacements() -> [ApphudPlacement] {
+    @MainActor public func rawPlacements() -> [ApphudPlacement] {
         ApphudInternal.shared.placements
     }
 
@@ -56,7 +56,7 @@ public struct ApphudUser: Codable {
 
     - Returns: An array of `ApphudPaywall` objects, representing the configured paywalls.
     */
-    @MainActor public static func rawPaywalls() -> [ApphudPaywall] {
+    @MainActor public func rawPaywalls() -> [ApphudPaywall] {
         ApphudInternal.shared.paywalls
     }
 
@@ -193,7 +193,7 @@ public struct ApphudUser: Codable {
         }
 
         do {
-            if let data = apphudDataFromCache(key: ApphudUserCacheKey, cacheTimeout: 86_400*90).objectsData {
+            if let data = apphudDataFromCacheSync(key: ApphudUserCacheKey, cacheTimeout: 86_400*90).objectsData {
                 let decoder = JSONDecoder()
                 decoder.keyDecodingStrategy = .convertFromSnakeCase
                 let user = try decoder.decode(ApphudUser.self, from: data)
@@ -215,9 +215,10 @@ public struct ApphudUser: Codable {
 
         if user != nil {
             Task {
-                let data = try encoder.encode(user)
-                await ApphudDataActor.shared.apphudDataToCache(data: data, key: ApphudUserCacheKey)
-                apphudLog("Successfully migrated user to CacheV2")
+                if let data = try? encoder.encode(user) {
+                    await ApphudDataActor.shared.apphudDataToCache(data: data, key: ApphudUserCacheKey)
+                    apphudLog("Successfully migrated user to CacheV2")
+                }
             }
         }
 

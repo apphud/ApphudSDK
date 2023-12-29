@@ -149,7 +149,7 @@ public class ApphudHttpClient {
 
                 let response = await start(request: request, useDecoder: useDecoder, retries: retries, delay: retryDelay)
 
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     callback?(response.0, response.1, response.2, response.3, response.4, response.5)
                 }
             }
