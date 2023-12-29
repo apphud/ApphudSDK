@@ -13,6 +13,7 @@ class AppVariables {
 
     static let lifetimeProductID = "com.apphud.gold"
 
+    @MainActor
     static var isPremium: Bool {
         Apphud.hasActiveSubscription() ||
         Apphud.isNonRenewingPurchaseActive(productIdentifier: lifetimeProductID)

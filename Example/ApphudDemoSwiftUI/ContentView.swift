@@ -46,6 +46,7 @@ struct ContentView: View {
         })
     }
 
+    @MainActor
     var premiumStatus: String {
         AppVariables.isPremium ? "ON" : "OFF"
     }
