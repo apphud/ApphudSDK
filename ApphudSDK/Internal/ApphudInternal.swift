@@ -79,7 +79,7 @@ final class ApphudInternal: NSObject {
         didSet {
             DispatchQueue.main.async {
                 if self.setNeedsToUpdateUser {
-                    self.perform(#selector(self.updateCurrentUser), with: nil, afterDelay: 2.0)
+                    self.perform(#selector(self.updateCurrentUser), with: nil, afterDelay: 3.0)
                 } else {
                     NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(self.updateCurrentUser), object: nil)
                 }
@@ -90,7 +90,8 @@ final class ApphudInternal: NSObject {
         didSet {
             DispatchQueue.main.async {
                 if self.setNeedsToUpdateUserProperties {
-                    self.perform(#selector(self.updateUserProperties), with: nil, afterDelay: 1.0)
+                    NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(self.updateUserProperties), object: nil)
+                    self.perform(#selector(self.updateUserProperties), with: nil, afterDelay: 5.0)
                 } else {
                     NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(self.updateUserProperties), object: nil)
                 }
