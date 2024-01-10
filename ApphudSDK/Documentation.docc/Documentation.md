@@ -35,28 +35,34 @@ let result = await Apphud.purchase(product)
 
 ## Topics
 
-### Apphud main methods
+### Apphud Methods
+
+See full list of methods here: ``Apphud``
+
+Here are some primary methods:
 
 - ``Apphud/start(apiKey:userID:observerMode:callback:)``
+
 - ``Apphud/paywalls()``
 - ``Apphud/placements()``
+- ``Apphud/paywall(_:)``
+- ``Apphud/placement(_:)``
 - ``Apphud/paywallsDidLoadCallback(_:)``
 - ``Apphud/placementsDidLoadCallback(_:)``
-- ``Apphud/purchase(_:callback:)``
-
-- ``Apphud/willPurchaseProductFromPaywall(_:)``
-- ``Apphud/productsDidFetchCallback(_:)``
-- ``Apphud/grantPromotional(daysCount:productId:permissionGroup:callback:)``
 - ``Apphud/paywallShown(_:)``
-- ``Apphud/paywallClosed(_:)``
+
+- ``Apphud/purchase(_:callback:)-6dhy3``
+- ``Apphud/grantPromotional(daysCount:productId:permissionGroup:callback:)``
+- ``Apphud/restorePurchases(callback:)``
 
 - ``Apphud/hasPremiumAccess()``
-- ``Apphud/nonRenewingPurchases()``
-- ``Apphud/restorePurchases(callback:)``
-- ``Apphud/migratePurchasesIfNeeded(callback:)``
+- ``Apphud/hasActiveSubscription()``
+
+- ``Apphud/willPurchaseProductFrom(paywallIdentifier:placementIdentifier:)``
 
 - ``Apphud/setUserProperty(key:value:setOnce:)``
 - ``Apphud/addAttribution(data:from:identifer:callback:)``
+
 - ``Apphud/checkEligibilityForIntroductoryOffer(product:callback:)``
 - ``Apphud/checkEligibilityForPromotionalOffer(product:callback:)``
 
@@ -65,8 +71,10 @@ let result = await Apphud.purchase(product)
 - ``ApphudDelegate/apphudSubscriptionsUpdated(_:)``
 - ``ApphudDelegate/apphudNonRenewingPurchasesUpdated(_:)``
 - ``ApphudDelegate/apphudDidChangeUserID(_:)``
+- ``ApphudDelegate/paywallsDidFullyLoad(paywalls:)-3kcab``
+- ``ApphudDelegate/placementsDidFullyLoad(placements:)-8b6v8``
+- ``ApphudDelegate/userDidLoad(user:)-4f87g``
 
-- ``ApphudDelegate/apphudDidFetchStoreKitProducts(_:_:)``
 - ``ApphudDelegate/apphudShouldStartAppStoreDirectPurchase(_:)``
 - ``ApphudDelegate/apphudDidObservePurchase(result:)``
 - ``ApphudDelegate/handleDeferredTransaction(transaction:)``
