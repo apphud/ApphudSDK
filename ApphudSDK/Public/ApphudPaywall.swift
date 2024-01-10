@@ -33,8 +33,8 @@ public enum ApphudPaywallID: String {
  let paywall = await Apphud.paywall(ApphudPaywallID.onboarding.rawValue)
   ```
  
- - Note: An alternative way of getting ``Apphud/paywalls``
- 
+ - Note: An alternative way of getting ``Apphud/paywalls()``
+
  - Important: For more information  - [Paywalls Documentation](https://docs.apphud.com/docs/paywalls)
  */
 
