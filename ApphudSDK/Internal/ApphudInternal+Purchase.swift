@@ -282,16 +282,8 @@ extension ApphudInternal {
 
         params["user_id"] = currentUserID
 
-        if let info = await product?.apphudSubmittableParameters(hasMadePurchase) {
+        if let info = product?.apphudSubmittableParameters(hasMadePurchase) {
             params["product_info"] = info
-        }
-
-        if !eligibilityCheck {
-            let mainProductID: String? = product?.productIdentifier ?? transactionProductIdentifier
-            let other_products = ApphudStoreKitWrapper.shared.products.filter { $0.productIdentifier != mainProductID }
-            params["other_products_info"] = await other_products.asyncMap { p in
-                await p.apphudSubmittableParameters()
-            }
         }
 
         if hasMadePurchase, let purchasedApphudProduct = apphudProduct ?? purchasingProduct, purchasedApphudProduct.productId == transactionProductIdentifier {
