@@ -31,6 +31,7 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
 
     @available(*, deprecated, message: "Facebook integration is no longer needed from SDK and has been voided. You can safely remove this line of code.")
     case facebook
+    case facebookAEM
 
     /**
     Pass custom attribution data to Apphud. Contact your support manager for details.

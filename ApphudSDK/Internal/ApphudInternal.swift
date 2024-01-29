@@ -145,6 +145,7 @@ final class ApphudInternal: NSObject {
     internal let didSubmitAdjustAttributionKey = "didSubmitAdjustAttributionKey"
     internal let didSubmitProductPricesKey = "didSubmitProductPricesKey"
     internal let submittedFirebaseIdKey = "submittedFirebaseIdKey"
+    internal let submittedFacebookAnonIdKey = "submittedFacebookAnonIdKey"
     internal var didSubmitAppleAdsAttributionKey = "didSubmitAppleAdsAttributionKey"
     internal let submittedPushTokenKey = "submittedPushTokenKey"
     internal let swizzlePaymentDisabledKey = "swizzlePaymentDisabledKey"
@@ -196,7 +197,14 @@ final class ApphudInternal: NSObject {
             UserDefaults.standard.set(newValue, forKey: didSubmitAppleAdsAttributionKey)
         }
     }
-
+    internal var submittedFacebookAnonId: String? {
+        get {
+            UserDefaults.standard.string(forKey: submittedFacebookAnonIdKey)
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: submittedFacebookAnonIdKey)
+        }
+    }
     internal var submittedFirebaseId: String? {
         get {
             UserDefaults.standard.string(forKey: submittedFirebaseIdKey)
