@@ -416,12 +416,13 @@ final public class Apphud: NSObject {
      - parameter isPurchasing: Optional. A binding to a Boolean value indicating the purchase process status. Useful in SwiftUI.
      - Returns: An `ApphudAsyncPurchaseResult` struct.
      */
+    #if os(iOS) || os(tvOS) || os(macOS) || os(watchOS)
     @MainActor
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
     public static func purchase(_ product: Product, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
         await ApphudAsyncStoreKit.shared.purchase(product: product, apphudProduct: apphudProductFor(product), isPurchasing: isPurchasing)
     }
-
+    #endif
     /**
      Initiates an asynchronous purchase of an `ApphudProduct` object from an `ApphudPaywall` and automatically submits the App Store Receipt to Apphud.
 

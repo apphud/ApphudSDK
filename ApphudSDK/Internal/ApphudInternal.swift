@@ -422,6 +422,8 @@ final class ApphudInternal: NSObject {
             NSApplication.didBecomeActiveNotification
         #elseif os(watchOS)
             Notification.Name.NSExtensionHostDidBecomeActive
+        #elseif os(visionOS)
+            Notification.Name.NSExtensionHostDidBecomeActive
         #endif
     }
 

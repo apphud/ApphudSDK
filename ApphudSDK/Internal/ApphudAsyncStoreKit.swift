@@ -9,7 +9,7 @@ import Foundation
 import StoreKit
 import SwiftUI
 
-@available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
+@available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, visionOS 1.0, *)
 internal class ApphudAsyncStoreKit {
 
     static let shared = ApphudAsyncStoreKit()
@@ -73,7 +73,8 @@ internal class ApphudAsyncStoreKit {
             throw error
         }
     }
-
+    
+    #if os(iOS) || os(tvOS) || os(macOS) || os(watchOS)
     @MainActor
     func purchase(product: Product, apphudProduct: ApphudProduct?, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
         self.isPurchasing = true
@@ -122,6 +123,7 @@ internal class ApphudAsyncStoreKit {
             return ApphudInternal.shared.asyncPurchaseResult(product: product, transaction: nil, error: error)
         }
     }
+    #endif
 }
 
 @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
