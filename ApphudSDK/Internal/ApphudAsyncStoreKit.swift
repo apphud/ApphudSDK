@@ -74,9 +74,7 @@ internal class ApphudAsyncStoreKit {
         }
     }
     
-    #if os(iOS) || os(tvOS) || os(macOS) || os(watchOS)
-    @MainActor
-    func purchase(product: Product, apphudProduct: ApphudProduct?, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
+    internal func purchaseResult(product: Product, _ scene:UIScene? = nil, apphudProduct: ApphudProduct?, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
         self.isPurchasing = true
         await productsStorage.append(product)
         isPurchasing?.wrappedValue = true
@@ -88,7 +86,12 @@ internal class ApphudAsyncStoreKit {
         do {
 
             ApphudLoggerService.shared.paywallCheckoutInitiated(paywallId: apphudProduct?.paywallId, placementId: apphudProduct?.placementId, productId: product.id)
+            #if os(iOS) || os(tvOS) || os(macOS) || os(watchOS)
             let result = try await product.purchase(options: options)
+            #else
+            let result = try await product.purchase(confirmIn: scene!, options: options)
+            #endif
+            
             var transaction: StoreKit.Transaction?
 
             switch result {
@@ -113,15 +116,26 @@ internal class ApphudAsyncStoreKit {
             self.isPurchasing = false
             isPurchasing?.wrappedValue = false
 
-            return ApphudInternal.shared.asyncPurchaseResult(product: product, transaction: transaction, error: nil)
+            return await ApphudInternal.shared.asyncPurchaseResult(product: product, transaction: transaction, error: nil)
 
         } catch {
             ApphudLoggerService.shared.paywallPaymentError(paywallId: apphudProduct?.paywallId, placementId: apphudProduct?.placementId, productId: product.id, error: error.apphudErrorMessage())
 
             self.isPurchasing = false
             isPurchasing?.wrappedValue = false
-            return ApphudInternal.shared.asyncPurchaseResult(product: product, transaction: nil, error: error)
+            return await ApphudInternal.shared.asyncPurchaseResult(product: product, transaction: nil, error: error)
         }
+    }
+    
+    #if os(iOS) || os(tvOS) || os(macOS) || os(watchOS)
+    @MainActor
+    func purchase(product: Product, apphudProduct: ApphudProduct?, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
+        return await purchaseResult(product: product, apphudProduct: apphudProduct, isPurchasing:isPurchasing)
+    }
+    #else
+    @MainActor
+    func purchase(product: Product, scene:UIScene, apphudProduct: ApphudProduct?, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
+        return await purchaseResult(product: product, scene, apphudProduct: apphudProduct, isPurchasing: isPurchasing)
     }
     #endif
 }

@@ -297,7 +297,7 @@ final public class Apphud: NSObject {
 
      - Throws: An error if the products could not be fetched successfully.
      */
-    @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
+    @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, visionOS 1.0, *)
     public static func fetchProducts() async throws -> [Product] {
         if ApphudAsyncStoreKit.shared.productsLoaded {
             return await ApphudAsyncStoreKit.shared.products()
@@ -421,6 +421,11 @@ final public class Apphud: NSObject {
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
     public static func purchase(_ product: Product, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
         await ApphudAsyncStoreKit.shared.purchase(product: product, apphudProduct: apphudProductFor(product), isPurchasing: isPurchasing)
+    }
+    #else
+    @MainActor
+    public static func purchase(_ product: Product, scene:UIScene, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
+        await ApphudAsyncStoreKit.shared.purchase(product: product,scene: scene, apphudProduct: apphudProductFor(product), isPurchasing: isPurchasing)
     }
     #endif
     /**
