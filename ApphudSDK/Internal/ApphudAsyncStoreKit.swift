@@ -9,6 +9,10 @@ import Foundation
 import StoreKit
 import SwiftUI
 
+#if os(visionOS)
+import UIKit
+#endif
+
 @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, visionOS 1.0, *)
 internal class ApphudAsyncStoreKit {
 
@@ -74,7 +78,7 @@ internal class ApphudAsyncStoreKit {
         }
     }
     
-    internal func purchaseResult(product: Product, _ scene:UIScene? = nil, apphudProduct: ApphudProduct?, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
+    internal func purchaseResult(product: Product, _ scene:Any? = nil, apphudProduct: ApphudProduct?, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
         self.isPurchasing = true
         await productsStorage.append(product)
         isPurchasing?.wrappedValue = true
@@ -89,7 +93,7 @@ internal class ApphudAsyncStoreKit {
             #if os(iOS) || os(tvOS) || os(macOS) || os(watchOS)
             let result = try await product.purchase(options: options)
             #else
-            let result = try await product.purchase(confirmIn: scene!, options: options)
+            let result = try await product.purchase(confirmIn: (scene as! UIScene), options: options)
             #endif
             
             var transaction: StoreKit.Transaction?
