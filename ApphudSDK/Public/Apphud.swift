@@ -14,7 +14,7 @@ import Foundation
 import UserNotifications
 import SwiftUI
 
-internal let apphud_sdk_version = "3.2.6"
+internal let apphud_sdk_version = "3.2.7"
 
 // MARK: - Initialization
 
@@ -424,7 +424,7 @@ final public class Apphud: NSObject {
     }
     #else
     @MainActor
-    public static func purchase(_ product: Product, scene:UIScene, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
+    public static func purchase(_ product: Product, scene: UIScene, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
         await ApphudAsyncStoreKit.shared.purchase(product: product,scene: scene, apphudProduct: apphudProductFor(product), isPurchasing: isPurchasing)
     }
     #endif
