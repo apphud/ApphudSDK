@@ -223,7 +223,8 @@ extension ApphudInternal {
                                    transactionProductIdentifier: productId,
                                    transactionState: transaction?.transactionState,
                                    receiptString: receiptString,
-                                   notifyDelegate: eligibilityCheck,
+                                   notifyDelegate: notifyDelegate,
+                                   eligibilityCheck: eligibilityCheck,
                                    callback: callback)
             }
         }
@@ -360,9 +361,11 @@ extension ApphudInternal {
                 } else {
                     self.scheduleSubmitReceiptRetry(error: error, code: errorCode)
                 }
-
-                self.submitReceiptCallbacks.forEach { callback in callback?(error)}
-                self.submitReceiptCallbacks.removeAll()
+                
+                while !self.submitReceiptCallbacks.isEmpty {
+                    let callback = self.submitReceiptCallbacks.removeFirst()
+                    callback?(error)
+                }
             }
         }
     }
@@ -399,8 +402,8 @@ extension ApphudInternal {
         if let apphudProduct = product, let skProduct = apphudProduct.skProduct {
             purchase(product: skProduct, apphudProduct: apphudProduct, validate: validate, value: value, callback: callback)
         } else {
-            if let apphudProduct = ApphudInternal.shared.allAvailableProducts.first(where: { $0.productId == productId }), let skProduct = apphudProduct.skProduct, product != nil {
-                purchase(product: skProduct, apphudProduct: product!, validate: validate, value: value, callback: callback)
+            if let apphudProduct = ApphudInternal.shared.allAvailableProducts.first(where: { $0.productId == productId }), let skProduct = apphudProduct.skProduct {
+                purchase(product: skProduct, apphudProduct: apphudProduct, validate: validate, value: value, callback: callback)
             } else {
                 apphudLog("Product with id \(productId) not found, re-fetching from App Store...")
                 ApphudStoreKitWrapper.shared.fetchProducts(productIds: [productId]) { prds in

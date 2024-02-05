@@ -89,7 +89,6 @@ extension ApphudInternal {
             // not found subscriptions, try to restore and try again
 
             let didSendReceiptForIntroEligibility = "ReceiptForIntroSent"
-
             if self.currentUser?.subscriptions.count ?? 0 == 0 && !UserDefaults.standard.bool(forKey: didSendReceiptForIntroEligibility) {
                 if let receiptString = apphudReceiptDataString() {
                     apphudLog("Restoring subscriptions for intro eligibility check")
