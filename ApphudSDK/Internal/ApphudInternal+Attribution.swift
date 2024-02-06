@@ -21,6 +21,16 @@ extension ApphudInternal {
                     if let customAttribution = data as? [String: Any] {
                         params.merge(customAttribution, uniquingKeysWith: { f, _ in f})
                     }
+                case .facebook:
+                    guard identifer != nil, self.submittedFacebookAnonId != identifer else {
+                        apphudLog("Facebook Anon ID is nil or didn't change, exiting", forceDisplay: true)
+                        callback?(false)
+                        return
+                    }
+                    params["fb_anon_id"] = identifer
+                    if let customAttribution = data as? [String: Any] {
+                        params.merge(customAttribution, uniquingKeysWith: { f, _ in f})
+                    }
                 case .firebase:
                     guard identifer != nil, self.submittedFirebaseId != identifer else {
                         callback?(false)
@@ -146,6 +156,10 @@ extension ApphudInternal {
                 if result {
                     self.submittedFirebaseId = identifer
                 }
+            case .facebook:
+                if result {
+                    self.submittedFacebookAnonId = identifer
+                }
             case .appleAdsAttribution:
                 if result {
                     self.didSubmitAppleAdsAttribution = true
@@ -167,9 +181,11 @@ extension ApphudInternal {
 
     @MainActor
     @objc internal func forceSendAttributionDataIfNeeded() {
+        /* This functionality has been removed since 3.2.8
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(forceSendAttributionDataIfNeeded), object: nil)
         automaticallySubmitAppsFlyerAttributionIfNeeded()
         automaticallySubmitAdjustAttributionIfNeeded()
+         */
     }
 
     @objc internal func getAppleAttribution(_ appleAttibutionToken: String) async -> [AnyHashable: Any]? {

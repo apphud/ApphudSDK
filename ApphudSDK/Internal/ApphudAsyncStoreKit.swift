@@ -78,6 +78,7 @@ internal class ApphudAsyncStoreKit {
         }
     }
     
+    @MainActor
     internal func purchaseResult(product: Product, _ scene:Any? = nil, apphudProduct: ApphudProduct?, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
         self.isPurchasing = true
         await productsStorage.append(product)
@@ -120,14 +121,14 @@ internal class ApphudAsyncStoreKit {
             self.isPurchasing = false
             isPurchasing?.wrappedValue = false
 
-            return await ApphudInternal.shared.asyncPurchaseResult(product: product, transaction: transaction, error: nil)
+            return ApphudInternal.shared.asyncPurchaseResult(product: product, transaction: transaction, error: nil)
 
         } catch {
             ApphudLoggerService.shared.paywallPaymentError(paywallId: apphudProduct?.paywallId, placementId: apphudProduct?.placementId, productId: product.id, error: error.apphudErrorMessage())
 
             self.isPurchasing = false
             isPurchasing?.wrappedValue = false
-            return await ApphudInternal.shared.asyncPurchaseResult(product: product, transaction: nil, error: error)
+            return ApphudInternal.shared.asyncPurchaseResult(product: product, transaction: nil, error: error)
         }
     }
     
