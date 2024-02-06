@@ -181,9 +181,11 @@ extension ApphudInternal {
 
     @MainActor
     @objc internal func forceSendAttributionDataIfNeeded() {
+        /* This functionality has been removed since 3.2.8
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(forceSendAttributionDataIfNeeded), object: nil)
         automaticallySubmitAppsFlyerAttributionIfNeeded()
         automaticallySubmitAdjustAttributionIfNeeded()
+         */
     }
 
     @objc internal func getAppleAttribution(_ appleAttibutionToken: String) async -> [AnyHashable: Any]? {
