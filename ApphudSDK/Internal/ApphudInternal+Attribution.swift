@@ -21,7 +21,7 @@ extension ApphudInternal {
                     if let customAttribution = data as? [String: Any] {
                         params.merge(customAttribution, uniquingKeysWith: { f, _ in f})
                     }
-                case .facebookAEM:
+                case .facebook:
                     guard identifer != nil, self.submittedFacebookAnonId != identifer else {
                         apphudLog("Facebook Anon ID is nil or didn't change, exiting", forceDisplay: true)
                         callback?(false)
@@ -156,7 +156,7 @@ extension ApphudInternal {
                 if result {
                     self.submittedFirebaseId = identifer
                 }
-            case .facebookAEM:
+            case .facebook:
                 if result {
                     self.submittedFacebookAnonId = identifer
                 }

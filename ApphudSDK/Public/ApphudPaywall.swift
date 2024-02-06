@@ -44,18 +44,31 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
      Array of products
      */
     @Published @objc public internal(set) var products: [ApphudProduct]
+    
     /**
      Your custom paywall identifier from Apphud Dashboard
      */
     @objc public internal(set) var identifier: String
+    
     /**
      It's possible to make a paywall default – it's a special alias name, that can be assigned to only ONE paywall at a time. There can be no default paywalls at all. It's up to you whether you want to have them or not.
      */
     @objc public internal(set) var isDefault: Bool
+    
     /**
      A/B test experiment name
      */
     @objc public var experimentName: String?
+    
+    /**
+     A/B Experiment Variation Name
+     */
+    @objc public var variationName: String?
+    
+    /**
+     Represents the identifier of a parent paywall from which an experiment variation was derived in A/B Experiments. This property is populated only if the 'Use existing paywall' option was selected during the setup of the experiment variation.
+    */
+    @objc public var parentPaywallIdentifier: String?
 
     /**
      Insert any parameters you need into custom JSON. It could be titles, descriptions, localisations, font, background and color parameters, URLs to media content, etc. Parameters count are not limited.
@@ -98,11 +111,11 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
         case identifier
         case name
         case experimentName
-        case fromPaywall
         case variationName
         case isDefault = "default"
         case jsonString = "json"
         case products = "items"
+        case parentPaywallIdentifier = "fromPaywall"
     }
 
     required public init(from decoder: Decoder) throws {
@@ -110,6 +123,8 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
         id = try values.decode(String.self, forKey: .id)
         name = try values.decode(String.self, forKey: .name)
         experimentName = try? values.decode(String.self, forKey: .experimentName)
+        variationName = try? values.decode(String.self, forKey: .variationName)
+        parentPaywallIdentifier = try? values.decode(String.self, forKey: .parentPaywallIdentifier)
         identifier = try values.decode(String.self, forKey: .identifier)
         jsonString = try? values.decode(String.self, forKey: .jsonString)
         isDefault = try values.decode(Bool.self, forKey: .isDefault)
@@ -120,6 +135,8 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
         try? container.encode(experimentName, forKey: .experimentName)
+        try? container.encode(variationName, forKey: .variationName)
+        try? container.encode(parentPaywallIdentifier, forKey: .parentPaywallIdentifier)
         try container.encode(name, forKey: .name)
         try container.encode(identifier, forKey: .identifier)
         try? container.encode(jsonString, forKey: .jsonString)
