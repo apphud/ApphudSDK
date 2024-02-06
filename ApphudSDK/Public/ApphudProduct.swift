@@ -64,6 +64,7 @@ public class ApphudProduct: NSObject, Codable, ObservableObject {
 
     @objc public internal(set) var paywallId: String?
     @objc public internal(set) var placementId: String?
+    @objc public internal(set) var placementIdentifier: String?
 
     private enum CodingKeys: String, CodingKey {
         case id

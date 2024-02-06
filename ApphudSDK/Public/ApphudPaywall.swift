@@ -71,6 +71,11 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
     @objc public var parentPaywallIdentifier: String?
 
     /**
+     Current paywall's placement identifier, if available.
+     */
+    @objc public internal(set) var placementIdentifier: String?
+    
+    /**
      Insert any parameters you need into custom JSON. It could be titles, descriptions, localisations, font, background and color parameters, URLs to media content, etc. Parameters count are not limited.
      */
     @objc public var json: [String: Any]? {
@@ -95,13 +100,15 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
     internal var placementId: String?
 
     @MainActor
-    internal func update(placementId: String? = nil) {
+    internal func update(placementId: String?, placementIdentifier: String?) {
         objectWillChange.send()
         self.placementId = placementId
+        self.placementIdentifier = placementIdentifier
         products.forEach({ product in
             product.paywallId = id
             product.paywallIdentifier = identifier
             product.placementId = placementId
+            product.placementIdentifier = placementIdentifier
             product.skProduct = ApphudStoreKitWrapper.shared.products.first(where: { $0.productIdentifier == product.productId })
         })
     }

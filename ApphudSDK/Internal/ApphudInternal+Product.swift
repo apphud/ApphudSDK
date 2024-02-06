@@ -215,11 +215,11 @@ extension ApphudInternal {
         }
 
         paywalls.forEach { paywall in
-            paywall.update()
+            paywall.update(placementId: nil, placementIdentifier: nil)
         }
 
         placements.forEach { placement in
-            placement.paywall?.update(placementId: placement.id)
+            placement.paywall?.update(placementId: placement.id, placementIdentifier: placement.identifier)
         }
     }
 

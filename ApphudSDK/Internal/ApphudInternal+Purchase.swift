@@ -399,23 +399,21 @@ extension ApphudInternal {
     }
 
     @MainActor internal func purchase(productId: String, product: ApphudProduct?, validate: Bool, value: Double? = nil, callback: ((ApphudPurchaseResult) -> Void)?) {
-        if let apphudProduct = product, let skProduct = apphudProduct.skProduct {
-            purchase(product: skProduct, apphudProduct: apphudProduct, validate: validate, value: value, callback: callback)
+        
+        let skProduct = product?.skProduct ?? ApphudStoreKitWrapper.shared.products.first(where: { $0.productIdentifier == productId })
+        
+        if let skProduct = skProduct {
+            purchase(product: skProduct, apphudProduct: product, validate: validate, value: value, callback: callback)
         } else {
-            if let apphudProduct = ApphudInternal.shared.allAvailableProducts.first(where: { $0.productId == productId }), let skProduct = apphudProduct.skProduct {
-                purchase(product: skProduct, apphudProduct: apphudProduct, validate: validate, value: value, callback: callback)
-            } else {
-                apphudLog("Product with id \(productId) not found, re-fetching from App Store...")
-                ApphudStoreKitWrapper.shared.fetchProducts(productIds: [productId]) { prds in
-                    let product = prds?.first(where: { $0.productIdentifier == productId })
-                    if let product = product {
-                        self.purchase(product: product, apphudProduct: nil, validate: validate, value: value, callback: callback)
-                    } else {
-                        let message = "Unable to start payment because product identifier is invalid: [\([productId])]"
-                        apphudLog(message, forceDisplay: true)
-                        let result = ApphudPurchaseResult(nil, nil, nil, ApphudError(message: message))
-                        callback?(result)
-                    }
+            apphudLog("Product with id \(productId) not found, re-fetching from App Store...")
+            ApphudStoreKitWrapper.shared.fetchProducts(productIds: [productId]) { prds in
+                if let sk = prds?.first(where: { $0.productIdentifier == productId }) {
+                    self.purchase(product: sk, apphudProduct: product, validate: validate, value: value, callback: callback)
+                } else {
+                    let message = "Unable to start payment because product identifier is invalid: [\([productId])]"
+                    apphudLog(message, forceDisplay: true)
+                    let result = ApphudPurchaseResult(nil, nil, nil, ApphudError(message: message))
+                    callback?(result)
                 }
             }
         }
