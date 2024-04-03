@@ -87,7 +87,7 @@ public class ApphudHttpClient {
         }
     }
 
-    static let productionEndpoint = "https://api.apphud.com"
+    static let productionEndpoint = "https://gateway.apphud.com"
     public var sdkType: String = "swift"
     public var sdkVersion: String = apphud_sdk_version
 
@@ -384,7 +384,9 @@ public class ApphudHttpClient {
 
     private func parseError(_ dictionary: [String: Any]) -> Error? {
         if let errors = dictionary["errors"] as? [[String: Any]], let errorDict = errors.first, let errorMessage = errorDict["title"] as? String {
-            return ApphudError(message: errorMessage)
+            let idString = errorDict["id"] as? String
+            
+            return ApphudError(message: (idString ?? "") + " " + errorMessage)
         } else {
             return nil
         }

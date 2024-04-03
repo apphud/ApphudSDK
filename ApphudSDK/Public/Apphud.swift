@@ -501,8 +501,8 @@ final public class Apphud: NSObject {
      - Important: Do not use this method if you offer consumable in-app purchases (like coin packs) as the SDK does not differentiate consumables from non-consumables.
      - Returns: `true` if the user has an active subscription or an active non-renewing purchase.
      */
-    @MainActor @objc public static func hasPremiumAccess() -> Bool {
-        hasActiveSubscription() || (nonRenewingPurchases()?.first(where: { $0.isActive() }) != nil)
+    @objc public static func hasPremiumAccess() -> Bool {
+        UserDefaults.standard.bool(forKey: apphudIsPremiumKey)
     }
 
     /**

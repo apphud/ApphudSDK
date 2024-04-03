@@ -268,7 +268,7 @@ extension ApphudInternal {
                                      "environment": environment,
                                      "observer_mode": ApphudUtils.shared.storeKitObserverMode]
 
-        if !ApphudUtils.shared.useStoreKitV2, let receipt = receiptString {
+        if (!ApphudUtils.shared.useStoreKitV2 || transactionIdentifier == nil), let receipt = receiptString {
             params["receipt_data"] = receipt
         }
 

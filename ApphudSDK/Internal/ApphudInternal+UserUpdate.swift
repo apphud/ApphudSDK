@@ -26,6 +26,9 @@ extension ApphudInternal {
             let response = try decoder.decode(ApphudUserResponse<ApphudUser>.self, from: data)
             await MainActor.run {
                 currentUser = response.data.results
+                if let u = currentUser {
+                    updatePremiumStatus(user: u)
+                }
             }
         } catch {
             apphudLog("Failed to decode ApphudUser, error: \(error)")
@@ -55,6 +58,15 @@ extension ApphudInternal {
         let hasSubscriptionChanges = (oldStates != newStates && currentSubs != nil)
         let hasPurchasesChanges = (oldPurchasesStates != newPurchasesStates && currentPurchs != nil)
         return (hasSubscriptionChanges, hasPurchasesChanges)
+    }
+    
+    func updatePremiumStatus(user: ApphudUser) {
+        let hasActiveSub = user.subscriptions.first(where: { $0.isActive() }) != nil
+        let hasActivePurch = user.purchases.first(where: { $0.isActive() }) != nil
+        
+        let premium = hasActiveSub || hasActivePurch
+        
+        UserDefaults.standard.setValue(premium, forKey: apphudIsPremiumKey)
     }
 
     @MainActor private func checkUserID(tellDelegate: Bool) {

@@ -32,6 +32,7 @@ extension ApphudInternal {
 
         if self.currentUser == nil {
             self.currentUser = ApphudUser(userID: currentUserID)
+            self.updatePremiumStatus(user: self.currentUser!)
             self.performAllUserRegisteredBlocks()
         }
 
@@ -68,6 +69,7 @@ extension ApphudInternal {
         if product.subscriptionGroupIdentifier != nil {
             let subscription = ApphudSubscription(product: product)
             self.currentUser = ApphudUser(userID: currentUserID, subscriptions: [subscription], paywalls: paywalls)
+            self.updatePremiumStatus(user: self.currentUser!)
 
             apphudLog("Creating stub subscription with 1 hour expiration..")
 
@@ -79,7 +81,7 @@ extension ApphudInternal {
         } else {
             let purchase = ApphudNonRenewingPurchase(product: product)
             self.currentUser = ApphudUser(userID: currentUserID, purchases: [purchase], paywalls: paywalls)
-
+            self.updatePremiumStatus(user: self.currentUser!)
             Task {
                 await self.currentUser?.toCacheV2()
             }

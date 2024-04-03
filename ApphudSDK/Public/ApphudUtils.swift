@@ -34,6 +34,14 @@ public class ApphudUtils: NSObject {
     @objc public class func useStoreKitV2() {
         shared.useStoreKitV2 = true
     }
+    
+    public static func checkRules() {
+        ApphudInternal.shared.checkForUnreadNotifications()
+    }
+    
+    public static func sdkVersion() -> String {
+        apphud_sdk_version
+    }
 
     internal static let shared = ApphudUtils()
     private(set) var logLevel: ApphudLogLevel = .off
