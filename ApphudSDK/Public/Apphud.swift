@@ -132,7 +132,7 @@ final public class Apphud: NSObject {
     @MainActor
     public static func placements() async -> [ApphudPlacement] {
         await withCheckedContinuation { continuation in
-            ApphudInternal.shared.performWhenOfferingsReady {
+            ApphudInternal.shared.performWhenOfferingsReady { error in
                 continuation.resume(returning: ApphudInternal.shared.placements)
             }
         }
@@ -177,11 +177,12 @@ final public class Apphud: NSObject {
      For immediate access without awaiting `SKProduct`s, use `ApphudDelegate`'s `userDidLoad` method or the callback in `Apphud.start(...)`.
 
      - parameter callback: A closure that takes an array of `ApphudPlacement` objects and returns void.
+     - parameter error: Optional StoreKit Error that may occur while fetching products from the App Store. You might want to retry the request if the error comes out.
      */
     @MainActor
-    public static func placementsDidLoadCallback(_ callback: @escaping ([ApphudPlacement]) -> Void) {
-        ApphudInternal.shared.performWhenOfferingsReady {
-            callback(ApphudInternal.shared.placements)
+    public static func fetchPlacements(_ callback: @escaping ([ApphudPlacement], Error?) -> Void) {
+        ApphudInternal.shared.performWhenOfferingsReady { error in
+            callback(ApphudInternal.shared.placements, error)
         }
     }
 
@@ -198,7 +199,7 @@ final public class Apphud: NSObject {
     @MainActor
     @objc public static func paywalls() async -> [ApphudPaywall] {
         await withCheckedContinuation { continuation in
-            ApphudInternal.shared.performWhenOfferingsReady {
+            ApphudInternal.shared.performWhenOfferingsReady { error in
                 continuation.resume(returning: ApphudInternal.shared.paywalls)
             }
         }
@@ -244,12 +245,13 @@ final public class Apphud: NSObject {
      - Important: This is deprecated method. Retrieve paywalls from within placements instead. See documentation for details: https://docs.apphud.com/docs/placements
 
      - parameter callback: A closure that takes an array of `ApphudPaywall` objects and returns void.
+     - parameter error: Optional StoreKit Error that may occur while fetching products from the App Store. You might want to retry the request if the error comes out.
      */
     @available(*, deprecated, message: "Deprecated in favor of placementsDidLoadCallback(...)")
     @MainActor
-    @objc public static func paywallsDidLoadCallback(_ callback: @escaping ([ApphudPaywall]) -> Void) {
-        ApphudInternal.shared.performWhenOfferingsReady {
-            callback(ApphudInternal.shared.paywalls)
+    @objc public static func paywallsDidLoadCallback(_ callback: @escaping ([ApphudPaywall], Error?) -> Void) {
+        ApphudInternal.shared.performWhenOfferingsReady { error in
+            callback(ApphudInternal.shared.paywalls, error)
         }
     }
 

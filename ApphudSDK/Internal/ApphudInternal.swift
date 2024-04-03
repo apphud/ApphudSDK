@@ -13,7 +13,7 @@ import SystemConfiguration
 #endif
 
 internal typealias HasPurchasesChanges = (hasSubscriptionChanges: Bool, hasNonRenewingChanges: Bool)
-internal typealias ApphudPaywallsCallback = ([ApphudPaywall]) -> Void
+internal typealias ApphudPaywallsCallback = ([ApphudPaywall], Error?) -> Void
 internal typealias ApphudRetryLog = (count: Int, errorCode: Int)
 
 internal let ApphudUserCacheKey = "ApphudUser"
@@ -44,7 +44,7 @@ final class ApphudInternal: NSObject {
     // MARK: - Receipt and products properties
 
     internal var customPaywallsLoadedCallbacks = [ApphudPaywallsCallback]()
-    internal var storeKitProductsFetchedCallbacks = [ApphudVoidCallback]()
+    internal var storeKitProductsFetchedCallbacks = [ApphudErrorCallback]()
 
     internal var submitReceiptRetries: ApphudRetryLog = (0, 0)
     internal var submitReceiptCallbacks = [ApphudErrorCallback?]()
@@ -525,10 +525,10 @@ final class ApphudInternal: NSObject {
     }
 
     /// Returns false if products groups map dictionary not yet received, block is added to array and will be performed later.
-    @discardableResult internal func performWhenStoreKitProductFetched(callback : @escaping ApphudVoidCallback) -> Bool {
+    @discardableResult internal func performWhenStoreKitProductFetched(callback : @escaping ApphudErrorCallback) -> Bool {
         if ApphudStoreKitWrapper.shared.didFetch {
             DispatchQueue.main.async {
-                callback()
+                callback(nil)
             }
             return true
         } else {
@@ -538,10 +538,10 @@ final class ApphudInternal: NSObject {
     }
 
     @MainActor
-    internal func performAllStoreKitProductsFetchedCallbacks() {
+    internal func performAllStoreKitProductsFetchedCallbacks(error: Error?) {
         for block in self.storeKitProductsFetchedCallbacks {
             apphudLog("Performing scheduled block..")
-            block()
+            block(error)
         }
         if self.storeKitProductsFetchedCallbacks.count > 0 {
             apphudLog("All scheduled blocks performed, removing..")

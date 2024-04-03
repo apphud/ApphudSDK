@@ -46,10 +46,10 @@ extension ApphudInternal {
     }
 
     internal func handleDidFetchAllProducts(storeKitProducts: [SKProduct], error: Error?) async {
-        await self.performAllStoreKitProductsFetchedCallbacks()
         await MainActor.run {
             self.updatePaywallsAndPlacements()
         }
+        await self.performAllStoreKitProductsFetchedCallbacks(error: error)
         self.respondedStoreKitProducts = true
     }
 
@@ -155,10 +155,10 @@ extension ApphudInternal {
             }
         }
 
-        self.performWhenStoreKitProductFetched {
+        self.performWhenStoreKitProductFetched { error in
             self.updatePaywallsAndPlacements()
             completionBlock?(self.paywalls, nil)
-            self.customPaywallsLoadedCallbacks.forEach { block in block(self.paywalls) }
+            self.customPaywallsLoadedCallbacks.forEach { block in block(self.paywalls, error) }
             self.customPaywallsLoadedCallbacks.removeAll()
             self.delegate?.paywallsDidFullyLoad(paywalls: self.paywalls)
             self.delegate?.placementsDidFullyLoad(placements: self.placements)
@@ -166,11 +166,25 @@ extension ApphudInternal {
     }
 
     @MainActor
-    internal func performWhenOfferingsReady(callback: @escaping () -> Void) {
-        if ApphudInternal.shared.paywallsAreReady() {
-            callback()
-        } else {
-            ApphudInternal.shared.customPaywallsLoadedCallbacks.append { _ in callback() }
+    internal func performWhenOfferingsReady(callback: @escaping (Error?) -> Void) {
+        performWhenUserRegistered {
+            if ApphudStoreKitWrapper.shared.products.count > 0 {
+                callback(nil)
+            } else {
+                if self.allAvailableProductIDs().count > 0 {
+                    self.performWhenStoreKitProductFetched { error in
+                        ApphudInternal.shared.customPaywallsLoadedCallbacks.append { _, error in
+                            callback(error)
+                        }
+                    }
+                    Task {
+                        await self.continueToFetchStoreKitProducts()
+                    }
+                } else {
+                    // no paywalls added in Product Hub, or they don't contain any products. Do nothing.
+                    callback(nil)
+                }
+            }
         }
     }
 

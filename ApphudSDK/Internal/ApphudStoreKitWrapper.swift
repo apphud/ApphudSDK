@@ -21,7 +21,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     private var _products = [SKProduct]()
     private let productsQueue = DispatchQueue(label: "com.apphud.StoreKitProductsQueue", attributes: .concurrent)
-
+    
     internal var products: [SKProduct] {
         get {
             productsQueue.sync {
