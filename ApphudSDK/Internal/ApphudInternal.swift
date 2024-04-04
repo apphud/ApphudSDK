@@ -43,7 +43,6 @@ final class ApphudInternal: NSObject {
 
     // MARK: - Receipt and products properties
 
-    internal var customPaywallsLoadedCallbacks = [ApphudPaywallsCallback]()
     internal var storeKitProductsFetchedCallbacks = [ApphudErrorCallback]()
 
     internal var submitReceiptRetries: ApphudRetryLog = (0, 0)
@@ -524,31 +523,6 @@ final class ApphudInternal: NSObject {
         }
     }
 
-    /// Returns false if products groups map dictionary not yet received, block is added to array and will be performed later.
-    @discardableResult internal func performWhenStoreKitProductFetched(callback : @escaping ApphudErrorCallback) -> Bool {
-        if ApphudStoreKitWrapper.shared.didFetch {
-            DispatchQueue.main.async {
-                callback(nil)
-            }
-            return true
-        } else {
-            self.storeKitProductsFetchedCallbacks.append(callback)
-            return false
-        }
-    }
-
-    @MainActor
-    internal func performAllStoreKitProductsFetchedCallbacks(error: Error?) {
-        for block in self.storeKitProductsFetchedCallbacks {
-            apphudLog("Performing scheduled block..")
-            block(error)
-        }
-        if self.storeKitProductsFetchedCallbacks.count > 0 {
-            apphudLog("All scheduled blocks performed, removing..")
-            self.storeKitProductsFetchedCallbacks.removeAll()
-        }
-    }
-
     // MARK: - Push Notifications API
 
     internal func submitPushNotificationsToken(token: Data, callback: ApphudBoolCallback?) {
@@ -710,7 +684,6 @@ final class ApphudInternal: NSObject {
         didPreparePaywalls = false
 
         userRegisteredCallbacks.removeAll()
-        customPaywallsLoadedCallbacks.removeAll()
         storeKitProductsFetchedCallbacks.removeAll()
         submitReceiptCallbacks.removeAll()
 

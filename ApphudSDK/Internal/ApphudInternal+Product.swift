@@ -11,6 +11,46 @@ import StoreKit
 
 extension ApphudInternal {
 
+    /// Returns false if products groups map dictionary not yet received, block is added to array and will be performed later.
+    @MainActor internal func performWhenStoreKitProductFetched(callback : @escaping ApphudErrorCallback) {
+        switch ApphudStoreKitWrapper.shared.status {
+        case .none:
+            self.storeKitProductsFetchedCallbacks.append(callback)
+            Task(priority: .userInitiated) {
+                await self.continueToFetchStoreKitProducts()
+            }
+        case .loading:
+            self.storeKitProductsFetchedCallbacks.append(callback)
+        case .fetched:
+            DispatchQueue.main.async {
+                callback(nil)
+            }
+        case .error(let error):
+            if self.allAvailableProductIDs().count > 0 {
+                self.storeKitProductsFetchedCallbacks.append(callback)
+                // has Apphud products but storekit products loading failed, retry
+                Task {
+                    await self.continueToFetchStoreKitProducts()
+                }
+            } else {
+                // no paywalls added in Product Hub, or they don't contain any products. Do nothing.
+                callback(error)
+            }
+        }
+    }
+
+    @MainActor
+    internal func performAllStoreKitProductsFetchedCallbacks(error: Error?) {
+        for block in self.storeKitProductsFetchedCallbacks {
+            apphudLog("Performing scheduled block..")
+            block(error)
+        }
+        if self.storeKitProductsFetchedCallbacks.count > 0 {
+            apphudLog("All scheduled blocks performed, removing..")
+            self.storeKitProductsFetchedCallbacks.removeAll()
+        }
+    }
+    
     internal func fetchAllAvailableProductIDs() async -> Set<String> {
         await withCheckedContinuation({ continuation in
             performWhenUserRegistered { @MainActor in
@@ -40,6 +80,10 @@ extension ApphudInternal {
         guard productIds.count > 0 else {
             return
         }
+        
+        if case .loading = ApphudStoreKitWrapper.shared.status {
+            return
+        }
 
         let result = await ApphudStoreKitWrapper.shared.fetchAllProducts(identifiers: productIds)
         await handleDidFetchAllProducts(storeKitProducts: result.0, error: result.1)
@@ -65,11 +109,15 @@ extension ApphudInternal {
                 let msg = "None of the products have been added to any permission groups or paywalls."
                 let error = ApphudError(message: msg)
                 apphudLog(msg, forceDisplay: true)
-                callback?([], error)
+                apphudPerformOnMainThread {
+                    callback?([], error)
+                }
             } else {
-                let result = await ApphudStoreKitWrapper.shared.fetchAllProducts(identifiers: availableIds)
-                await handleDidFetchAllProducts(storeKitProducts: result.0, error: result.1)
-                apphudPerformOnMainThread { callback?(result.0, result.1) }
+                Task { @MainActor in
+                    self.performWhenStoreKitProductFetched { error in
+                        apphudPerformOnMainThread { callback?(ApphudStoreKitWrapper.shared.products, error) }
+                    }
+                }
             }
         }
     }
@@ -149,41 +197,19 @@ extension ApphudInternal {
             didPreparePaywalls = true
         }
 
-        if !ApphudStoreKitWrapper.shared.didFetch {
-            Task.detached {
-                await self.continueToFetchStoreKitProducts()
-            }
-        }
-
         self.performWhenStoreKitProductFetched { error in
             self.updatePaywallsAndPlacements()
             completionBlock?(self.paywalls, nil)
-            self.customPaywallsLoadedCallbacks.forEach { block in block(self.paywalls, error) }
-            self.customPaywallsLoadedCallbacks.removeAll()
             self.delegate?.paywallsDidFullyLoad(paywalls: self.paywalls)
             self.delegate?.placementsDidFullyLoad(placements: self.placements)
         }
     }
 
     @MainActor
-    internal func performWhenOfferingsReady(callback: @escaping (Error?) -> Void) {
+    internal func fetchOfferingsFull(callback: @escaping (Error?) -> Void) {
         performWhenUserRegistered {
-            if ApphudStoreKitWrapper.shared.products.count > 0 {
-                callback(nil)
-            } else {
-                if self.allAvailableProductIDs().count > 0 {
-                    self.performWhenStoreKitProductFetched { error in
-                        ApphudInternal.shared.customPaywallsLoadedCallbacks.append { _, error in
-                            callback(error)
-                        }
-                    }
-                    Task {
-                        await self.continueToFetchStoreKitProducts()
-                    }
-                } else {
-                    // no paywalls added in Product Hub, or they don't contain any products. Do nothing.
-                    callback(nil)
-                }
+            self.performWhenStoreKitProductFetched { error in
+                callback(error)
             }
         }
     }

@@ -132,7 +132,7 @@ final public class Apphud: NSObject {
     @MainActor
     public static func placements() async -> [ApphudPlacement] {
         await withCheckedContinuation { continuation in
-            ApphudInternal.shared.performWhenOfferingsReady { error in
+            ApphudInternal.shared.fetchOfferingsFull { error in
                 continuation.resume(returning: ApphudInternal.shared.placements)
             }
         }
@@ -181,7 +181,7 @@ final public class Apphud: NSObject {
      */
     @MainActor
     public static func fetchPlacements(_ callback: @escaping ([ApphudPlacement], Error?) -> Void) {
-        ApphudInternal.shared.performWhenOfferingsReady { error in
+        ApphudInternal.shared.fetchOfferingsFull { error in
             callback(ApphudInternal.shared.placements, error)
         }
     }
@@ -199,7 +199,7 @@ final public class Apphud: NSObject {
     @MainActor
     @objc public static func paywalls() async -> [ApphudPaywall] {
         await withCheckedContinuation { continuation in
-            ApphudInternal.shared.performWhenOfferingsReady { error in
+            ApphudInternal.shared.fetchOfferingsFull { error in
                 continuation.resume(returning: ApphudInternal.shared.paywalls)
             }
         }
@@ -247,10 +247,10 @@ final public class Apphud: NSObject {
      - parameter callback: A closure that takes an array of `ApphudPaywall` objects and returns void.
      - parameter error: Optional StoreKit Error that may occur while fetching products from the App Store. You might want to retry the request if the error comes out.
      */
-    @available(*, deprecated, message: "Deprecated in favor of placementsDidLoadCallback(...)")
+    @available(*, deprecated, message: "Deprecated in favor of fetchPlacements(...)")
     @MainActor
     @objc public static func paywallsDidLoadCallback(_ callback: @escaping ([ApphudPaywall], Error?) -> Void) {
-        ApphudInternal.shared.performWhenOfferingsReady { error in
+        ApphudInternal.shared.fetchOfferingsFull { error in
             callback(ApphudInternal.shared.paywalls, error)
         }
     }
