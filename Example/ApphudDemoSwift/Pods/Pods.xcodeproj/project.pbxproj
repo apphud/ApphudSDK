@@ -21,6 +21,7 @@
 		2802A2C02B280A3D00F29C5C /* ApphudEnums.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2802A2BF2B280A3C00F29C5C /* ApphudEnums.swift */; };
 		280919D72B0734BD0079FA86 /* ApphudURLSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 280919D62B0734BD0079FA86 /* ApphudURLSession.swift */; };
 		283F8D4F2B4EB81600F86CD8 /* Documentation.docc in Sources */ = {isa = PBXBuildFile; fileRef = 283F8D4E2B4EB81600F86CD8 /* Documentation.docc */; };
+		2842B5B12BBEADFF00832651 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 2842B5B02BBEADFF00832651 /* PrivacyInfo.xcprivacy */; };
 		2861BB152B175D1500B65779 /* ApphudPlacement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2861BB142B175D1500B65779 /* ApphudPlacement.swift */; };
 		2861BB172B175D2100B65779 /* ApphudSafeSet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2861BB162B175D2100B65779 /* ApphudSafeSet.swift */; };
 		28714CBD2B3F21BF00899013 /* ApphudUser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28714CBC2B3F21BF00899013 /* ApphudUser.swift */; };
@@ -190,6 +191,7 @@
 		2802A2BF2B280A3C00F29C5C /* ApphudEnums.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudEnums.swift; sourceTree = "<group>"; };
 		280919D62B0734BD0079FA86 /* ApphudURLSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApphudURLSession.swift; sourceTree = "<group>"; };
 		283F8D4E2B4EB81600F86CD8 /* Documentation.docc */ = {isa = PBXFileReference; lastKnownFileType = folder.documentationcatalog; name = Documentation.docc; path = ../Documentation.docc; sourceTree = "<group>"; };
+		2842B5B02BBEADFF00832651 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = ApphudSDK/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		2861BB142B175D1500B65779 /* ApphudPlacement.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudPlacement.swift; sourceTree = "<group>"; };
 		2861BB162B175D2100B65779 /* ApphudSafeSet.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudSafeSet.swift; sourceTree = "<group>"; };
 		28714CBC2B3F21BF00899013 /* ApphudUser.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ApphudUser.swift; sourceTree = "<group>"; };
@@ -1363,6 +1365,7 @@
 		AC32E185BC8EFA1AC76F91AC850297AA /* ApphudSDK */ = {
 			isa = PBXGroup;
 			children = (
+				2842B5B02BBEADFF00832651 /* PrivacyInfo.xcprivacy */,
 				F5475108F46060CAA9D75E8343DCC225 /* ApphudUI */,
 				0B0286C9F21F2F265DCD45BAF678BA23 /* Internal */,
 				A765C2B0A9D5338BB45F4A379BCCCE6A /* Pod */,
@@ -1550,6 +1553,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2842B5B12BBEADFF00832651 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

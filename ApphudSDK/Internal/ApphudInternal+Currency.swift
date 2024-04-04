@@ -66,7 +66,7 @@ extension ApphudInternal {
 
     private func fetchCurrencyLegacy() async {
 
-        var skProducts: [SKProduct] = ApphudStoreKitWrapper.shared.products
+        let skProducts: [SKProduct] = ApphudStoreKitWrapper.shared.products
 
         if skProducts.isEmpty {
             let groups: [ApphudGroup]?
