@@ -784,15 +784,18 @@ final public class Apphud: NSObject {
     // MARK: - Attribution
 
     /**
-     Submits the Advertising Identifier (IDFA) to Apphud. This identifier is used for accurately matching the user with attribution platforms like AppsFlyer, Facebook, etc.
+     Submits Device Identifiers (IDFA and IDFV) to Apphud. These identifiers may be required for marketing and attribution platforms such as AppsFlyer, Facebook, Singular, etc.
+     
+     Best practice is to call this method right after SDK's `start(...)` method and once again after getting IDFA.
 
-     - parameter idfa: The Advertising Identifier (IDFA) as a String.
-
-     - Note: Providing IDFA helps in enhancing the accuracy of attribution data, which is crucial for understanding marketing performance and user acquisition efforts.
+     - parameter idfa: IDFA. Identifier for Advertisers. If you request IDFA using App Tracking Transparency framework, you can call this method again after granting access.
+     - parameter idfv: IDFV. Identifier for Vendor. Can be passed right after SDK's `start` method.
      */
-    @objc public static func setAdvertisingIdentifier(_ idfa: String) {
-        ApphudInternal.shared.advertisingIdentifier = idfa
+    @objc public static func setDeviceIdentifiers(idfa: String?, idfv: String?) {
+        ApphudInternal.shared.deviceIdentifiers = (idfa, idfv)
     }
+    @available(*, unavailable, renamed: "setDeviceIdentifiers(idfa:idfv:)")
+    @objc public static func setAdvertisingIdentifier(_ idfa: String) {}
 
     /**
      Submits attribution data to Apphud from your chosen attribution network provider.

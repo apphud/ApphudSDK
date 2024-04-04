@@ -194,7 +194,7 @@ internal func apphudCurrentDeviceWatchParameters() -> [String: String] {
         params["country_iso_code"] = regionCode.uppercased()
     }
 
-    if !ApphudUtils.shared.optOutOfTracking, let idfv = WKInterfaceDevice.current().identifierForVendor?.uuidString {
+    if !ApphudUtils.shared.optOutOfTracking, let idfv = apphudIdentifierForVendor() {
         params["idfv"] = idfv
     }
 
@@ -236,7 +236,7 @@ internal func apphudCurrentDeviceiOSParameters() -> [String: String] {
         params["country_iso_code"] = regionCode.uppercased()
     }
 
-    if !ApphudUtils.shared.optOutOfTracking, let idfv = UIDevice.current.identifierForVendor?.uuidString {
+    if !ApphudUtils.shared.optOutOfTracking, let idfv = apphudIdentifierForVendor() {
         params["idfv"] = idfv
     }
 
@@ -262,8 +262,15 @@ extension UIDevice {
 #endif
 
 internal func apphudIdentifierForAdvertising() -> String? {
-    if let idfa = ApphudInternal.shared.advertisingIdentifier, idfa != "00000000-0000-0000-0000-000000000000" {
+    if let idfa = ApphudInternal.shared.deviceIdentifiers.0, idfa != "00000000-0000-0000-0000-000000000000" {
         return idfa
+    }
+    return nil
+}
+
+internal func apphudIdentifierForVendor() -> String? {
+    if let idfv = ApphudInternal.shared.deviceIdentifiers.1, idfv != "00000000-0000-0000-0000-000000000000" {
+        return idfv
     }
     return nil
 }

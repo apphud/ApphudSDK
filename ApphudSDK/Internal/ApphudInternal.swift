@@ -127,13 +127,11 @@ final class ApphudInternal: NSObject {
 
     // MARK: - Advertising Identifier
 
-    internal var advertisingIdentifier: String? {
+    internal var deviceIdentifiers: (String?, String?) {
         didSet {
-            if advertisingIdentifier != nil {
-                apphudLog("Received IDFA (\(advertisingIdentifier ?? ""), will submit soon.")
-                apphudPerformOnMainThread {
-                    self.setNeedsToUpdateUser = true
-                }
+            if deviceIdentifiers.0 != nil || deviceIdentifiers.1 != nil {
+                apphudLog("Received Device Identifiers (\(deviceIdentifiers.0 ?? ""), \(deviceIdentifiers.1 ?? "") will submit soon.")
+                self.setNeedsToUpdateUser = true
             }
         }
     }

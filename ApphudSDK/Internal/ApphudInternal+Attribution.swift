@@ -208,40 +208,4 @@ extension ApphudInternal {
             return ["token": appleAttibutionToken]
         }
     }
-
-    @objc internal func automaticallySubmitAppsFlyerAttributionIfNeeded() {
-
-        guard !didSubmitAppsFlyerAttribution && apphudIsAppsFlyerSDKIntegrated() else {
-            return
-        }
-
-        if let appsFlyerID = apphudGetAppsFlyerID() {
-            apphudLog("AppsFlyer SDK is integrated, but attribution still not submitted. Will force submit", forceDisplay: true)
-            addAttribution(data: nil, from: .appsFlyer, identifer: appsFlyerID, callback: nil)
-        } else {
-            apphudLog("Couldn't automatically resubmit AppsFlyer attribution, exiting.", forceDisplay: true)
-        }
-    }
-
-    @objc internal func automaticallySubmitAdjustAttributionIfNeeded() {
-
-        guard !didSubmitAdjustAttribution && apphudIsAdjustSDKIntegrated() else {
-            return
-        }
-
-        apphudLog("Adjust SDK is integrated, but attribution still not submitted. Will force submit", forceDisplay: true)
-
-        var data: [AnyHashable: Any]?
-        if let cached_data = UserDefaults.standard.object(forKey: "adjust_data_cache") as? [AnyHashable: Any] {
-            data = cached_data
-        } else if let adid = apphudGetAdjustID() {
-            data = ["adid": adid]
-        }
-
-        if data != nil {
-            addAttribution(data: data!, from: .adjust, callback: nil)
-        } else {
-            apphudLog("Couldn't automatically resubmit Adjust attribution, exiting.", forceDisplay: true)
-        }
-    }
 }
