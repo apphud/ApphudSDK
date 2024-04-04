@@ -22,7 +22,6 @@ internal let ApphudPaywallsCacheKey = "ApphudPaywalls"
 internal let ApphudProductGroupsCacheKey = "ApphudProductGroups"
 internal let ApphudUserPropertiesCacheKey = "ApphudUserPropertiesCache"
 internal let ApphudFlagString = "ApphudReinstallFlag"
-internal var apphudIsPremiumKey = "apphudIsPremiumKey"
 
 internal let ApphudInitializeGuardText = "Attempted to use Apphud SDK method earlier than initialization. You should initialize SDK first."
 
@@ -68,7 +67,14 @@ final class ApphudInternal: NSObject {
     internal var currentUserID: String = ""
     internal var storefrontCurrency: ApphudCurrency?
 
-    @MainActor internal var currentUser: ApphudUser?
+    internal var isPremium: Bool = false
+    internal var hasActiveSubscription: Bool = false
+    
+    @MainActor internal var currentUser: ApphudUser? {
+        didSet {
+            self.updatePremiumStatus(user: currentUser)
+        }
+    }
     @MainActor internal var paywalls = [ApphudPaywall]()
     @MainActor internal var placements = [ApphudPlacement]()
     @MainActor internal var permissionGroups: [ApphudGroup]?
@@ -292,9 +298,6 @@ final class ApphudInternal: NSObject {
         }
 
         self.currentUser = cachedUser
-        if let u = cachedUser {
-            updatePremiumStatus(user: u)
-        }
         
         Task(priority: .userInitiated) {
 
@@ -678,7 +681,8 @@ final class ApphudInternal: NSObject {
             paywalls.removeAll()
             placements.removeAll()
             currentUser = nil
-            UserDefaults.standard.set(false, forKey: apphudIsPremiumKey)
+            isPremium = false
+            hasActiveSubscription = false
         }
 
         didPreparePaywalls = false

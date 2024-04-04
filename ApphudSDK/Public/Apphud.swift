@@ -504,7 +504,7 @@ final public class Apphud: NSObject {
      - Returns: `true` if the user has an active subscription or an active non-renewing purchase.
      */
     @objc public static func hasPremiumAccess() -> Bool {
-        UserDefaults.standard.bool(forKey: apphudIsPremiumKey)
+        ApphudInternal.shared.isPremium
     }
 
     /**
@@ -513,8 +513,8 @@ final public class Apphud: NSObject {
      - Important: If your app includes lifetime (non-consumable) or consumable purchases, you should use the `Apphud.isNonRenewingPurchaseActive(productIdentifier:)` method to check their status.
      - Returns: `true` if the user currently has an active subscription.
      */
-    @MainActor @objc public static func hasActiveSubscription() -> Bool {
-        subscriptions()?.first(where: { $0.isActive() }) != nil
+    @objc public static func hasActiveSubscription() -> Bool {
+        ApphudInternal.shared.hasActiveSubscription
     }
 
     /**

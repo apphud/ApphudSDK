@@ -23,11 +23,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 //        Apphud.enableDebugLogs()
         Apphud.start(apiKey: "app_4sY9cLggXpMDDQMmvc5wXUPGReMp8G")
 
-        Task {
-            let place = await Apphud.placements()
-            print("placements = \(place)")
-        }
-
         /** Custom User Properties Examples */
 //        Apphud.setUserProperty(key: .email, value: "user@example.com", setOnce: true)
 //        Apphud.setUserProperty(key: .init("custom_prop_1"), value: 0.5)
