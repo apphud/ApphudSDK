@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="22505" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="NFm-3K-d4w">
+    <device id="retina6_12" orientation="portrait" appearance="light"/>
+    <dependencies>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="22504"/>
+        <capability name="Safe area layout guides" minToolsVersion="9.0"/>
+        <capability name="System colors in document resources" minToolsVersion="11.0"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <scenes>
+        <!--Generator-->
+        <scene sceneID="UD9-FI-qd6">
+            <objects>
+                <viewController storyboardIdentifier="ColorGeneratorViewController" title="Generator" modalPresentationStyle="fullScreen" id="NFm-3K-d4w" customClass="ColorGeneratorViewController" customModule="sampleapp" customModuleProvider="target" sceneMemberID="viewController">
+                    <view key="view" contentMode="scaleToFill" id="opZ-p1-3Rz">
+                        <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Main Screen" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="IBy-SZ-rxU">
+                                <rect key="frame" x="16" y="59" width="361" height="39"/>
+                                <fontDescription key="fontDescription" type="boldSystem" pointSize="32"/>
+                                <nil key="textColor"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                            <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="xsg-cm-fuJ">
+                                <rect key="frame" x="20" y="118" width="353" height="353"/>
+                                <subviews>
+                                    <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="7KK-af-jPY">
+                                        <rect key="frame" x="133" y="308" width="87.333333333333314" height="29"/>
+                                        <color key="tintColor" systemColor="systemBrownColor"/>
+                                        <state key="normal" title="Button"/>
+                                        <buttonConfiguration key="configuration" style="filled" title="Copy Color">
+                                            <fontDescription key="titleFontDescription" type="system" pointSize="12"/>
+                                        </buttonConfiguration>
+                                        <connections>
+                                            <action selector="copyColorAction:" destination="NFm-3K-d4w" eventType="touchUpInside" id="y6B-Hx-hdQ"/>
+                                        </connections>
+                                    </button>
+                                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Your color is: #AABBCC" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="qkw-LB-1j8">
+                                        <rect key="frame" x="109.66666666666667" y="289.66666666666669" width="133.66666666666663" height="14.333333333333314"/>
+                                        <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                        <fontDescription key="fontDescription" type="system" pointSize="12"/>
+                                        <nil key="textColor"/>
+                                        <nil key="highlightedColor"/>
+                                    </label>
+                                </subviews>
+                                <color key="backgroundColor" red="0.98914636721628801" green="1" blue="0.78501046589473256" alpha="1" colorSpace="custom" customColorSpace="displayP3"/>
+                                <constraints>
+                                    <constraint firstItem="7KK-af-jPY" firstAttribute="centerX" secondItem="xsg-cm-fuJ" secondAttribute="centerX" id="645-e3-zzf"/>
+                                    <constraint firstAttribute="bottom" secondItem="7KK-af-jPY" secondAttribute="bottom" constant="16" id="ZC3-Du-YK0"/>
+                                    <constraint firstItem="7KK-af-jPY" firstAttribute="top" secondItem="qkw-LB-1j8" secondAttribute="bottom" constant="4" id="hEt-kd-SVT"/>
+                                    <constraint firstAttribute="width" secondItem="xsg-cm-fuJ" secondAttribute="height" multiplier="1:1" id="k7b-Fi-Kog"/>
+                                    <constraint firstItem="qkw-LB-1j8" firstAttribute="centerX" secondItem="xsg-cm-fuJ" secondAttribute="centerX" id="uew-Yi-Fn2"/>
+                                </constraints>
+                            </view>
+                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="1It-sH-qr0">
+                                <rect key="frame" x="112" y="491" width="169" height="38"/>
+                                <state key="normal" title="Button"/>
+                                <buttonConfiguration key="configuration" style="filled" title="Generate more">
+                                    <fontDescription key="titleFontDescription" type="system" weight="heavy" pointSize="20"/>
+                                </buttonConfiguration>
+                                <connections>
+                                    <action selector="generateAction:" destination="NFm-3K-d4w" eventType="touchUpInside" id="ipU-up-1aB"/>
+                                </connections>
+                            </button>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="You have 5 generations left" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="WfG-r0-4Xn">
+                                <rect key="frame" x="16" y="545" width="361" height="17"/>
+                                <fontDescription key="fontDescription" type="system" pointSize="14"/>
+                                <nil key="textColor"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                        </subviews>
+                        <viewLayoutGuide key="safeArea" id="AAS-gX-Wxg"/>
+                        <color key="backgroundColor" systemColor="systemBackgroundColor"/>
+                        <constraints>
+                            <constraint firstItem="IBy-SZ-rxU" firstAttribute="leading" secondItem="AAS-gX-Wxg" secondAttribute="leading" constant="16" id="1vI-pI-pca"/>
+                            <constraint firstItem="1It-sH-qr0" firstAttribute="centerX" secondItem="opZ-p1-3Rz" secondAttribute="centerX" id="D2c-7O-Fxc"/>
+                            <constraint firstItem="WfG-r0-4Xn" firstAttribute="top" secondItem="1It-sH-qr0" secondAttribute="bottom" constant="16" id="JU0-SJ-Eta"/>
+                            <constraint firstItem="IBy-SZ-rxU" firstAttribute="top" secondItem="AAS-gX-Wxg" secondAttribute="top" id="OS4-UI-Moa"/>
+                            <constraint firstItem="1It-sH-qr0" firstAttribute="top" secondItem="xsg-cm-fuJ" secondAttribute="bottom" constant="20" id="SW6-7b-hJH"/>
+                            <constraint firstItem="AAS-gX-Wxg" firstAttribute="trailing" secondItem="xsg-cm-fuJ" secondAttribute="trailing" constant="20" id="TUB-re-35B"/>
+                            <constraint firstItem="WfG-r0-4Xn" firstAttribute="leading" secondItem="AAS-gX-Wxg" secondAttribute="leading" constant="16" id="ap2-fL-1ca"/>
+                            <constraint firstItem="AAS-gX-Wxg" firstAttribute="trailing" secondItem="WfG-r0-4Xn" secondAttribute="trailing" constant="16" id="jJw-ZL-Uj8"/>
+                            <constraint firstItem="IBy-SZ-rxU" firstAttribute="top" secondItem="AAS-gX-Wxg" secondAttribute="top" id="mll-nT-3lq"/>
+                            <constraint firstItem="AAS-gX-Wxg" firstAttribute="trailing" secondItem="IBy-SZ-rxU" secondAttribute="trailing" constant="16" id="v1p-0c-beg"/>
+                            <constraint firstItem="xsg-cm-fuJ" firstAttribute="top" secondItem="IBy-SZ-rxU" secondAttribute="bottom" constant="20" id="xUu-dh-r22"/>
+                            <constraint firstItem="xsg-cm-fuJ" firstAttribute="leading" secondItem="AAS-gX-Wxg" secondAttribute="leading" constant="20" id="ybH-zp-xws"/>
+                        </constraints>
+                    </view>
+                    <tabBarItem key="tabBarItem" title="Generator" id="IYZ-W1-h0t"/>
+                    <simulatedTabBarMetrics key="simulatedBottomBarMetrics"/>
+                    <connections>
+                        <outlet property="colorLabel" destination="qkw-LB-1j8" id="knB-C2-ytu"/>
+                        <outlet property="colorView" destination="xsg-cm-fuJ" id="Ead-wT-tdx"/>
+                        <outlet property="leftGenerationsLabel" destination="WfG-r0-4Xn" id="k6d-Jk-izN"/>
+                    </connections>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="PgI-PT-Uks" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="3963" y="-419"/>
+        </scene>
+    </scenes>
+    <resources>
+        <systemColor name="systemBackgroundColor">
+            <color white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+        </systemColor>
+        <systemColor name="systemBrownColor">
+            <color red="0.63529411759999999" green="0.51764705879999995" blue="0.36862745099999999" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </systemColor>
+    </resources>
+</document>
