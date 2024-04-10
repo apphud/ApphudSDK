@@ -110,7 +110,10 @@ extension ApphudInternal {
         let startDate = Date()
         while shouldTry {
             requestCount += 1
-            apphudLog("Start fetching products \(ApphudStoreKitWrapper.shared.status) count: \(requestCount)")
+            if ApphudStoreKitWrapper.shared.loadingAll {
+                apphudLog("Already fetching all products")
+                return
+            }
             result = await ApphudStoreKitWrapper.shared.fetchAllProducts(identifiers: productIds)
             shouldTry = result.0.isEmpty && result.1 != nil && requestCount < maxAttempts
         }
