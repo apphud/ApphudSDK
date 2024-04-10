@@ -82,7 +82,7 @@ extension ApphudInternal {
                 productIds.append(contentsOf: group.products.compactMap { $0.productId })
             })
 
-            await continueToFetchStoreKitProducts()
+            await continueToFetchStoreKitProducts(maxAttempts: APPHUD_DEFAULT_RETRIES)
         }
 
         let priceLocale = skProducts.first?.priceLocale

@@ -27,6 +27,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         Apphud.start(apiKey: "app_4sY9cLggXpMDDQMmvc5wXUPGReMp8G")
         Apphud.setDeviceIdentifiers(idfa: nil, idfv: UIDevice.current.identifierForVendor?.uuidString)
 
+        Apphud.fetchPlacements(maxAttempts: 5) { placements, error in
+            print("Fetch Placements with 5 attempts result: \(placements.map { $0.identifier }), error: \(error), isNetwork issue: \(error?.networkIssue())")
+        }
+        
         if #available(iOS 14.5, *) {
             ATTrackingManager.requestTrackingAuthorization { status in
                 guard status == .authorized else {return}

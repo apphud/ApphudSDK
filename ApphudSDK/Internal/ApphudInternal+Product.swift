@@ -12,12 +12,12 @@ import StoreKit
 extension ApphudInternal {
 
     /// Returns false if products groups map dictionary not yet received, block is added to array and will be performed later.
-    @MainActor internal func performWhenStoreKitProductFetched(callback : @escaping ApphudErrorCallback) {
+    @MainActor internal func performWhenStoreKitProductFetched(maxAttempts: Int, callback : @escaping ApphudErrorCallback) {
         switch ApphudStoreKitWrapper.shared.status {
         case .none:
             self.storeKitProductsFetchedCallbacks.append(callback)
-            Task(priority: .userInitiated) {
-                await self.continueToFetchStoreKitProducts()
+            Task {
+                await self.continueToFetchStoreKitProducts(maxAttempts: maxAttempts)
             }
         case .loading:
             self.storeKitProductsFetchedCallbacks.append(callback)
@@ -30,7 +30,7 @@ extension ApphudInternal {
                 self.storeKitProductsFetchedCallbacks.append(callback)
                 // has Apphud products but storekit products loading failed, retry
                 Task {
-                    await self.continueToFetchStoreKitProducts()
+                    await self.continueToFetchStoreKitProducts(maxAttempts: maxAttempts)
                 }
             } else {
                 // no paywalls added in Product Hub, or they don't contain any products. Do nothing.
@@ -40,7 +40,7 @@ extension ApphudInternal {
     }
 
     @MainActor
-    internal func performAllStoreKitProductsFetchedCallbacks(error: Error?) {
+    internal func performAllStoreKitProductsFetchedCallbacks(error: ApphudError?) {
         for block in self.storeKitProductsFetchedCallbacks {
             apphudLog("Performing scheduled block..")
             block(error)
@@ -53,7 +53,7 @@ extension ApphudInternal {
     
     internal func fetchAllAvailableProductIDs() async -> Set<String> {
         await withCheckedContinuation({ continuation in
-            performWhenUserRegistered { @MainActor in
+            performWhenUserRegistered(allowFailure: true) { @MainActor in
                 continuation.resume(returning: self.allAvailableProductIDs())
             }
         })
@@ -73,23 +73,52 @@ extension ApphudInternal {
         return Set(productIDs)
     }
 
-    internal func continueToFetchStoreKitProducts() async {
+    internal func continueToFetchStoreKitProducts(maxAttempts: Int) async {
 
         let productIds = await allAvailableProductIDs()
 
         guard productIds.count > 0 else {
+            if (userRegisterRetries.count > 0) {
+                let error: ApphudError?
+                if (await currentUser == nil) {
+                    error = ApphudError(message: "Failed to register User", code: userRegisterRetries.errorCode)
+                } else {
+                    error = ApphudError(message: "No Paywalls Found", code: APPHUD_NO_PRODUCTS)
+                }
+                await handleDidFetchAllProducts(storeKitProducts: [], error: error)
+            } else if await currentUser != nil && didPreparePaywalls {
+                let error = ApphudError(message: "No Paywalls Found", code: APPHUD_NO_PRODUCTS)
+                await handleDidFetchAllProducts(storeKitProducts: [], error: error)
+            } else {
+                apphudLog("not yet registered user")
+            }
             return
         }
         
         if case .loading = ApphudStoreKitWrapper.shared.status {
             return
         }
-
-        let result = await ApphudStoreKitWrapper.shared.fetchAllProducts(identifiers: productIds)
+        
+        if case .fetched = ApphudStoreKitWrapper.shared.status {
+            apphudLog("Already Fetched All Products")
+            return await handleDidFetchAllProducts(storeKitProducts: ApphudStoreKitWrapper.shared.products, error: nil)
+        }
+        
+        var result: ([SKProduct], ApphudError?) = ([], nil)
+        var requestCount = 0
+        var shouldTry = true
+        let startDate = Date()
+        while shouldTry {
+            requestCount += 1
+            apphudLog("Start fetching products \(ApphudStoreKitWrapper.shared.status) count: \(requestCount)")
+            result = await ApphudStoreKitWrapper.shared.fetchAllProducts(identifiers: productIds)
+            shouldTry = result.0.isEmpty && result.1 != nil && requestCount < maxAttempts
+        }
+        ApphudStoreKitWrapper.shared.productsLoadTime = Date().timeIntervalSince(startDate)
         await handleDidFetchAllProducts(storeKitProducts: result.0, error: result.1)
     }
 
-    internal func handleDidFetchAllProducts(storeKitProducts: [SKProduct], error: Error?) async {
+    internal func handleDidFetchAllProducts(storeKitProducts: [SKProduct], error: ApphudError?) async {
         await MainActor.run {
             self.updatePaywallsAndPlacements()
         }
@@ -97,7 +126,7 @@ extension ApphudInternal {
         self.respondedStoreKitProducts = true
     }
 
-    internal func refreshStoreKitProductsWithCallback(callback: (([SKProduct], Error?) -> Void)?) {
+    internal func refreshStoreKitProductsWithCallback(maxAttempts: Int, callback: (([SKProduct], Error?) -> Void)?) {
         Task(priority: .userInitiated) {
 
             if await permissionGroups == nil {
@@ -114,7 +143,7 @@ extension ApphudInternal {
                 }
             } else {
                 Task { @MainActor in
-                    self.performWhenStoreKitProductFetched { error in
+                    self.performWhenStoreKitProductFetched(maxAttempts: maxAttempts) { error in
                         apphudPerformOnMainThread { callback?(ApphudStoreKitWrapper.shared.products, error) }
                     }
                 }
@@ -143,7 +172,7 @@ extension ApphudInternal {
             return
         }
 
-        httpClient?.startRequest(path: .products, apiVersion: .APIV3, params: ["observer_mode": ApphudUtils.shared.storeKitObserverMode, "device_id": currentDeviceID], method: .get, useDecoder: true) { _, _, data, error, code, duration in
+        httpClient?.startRequest(path: .products, apiVersion: .APIV3, params: ["observer_mode": ApphudUtils.shared.storeKitObserverMode, "device_id": currentDeviceID], method: .get, useDecoder: true, retry: true) { _, _, data, error, code, duration in
 
             if error == nil {
                 ApphudLoggerService.shared.add(key: .products, value: duration, retryLog: self.productsFetchRetries)
@@ -197,18 +226,28 @@ extension ApphudInternal {
             didPreparePaywalls = true
         }
 
-        self.performWhenStoreKitProductFetched { error in
-            self.updatePaywallsAndPlacements()
-            completionBlock?(self.paywalls, nil)
-            self.delegate?.paywallsDidFullyLoad(paywalls: self.paywalls)
-            self.delegate?.placementsDidFullyLoad(placements: self.placements)
+        DispatchQueue.main.async {
+            self.performWhenStoreKitProductFetched(maxAttempts: self.customRegistrationAttemptsCount ?? APPHUD_DEFAULT_RETRIES) { error in
+                self.updatePaywallsAndPlacements()
+                completionBlock?(self.paywalls, nil)
+                self.delegate?.paywallsDidFullyLoad(paywalls: self.paywalls)
+                self.delegate?.placementsDidFullyLoad(placements: self.placements)
+            }
         }
     }
 
     @MainActor
-    internal func fetchOfferingsFull(callback: @escaping (Error?) -> Void) {
-        performWhenUserRegistered {
-            self.performWhenStoreKitProductFetched { error in
+    internal func fetchOfferingsFull(maxAttempts: Int = APPHUD_DEFAULT_RETRIES, callback: @escaping (ApphudError?) -> Void) {
+        let preparedAttempts = min(max(1, maxAttempts), 20)
+        self.customRegistrationAttemptsCount = preparedAttempts
+        performWhenUserRegistered(allowFailure: true) {
+            if (self.currentUser == nil) {
+                apphudLog("Failed to register user with error: \(self.userRegisterRetries.errorCode)", forceDisplay: true)
+            }
+            self.performWhenStoreKitProductFetched(maxAttempts: preparedAttempts) { error in
+                if self.paywallsLoadTime == 0 {
+                    self.paywallsLoadTime = Date().timeIntervalSince(self.initDate)
+                }
                 callback(error)
             }
         }
@@ -250,10 +289,6 @@ extension ApphudInternal {
 
     @MainActor
     internal func updatePaywallsAndPlacements() {
-        performWhenUserRegistered {
-            self.paywallsLoadTime = Date().timeIntervalSince(self.initDate)
-        }
-
         paywalls.forEach { paywall in
             paywall.update(placementId: nil, placementIdentifier: nil)
         }

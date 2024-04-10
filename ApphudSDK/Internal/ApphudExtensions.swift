@@ -14,7 +14,8 @@ import StoreKit
 
 typealias ApphudVoidMainCallback = @MainActor () -> Void
 typealias ApphudVoidCallback = (() -> Void)
-typealias ApphudErrorCallback = ((Error?) -> Void)
+typealias ApphudErrorCallback = ((ApphudError?) -> Void)
+typealias ApphudNSErrorCallback = ((Error?) -> Void)
 
 #if os(iOS)
 @MainActor

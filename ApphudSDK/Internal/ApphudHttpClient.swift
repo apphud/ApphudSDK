@@ -140,7 +140,7 @@ public class ApphudHttpClient {
                 let retryDelay: TimeInterval
 
                 if retry {
-                    retries = 5
+                    retries = ApphudInternal.shared.customRegistrationAttemptsCount ?? APPHUD_DEFAULT_RETRIES
                     retryDelay = 1.0
                 } else {
                     retries = 0

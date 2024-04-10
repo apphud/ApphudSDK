@@ -11,15 +11,28 @@ import Foundation
 /**
  Custom Apphud wrapper around NSError.
  */
+public let APPHUD_ERROR_NO_INTERNET = -999
+public let APPHUD_NO_PRODUCTS = -998
+public let APPHUD_DEFAULT_RETRIES: Int = 3
+public let APPHUD_INFINITE_RETRIES: Int = 999_999
 
 public class ApphudError: NSError {
 
     private let codeDomain = "com.apphud.error"
 
-    init(message: String) {
-        super.init(domain: codeDomain, code: 0, userInfo: [NSLocalizedDescriptionKey: message])
+    public func networkIssue() -> Bool {
+        let noInternetErrors = [NSURLErrorNotConnectedToInternet, NSURLErrorCannotConnectToHost, NSURLErrorCannotFindHost, APPHUD_ERROR_NO_INTERNET]
+        return noInternetErrors.contains(code)
+    }
+    
+    init(message: String, code: Int = 0) {
+        super.init(domain: codeDomain, code: code, userInfo: [NSLocalizedDescriptionKey: message])
     }
 
+    init(error: Error) {
+        super.init(domain: (error as NSError).domain, code: (error as NSError).code, userInfo: [NSLocalizedDescriptionKey: (error as NSError).localizedDescription])
+    }
+    
     init(httpErrorCode: Int) {
         super.init(domain: codeDomain, code: httpErrorCode, userInfo: [NSLocalizedDescriptionKey: "HTTP Request Failed"])
     }

@@ -20,7 +20,7 @@ enum ApphudStoreKitProductsFetchStatus {
     case none
     case loading
     case fetched
-    case error(Error?)
+    case error(ApphudError?)
 }
 
 internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SKRequestDelegate {
@@ -71,6 +71,19 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
             SKPaymentQueue.default().restoreCompletedTransactions()
         }
     }
+    
+    func latestError() -> Error? {
+        switch status {
+        case .none:
+            return nil
+        case .loading:
+            return nil
+        case .fetched:
+            return nil
+        case .error(let error):
+            return error
+        }
+    }
 
     func refreshReceipt(_ callback: (() -> Void)?) {
         refreshReceiptCallback = callback
@@ -79,31 +92,29 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         refreshRequest?.start()
     }
 
-    func fetchAllProducts(identifiers: Set<String>) async -> ([SKProduct], Error?) {
+    func fetchAllProducts(identifiers: Set<String>) async -> ([SKProduct], ApphudError?) {
         
-        let start = Date()
-
-        apphudLog("Fetch All Products")
-
+        apphudLog("Fetch All Products \(status)")
+        self.status = .loading
+        
         let fetcher = ApphudProductsFetcher()
         fetchers.insert(fetcher)
-
-        self.status = .loading
         
         return await withCheckedContinuation { continuation in
             fetcher.fetchStoreKitProducts(identifiers: identifiers) { products, error, ftchr in
-                if products.count > 0 {
-                    self.productsLoadTime = Date().timeIntervalSince(start)
-                }
                 let existingIDS = self.products.map { $0.productIdentifier }
                 let uniqueProducts = products.filter { !existingIDS.contains($0.productIdentifier) }
                 var newProducts = self.products
                 newProducts.append(contentsOf: uniqueProducts)
                 self.products = newProducts
-
-                self.status = newProducts.count > 0 ? .fetched : .error(error)
+                var aphError: ApphudError?
+                if let error = error {
+                    aphError = ApphudError(error: error)
+                }
+                
+                self.status = newProducts.count > 0 ? .fetched : .error(aphError)
                 self.fetchers.remove(ftchr)
-                continuation.resume(returning: (products, error))
+                continuation.resume(returning: (products, aphError))
             }
         }
     }
