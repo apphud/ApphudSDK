@@ -126,7 +126,7 @@ final public class Apphud: NSObject {
      A placement is a specific location within a user's journey (such as onboarding, settings, etc.) where its internal paywall is intended to be displayed. See documentation for details: https://docs.apphud.com/docs/placements
 
      For immediate access without awaiting `SKProduct`s, use `rawPlacements()` method.
-     - parameter maxAttempts: Number of request attempts before throwing an error. Must be between 1 and 20.
+     - parameter maxAttempts: Number of request attempts before throwing an error. Must be between 1 and 10. Default value is 3.
      - Returns: An array of `ApphudPlacement` objects, representing the configured placements.
      */
     @MainActor
@@ -175,7 +175,7 @@ final public class Apphud: NSObject {
      A placement is a specific location within a user's journey (such as onboarding, settings, etc.) where its internal paywall is intended to be displayed.
 
      For immediate access without awaiting `SKProduct`s, use `ApphudDelegate`'s `userDidLoad` method or the callback in `Apphud.start(...)`.
-     - parameter maxAttempts: Number of request attempts before throwing an error. Must be between 1 and 20.
+     - parameter maxAttempts: Number of request attempts before throwing an error. Must be between 1 and 10. Default value is 3.
      - parameter callback: A closure that takes an array of `ApphudPlacement` objects and returns void.
      - parameter error: Optional StoreKit Error that may occur while fetching products from the App Store. You might want to retry the request if the error comes out.
      */
@@ -190,7 +190,7 @@ final public class Apphud: NSObject {
      Asynchronously retrieves the paywalls configured in Product Hub > Paywalls, potentially altered based on the user's involvement in A/B testing, if any. Awaits until the inner `SKProduct`s are loaded from the App Store.
 
      For immediate access without awaiting `SKProduct`s, use `rawPaywalls()` method.
-     - parameter maxAttempts: Number of request attempts before throwing an error. Must be between 1 and 20.
+     - parameter maxAttempts: Number of request attempts before throwing an error. Must be between 1 and 10. Default value is 3.
      
      - Important: This is deprecated method. Retrieve paywalls from within placements instead. See documentation for details: https://docs.apphud.com/docs/paywalls
 
@@ -245,7 +245,7 @@ final public class Apphud: NSObject {
 
      - Important: This is deprecated method. Retrieve paywalls from within placements instead. See documentation for details: https://docs.apphud.com/docs/placements
 
-     - parameter maxAttempts: Number of request attempts before throwing an error. Must be between 1 and 20.
+     - parameter maxAttempts: Number of request attempts before throwing an error. Must be between 1 and 10. Default value is 3.
      - parameter callback: A closure that takes an array of `ApphudPaywall` objects and returns void.
      - parameter error: Optional StoreKit Error that may occur while fetching products from the App Store. You might want to retry the request if the error comes out.
      */
@@ -312,7 +312,7 @@ final public class Apphud: NSObject {
 
     /**
      Fetches `SKProduct` objects asynchronously from the App Store. This method is used to retrieve the products that you have configured in the Apphud dashboard (Apphud > Product Hub > Products).
-     - parameter maxAttempts: Number of request attempts before throwing an error. Must be between 1 and 20.
+     - parameter maxAttempts: Number of request attempts before throwing an error. Must be between 1 and 10. Default value is 3.
      
      - Returns: An array of `SKProduct` objects corresponding to the products added in the Apphud > Product Hub > Products section.
      */
@@ -325,7 +325,7 @@ final public class Apphud: NSObject {
     /**
      Retrieves an array of existing `SKProduct` objects or fetches products from the App Store that have been added in the Apphud Dashboard under Product Hub > Products.
 
-     - parameter maxAttempts: Number of request attempts before throwing an error. Must be between 1 and 20.
+     - parameter maxAttempts: Number of request attempts before throwing an error. Must be between 1 and 10. Default value is 3.
      - parameter callback: A closure that is called upon completion. It returns an array of `SKProduct` objects and an optional `Error` if the fetch operation encountered any issues.
      - Returns: The method doesn't return a value directly but instead provides the result through the `callback` parameter.
 

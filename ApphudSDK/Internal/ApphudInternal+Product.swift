@@ -241,7 +241,7 @@ extension ApphudInternal {
 
     @MainActor
     internal func fetchOfferingsFull(maxAttempts: Int = APPHUD_DEFAULT_RETRIES, callback: @escaping (ApphudError?) -> Void) {
-        let preparedAttempts = min(max(1, maxAttempts), 20)
+        let preparedAttempts = min(max(1, maxAttempts), 10)
         self.customRegistrationAttemptsCount = preparedAttempts
         performWhenUserRegistered(allowFailure: true) {
             if (self.currentUser == nil) {
