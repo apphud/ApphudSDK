@@ -56,6 +56,16 @@ extension ApphudInternal {
         let hasPurchasesChanges = (oldPurchasesStates != newPurchasesStates && currentPurchs != nil)
         return (hasSubscriptionChanges, hasPurchasesChanges)
     }
+    
+    func updatePremiumStatus(user: ApphudUser?) {
+        let hasActiveSub = user?.subscriptions.first(where: { $0.isActive() }) != nil
+        let hasActivePurch = user?.purchases.first(where: { $0.isActive() }) != nil
+        
+        let premium = hasActiveSub || hasActivePurch
+        
+        isPremium = premium
+        hasActiveSubscription = hasActiveSub
+    }
 
     @MainActor private func checkUserID(tellDelegate: Bool) {
         guard let userID = self.currentUser?.userId else {return}

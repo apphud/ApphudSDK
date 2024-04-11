@@ -16,12 +16,19 @@ internal typealias ApphudTransactionCallback = (SKPaymentTransaction, Error?) ->
 public let _ApphudWillFinishTransactionNotification = Notification.Name(rawValue: "ApphudWillFinishTransactionNotification")
 public let _ApphudDidFinishTransactionNotification = Notification.Name(rawValue: "ApphudDidFinishTransactionNotification")
 
+enum ApphudStoreKitProductsFetchStatus {
+    case none
+    case loading
+    case fetched
+    case error(ApphudError?)
+}
+
 internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SKRequestDelegate {
     static var shared = ApphudStoreKitWrapper()
 
     private var _products = [SKProduct]()
     private let productsQueue = DispatchQueue(label: "com.apphud.StoreKitProductsQueue", attributes: .concurrent)
-
+    
     internal var products: [SKProduct] {
         get {
             productsQueue.sync {
@@ -35,7 +42,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         }
     }
 
-    internal var didFetch: Bool = false
+    internal var status: ApphudStoreKitProductsFetchStatus = .none
 
     fileprivate var fetchers = ApphudSafeSet<ApphudProductsFetcher>()
 
@@ -46,6 +53,8 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     var purchasingValue: ApphudCustomPurchaseValue?
     private(set) var isPurchasing: Bool = false
 
+    internal var loadingAll: Bool = false
+    
     private var refreshRequest: SKReceiptRefreshRequest?
 
     internal var productsLoadTime: TimeInterval = 0.0
@@ -64,6 +73,19 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
             SKPaymentQueue.default().restoreCompletedTransactions()
         }
     }
+    
+    func latestError() -> Error? {
+        switch status {
+        case .none:
+            return nil
+        case .loading:
+            return nil
+        case .fetched:
+            return nil
+        case .error(let error):
+            return error
+        }
+    }
 
     func refreshReceipt(_ callback: (() -> Void)?) {
         refreshReceiptCallback = callback
@@ -72,29 +94,30 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         refreshRequest?.start()
     }
 
-    func fetchAllProducts(identifiers: Set<String>) async -> ([SKProduct], Error?) {
-        let start = Date()
-
-        apphudLog("Fetch All Products", logLevel: .all)
-
+    func fetchAllProducts(identifiers: Set<String>) async -> ([SKProduct], ApphudError?) {
+        loadingAll = true
+        apphudLog("Started Fetching All Products")
+        self.status = .loading
+        
         let fetcher = ApphudProductsFetcher()
         fetchers.insert(fetcher)
-
+        
         return await withCheckedContinuation { continuation in
             fetcher.fetchStoreKitProducts(identifiers: identifiers) { products, error, ftchr in
-                if products.count > 0 {
-                    self.productsLoadTime = Date().timeIntervalSince(start)
-                }
                 let existingIDS = self.products.map { $0.productIdentifier }
                 let uniqueProducts = products.filter { !existingIDS.contains($0.productIdentifier) }
                 var newProducts = self.products
                 newProducts.append(contentsOf: uniqueProducts)
                 self.products = newProducts
-
-                self.didFetch = true
+                var aphError: ApphudError?
+                if let error = error {
+                    aphError = ApphudError(error: error)
+                }
+                
+                self.status = newProducts.count > 0 ? .fetched : .error(aphError)
                 self.fetchers.remove(ftchr)
-
-                continuation.resume(returning: (products, error))
+                self.loadingAll = false
+                continuation.resume(returning: (products, aphError))
             }
         }
     }
@@ -387,20 +410,27 @@ private class ApphudProductsFetcher: NSObject, SKProductsRequestDelegate, Identi
     }
 
     public func productsRequest(_ request: SKProductsRequest, didReceive response: SKProductsResponse) {
-        self.callback?(response.products, nil, self)
-        if response.invalidProductIdentifiers.count > 0 {
-            apphudLog("Failed to load SKProducts from the App Store, because product identifiers are invalid:\n \(response.invalidProductIdentifiers)\n\tFor more details visit: https://docs.apphud.com/docs/testing-troubleshooting#failed-to-load-skproducts-from-the-app-store-error", forceDisplay: true)
+        
+        var error: ApphudError? = nil
+        
+        if response.invalidProductIdentifiers.count > 0 && response.products.count == 0 {
+            
+            error = ApphudError(message: "StoreKit Products Not Available. For more details visit: https://docs.apphud.com/docs/troubleshooting#storekit-products-not-available-error")
+            
+            apphudLog("Failed to load SKProducts from the App Store, because product identifiers are invalid:\n \(response.invalidProductIdentifiers)\n\tFor more details visit: https://docs.apphud.com/docs/troubleshooting#storekit-products-not-available-error", forceDisplay: true)
         }
+        
         if response.products.count > 0 {
             apphudLog("Fetcher [\(id.uuidString)] Successfully fetched SKProducts from the App Store:\n \(response.products.map { $0.productIdentifier })")
         }
+        self.callback?(response.products, error, self)
         self.callback = nil
         self.productsRequest = nil
     }
 
     func request(_ request: SKRequest, didFailWithError error: Error) {
         if (error as NSError).description.contains("Attempted to decode store response") {
-            apphudLog("Failed to load SKProducts from the App Store, error: \(error). [!] App Store features in iOS Simulator are not supported. For more details visit: https://docs.apphud.com/docs/testing-troubleshooting#attempted-to-decode-store-response-error-while-fetching-products", forceDisplay: true)
+            apphudLog("Failed to load SKProducts from the App Store, error: \(error). [!] App Store features in iOS Simulator are not supported. For more details visit: https://docs.apphud.com/docs/troubleshooting#attempted-to-decode-store-response-error-while-fetching-products", forceDisplay: true)
         } else {
             apphudLog("Failed to load SKProducts from the App Store, error: \(error)", forceDisplay: true)
         }

@@ -15,13 +15,20 @@ extension ApphudInternal {
 
     internal func checkEligibilitiesForPromotionalOffers(products: [SKProduct], callback: @escaping ApphudEligibilityCallback) {
 
-        performWhenUserRegistered {
+        performWhenUserRegistered(allowFailure: true) {
             apphudLog("User registered, check promo eligibility")
 
             let didSendReceiptForPromoEligibility = "ReceiptForPromoSent"
 
             // not found subscriptions, try to restore and try again
-            if self.currentUser?.subscriptions.count ?? 0 == 0 && !UserDefaults.standard.bool(forKey: didSendReceiptForPromoEligibility) {
+            if self.currentUser == nil {
+                apphudLog("Failed to register user, aborting Promo eligibility checks.", forceDisplay: true)
+                var response = [String: Bool]()
+                for product in products {
+                    response[product.productIdentifier] = false // cannot purchase offer by default
+                }
+                callback(response)
+            } else if self.currentUser?.subscriptions.count ?? 0 == 0 && !UserDefaults.standard.bool(forKey: didSendReceiptForPromoEligibility) {
                 if let receiptString = apphudReceiptDataString() {
                     apphudLog("Restoring subscriptions for promo eligibility check")
                     self.submitReceipt(product: nil, apphudProduct: nil, transaction: nil, receiptString: receiptString, notifyDelegate: true, eligibilityCheck: true, callback: { _ in
@@ -83,13 +90,20 @@ extension ApphudInternal {
     /// Checks introductory offers eligibility (includes free trial, pay as you go or pay up front)
     internal func checkEligibilitiesForIntroductoryOffers(products: [SKProduct], callback: @escaping ApphudEligibilityCallback) {
 
-        performWhenUserRegistered {
+        performWhenUserRegistered(allowFailure: true) {
             apphudLog("User registered, check intro eligibility")
 
             // not found subscriptions, try to restore and try again
 
             let didSendReceiptForIntroEligibility = "ReceiptForIntroSent"
-            if self.currentUser?.subscriptions.count ?? 0 == 0 && !UserDefaults.standard.bool(forKey: didSendReceiptForIntroEligibility) {
+            if self.currentUser == nil {
+                apphudLog("Failed to register user, aborting Intro eligibility checks.", forceDisplay: true)
+                var response = [String: Bool]()
+                for product in products {
+                    response[product.productIdentifier] = true // can purchase intro by default
+                }
+                callback(response)
+            } else if self.currentUser?.subscriptions.count ?? 0 == 0 && !UserDefaults.standard.bool(forKey: didSendReceiptForIntroEligibility) {
                 if let receiptString = apphudReceiptDataString() {
                     apphudLog("Restoring subscriptions for intro eligibility check")
                     self.submitReceipt(product: nil, apphudProduct: nil, transaction: nil, receiptString: receiptString, notifyDelegate: true, eligibilityCheck: true, callback: { _ in

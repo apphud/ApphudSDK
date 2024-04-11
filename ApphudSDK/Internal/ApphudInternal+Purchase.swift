@@ -14,6 +14,16 @@ extension ApphudInternal {
 
     // MARK: - Main Purchase and Submit Receipt methods
 
+    @MainActor internal func migrateiOS14PurchasesIfNeeded() {
+        if apphudShouldMigrate() {
+            ApphudInternal.shared.restorePurchases { (subscriptions, purchases, error) in
+                if error == nil {
+                    apphudDidMigrate()
+                }
+            }
+        }
+    }
+    
     @MainActor internal func restorePurchases(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {
         self.restorePurchasesCallback = { subs, purchases, error in
             if error != nil { ApphudStoreKitWrapper.shared.restoreTransactions() }
@@ -98,12 +108,10 @@ extension ApphudInternal {
                                            transactionProductIdentifier: productID,
                                            transactionState: isRecentlyPurchased ? .purchased : nil,
                                            receiptString: receipt,
-                                           notifyDelegate: true) { _ in
-                            Task { @MainActor in
-                                continuation.resume(returning: true)
-                            }
-                        }
+                                           notifyDelegate: true) { _ in }
                     }
+                    
+                    continuation.resume(returning: true)
                 }
             }
         }
@@ -210,7 +218,7 @@ extension ApphudInternal {
         }
     }
 
-    internal func submitReceipt(product: SKProduct?, apphudProduct: ApphudProduct?, transaction: SKPaymentTransaction?, receiptString: String?, notifyDelegate: Bool, eligibilityCheck: Bool = false, callback: ApphudErrorCallback?) {
+    internal func submitReceipt(product: SKProduct?, apphudProduct: ApphudProduct?, transaction: SKPaymentTransaction?, receiptString: String?, notifyDelegate: Bool, eligibilityCheck: Bool = false, callback: ApphudNSErrorCallback?) {
 
         let productId = product?.productIdentifier ?? transaction?.payment.productIdentifier
         let finalProduct = product ?? ApphudStoreKitWrapper.shared.products.first(where: { $0.productIdentifier == productId })
@@ -246,7 +254,7 @@ extension ApphudInternal {
                                 receiptString: String?,
                                 notifyDelegate: Bool,
                                 eligibilityCheck: Bool = false,
-                                callback: ApphudErrorCallback?) async {
+                                callback: ApphudNSErrorCallback?) async {
 
         if callback != nil {
             if eligibilityCheck || self.submitReceiptCallbacks.count > 0 {
@@ -268,7 +276,7 @@ extension ApphudInternal {
                                      "environment": environment,
                                      "observer_mode": ApphudUtils.shared.storeKitObserverMode]
 
-        if !ApphudUtils.shared.useStoreKitV2, let receipt = receiptString {
+        if (!ApphudUtils.shared.useStoreKitV2 || transactionIdentifier == nil), let receipt = receiptString {
             params["receipt_data"] = receipt
         }
 

@@ -25,7 +25,10 @@ class ApphudLoggerService {
         case paywallConfigs = "/v2/paywall_configs"
         case subscriptions = "/v1/subscriptions"
     }
-
+    
+    internal var customerLoadTime: Double = 0
+    internal var errorCode: Int? = nil
+    internal var didSend = false
     internal static let shared = ApphudLoggerService()
     private var durationLogs: [[String: AnyHashable]] = []
     private var durationLogsTimer = Timer()
@@ -73,29 +76,35 @@ class ApphudLoggerService {
             params["error_code"] = retryLog.errorCode
 
             self.durationLogs.append(params)
-        }
-    }
-
-    @objc private func durationTimerAction() {
-        if ApphudStoreKitWrapper.shared.productsLoadTime > 0 {
-            durationLogs.append(["endpoint": "skproducts", "duration": ApphudStoreKitWrapper.shared.productsLoadTime])
-            ApphudStoreKitWrapper.shared.productsLoadTime = 0
-        }
-        if ApphudInternal.shared.paywallsLoadTime > 0 {
-            durationLogs.append(["endpoint": "paywalls_total", "duration": ApphudInternal.shared.paywallsLoadTime])
-            ApphudInternal.shared.paywallsLoadTime = 0
-        }
-        self.sendLogEvents(durationLogs)
-    }
-
-    private func sendLogEvents(_ logs: [[String: AnyHashable]]) {
-        DispatchQueue.global().async {
-            let data = try? JSONSerialization.data(withJSONObject: logs, options: [.prettyPrinted])
-            let str = (data != nil ? String(data: data!, encoding: .utf8) : logs.description) ?? ""
-            apphudLog("SDK Performance Metrics: \n\(str)")
-            DispatchQueue.main.async {
-                self.durationLogs.removeAll()
+            
+            if (key == .customers) {
+                self.customerLoadTime = Double(round(100 * value) / 100)
+                self.errorCode = retryLog.errorCode
             }
+        }
+    }
+    
+    @objc private func durationTimerAction() {
+        let sdkLaunchedAt = ApphudInternal.shared.initDate.timeIntervalSince1970 * 1000.0
+        let productsCount = ApphudStoreKitWrapper.shared.products.count
+        let customerErrorMessage = (errorCode != nil) ? String(errorCode!) : ""
+        let paywallsLoadTime = ApphudInternal.shared.paywallsLoadTime
+        let productsLoadTime = ApphudStoreKitWrapper.shared.productsLoadTime
+        let metrics: [String: AnyHashable] = ["launched_at": Int64(sdkLaunchedAt),
+                                              "total_load_time": Double(round(100 * paywallsLoadTime) / 100)*1000.0,
+                                              "user_load_time": Double(round(100 * customerLoadTime) / 100)*1000.0,
+                                              "products_load_time": Double(round(100 * productsLoadTime) / 100) * 1000.0,
+                       "products_count": productsCount,
+                       "error_message": customerErrorMessage,
+                       "storekit_error": ApphudStoreKitWrapper.shared.latestError()?.localizedDescription ?? ""
+        ]
+        
+        apphudLog("SDK Performance Metrics: \n\(metrics)")
+        
+        if ((ApphudInternal.shared.isFreshInstall || ApphudInternal.shared.isRedownload) &&
+            customerLoadTime > 0 && productsLoadTime > 0 && paywallsLoadTime > 0 && !didSend) {
+            didSend = true
+            ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_products_loaded", "properties": metrics.compactMapValues { $0 }])
         }
     }
 }

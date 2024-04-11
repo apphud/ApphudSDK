@@ -79,7 +79,6 @@ extension ApphudInternal {
         } else {
             let purchase = ApphudNonRenewingPurchase(product: product)
             self.currentUser = ApphudUser(userID: currentUserID, purchases: [purchase], paywalls: paywalls)
-
             Task {
                 await self.currentUser?.toCacheV2()
             }

@@ -14,7 +14,7 @@ import Foundation
 import UserNotifications
 import SwiftUI
 
-internal let apphud_sdk_version = "3.2.8"
+internal let apphud_sdk_version = "3.3.0"
 
 // MARK: - Initialization
 
@@ -126,13 +126,13 @@ final public class Apphud: NSObject {
      A placement is a specific location within a user's journey (such as onboarding, settings, etc.) where its internal paywall is intended to be displayed. See documentation for details: https://docs.apphud.com/docs/placements
 
      For immediate access without awaiting `SKProduct`s, use `rawPlacements()` method.
-
+     - parameter maxAttempts: Number of request attempts before throwing an error. Must be between 1 and 10. Default value is 3.
      - Returns: An array of `ApphudPlacement` objects, representing the configured placements.
      */
     @MainActor
-    public static func placements() async -> [ApphudPlacement] {
+    public static func placements(maxAttempts: Int = APPHUD_DEFAULT_RETRIES) async -> [ApphudPlacement] {
         await withCheckedContinuation { continuation in
-            ApphudInternal.shared.performWhenOfferingsReady {
+            ApphudInternal.shared.fetchOfferingsFull(maxAttempts: maxAttempts) { error in
                 continuation.resume(returning: ApphudInternal.shared.placements)
             }
         }
@@ -175,13 +175,14 @@ final public class Apphud: NSObject {
      A placement is a specific location within a user's journey (such as onboarding, settings, etc.) where its internal paywall is intended to be displayed.
 
      For immediate access without awaiting `SKProduct`s, use `ApphudDelegate`'s `userDidLoad` method or the callback in `Apphud.start(...)`.
-
+     - parameter maxAttempts: Number of request attempts before throwing an error. Must be between 1 and 10. Default value is 3.
      - parameter callback: A closure that takes an array of `ApphudPlacement` objects and returns void.
+     - parameter error: Optional StoreKit Error that may occur while fetching products from the App Store. You might want to retry the request if the error comes out.
      */
     @MainActor
-    public static func placementsDidLoadCallback(_ callback: @escaping ([ApphudPlacement]) -> Void) {
-        ApphudInternal.shared.performWhenOfferingsReady {
-            callback(ApphudInternal.shared.placements)
+    public static func fetchPlacements(maxAttempts: Int = APPHUD_DEFAULT_RETRIES, _ callback: @escaping ([ApphudPlacement], ApphudError?) -> Void) {
+        ApphudInternal.shared.fetchOfferingsFull(maxAttempts: maxAttempts) { error in
+            callback(ApphudInternal.shared.placements, error)
         }
     }
 
@@ -189,16 +190,17 @@ final public class Apphud: NSObject {
      Asynchronously retrieves the paywalls configured in Product Hub > Paywalls, potentially altered based on the user's involvement in A/B testing, if any. Awaits until the inner `SKProduct`s are loaded from the App Store.
 
      For immediate access without awaiting `SKProduct`s, use `rawPaywalls()` method.
-
+     - parameter maxAttempts: Number of request attempts before throwing an error. Must be between 1 and 10. Default value is 3.
+     
      - Important: This is deprecated method. Retrieve paywalls from within placements instead. See documentation for details: https://docs.apphud.com/docs/paywalls
 
      - Returns: An array of `ApphudPaywall` objects, representing the configured paywalls.
      */
     @available(*, deprecated, message: "Deprecated in favor of placements()")
     @MainActor
-    @objc public static func paywalls() async -> [ApphudPaywall] {
+    @objc public static func paywalls(maxAttempts: Int = APPHUD_DEFAULT_RETRIES) async -> [ApphudPaywall] {
         await withCheckedContinuation { continuation in
-            ApphudInternal.shared.performWhenOfferingsReady {
+            ApphudInternal.shared.fetchOfferingsFull(maxAttempts: maxAttempts) { error in
                 continuation.resume(returning: ApphudInternal.shared.paywalls)
             }
         }
@@ -243,13 +245,15 @@ final public class Apphud: NSObject {
 
      - Important: This is deprecated method. Retrieve paywalls from within placements instead. See documentation for details: https://docs.apphud.com/docs/placements
 
+     - parameter maxAttempts: Number of request attempts before throwing an error. Must be between 1 and 10. Default value is 3.
      - parameter callback: A closure that takes an array of `ApphudPaywall` objects and returns void.
+     - parameter error: Optional StoreKit Error that may occur while fetching products from the App Store. You might want to retry the request if the error comes out.
      */
-    @available(*, deprecated, message: "Deprecated in favor of placementsDidLoadCallback(...)")
+    @available(*, deprecated, message: "Deprecated in favor of fetchPlacements(...)")
     @MainActor
-    @objc public static func paywallsDidLoadCallback(_ callback: @escaping ([ApphudPaywall]) -> Void) {
-        ApphudInternal.shared.performWhenOfferingsReady {
-            callback(ApphudInternal.shared.paywalls)
+    @objc public static func paywallsDidLoadCallback(maxAttempts: Int = APPHUD_DEFAULT_RETRIES, _ callback: @escaping ([ApphudPaywall], Error?) -> Void) {
+        ApphudInternal.shared.fetchOfferingsFull(maxAttempts: maxAttempts) { error in
+            callback(ApphudInternal.shared.paywalls, error)
         }
     }
 
@@ -308,25 +312,27 @@ final public class Apphud: NSObject {
 
     /**
      Fetches `SKProduct` objects asynchronously from the App Store. This method is used to retrieve the products that you have configured in the Apphud dashboard (Apphud > Product Hub > Products).
-
+     - parameter maxAttempts: Number of request attempts before throwing an error. Must be between 1 and 10. Default value is 3.
+     
      - Returns: An array of `SKProduct` objects corresponding to the products added in the Apphud > Product Hub > Products section.
      */
-    @objc public static func fetchSKProducts() async -> [SKProduct] {
+    @objc public static func fetchSKProducts(maxAttempts: Int = APPHUD_DEFAULT_RETRIES) async -> [SKProduct] {
         await withCheckedContinuation { continuation in
-            Apphud.fetchProducts { prds, _ in continuation.resume(returning: prds) }
+            Apphud.fetchProducts(maxAttempts: maxAttempts) { prds, _ in continuation.resume(returning: prds) }
         }
     }
 
     /**
      Retrieves an array of existing `SKProduct` objects or fetches products from the App Store that have been added in the Apphud Dashboard under Product Hub > Products.
 
+     - parameter maxAttempts: Number of request attempts before throwing an error. Must be between 1 and 10. Default value is 3.
      - parameter callback: A closure that is called upon completion. It returns an array of `SKProduct` objects and an optional `Error` if the fetch operation encountered any issues.
      - Returns: The method doesn't return a value directly but instead provides the result through the `callback` parameter.
 
      - Important: Best practice is to manage products using placements configurations in the Apphud Product Hub > Placements, rather than directly fetching products. Implementing placements logic via the dashboard allows for more organized and scalable management of your app's placements and paywalls.
      */
-    @objc public static func fetchProducts(_ callback: @escaping ([SKProduct], Error?) -> Void) {
-        ApphudInternal.shared.refreshStoreKitProductsWithCallback(callback: callback)
+    @objc public static func fetchProducts(maxAttempts: Int = APPHUD_DEFAULT_RETRIES, _ callback: @escaping ([SKProduct], Error?) -> Void) {
+        ApphudInternal.shared.refreshStoreKitProductsWithCallback(maxAttempts: maxAttempts, callback: callback)
     }
 
     /**
@@ -501,8 +507,8 @@ final public class Apphud: NSObject {
      - Important: Do not use this method if you offer consumable in-app purchases (like coin packs) as the SDK does not differentiate consumables from non-consumables.
      - Returns: `true` if the user has an active subscription or an active non-renewing purchase.
      */
-    @MainActor @objc public static func hasPremiumAccess() -> Bool {
-        hasActiveSubscription() || (nonRenewingPurchases()?.first(where: { $0.isActive() }) != nil)
+    @objc public static func hasPremiumAccess() -> Bool {
+        ApphudInternal.shared.isPremium
     }
 
     /**
@@ -511,8 +517,8 @@ final public class Apphud: NSObject {
      - Important: If your app includes lifetime (non-consumable) or consumable purchases, you should use the `Apphud.isNonRenewingPurchaseActive(productIdentifier:)` method to check their status.
      - Returns: `true` if the user currently has an active subscription.
      */
-    @MainActor @objc public static func hasActiveSubscription() -> Bool {
-        subscriptions()?.first(where: { $0.isActive() }) != nil
+    @objc public static func hasActiveSubscription() -> Bool {
+        ApphudInternal.shared.hasActiveSubscription
     }
 
     /**
@@ -598,32 +604,6 @@ final public class Apphud: NSObject {
     }
 
     // MARK: - Receipts
-
-    /**
-     Migrates existing purchases to Apphud. This method is intended for importing App Store receipts for users who are already paying but are not yet tracked by Apphud. It should be used only for migrating existing paying users at the launch of your app.
-
-     Example:
-
-     ```swift
-        // hasPurchases - is your own boolean value indicating that the current user is a paying user.
-        if hasPurchases {
-            Apphud.migratePurchasesIfNeeded { _, _, _ in}
-        }
-     ```
-     Note: This method can be removed after a certain period, such as when you are confident that all paying users have been synced with Apphud.
-     Deprecated: No longer needed for iOS 15 and later, as purchases migrate automatically.
-     */
-    @available(iOS, deprecated: 15.0, message: "No longer needed for iOS 15+. Purchases migrate automatically.")
-    @MainActor public static func migratePurchasesIfNeeded(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {
-        if apphudShouldMigrate() {
-            ApphudInternal.shared.restorePurchases { (subscriptions, purchases, error) in
-                if error == nil {
-                    apphudDidMigrate()
-                }
-                callback(subscriptions, purchases, error)
-            }
-        }
-    }
 
     /**
      Retrieves the base64-encoded App Store receipt string, if available.
@@ -782,15 +762,20 @@ final public class Apphud: NSObject {
     // MARK: - Attribution
 
     /**
-     Submits the Advertising Identifier (IDFA) to Apphud. This identifier is used for accurately matching the user with attribution platforms like AppsFlyer, Facebook, etc.
+     Submits Device Identifiers (IDFA and IDFV) to Apphud. These identifiers may be required for marketing and attribution platforms such as AppsFlyer, Facebook, Singular, etc.
+     
+     Best practice is to call this method right after SDK's `start(...)` method and once again after getting IDFA.
 
-     - parameter idfa: The Advertising Identifier (IDFA) as a String.
-
-     - Note: Providing IDFA helps in enhancing the accuracy of attribution data, which is crucial for understanding marketing performance and user acquisition efforts.
+     - parameter idfa: IDFA. Identifier for Advertisers. If you request IDFA using App Tracking Transparency framework, you can call this method again after granting access.
+     - parameter idfv: IDFV. Identifier for Vendor. Can be passed right after SDK's `start` method.
      */
-    @objc public static func setAdvertisingIdentifier(_ idfa: String) {
-        ApphudInternal.shared.advertisingIdentifier = idfa
+    @objc public static func setDeviceIdentifiers(idfa: String?, idfv: String?) {
+        ApphudInternal.shared.performWhenUserRegistered {
+            ApphudInternal.shared.deviceIdentifiers = (idfa, idfv)
+        }
     }
+    @available(*, unavailable, renamed: "setDeviceIdentifiers(idfa:idfv:)")
+    @objc public static func setAdvertisingIdentifier(_ idfa: String) {}
 
     /**
      Submits attribution data to Apphud from your chosen attribution network provider.
@@ -902,4 +887,8 @@ final public class Apphud: NSObject {
     @objc public static func isSandbox() -> Bool {
         return apphudIsSandbox()
     }
+    
+    @available(*, unavailable, message: "No longer needed. Purchases migrate automatically. Just remove this code.")
+    @MainActor public static func migratePurchasesIfNeeded(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {}
+
 }

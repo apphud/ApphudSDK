@@ -14,7 +14,8 @@ import StoreKit
 
 typealias ApphudVoidMainCallback = @MainActor () -> Void
 typealias ApphudVoidCallback = (() -> Void)
-typealias ApphudErrorCallback = ((Error?) -> Void)
+typealias ApphudErrorCallback = ((ApphudError?) -> Void)
+typealias ApphudNSErrorCallback = ((Error?) -> Void)
 
 #if os(iOS)
 @MainActor
@@ -194,7 +195,7 @@ internal func apphudCurrentDeviceWatchParameters() -> [String: String] {
         params["country_iso_code"] = regionCode.uppercased()
     }
 
-    if !ApphudUtils.shared.optOutOfTracking, let idfv = WKInterfaceDevice.current().identifierForVendor?.uuidString {
+    if !ApphudUtils.shared.optOutOfTracking, let idfv = apphudIdentifierForVendor() {
         params["idfv"] = idfv
     }
 
@@ -236,7 +237,7 @@ internal func apphudCurrentDeviceiOSParameters() -> [String: String] {
         params["country_iso_code"] = regionCode.uppercased()
     }
 
-    if !ApphudUtils.shared.optOutOfTracking, let idfv = UIDevice.current.identifierForVendor?.uuidString {
+    if !ApphudUtils.shared.optOutOfTracking, let idfv = apphudIdentifierForVendor() {
         params["idfv"] = idfv
     }
 
@@ -262,159 +263,16 @@ extension UIDevice {
 #endif
 
 internal func apphudIdentifierForAdvertising() -> String? {
-    if let idfa = ApphudInternal.shared.advertisingIdentifier, idfa != "00000000-0000-0000-0000-000000000000" {
+    if let idfa = ApphudInternal.shared.deviceIdentifiers.0, idfa != "00000000-0000-0000-0000-000000000000" {
         return idfa
     }
     return nil
 }
 
-internal func apphudIsAppsFlyerSDKIntegrated() -> Bool {
-
-    if true {
-        let klass: AnyClass? = NSClassFromString("AppsFlyerLib")
-        let managerClass = klass as AnyObject as? NSObjectProtocol
-
-        let sel = NSSelectorFromString("shared")
-        if managerClass?.responds(to: sel) ?? false {
-            return true
-        }
+internal func apphudIdentifierForVendor() -> String? {
+    if let idfv = ApphudInternal.shared.deviceIdentifiers.1, idfv != "00000000-0000-0000-0000-000000000000" {
+        return idfv
     }
-
-    let klass: AnyClass? = NSClassFromString("AppsFlyerTracker")
-    let managerClass = klass as AnyObject as? NSObjectProtocol
-
-    let sel = NSSelectorFromString("sharedTracker")
-    if managerClass?.responds(to: sel) ?? false {
-        return true
-    }
-
-    return false
-}
-
-internal func apphudGetAppsFlyerID() -> String? {
-
-    if true {
-        let klass: AnyClass? = NSClassFromString("AppsFlyerLib")
-        let managerClass = klass as AnyObject as? NSObjectProtocol
-
-        let sel = NSSelectorFromString("shared")
-        if managerClass?.responds(to: sel) ?? false {
-            let value = managerClass?.perform(sel)
-            if let tracker = value?.takeUnretainedValue() as? NSObject {
-                let selID = NSSelectorFromString("getAppsFlyerUID")
-                if tracker.responds(to: selID) {
-                    let value = tracker.perform(selID)
-                    if let string = value?.takeUnretainedValue() as? String, string.count > 0 {
-                        return string
-                    }
-                }
-            }
-        }
-    }
-
-    let klass: AnyClass? = NSClassFromString("AppsFlyerTracker")
-    let managerClass = klass as AnyObject as? NSObjectProtocol
-
-    let sel = NSSelectorFromString("sharedTracker")
-    if managerClass?.responds(to: sel) ?? false {
-        let value = managerClass?.perform(sel)
-        if let tracker = value?.takeUnretainedValue() as? NSObject {
-            let selID = NSSelectorFromString("getAppsFlyerUID")
-            if tracker.responds(to: selID) {
-                let value = tracker.perform(selID)
-                if let string = value?.takeUnretainedValue() as? String, string.count > 0 {
-                    return string
-                }
-            }
-        }
-    }
-
-    return nil
-}
-
-internal func apphudIsAdjustSDKIntegrated() -> Bool {
-
-    let klass: AnyClass? = NSClassFromString("Adjust")
-    let managerClass = klass as AnyObject as? NSObjectProtocol
-
-    let sel = NSSelectorFromString("adid")
-    if managerClass?.responds(to: sel) ?? false {
-        return true
-    }
-
-    return false
-}
-
-internal func apphudGetAdjustID() -> String? {
-
-    let klass: AnyClass? = NSClassFromString("Adjust")
-    let managerClass = klass as AnyObject as? NSObjectProtocol
-
-    let sel = NSSelectorFromString("adid")
-    if managerClass?.responds(to: sel) ?? false {
-        let value = managerClass?.perform(sel)
-        if let string = value?.takeUnretainedValue() as? String, string.count > 0 {
-            return string
-        }
-    }
-
-    return nil
-}
-
-internal func apphudNeedsToCollectFBAnonID() -> Bool {
-    true
-}
-
-internal func apphudIsFBSDKIntegrated() -> Bool {
-    return NSClassFromString("FBSDKAppEvents") != nil || NSClassFromString("FBSDKBasicUtility") != nil
-}
-
-internal func apphudGetFBExtInfo() -> String? {
-
-    let klass: AnyClass? = NSClassFromString("FBSDKAppEventsDeviceInfo")
-    let managerClass = klass as AnyObject as? NSObjectProtocol
-
-    let sel = NSSelectorFromString("sharedDeviceInfo")
-    if managerClass?.responds(to: sel) ?? false {
-        let value = managerClass?.perform(sel)
-        if let shared = value?.takeUnretainedValue() as? NSObject {
-            let selInfo = NSSelectorFromString("encodedDeviceInfo")
-            if shared.responds(to: selInfo) {
-                let value = shared.perform(selInfo)
-                if let encodedString = value?.takeUnretainedValue() as? String, encodedString.count > 0 {
-                    return encodedString
-                }
-            }
-        }
-    }
-
-    return nil
-}
-
-internal func apphudGetFBAnonID() -> String? {
-
-    let klass: AnyClass? = NSClassFromString("FBSDKAppEvents")
-    let managerClass = klass as AnyObject as? NSObjectProtocol
-
-    let sel = NSSelectorFromString("anonymousID")
-    if managerClass?.responds(to: sel) ?? false {
-        let value = managerClass?.perform(sel)
-        if let string = value?.takeUnretainedValue() as? String, string.count > 0 {
-            return string
-        }
-    }
-
-    let klassOld: AnyClass? = NSClassFromString("FBSDKBasicUtility")
-    let managerClassOld = klassOld as AnyObject as? NSObjectProtocol
-
-    let selOld = NSSelectorFromString("anonymousID")
-    if managerClassOld?.responds(to: selOld) ?? false {
-        let value = managerClassOld?.perform(selOld)
-        if let string = value?.takeUnretainedValue() as? String, string.count > 0 {
-            return string
-        }
-    }
-
     return nil
 }
 

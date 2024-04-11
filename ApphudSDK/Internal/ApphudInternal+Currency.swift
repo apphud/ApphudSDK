@@ -66,7 +66,7 @@ extension ApphudInternal {
 
     private func fetchCurrencyLegacy() async {
 
-        var skProducts: [SKProduct] = ApphudStoreKitWrapper.shared.products
+        let skProducts: [SKProduct] = ApphudStoreKitWrapper.shared.products
 
         if skProducts.isEmpty {
             let groups: [ApphudGroup]?
@@ -82,9 +82,7 @@ extension ApphudInternal {
                 productIds.append(contentsOf: group.products.compactMap { $0.productId })
             })
 
-            let result = await ApphudStoreKitWrapper.shared.fetchAllProducts(identifiers: Set(productIds))
-            skProducts = result.0
-            await handleDidFetchAllProducts(storeKitProducts: result.0, error: result.1)
+            await continueToFetchStoreKitProducts(maxAttempts: APPHUD_DEFAULT_RETRIES)
         }
 
         let priceLocale = skProducts.first?.priceLocale
