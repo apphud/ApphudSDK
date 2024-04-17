@@ -345,7 +345,7 @@ extension ApphudInternal {
         }
     }
 
-    private func preparePropertiesParams() async -> ([String: Any]?, [[String: Any?]]?, Bool) {
+    @MainActor private func preparePropertiesParams() async -> ([String: Any]?, [[String: Any?]]?, Bool) {
         setNeedsToUpdateUserProperties = false
         guard pendingUserProperties.count > 0 else { return (nil, nil, false) }
         var params = [String: Any]()

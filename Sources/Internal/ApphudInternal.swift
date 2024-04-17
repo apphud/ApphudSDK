@@ -105,7 +105,7 @@ final class ApphudInternal: NSObject {
             }
         }
     }
-    internal var pendingUserProperties = [ApphudUserProperty]()
+    @MainActor internal var pendingUserProperties = [ApphudUserProperty]()
     internal var lastCheckDate = Date()
     internal var userRegisterRetries: ApphudRetryLog = (0, 0)
     internal let maxNumberOfUserRegisterRetries: Int = APPHUD_INFINITE_RETRIES
@@ -742,6 +742,8 @@ final class ApphudInternal: NSObject {
             currentUser = nil
             isPremium = false
             hasActiveSubscription = false
+            setNeedsToUpdateUserProperties = false
+            pendingUserProperties.removeAll()
         }
 
         didPreparePaywalls = false
@@ -760,8 +762,6 @@ final class ApphudInternal: NSObject {
         reinstallTracked = false
         delayedInitilizationParams = nil
         setNeedsToUpdateUser = false
-        setNeedsToUpdateUserProperties = false
-        pendingUserProperties.removeAll()
         userRegisterRetries = (0, 0)
         paywallEventsRetriesCount = 0
         productsFetchRetries = (0, 0)
