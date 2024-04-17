@@ -13,6 +13,6 @@ Pod::Spec.new do |s|
   s.tvos.deployment_target = '13.0'
   s.watchos.deployment_target = '6.2'
   s.swift_version = '5.0'
-  s.source_files = 'ApphudSDK/**/*.{swift,h,m}'
-  s.resource_bundles = {'ApphudSDK' => ['ApphudSDK/PrivacyInfo.xcprivacy']}
+  s.source_files = 'Sources/**/*.{swift,h,m}'
+  s.resource_bundles = {'ApphudSDK' => ['Sources/PrivacyInfo.xcprivacy']}
 end

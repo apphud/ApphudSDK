@@ -1,5 +1,5 @@
 PODS:
-  - ApphudSDK (3.1.0)
+  - ApphudSDK (3.3.0)
 
 DEPENDENCIES:
   - ApphudSDK (from `../../`)
@@ -9,8 +9,8 @@ EXTERNAL SOURCES:
     :path: "../../"
 
 SPEC CHECKSUMS:
-  ApphudSDK: 37bf7c088dd98dc8edac54bf79f003d5d5cdf0fd
+  ApphudSDK: b6f5043ac996f43627626184a324f8bd5a108269
 
 PODFILE CHECKSUM: aa34782827bdb35a5ec369ddc9b74f0ba69bd0ec
 
-COCOAPODS: 1.12.1
+COCOAPODS: 1.15.2

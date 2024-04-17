@@ -1,4 +1,4 @@
-// swift-tools-version:5.1
+// swift-tools-version:5.9
 import PackageDescription
 
 let package = Package(name: "ApphudSDK",
@@ -6,7 +6,7 @@ let package = Package(name: "ApphudSDK",
                       products: [.library(name: "ApphudSDK",
                                           targets: ["ApphudSDK"])],
                       targets: [.target(name: "ApphudSDK",
-                                        path: "ApphudSDK",
+                                        path: "Sources",
                                         resources: [
                                             .process("PrivacyInfo.xcprivacy")
                                         ])],
