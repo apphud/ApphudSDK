@@ -8,6 +8,6 @@ let package = Package(name: "ApphudSDK",
                       targets: [.target(name: "ApphudSDK",
                                         path: "ApphudSDK",
                                         resources: [
-                                            .copy("../ApphudSDK/PrivacyInfo.xcprivacy")
+                                            .process("PrivacyInfo.xcprivacy")
                                         ])],
                       swiftLanguageVersions: [.v5])
