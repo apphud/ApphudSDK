@@ -233,9 +233,15 @@ internal func apphudCurrentDeviceiOSParameters() -> [String: String] {
                                       "os_version": UIDevice.current.systemVersion
     ]
 
+    #if os(visionOS)
+    if let regionCode = Locale.current.region?.identifier {
+        params["country_iso_code"] = regionCode.uppercased()
+    }
+    #else
     if let regionCode = Locale.current.regionCode {
         params["country_iso_code"] = regionCode.uppercased()
     }
+    #endif
 
     if !ApphudUtils.shared.optOutOfTracking, let idfv = apphudIdentifierForVendor() {
         params["idfv"] = idfv
@@ -315,6 +321,15 @@ extension SKProduct {
             "price": price.floatValue
         ]
 
+        #if os(visionOS)
+        if let countryCode = priceLocale.region?.identifier {
+            params["country_code"] = countryCode
+        }
+
+        if let currencyCode = priceLocale.currency?.identifier {
+            params["currency_code"] = currencyCode
+        }
+        #else
         if let countryCode = priceLocale.regionCode {
             params["country_code"] = countryCode
         }
@@ -322,7 +337,8 @@ extension SKProduct {
         if let currencyCode = priceLocale.currencyCode {
             params["currency_code"] = currencyCode
         }
-
+        #endif
+        
         if let introData = apphudIntroParameters() {
             params.merge(introData, uniquingKeysWith: {$1})
         }

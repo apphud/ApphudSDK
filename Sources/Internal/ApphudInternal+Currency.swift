@@ -88,8 +88,13 @@ extension ApphudInternal {
         let priceLocale = skProducts.first?.priceLocale
 
         guard let priceLocale = priceLocale else { return }
+        #if os(visionOS)
+        guard let countryCode = priceLocale.region?.identifier else { return }
+        guard let currencyCode = priceLocale.currency?.identifier else { return }
+        #else
         guard let countryCode = priceLocale.regionCode else { return }
         guard let currencyCode = priceLocale.currencyCode else { return }
+        #endif
         guard await countryCode != currentUser?.currency?.countryCode else { return }
         guard await currencyCode != currentUser?.currency?.code else { return }
 

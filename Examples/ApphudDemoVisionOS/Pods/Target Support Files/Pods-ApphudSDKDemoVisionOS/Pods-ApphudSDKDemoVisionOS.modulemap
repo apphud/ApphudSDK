@@ -1,0 +1,6 @@
+framework module Pods_ApphudSDKDemoVisionOS {
+  umbrella header "Pods-ApphudSDKDemoVisionOS-umbrella.h"
+
+  export *
+  module * { export * }
+}
