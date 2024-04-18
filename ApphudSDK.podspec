@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'ApphudSDK'
-  s.version          = '3.3.0'
+  s.version          = '3.3.2'
   s.summary          = 'Track and control iOS auto-renewable subscriptions.'
   s.description      = 'Track, control and analyze iOS auto-renewable subscriptions with Apphud.'
   s.homepage         = 'https://github.com/apphud/ApphudSDK'
@@ -12,7 +12,8 @@ Pod::Spec.new do |s|
   s.osx.deployment_target  = '11.0'
   s.tvos.deployment_target = '13.0'
   s.watchos.deployment_target = '6.2'
-  s.swift_version = '5.0'
+  s.visionos.deployment_target = '1.0'
+  s.swift_version = '5.9'
   s.source_files = 'Sources/**/*.{swift,h,m}'
   s.resource_bundles = {'ApphudSDK' => ['Sources/PrivacyInfo.xcprivacy']}
 end

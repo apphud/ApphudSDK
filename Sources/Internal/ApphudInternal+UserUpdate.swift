@@ -314,10 +314,11 @@ extension ApphudInternal {
         }
 
         performWhenUserRegistered {
-            let property = ApphudUserProperty(key: key.key, value: value, increment: increment, setOnce: setOnce, type: typeString)
-            self.pendingUserProperties.removeAll { prop -> Bool in property.key == prop.key }
-            self.pendingUserProperties.append(property)
-            self.setNeedsToUpdateUserProperties = true
+            Task { @MainActor in
+                let property = ApphudUserProperty(key: key.key, value: value, increment: increment, setOnce: setOnce, type: typeString)
+                await ApphudDataActor.shared.addPendingUserProperty(property)
+                self.setNeedsToUpdateUserProperties = true
+            }
         }
     }
 
@@ -347,13 +348,13 @@ extension ApphudInternal {
 
     private func preparePropertiesParams() async -> ([String: Any]?, [[String: Any?]]?, Bool) {
         setNeedsToUpdateUserProperties = false
-        guard pendingUserProperties.count > 0 else { return (nil, nil, false) }
+        guard await ApphudDataActor.shared.pendingUserProps.count > 0 else { return (nil, nil, false) }
         var params = [String: Any]()
         params["device_id"] = self.currentDeviceID
 
         var canSaveToCache = true
         var properties = [[String: Any?]]()
-        pendingUserProperties.forEach { property in
+        await ApphudDataActor.shared.pendingUserProps.forEach { property in
             if let json = property.toJSON() {
                 properties.append(json)
                 if property.increment {
@@ -389,12 +390,12 @@ extension ApphudInternal {
 
             if shouldSkipUpload {
                 apphudLog("Skip uploading user properties, because values did not change") //: \n\n\(properties),\n\ncache:\n\n\(cachedProperties)")
-                self.pendingUserProperties.removeAll()
+                await ApphudDataActor.shared.setPendingUserProperties([])
                 return (nil, nil, false)
             }
         }
 
-        self.pendingUserProperties.removeAll()
+        await ApphudDataActor.shared.setPendingUserProperties([])
 
         return (params, properties, canSaveToCache)
     }

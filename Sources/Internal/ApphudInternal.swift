@@ -98,14 +98,13 @@ final class ApphudInternal: NSObject {
             DispatchQueue.main.async {
                 if self.setNeedsToUpdateUserProperties {
                     NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(self.updateUserProperties), object: nil)
-                    self.perform(#selector(self.updateUserProperties), with: nil, afterDelay: 5.0)
+                    self.perform(#selector(self.updateUserProperties), with: nil, afterDelay: 2.0)
                 } else {
                     NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(self.updateUserProperties), object: nil)
                 }
             }
         }
     }
-    internal var pendingUserProperties = [ApphudUserProperty]()
     internal var lastCheckDate = Date()
     internal var userRegisterRetries: ApphudRetryLog = (0, 0)
     internal let maxNumberOfUserRegisterRetries: Int = APPHUD_INFINITE_RETRIES
@@ -761,7 +760,7 @@ final class ApphudInternal: NSObject {
         delayedInitilizationParams = nil
         setNeedsToUpdateUser = false
         setNeedsToUpdateUserProperties = false
-        pendingUserProperties.removeAll()
+        await ApphudDataActor.shared.setPendingUserProperties([])
         userRegisterRetries = (0, 0)
         paywallEventsRetriesCount = 0
         productsFetchRetries = (0, 0)
