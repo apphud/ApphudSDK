@@ -36,8 +36,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         Apphud.setUserProperty(key: .init("custom_prop_2"), value: true)
         Apphud.incrementUserProperty(key: .init("coins_count"), by: 2)
 //        Apphud.setDelegate(self)
-        Apphud.setUIDelegate(self)
-
+        Apphud.setUIDelegate(self)        
         registerForNotifications()
 
         return true

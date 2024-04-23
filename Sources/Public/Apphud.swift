@@ -890,5 +890,18 @@ final public class Apphud: NSObject {
     
     @available(*, unavailable, message: "No longer needed. Purchases migrate automatically. Just remove this code.")
     @MainActor public static func migratePurchasesIfNeeded(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {}
+    
+    /**
+     Override default paywalls and placements cache timeout value. Default cache value is 9000 seconds (25 hours).
+     If expired, will make SDK to disregard cache and force refresh paywalls and placements.
+     Call it only if keeping paywalls and placements up to date is critical for your app business.
+     
+        **Must call before SDK initialization.**
+     
+     - parameter value: New value in seconds. Must be between 0 and 172800 (48 hours).
+     */
+    @objc public static func setPaywallsCacheTimeout(_ value: TimeInterval) {
+        ApphudInternal.shared.setCacheTimeout(value)
+    }
 
 }

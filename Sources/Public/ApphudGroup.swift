@@ -22,7 +22,9 @@ public class ApphudGroup: NSObject, Codable {
      You should not operate with products from ApphudGroup directly. Use Paywalls or Paywalls within Placements.
      @returns Products that belong to this permission group.
      */
-    public var products: [ApphudProduct]
+    public var productIDs: [String] {
+        products.map { $0.productId }
+    }
 
     /**
      Returns `true` if this permission group has active subscription. Keep in mind, that this method doesn't take into account non-renewing purchases.
@@ -41,7 +43,7 @@ public class ApphudGroup: NSObject, Codable {
     // MARK: - Private
 
     internal var id: String
-
+    internal var products: [ApphudProduct]
     private enum CodingKeys: String, CodingKey {
         case id
         case identifier

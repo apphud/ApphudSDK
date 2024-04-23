@@ -145,7 +145,8 @@ extension ApphudInternal {
                     callback?([], error)
                 }
             } else {
-                Task { @MainActor in
+                ApphudStoreKitWrapper.shared.status = .none
+                Task.detached { @MainActor in
                     self.performWhenStoreKitProductFetched(maxAttempts: maxAttempts) { error in
                         apphudPerformOnMainThread { callback?(ApphudStoreKitWrapper.shared.products, error) }
                     }
@@ -299,6 +300,11 @@ extension ApphudInternal {
         placements.forEach { placement in
             placement.paywall?.update(placementId: placement.id, placementIdentifier: placement.identifier)
         }
+        permissionGroups?.forEach({ group in
+            group.products.forEach { product in
+                product.skProduct = ApphudStoreKitWrapper.shared.products.first(where: { $0.productIdentifier == product.productId })
+            }
+        })
     }
 
     internal func cachePaywalls(paywalls: [ApphudPaywall]) async {
