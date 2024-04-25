@@ -41,13 +41,9 @@ extension ApphudInternal {
 
     @MainActor
     internal func performAllStoreKitProductsFetchedCallbacks(error: ApphudError?) {
-        for block in self.storeKitProductsFetchedCallbacks {
-            apphudLog("Performing scheduled block..")
+        while !self.storeKitProductsFetchedCallbacks.isEmpty {
+            let block = self.storeKitProductsFetchedCallbacks.removeFirst()
             block(error)
-        }
-        if self.storeKitProductsFetchedCallbacks.count > 0 {
-            apphudLog("All scheduled blocks performed, removing..")
-            self.storeKitProductsFetchedCallbacks.removeAll()
         }
     }
     

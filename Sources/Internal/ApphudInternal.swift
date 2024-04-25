@@ -36,8 +36,7 @@ final class ApphudInternal: NSObject {
     internal weak var uiDelegate: ApphudUIDelegate?
 
     // MARK: - Private properties
-    private var userRegisteredCallbacks = [ApphudVoidCallback]()
-    private var userFailedOrRegisteredCallbacks = [ApphudVoidCallback]()
+    private var userRegisteredCallbacks = [(block: ApphudVoidCallback, allowFailure: Bool)]()
     private var addedObservers = false
     private var allowIdentifyUser = true
 
@@ -543,46 +542,38 @@ final class ApphudInternal: NSObject {
 
     /// Returns false if current user is not yet registered, block is added to array and will be performed later.
     internal func performWhenUserRegistered(allowFailure: Bool = false, callback : @escaping ApphudVoidMainCallback) {
-        Task { @MainActor in
-            if currentUser != nil {
+        // detach to call in the next run loop
+        Task.detached { @MainActor in
+            if self.currentUser != nil {
                 callback()
             } else {
-                if userRegisterRetries.count >= maxNumberOfUserRegisterRetries {
-                    continueToRegisteringUser()
+                if self.userRegisterRetries.count >= self.maxNumberOfUserRegisterRetries {
+                    self.continueToRegisteringUser()
                 }
                                 
-                userRegisteredCallbacks.append(callback)
-                
-                if allowFailure {
-                    userFailedOrRegisteredCallbacks.append(callback)
-                }
+                self.userRegisteredCallbacks.append((callback, allowFailure))
             }
         }
     }
 
     internal func performAllUserRegisteredBlocks() {
-        DispatchQueue.main.async {
-            if self.currentUser != nil {
-                for block in self.userRegisteredCallbacks {
-                    block()
-                }
-            }
-            if self.userRegisteredCallbacks.count > 0 {
-                apphudLog("All scheduled blocks performed, removing..")
-                self.userRegisteredCallbacks.removeAll()
-            }
-            if self.userFailedOrRegisteredCallbacks.count > 0 {
-                self.userFailedOrRegisteredCallbacks.removeAll()
+        // detach to call in the next run loop
+        Task.detached { @MainActor in
+            while !self.userRegisteredCallbacks.isEmpty {
+                self.userRegisteredCallbacks.removeFirst().block()
             }
         }
     }
     
     internal func performAllUserFailedBlocks() {
-        DispatchQueue.main.async {
-            while !self.userFailedOrRegisteredCallbacks.isEmpty {
-                let callback = self.userFailedOrRegisteredCallbacks.removeFirst()
-                callback()
+        // detach to call in the next run loop
+        Task.detached { @MainActor in
+            for tuple in self.userRegisteredCallbacks {
+                if (tuple.allowFailure) {
+                    tuple.block()
+                }
             }
+            self.userRegisteredCallbacks.removeAll(where: { $0.allowFailure == true })
         }
     }
 
@@ -744,15 +735,14 @@ final class ApphudInternal: NSObject {
             currentUser = nil
             isPremium = false
             hasActiveSubscription = false
+            userRegisteredCallbacks.removeAll()
+            storeKitProductsFetchedCallbacks.removeAll()
+            submitReceiptCallbacks.removeAll()
         }
 
         didPreparePaywalls = false
 
-        userRegisteredCallbacks.removeAll()
-        userFailedOrRegisteredCallbacks.removeAll()
-        storeKitProductsFetchedCallbacks.removeAll()
-        submitReceiptCallbacks.removeAll()
-
+        
         submitReceiptRetries = (0, 0)
         restorePurchasesCallback = nil
         submittingTransaction = nil
