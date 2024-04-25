@@ -20,14 +20,16 @@ public class ApphudGroup: NSObject, Codable {
 
     /**
      You should not operate with products from ApphudGroup directly. Use Paywalls or Paywalls within Placements.
-     @returns Products that belong to this permission group.
+     @returns Products Identifiers that belong to this permission group.
      */
-    public var productIDs: [String] {
+    public var productIds: [String] {
         products.map { $0.productId }
     }
 
     /**
-     Returns `true` if this permission group has active subscription. Keep in mind, that this method doesn't take into account non-renewing purchases.
+     Returns `true` if this permission group has active subscription. Keep in mind, that this method doesn't distinguish consumable purchases from non-consumables.
+     
+     __If you have consumable purchases, do not use this method in current SDK version.__
      */
     @MainActor public var hasAccess: Bool {
 
@@ -35,6 +37,11 @@ public class ApphudGroup: NSObject, Codable {
             if subscription.isActive() && subscription.groupId == id {
                 return true
             }
+        }
+         
+        let purchases = ApphudInternal.shared.currentUser?.purchases.filter { productIds.contains($0.productId) }
+        if purchases?.count ?? 0 > 0 {
+            return true
         }
 
         return false

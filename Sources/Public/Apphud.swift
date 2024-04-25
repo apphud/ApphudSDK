@@ -503,6 +503,8 @@ final public class Apphud: NSObject {
 
     /**
      Determines if the user has active premium access through a subscription or a non-renewing purchase (lifetime).
+     
+     __If you have consumable purchases, do not use this method in current SDK version.__
 
      - Important: Do not use this method if you offer consumable in-app purchases (like coin packs) as the SDK does not differentiate consumables from non-consumables.
      - Returns: `true` if the user has an active subscription or an active non-renewing purchase.
