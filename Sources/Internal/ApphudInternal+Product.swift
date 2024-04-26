@@ -41,13 +41,9 @@ extension ApphudInternal {
 
     @MainActor
     internal func performAllStoreKitProductsFetchedCallbacks(error: ApphudError?) {
-        for block in self.storeKitProductsFetchedCallbacks {
-            apphudLog("Performing scheduled block..")
+        while !self.storeKitProductsFetchedCallbacks.isEmpty {
+            let block = self.storeKitProductsFetchedCallbacks.removeFirst()
             block(error)
-        }
-        if self.storeKitProductsFetchedCallbacks.count > 0 {
-            apphudLog("All scheduled blocks performed, removing..")
-            self.storeKitProductsFetchedCallbacks.removeAll()
         }
     }
     
@@ -145,7 +141,8 @@ extension ApphudInternal {
                     callback?([], error)
                 }
             } else {
-                Task { @MainActor in
+                ApphudStoreKitWrapper.shared.status = .none
+                Task.detached { @MainActor in
                     self.performWhenStoreKitProductFetched(maxAttempts: maxAttempts) { error in
                         apphudPerformOnMainThread { callback?(ApphudStoreKitWrapper.shared.products, error) }
                     }

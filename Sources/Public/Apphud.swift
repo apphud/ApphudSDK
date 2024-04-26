@@ -14,7 +14,7 @@ import Foundation
 import UserNotifications
 import SwiftUI
 
-internal let apphud_sdk_version = "3.3.2"
+internal let apphud_sdk_version = "3.3.6"
 
 // MARK: - Initialization
 
@@ -123,7 +123,9 @@ final public class Apphud: NSObject {
     /**
      Asynchronously retrieves the paywall placements configured in Product Hub > Placements, potentially altered based on the user's involvement in A/B testing, if any. Awaits until the inner `SKProduct`s are loaded from the App Store.
 
-     A placement is a specific location within a user's journey (such as onboarding, settings, etc.) where its internal paywall is intended to be displayed. See documentation for details: https://docs.apphud.com/docs/placements
+     A placement is a specific location within a user's journey (such as onboarding, settings, etc.) where its internal paywall is intended to be displayed. See documentation for details: https://docs.apphud.com/docs/placements.
+     
+     - Important: In case of network issues this method may return empty array. To get the possible error use `fetchPlacements` method instead.
 
      For immediate access without awaiting `SKProduct`s, use `rawPlacements()` method.
      - parameter maxAttempts: Number of request attempts before throwing an error. Must be between 1 and 10. Default value is 3.
@@ -159,6 +161,8 @@ final public class Apphud: NSObject {
 
      A placement is a specific location within a user's journey (such as onboarding, settings, etc.) where its internal paywall is intended to be displayed.
 
+     - Important: In case of network issues this method may return empty array. To get the possible error use `fetchPlacements` method instead.
+     
      For immediate access without awaiting `SKProduct`s, use `ApphudDelegate`'s `userDidLoad` method or the callback in `Apphud.start(...)`.
 
      - parameter identifier: The unique identifier for the desired placement.
@@ -177,7 +181,7 @@ final public class Apphud: NSObject {
      For immediate access without awaiting `SKProduct`s, use `ApphudDelegate`'s `userDidLoad` method or the callback in `Apphud.start(...)`.
      - parameter maxAttempts: Number of request attempts before throwing an error. Must be between 1 and 10. Default value is 3.
      - parameter callback: A closure that takes an array of `ApphudPlacement` objects and returns void.
-     - parameter error: Optional StoreKit Error that may occur while fetching products from the App Store. You might want to retry the request if the error comes out.
+     - parameter error: Optional ApphudError that may occur while fetching products from the App Store. You might want to retry the request if the error comes out.
      */
     @MainActor
     public static func fetchPlacements(maxAttempts: Int = APPHUD_DEFAULT_RETRIES, _ callback: @escaping ([ApphudPlacement], ApphudError?) -> Void) {
@@ -189,6 +193,8 @@ final public class Apphud: NSObject {
     /**
      Asynchronously retrieves the paywalls configured in Product Hub > Paywalls, potentially altered based on the user's involvement in A/B testing, if any. Awaits until the inner `SKProduct`s are loaded from the App Store.
 
+     - Important: In case of network issues this method may return empty array. To get the possible error use `paywallsDidLoadCallback` method instead.
+     
      For immediate access without awaiting `SKProduct`s, use `rawPaywalls()` method.
      - parameter maxAttempts: Number of request attempts before throwing an error. Must be between 1 and 10. Default value is 3.
      
@@ -226,6 +232,8 @@ final public class Apphud: NSObject {
      Asynchronously retrieve a specific paywall by identifier configured in Product Hub > Paywalls, potentially altered based on the user's involvement in A/B testing, if any. Awaits until the inner `SKProduct`s are loaded from the App Store.
 
      For immediate access without awaiting `SKProduct`s, use `ApphudDelegate`'s `userDidLoad` method or the callback in `Apphud.start(...)`.
+     
+     - Important: In case of network issues this method may return empty array. To get the possible error use `paywallsDidLoadCallback` method instead.
 
      - Important: This is deprecated method. Retrieve paywalls from within placements instead. See documentation for details: https://docs.apphud.com/docs/placements
 
@@ -247,7 +255,7 @@ final public class Apphud: NSObject {
 
      - parameter maxAttempts: Number of request attempts before throwing an error. Must be between 1 and 10. Default value is 3.
      - parameter callback: A closure that takes an array of `ApphudPaywall` objects and returns void.
-     - parameter error: Optional StoreKit Error that may occur while fetching products from the App Store. You might want to retry the request if the error comes out.
+     - parameter error: Optional ApphudError that may occur while fetching products from the App Store. You might want to retry the request if the error comes out.
      */
     @available(*, deprecated, message: "Deprecated in favor of fetchPlacements(...)")
     @MainActor
@@ -503,6 +511,8 @@ final public class Apphud: NSObject {
 
     /**
      Determines if the user has active premium access through a subscription or a non-renewing purchase (lifetime).
+     
+     __If you have consumable purchases, do not use this method in current SDK version.__
 
      - Important: Do not use this method if you offer consumable in-app purchases (like coin packs) as the SDK does not differentiate consumables from non-consumables.
      - Returns: `true` if the user has an active subscription or an active non-renewing purchase.
@@ -890,5 +900,18 @@ final public class Apphud: NSObject {
     
     @available(*, unavailable, message: "No longer needed. Purchases migrate automatically. Just remove this code.")
     @MainActor public static func migratePurchasesIfNeeded(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {}
+    
+    /**
+     Override default paywalls and placements cache timeout value. Default cache value is 9000 seconds (25 hours).
+     If expired, will make SDK to disregard cache and force refresh paywalls and placements.
+     Call it only if keeping paywalls and placements up to date is critical for your app business.
+     
+        **Must call before SDK initialization.**
+     
+     - parameter value: New value in seconds. Must be between 0 and 172800 (48 hours).
+     */
+    @objc public static func setPaywallsCacheTimeout(_ value: TimeInterval) {
+        ApphudInternal.shared.setCacheTimeout(value)
+    }
 
 }
