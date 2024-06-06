@@ -1,8 +1,8 @@
 Pod::Spec.new do |s|
   s.name             = 'ApphudSDK'
-  s.version          = '3.3.6'
-  s.summary          = 'Track and control iOS auto-renewable subscriptions.'
-  s.description      = 'Track, control and analyze iOS auto-renewable subscriptions with Apphud.'
+  s.version          = '3.3.7'
+  s.summary          = 'Build and Measure In-App Subscriptions on iOS.'
+  s.description      = 'Apphud covers every aspect when it comes to In-App Subscriptions from integration to analytics on iOS and Android.'
   s.homepage         = 'https://github.com/apphud/ApphudSDK'
   s.license          = { :type => 'MIT', :file => 'LICENSE' }
   s.author           = { 'apphud' => 'hi@apphud.com' }

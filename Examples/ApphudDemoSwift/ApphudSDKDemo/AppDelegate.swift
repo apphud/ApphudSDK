@@ -11,7 +11,6 @@ import UserNotifications
 import ApphudSDK
 import StoreKit
 import AppTrackingTransparency
-import AdServices
 import AdSupport
 
 public typealias BoolCallback = (Bool) -> Void
@@ -23,9 +22,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
 
-        #if DEBUG
-        ApphudUtils.enableAllLogs()
-        #endif
         Apphud.start(apiKey: "app_4sY9cLggXpMDDQMmvc5wXUPGReMp8G")
         Apphud.setDeviceIdentifiers(idfa: nil, idfv: UIDevice.current.identifierForVendor?.uuidString)
         fetchIDFA()
@@ -49,12 +45,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     }
     
     func fetchIDFA() {
-        DispatchQueue.main.asyncAfter(deadline: .now()+2.0) {
-            if #available(iOS 14.5, *) {
+        if #available(iOS 14.5, *) {
+            DispatchQueue.main.asyncAfter(deadline: .now()+2.0) {
                 ATTrackingManager.requestTrackingAuthorization { status in
                     guard status == .authorized else {return}
                     let idfa = ASIdentifierManager.shared().advertisingIdentifier.uuidString
-                    
                     Apphud.setDeviceIdentifiers(idfa: idfa, idfv: UIDevice.current.identifierForVendor?.uuidString)
                 }
             }

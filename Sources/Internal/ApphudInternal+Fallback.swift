@@ -11,19 +11,21 @@ import StoreKit
 
 extension ApphudInternal {
 
-    @MainActor func executeFallback() {
+    @MainActor func executeFallback(callback: (([ApphudPaywall]?, ApphudError?) -> Void)?) {
 
-        guard !didPreparePaywalls else {
+        if didPreparePaywalls && callback == nil {
             apphudLog("No need for fallback", logLevel: .debug)
             return
         }
 
         guard let url = Bundle.main.url(forResource: "apphud_paywalls_fallback", withExtension: "json") else {
-            apphudLog("Fallback JSON file not found", logLevel: .all)
+            let message = "Fallback JSON file not found"
+            apphudLog(message, logLevel: .all)
+            callback?(nil, ApphudError(message: message))
             return
         }
 
-        guard !fallbackMode else {
+        if fallbackMode && callback == nil {
             apphudLog("Already in fallback mode")
             return
         }
@@ -38,6 +40,13 @@ extension ApphudInternal {
         if self.paywalls.count > 0 && self.allAvailableProductIDs().count > 0 {
             preparePaywalls(pwls: self.paywalls, writeToCache: false, completionBlock: nil)
             apphudLog("fallback mode with cached paywalls", logLevel: .all)
+            
+            if callback != nil {
+                self.performWhenStoreKitProductFetched(maxAttempts: APPHUD_DEFAULT_RETRIES) { error in
+                    callback?(self.paywalls, error)
+                }
+            }
+            
             return
         }
 
@@ -54,8 +63,17 @@ extension ApphudInternal {
 
             preparePaywalls(pwls: pwls, writeToCache: false, completionBlock: nil)
             apphudLog("Fallback mode is active", logLevel: .all)
+            if callback != nil {
+                self.performWhenStoreKitProductFetched(maxAttempts: APPHUD_DEFAULT_RETRIES) { error in
+                    callback?(self.paywalls, error)
+                }
+            }
         } catch {
-            apphudLog("Failed to parse fallback paywalls: \(error)")
+            let message = "Invalid Paywalls Fallback File: \(error.localizedDescription)"
+            apphudLog(message)
+            if callback != nil {
+                callback?(nil, ApphudError(message: message))
+            }
         }
     }
 
