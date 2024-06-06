@@ -232,6 +232,10 @@ extension ApphudInternal {
                 completionBlock?(self.paywalls, nil)
                 self.delegate?.paywallsDidFullyLoad(paywalls: self.paywalls)
                 self.delegate?.placementsDidFullyLoad(placements: self.placements)
+                
+                if self.deviceIdentifiers.0 == nil && self.deviceIdentifiers.1 == nil && self.submittedDeviceIdentifiers == nil {
+                    apphudLog("Device Identifiers (IDFA and/or IDFV) were not set. Failing to pass at least the IDFV might disrupt some of your MMP integration setups. Learn more: https://docs.apphud.com/docs/device-identifiers", forceDisplay: true)
+                }
             }
         }
     }

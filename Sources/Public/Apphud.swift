@@ -14,7 +14,7 @@ import Foundation
 import UserNotifications
 import SwiftUI
 
-internal let apphud_sdk_version = "3.3.6"
+internal let apphud_sdk_version = "3.3.7"
 
 // MARK: - Initialization
 
@@ -912,6 +912,17 @@ final public class Apphud: NSObject {
      */
     @objc public static func setPaywallsCacheTimeout(_ value: TimeInterval) {
         ApphudInternal.shared.setCacheTimeout(value)
+    }
+    
+    /**
+     Explicitly loads fallback paywalls from the json file, if it was added to the project resources.
+     By default, SDK automatically tries to load paywalls from the JSON file, if possible.
+     However, developer can also call this method directly for more control.
+     For more details, visit https://docs.apphud.com/docs/paywalls#set-up-fallback-mode
+    */
+    @MainActor 
+    public static func loadFallbackPaywalls(callback: @escaping ([ApphudPaywall]?, ApphudError?) -> Void) {
+        ApphudInternal.shared.executeFallback(callback: callback)
     }
 
 }

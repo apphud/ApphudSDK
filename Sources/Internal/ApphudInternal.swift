@@ -444,7 +444,7 @@ final class ApphudInternal: NSObject {
         userRegisterRetries.errorCode = errorCode
         
         if serverIsUnreachable {
-            executeFallback()
+            executeFallback(callback: nil)
         }
         
         let maxAttempts = min(self.customRegistrationAttemptsCount ?? APPHUD_DEFAULT_RETRIES, APPHUD_DEFAULT_RETRIES)
