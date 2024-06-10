@@ -329,7 +329,13 @@ extension ApphudInternal {
                 }
             }
         #endif
-
+        
+        if let transactionId = params["transaction_id"] as? String, let trInt = UInt64(transactionId) {
+            var trx = self.lastUploadedTransactions
+            trx.append(trInt)
+            self.lastUploadedTransactions = trx
+        }
+        
         self.requiresReceiptSubmission = true
 
         apphudLog("Uploading App Store Receipt...")
@@ -367,6 +373,7 @@ extension ApphudInternal {
                         self.notifyAboutUpdates(hasChanges)
                     }
                 } else {
+                    self.lastUploadedTransactions = []
                     self.scheduleSubmitReceiptRetry(error: error, code: errorCode)
                 }
                 

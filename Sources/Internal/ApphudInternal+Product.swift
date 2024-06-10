@@ -48,7 +48,12 @@ extension ApphudInternal {
     }
     
     internal func fetchAllAvailableProductIDs() async -> Set<String> {
-        await withCheckedContinuation({ continuation in
+        
+        if await permissionGroups == nil {
+            _ = await fetchPermissionGroups()
+        }
+        
+        return await withCheckedContinuation({ continuation in
             performWhenUserRegistered(allowFailure: true) { @MainActor in
                 continuation.resume(returning: self.allAvailableProductIDs())
             }
