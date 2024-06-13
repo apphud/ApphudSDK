@@ -292,6 +292,16 @@ final public class Apphud: NSObject {
         ApphudLoggerService.shared.paywallShown(paywallId: paywall.id, placementId: paywall.placementId)
     }
 
+	/**
+	Logs a "Paywall Shown" event which is required for A/B Testing analytics.
+
+	- parameter paywallId: Identifier of a `ApphudPaywall` that was shown to the user.
+	- parameter placementId: Iidentifier of a `ApphudPlacement` that was shown to the user.
+	*/
+	@objc public static func paywallShown(paywallId: String?, placementId: String?) {
+		ApphudLoggerService.shared.paywallShown(paywallId: paywallId, placementId: placementId)
+	}
+
     /**
     Logs a "Paywall Closed" event which is required for A/B Testing analytics.
 
@@ -300,6 +310,16 @@ final public class Apphud: NSObject {
     @objc public static func paywallClosed(_ paywall: ApphudPaywall) {
         ApphudLoggerService.shared.paywallClosed(paywallId: paywall.id, placementId: paywall.placementId)
     }
+
+	/**
+	Logs a "Paywall Closed" event which is required for A/B Testing analytics.
+
+	- parameter paywallId: Identifier of a `ApphudPaywall` that was shown to the user.
+	- parameter placementId: Iidentifier of a `ApphudPlacement` that was shown to the user.
+	*/
+	@objc public static func paywallClosed(paywallId: String?, placementId: String?) {
+		ApphudLoggerService.shared.paywallClosed(paywallId: paywallId, placementId: placementId)
+	}
 
     // MARK: - Products
     /**
