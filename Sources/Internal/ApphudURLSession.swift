@@ -9,10 +9,11 @@ import Foundation
 
 extension URLSession {
 
-    func data(for request: URLRequest, retries: Int, delay: TimeInterval) async throws -> (Data, URLResponse) {
+    func data(for request: URLRequest, retries: Int, delay: TimeInterval) async throws -> (Data, URLResponse, Int) {
 
         if retries == 0 && delay == 0 {
-            return try await data(for: request)
+            let response = try await data(for: request)
+            return (response.0, response.1, 1)
         }
 
         for attempt in 1...retries {
@@ -28,10 +29,10 @@ extension URLSession {
                         try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000)) // Sleep expects nanoseconds
                         continue
                     } else {
-                        throw ApphudError(httpErrorCode: httpResponse.statusCode)
+                        throw ApphudError(httpErrorCode: httpResponse.statusCode, attempts: attempt)
                     }
                 }
-                return (data, response)
+                return (data, response, attempt)
 
             } catch {
                 let nsError: NSError = error as NSError
@@ -52,14 +53,14 @@ extension URLSession {
                         try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                         continue
                     } else {
-                        throw ApphudError(httpErrorCode: nsErrorCode)
+                        throw ApphudError(httpErrorCode: nsErrorCode, attempts: attempt)
                     }
                 } else {
-                    throw ApphudError(httpErrorCode: nsErrorCode)
+                    throw ApphudError(httpErrorCode: nsErrorCode, attempts: attempt)
                 }
             }
         }
 
-        throw ApphudError(httpErrorCode: 0)
+        throw ApphudError(httpErrorCode: 0, attempts: retries)
     }
 }

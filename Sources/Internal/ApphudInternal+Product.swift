@@ -66,6 +66,10 @@ extension ApphudInternal {
         paywalls.forEach { p in
             productIDs.append(contentsOf: p.products.map { $0.productId })
         }
+        
+        placements.forEach { pl in
+            productIDs.append(contentsOf: pl.paywall?.products.map{ $0.productId } ?? [])
+        }
 
         permissionGroups?.forEach({ group in
             productIDs.append(contentsOf: group.products.map { $0.productId })
@@ -177,7 +181,7 @@ extension ApphudInternal {
             return
         }
 
-        httpClient?.startRequest(path: .products, apiVersion: .APIV3, params: ["observer_mode": ApphudUtils.shared.storeKitObserverMode, "device_id": currentDeviceID], method: .get, useDecoder: true, retry: true) { _, _, data, error, code, duration in
+        httpClient?.startRequest(path: .products, apiVersion: .APIV3, params: ["observer_mode": ApphudUtils.shared.storeKitObserverMode, "device_id": currentDeviceID], method: .get, useDecoder: true, retry: true) { _, _, data, error, code, duration, attempts in
 
             if error == nil {
                 ApphudLoggerService.shared.add(key: .products, value: duration, retryLog: self.productsFetchRetries)

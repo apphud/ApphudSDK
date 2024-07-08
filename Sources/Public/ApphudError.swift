@@ -14,12 +14,15 @@ import Foundation
 public let APPHUD_ERROR_NO_INTERNET = -999
 public let APPHUD_NO_PRODUCTS = -998
 public let APPHUD_DEFAULT_RETRIES: Int = 3
+public let APPHUD_MAX_INITIAL_LOAD_TIME: TimeInterval = 10.0
 public let APPHUD_INFINITE_RETRIES: Int = 999_999
 
 public class ApphudError: NSError {
 
     private let codeDomain = "com.apphud.error"
 
+    var attempts: Int?
+    
     public func networkIssue() -> Bool {
         let noInternetErrors = [NSURLErrorNotConnectedToInternet, NSURLErrorCannotConnectToHost, NSURLErrorCannotFindHost, APPHUD_ERROR_NO_INTERNET]
         return noInternetErrors.contains(code)
@@ -33,8 +36,9 @@ public class ApphudError: NSError {
         super.init(domain: (error as NSError).domain, code: (error as NSError).code, userInfo: [NSLocalizedDescriptionKey: (error as NSError).localizedDescription])
     }
     
-    init(httpErrorCode: Int) {
+    init(httpErrorCode: Int, attempts: Int) {
         super.init(domain: codeDomain, code: httpErrorCode, userInfo: [NSLocalizedDescriptionKey: "HTTP Request Failed"])
+        self.attempts = attempts
     }
 
     required init?(coder: NSCoder) {

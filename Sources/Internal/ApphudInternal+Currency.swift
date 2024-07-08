@@ -41,7 +41,7 @@ extension ApphudInternal {
     private func fetchCurrencyWithMaxTimeout(_ completion: @escaping () -> Void) {
 
         Task {
-            let result = await Storefront.current
+            let result: Storefront? = nil //await Storefront.current
             if let store = result, await currentUser?.currency?.countryCodeAlpha3 != store.countryCode {
 
                 storefrontCurrency = ApphudCurrency(countryCode: store.countryCode,
@@ -49,6 +49,11 @@ extension ApphudInternal {
                                                     storeId: store.id,
                                                     countryCodeAlpha3: store.countryCode)
                 setNeedsToUpdateUser = true
+            } else if result == nil {
+                apphudLog("Failed to get Storefront, fetching currency from SKProducts")
+                Task.detached {
+                    await self.fetchCurrencyLegacy()
+                }
             }
             if !currencyTaskFinished {
                 completion()
@@ -66,7 +71,7 @@ extension ApphudInternal {
 
     private func fetchCurrencyLegacy() async {
 
-        let skProducts: [SKProduct] = ApphudStoreKitWrapper.shared.products
+        var skProducts: [SKProduct] = ApphudStoreKitWrapper.shared.products
 
         if skProducts.isEmpty {
             let groups: [ApphudGroup]?
@@ -83,6 +88,13 @@ extension ApphudInternal {
             })
 
             await continueToFetchStoreKitProducts(maxAttempts: APPHUD_DEFAULT_RETRIES)
+            skProducts = await withCheckedContinuation { continuation in
+                Task { @MainActor in
+                    performWhenStoreKitProductFetched(maxAttempts: 3) { _ in
+                        continuation.resume(returning: ApphudStoreKitWrapper.shared.products)
+                    }
+                }
+            }
         }
 
         let priceLocale = skProducts.first?.priceLocale
@@ -104,5 +116,6 @@ extension ApphudInternal {
                                             countryCodeAlpha3: nil)
 
         setNeedsToUpdateUser = true
+        apphudLog("Did prepare legacy currency \(countryCode)/\(currencyCode)")
     }
 }

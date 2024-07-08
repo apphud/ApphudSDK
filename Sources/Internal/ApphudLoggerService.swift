@@ -28,6 +28,7 @@ class ApphudLoggerService {
     
     internal var customerLoadTime: Double = 0
     internal var errorCode: Int? = nil
+    internal var customerRegisterAttempts: Int = 0
     internal var didSend = false
     internal static let shared = ApphudLoggerService()
     private var durationLogs: [[String: AnyHashable]] = []
@@ -80,6 +81,7 @@ class ApphudLoggerService {
             if (key == .customers) {
                 self.customerLoadTime = Double(round(100 * value) / 100)
                 self.errorCode = retryLog.errorCode
+                self.customerRegisterAttempts = retryLog.count
             }
         }
     }
@@ -87,17 +89,25 @@ class ApphudLoggerService {
     @objc private func durationTimerAction() {
         let sdkLaunchedAt = ApphudInternal.shared.initDate.timeIntervalSince1970 * 1000.0
         let productsCount = ApphudStoreKitWrapper.shared.products.count
-        let customerErrorMessage = (errorCode != nil) ? String(errorCode!) : ""
+        let customerErrorMessage = (errorCode != nil) ? String(errorCode!) : nil
         let paywallsLoadTime = ApphudInternal.shared.paywallsLoadTime
         let productsLoadTime = ApphudStoreKitWrapper.shared.productsLoadTime
-        let metrics: [String: AnyHashable] = ["launched_at": Int64(sdkLaunchedAt),
+        var metrics: [String: AnyHashable] = ["launched_at": Int64(sdkLaunchedAt),
                                               "total_load_time": Double(round(100 * paywallsLoadTime) / 100)*1000.0,
                                               "user_load_time": Double(round(100 * customerLoadTime) / 100)*1000.0,
                                               "products_load_time": Double(round(100 * productsLoadTime) / 100) * 1000.0,
-                       "products_count": productsCount,
-                       "error_message": customerErrorMessage,
-                       "storekit_error": ApphudStoreKitWrapper.shared.latestError()?.localizedDescription ?? ""
+                       "products_count": productsCount
         ]
+        
+        if let errorString = ApphudStoreKitWrapper.shared.latestError()?.localizedDescription {
+            metrics["storekit_error"] = errorString
+        }
+        if let message = customerErrorMessage {
+            metrics["error_message"] = message
+        }
+        if customerRegisterAttempts > 1 {
+            metrics["attempts"] = String(customerRegisterAttempts)
+        }
         
         apphudLog("SDK Performance Metrics: \n\(metrics)")
         

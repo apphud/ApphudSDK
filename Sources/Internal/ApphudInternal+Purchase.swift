@@ -340,7 +340,7 @@ extension ApphudInternal {
 
         apphudLog("Uploading App Store Receipt...")
 
-        httpClient?.startRequest(path: .subscriptions, params: params, method: .post, useDecoder: true, retry: (hasMadePurchase && !fallbackMode)) { (result, _, data, error, errorCode, duration) in
+        httpClient?.startRequest(path: .subscriptions, params: params, method: .post, useDecoder: true, retry: (hasMadePurchase && !fallbackMode)) { (result, _, data, error, errorCode, duration, attempts) in
             Task { @MainActor in
                 if !result && hasMadePurchase && self.fallbackMode {
                     self.requiresReceiptSubmission = true
@@ -565,7 +565,7 @@ extension ApphudInternal {
 
     private func signPromoOffer(productID: String, discountID: String, callback: ((SKPaymentDiscount?, Error?) -> Void)?) {
         let params: [String: Any] = ["product_id": productID, "offer_id": discountID, "application_username": ApphudStoreKitWrapper.shared.appropriateApplicationUsername() ?? "", "device_id": currentDeviceID, "user_id": currentUserID ]
-        httpClient?.startRequest(path: .signOffer, params: params, method: .post) { (result, dict, _, error, _, _) in
+        httpClient?.startRequest(path: .signOffer, params: params, method: .post) { (result, dict, _, error, _, _, _) in
             if result, let responseDict = dict, let dataDict = responseDict["data"] as? [String: Any], let resultsDict = dataDict["results"] as? [String: Any] {
 
                 let signatureData = resultsDict["data"] as? [String: Any]
