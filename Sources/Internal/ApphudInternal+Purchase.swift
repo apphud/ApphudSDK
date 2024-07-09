@@ -299,6 +299,12 @@ extension ApphudInternal {
             params["product_bundle_id"] = purchasedApphudProduct.id
             params["paywall_id"] = purchasedApphudProduct.paywallId
             params["placement_id"] = purchasedApphudProduct.placementId
+            if let varID = purchasedApphudProduct.variationIdentifier {
+                params["variation_identifier"] = varID
+            }
+            if let expID = purchasedApphudProduct.experimentId {
+                params["experiment_id"] = expID
+            }
         }
 
         purchasingProduct = nil
@@ -318,6 +324,13 @@ extension ApphudInternal {
             }
 
             params["paywall_id"] = paywall?.id
+            if let varID = paywall?.variationIdentifier {
+                params["variation_identifier"] = varID
+            }
+            if let expID = paywall?.experimentId {
+                params["experiment_id"] = expID
+            }
+            
             let apphudP = paywall?.products.first(where: { $0.productId == transactionProductIdentifier })
             apphudP?.id.map { params["product_bundle_id"] = $0 }
         }

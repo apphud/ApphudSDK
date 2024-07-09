@@ -98,6 +98,8 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
     private var jsonString: String?
     internal var name: String
     internal var placementId: String?
+    internal var variationIdentifier: String?
+    internal var experimentId: String?
 
     @MainActor
     internal func update(placementId: String?, placementIdentifier: String?) {
@@ -109,6 +111,8 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
             product.paywallIdentifier = identifier
             product.placementId = placementId
             product.placementIdentifier = placementIdentifier
+            product.experimentId = experimentId
+            product.variationIdentifier = variationIdentifier
             product.skProduct = ApphudStoreKitWrapper.shared.products.first(where: { $0.productIdentifier == product.productId })
         })
     }
@@ -118,6 +122,8 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
         case identifier
         case name
         case experimentName
+        case experimentId
+        case variationIdentifier
         case variationName
         case isDefault = "default"
         case jsonString = "json"
@@ -131,6 +137,8 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
         name = try values.decode(String.self, forKey: .name)
         experimentName = try? values.decode(String.self, forKey: .experimentName)
         variationName = try? values.decode(String.self, forKey: .variationName)
+        variationIdentifier = try? values.decode(String.self, forKey: .variationIdentifier)
+        experimentId = try? values.decode(String.self, forKey: .experimentId)
         parentPaywallIdentifier = try? values.decode(String.self, forKey: .parentPaywallIdentifier)
         identifier = try values.decode(String.self, forKey: .identifier)
         jsonString = try? values.decode(String.self, forKey: .jsonString)
@@ -143,6 +151,8 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
         try container.encode(id, forKey: .id)
         try? container.encode(experimentName, forKey: .experimentName)
         try? container.encode(variationName, forKey: .variationName)
+        try? container.encode(variationIdentifier, forKey: .variationIdentifier)
+        try? container.encode(experimentId, forKey: .experimentId)
         try? container.encode(parentPaywallIdentifier, forKey: .parentPaywallIdentifier)
         try container.encode(name, forKey: .name)
         try container.encode(identifier, forKey: .identifier)
