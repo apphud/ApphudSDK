@@ -289,7 +289,7 @@ final public class Apphud: NSObject {
     - parameter paywall: The `ApphudPaywall` instance that was shown to the user.
     */
     @objc public static func paywallShown(_ paywall: ApphudPaywall) {
-        ApphudLoggerService.shared.paywallShown(paywallId: paywall.id, placementId: paywall.placementId)
+        ApphudLoggerService.shared.paywallShown(paywall: paywall)
     }
 
     /**

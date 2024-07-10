@@ -36,16 +36,16 @@ class ApphudLoggerService {
 
     // MARK: - Paywalls logs
 
-    internal func paywallShown(paywallId: String?, placementId: String?) {
-        ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_shown", "properties": ["paywall_id": paywallId, "placement_id": placementId].compactMapValues { $0 } ])
+    internal func paywallShown(paywall: ApphudPaywall) {
+        ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_shown", "properties": ["paywall_id": paywall.id, "placement_id": paywall.placementId, "variation_identifier": paywall.variationIdentifier, "experiment_id": paywall.experimentId].compactMapValues { $0 } ])
     }
 
     internal func paywallClosed(paywallId: String?, placementId: String?) {
         ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_closed", "properties": ["paywall_id": paywallId, "placement_id": placementId].compactMapValues { $0 }])
     }
 
-    internal func paywallCheckoutInitiated(paywallId: String?, placementId: String?, productId: String?) {
-        ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_checkout_initiated", "properties": ["paywall_id": paywallId, "placement_id": placementId, "product_id": productId].compactMapValues { $0 } ])
+    internal func paywallCheckoutInitiated(apphudProduct: ApphudProduct?, productId: String?) {
+        ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_checkout_initiated", "properties": ["paywall_id":  apphudProduct?.paywallId, "placement_id": apphudProduct?.placementId, "product_id": productId, "variation_identifier": apphudProduct?.variationIdentifier, "experiment_id": apphudProduct?.experimentId].compactMapValues { $0 } ])
     }
 
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
@@ -107,6 +107,12 @@ class ApphudLoggerService {
         }
         if customerRegisterAttempts > 1 {
             metrics["attempts"] = String(customerRegisterAttempts)
+        }
+        
+        if customerRegisterAttempts <= 1 && productsCount > 0 && customerErrorMessage == nil {
+            metrics["result"] = "no_issues"
+        } else {
+            metrics["result"] = "has_issues"
         }
         
         apphudLog("SDK Performance Metrics: \n\(metrics)")

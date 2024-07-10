@@ -188,6 +188,8 @@ final class ApphudInternal: NSObject {
     internal var fallbackMode = false
     internal var registrationStartedAt: Date?
     internal var currencyTaskFinished = false
+    internal var initialRequestID = UUID().uuidString
+    
     internal var isInitialized: Bool {
         httpClient != nil
     }

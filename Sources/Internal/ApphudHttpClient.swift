@@ -129,11 +129,11 @@ public class ApphudHttpClient {
         }
     }
 
-    internal func startRequest(path: ApphudEndpoint, apiVersion: ApphudApiVersion = .APIV1, params: [String: Any]?, method: ApphudHttpMethod, useDecoder: Bool = false, retry: Bool = false, callback: ApphudHTTPResponseCallback?) {
+    internal func startRequest(path: ApphudEndpoint, apiVersion: ApphudApiVersion = .APIV1, params: [String: Any]?, method: ApphudHttpMethod, useDecoder: Bool = false, retry: Bool = false, requestID: String? = nil, callback: ApphudHTTPResponseCallback?) {
 
         let timeout = path == .customers ? POST_CUSTOMERS_TIMEOUT : nil
 
-        if let request = makeRequest(path: path.value, apiVersion: apiVersion, params: params, method: method, defaultTimeout: timeout), !suspended {
+        if let request = makeRequest(path: path.value, apiVersion: apiVersion, params: params, method: method, defaultTimeout: timeout, requestID: requestID), !suspended {
             Task(priority: .userInitiated) {
 
                 let retries: Int
@@ -226,11 +226,7 @@ public class ApphudHttpClient {
         return nil
     }
 
-    private var requestID: String {
-        UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "") + "_" + String(Date().timeIntervalSince1970)
-    }
-
-    private func makeRequest(path: String, apiVersion: ApphudApiVersion, params: [String: Any]?, method: ApphudHttpMethod, defaultTimeout: TimeInterval? = nil) -> URLRequest? {
+    private func makeRequest(path: String, apiVersion: ApphudApiVersion, params: [String: Any]?, method: ApphudHttpMethod, defaultTimeout: TimeInterval? = nil, requestID: String? = nil) -> URLRequest? {
 
         var request: URLRequest?
 
@@ -240,7 +236,7 @@ public class ApphudHttpClient {
 
         if method == .get {
             var components = URLComponents(string: urlString)
-            var items: [URLQueryItem] = [URLQueryItem(name: "api_key", value: apiKey), URLQueryItem(name: "request_id", value: requestID)]
+            var items: [URLQueryItem] = [URLQueryItem(name: "api_key", value: apiKey)]
             if let requestParams = params {
                 for key in requestParams.keys {
                     items.append(URLQueryItem(name: key, value: (requestParams[key] as? LosslessStringConvertible)?.description))
@@ -266,14 +262,14 @@ public class ApphudHttpClient {
         request?.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Accept")
         request?.setValue(platform, forHTTPHeaderField: "X-Platform")
         request?.setValue(self.sdkType, forHTTPHeaderField: "X-SDK")
-        request?.setValue(UUID().uuidString, forHTTPHeaderField: "Idempotency-Key")
+        request?.setValue(requestID ?? UUID().uuidString, forHTTPHeaderField: "Idempotency-Key")
         request?.setValue(sdkVersion, forHTTPHeaderField: "X-SDK-VERSION")
         request?.setValue("Apphud \(platform) (\(self.sdkType) \(sdkVersion))", forHTTPHeaderField: "User-Agent")
 
         request?.timeoutInterval = defaultTimeout ?? (method == .get ? GET_TIMEOUT : POST_TIMEOUT)
 
         if method != .get {
-            var finalParams: [String: Any] = ["api_key": apiKey, "request_id": requestID]
+            var finalParams: [String: Any] = ["api_key": apiKey]
             if params != nil {
                 finalParams.merge(params!, uniquingKeysWith: {$1})
             }
@@ -341,9 +337,9 @@ public class ApphudHttpClient {
             let code = (error as NSError?)?.code ?? NSURLErrorUnknown
 
             if ApphudUtils.shared.logLevel == .all {
-                apphudLog("Request \(method) \(request.url?.absoluteString ?? "") failed with code: \(code) after: \(attempts) attempts error: \(error.localizedDescription)", logLevel: .all)
+                apphudLog("Request \(method) \(request.url?.absoluteString ?? "") failed with code: \(code) after: \(attempts) attempts error: \(error.localizedDescription)  headers: \(request.allHTTPHeaderFields)", logLevel: .all)
             } else {
-                apphudLog("Request \(method) \(request.url?.absoluteString ?? "") failed with code: \(code) after: \(attempts) attempts error: \(error.localizedDescription)")
+                apphudLog("Request \(method) \(request.url?.absoluteString ?? "") failed with code: \(code) after: \(attempts) attempts error: \(error.localizedDescription)  headers: \(request.allHTTPHeaderFields)")
             }
 
             // Handle any errors that occurred during the request

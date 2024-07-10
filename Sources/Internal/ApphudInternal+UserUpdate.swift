@@ -212,7 +212,7 @@ extension ApphudInternal {
         }
 
         // retry on http level only if setNeedsToUpdateUser = true, otherwise let retry on initial launch level
-        let needsHTTPLevelRetries = params["initial_call"] == nil
+        let initialCall = params["initial_call"] != nil
         setNeedsToUpdateUser = false
 
         appInstallationDate.map { params["first_seen"] = $0 }
@@ -220,7 +220,7 @@ extension ApphudInternal {
         // do not automatically pass currentUserID here,because we have separate method updateUserID
 
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [self] in
-            httpClient?.startRequest(path: .customers, params: params, method: .post, useDecoder: true, retry: needsHTTPLevelRetries) { done, response, data, error, errorCode, duration, attempts in
+            httpClient?.startRequest(path: .customers, params: params, method: .post, useDecoder: true, retry: !initialCall, requestID: initialCall ? initialRequestID : nil) { done, response, data, error, errorCode, duration, attempts in
                 if  errorCode == 403 {
                     apphudLog("Unable to perform API requests, because your account has been suspended.", forceDisplay: true)
                     ApphudHttpClient.shared.unauthorized = true
