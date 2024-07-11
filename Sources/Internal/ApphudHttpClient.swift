@@ -337,9 +337,9 @@ public class ApphudHttpClient {
             let code = (error as NSError?)?.code ?? NSURLErrorUnknown
 
             if ApphudUtils.shared.logLevel == .all {
-                apphudLog("Request \(method) \(request.url?.absoluteString ?? "") failed with code: \(code) after: \(attempts) attempts error: \(error.localizedDescription)  headers: \(request.allHTTPHeaderFields)", logLevel: .all)
+                apphudLog("Request \(method) \(request.url?.absoluteString ?? "") failed with code: \(code) after: \(attempts) attempts error: \(error.localizedDescription)", logLevel: .all)
             } else {
-                apphudLog("Request \(method) \(request.url?.absoluteString ?? "") failed with code: \(code) after: \(attempts) attempts error: \(error.localizedDescription)  headers: \(request.allHTTPHeaderFields)")
+                apphudLog("Request \(method) \(request.url?.absoluteString ?? "") failed with code: \(code) after: \(attempts) attempts error: \(error.localizedDescription)")
             }
 
             // Handle any errors that occurred during the request

@@ -24,7 +24,7 @@ extension URLSession {
                     // If server error (500+ status codes) and it's not the last attempt, then wait and retry
                     if attempt < retries {
 
-                        apphudLog("Request \(request.httpMethod ?? "") \(request.url?.absoluteString ?? "") failed with code: \(httpResponse.statusCode) attempt \(attempt)/\(retries), trying again.. headers: \(request.allHTTPHeaderFields)")
+                        apphudLog("Request \(request.httpMethod ?? "") \(request.url?.absoluteString ?? "") failed with code: \(httpResponse.statusCode) attempt \(attempt)/\(retries), trying again..")
 
                         try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000)) // Sleep expects nanoseconds
                         continue
@@ -48,7 +48,7 @@ extension URLSession {
                     // If a network issue (like timeout) and it's not the last attempt, then wait and retry
                     if attempt < retries {
 
-                        apphudLog("Request \(request.httpMethod ?? "") \(request.url?.absoluteString ?? "") failed with code: \(nsErrorCode) attempt \(attempt)/\(retries), trying again..  headers: \(request.allHTTPHeaderFields)")
+                        apphudLog("Request \(request.httpMethod ?? "") \(request.url?.absoluteString ?? "") failed with code: \(nsErrorCode) attempt \(attempt)/\(retries), trying again..")
 
                         try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                         continue
