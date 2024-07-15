@@ -106,7 +106,7 @@ class ApphudLoggerService {
             metrics["error_message"] = message
         }
         if customerRegisterAttempts > 1 {
-            metrics["attempts"] = String(customerRegisterAttempts)
+            metrics["failed_attempts"] = String(customerRegisterAttempts)
         }
         
         if customerRegisterAttempts <= 1 && productsCount > 0 && customerErrorMessage == nil {
