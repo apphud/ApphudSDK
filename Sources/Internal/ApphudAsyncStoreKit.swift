@@ -90,7 +90,7 @@ internal class ApphudAsyncStoreKit {
 
         do {
 
-            ApphudLoggerService.shared.paywallCheckoutInitiated(paywallId: apphudProduct?.paywallId, placementId: apphudProduct?.placementId, productId: product.id)
+            ApphudLoggerService.shared.paywallCheckoutInitiated(apphudProduct: apphudProduct, productId: product.id)
             #if os(iOS) || os(tvOS) || os(macOS) || os(watchOS)
             let result = try await product.purchase(options: options)
             #else

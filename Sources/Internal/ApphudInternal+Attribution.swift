@@ -134,7 +134,7 @@ extension ApphudInternal {
     }
 
     func startAttributionRequest(params: [String: Any], provider: ApphudAttributionProvider, identifer: String?, callback: ((Bool) -> Void)?) {
-        self.httpClient?.startRequest(path: .attribution, params: params, method: .post, retry: true) { (result, _, _, _, _, _) in
+        self.httpClient?.startRequest(path: .attribution, params: params, method: .post, retry: true) { (result, _, _, _, _, _, _) in
             switch provider {
             case .adjust:
                 // to avoid sending the same data several times in a row

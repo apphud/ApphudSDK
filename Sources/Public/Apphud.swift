@@ -14,7 +14,7 @@ import Foundation
 import UserNotifications
 import SwiftUI
 
-internal let apphud_sdk_version = "3.3.8"
+internal let apphud_sdk_version = "3.4.0"
 
 // MARK: - Initialization
 
@@ -289,7 +289,7 @@ final public class Apphud: NSObject {
     - parameter paywall: The `ApphudPaywall` instance that was shown to the user.
     */
     @objc public static func paywallShown(_ paywall: ApphudPaywall) {
-        ApphudLoggerService.shared.paywallShown(paywallId: paywall.id, placementId: paywall.placementId)
+        ApphudLoggerService.shared.paywallShown(paywall: paywall)
     }
 
     /**

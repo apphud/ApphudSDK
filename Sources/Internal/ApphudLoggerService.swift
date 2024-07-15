@@ -28,6 +28,7 @@ class ApphudLoggerService {
     
     internal var customerLoadTime: Double = 0
     internal var errorCode: Int? = nil
+    internal var customerRegisterAttempts: Int = 0
     internal var didSend = false
     internal static let shared = ApphudLoggerService()
     private var durationLogs: [[String: AnyHashable]] = []
@@ -35,16 +36,16 @@ class ApphudLoggerService {
 
     // MARK: - Paywalls logs
 
-    internal func paywallShown(paywallId: String?, placementId: String?) {
-        ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_shown", "properties": ["paywall_id": paywallId, "placement_id": placementId].compactMapValues { $0 } ])
+    internal func paywallShown(paywall: ApphudPaywall) {
+        ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_shown", "properties": ["paywall_id": paywall.id, "placement_id": paywall.placementId, "variation_identifier": paywall.variationIdentifier, "experiment_id": paywall.experimentId].compactMapValues { $0 } ])
     }
 
     internal func paywallClosed(paywallId: String?, placementId: String?) {
         ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_closed", "properties": ["paywall_id": paywallId, "placement_id": placementId].compactMapValues { $0 }])
     }
 
-    internal func paywallCheckoutInitiated(paywallId: String?, placementId: String?, productId: String?) {
-        ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_checkout_initiated", "properties": ["paywall_id": paywallId, "placement_id": placementId, "product_id": productId].compactMapValues { $0 } ])
+    internal func paywallCheckoutInitiated(apphudProduct: ApphudProduct?, productId: String?) {
+        ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_checkout_initiated", "properties": ["paywall_id":  apphudProduct?.paywallId, "placement_id": apphudProduct?.placementId, "product_id": productId, "variation_identifier": apphudProduct?.variationIdentifier, "experiment_id": apphudProduct?.experimentId].compactMapValues { $0 } ])
     }
 
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
@@ -80,6 +81,7 @@ class ApphudLoggerService {
             if (key == .customers) {
                 self.customerLoadTime = Double(round(100 * value) / 100)
                 self.errorCode = retryLog.errorCode
+                self.customerRegisterAttempts = retryLog.count
             }
         }
     }
@@ -87,17 +89,31 @@ class ApphudLoggerService {
     @objc private func durationTimerAction() {
         let sdkLaunchedAt = ApphudInternal.shared.initDate.timeIntervalSince1970 * 1000.0
         let productsCount = ApphudStoreKitWrapper.shared.products.count
-        let customerErrorMessage = (errorCode != nil) ? String(errorCode!) : ""
+        let customerErrorMessage = (errorCode != nil) ? String(errorCode!) : nil
         let paywallsLoadTime = ApphudInternal.shared.paywallsLoadTime
         let productsLoadTime = ApphudStoreKitWrapper.shared.productsLoadTime
-        let metrics: [String: AnyHashable] = ["launched_at": Int64(sdkLaunchedAt),
+        var metrics: [String: AnyHashable] = ["launched_at": Int64(sdkLaunchedAt),
                                               "total_load_time": Double(round(100 * paywallsLoadTime) / 100)*1000.0,
                                               "user_load_time": Double(round(100 * customerLoadTime) / 100)*1000.0,
                                               "products_load_time": Double(round(100 * productsLoadTime) / 100) * 1000.0,
-                       "products_count": productsCount,
-                       "error_message": customerErrorMessage,
-                       "storekit_error": ApphudStoreKitWrapper.shared.latestError()?.localizedDescription ?? ""
+                       "products_count": productsCount
         ]
+        
+        if let errorString = ApphudStoreKitWrapper.shared.latestError()?.localizedDescription {
+            metrics["storekit_error"] = errorString
+        }
+        if let message = customerErrorMessage {
+            metrics["error_message"] = message
+        }
+        if customerRegisterAttempts > 1 {
+            metrics["failed_attempts"] = String(customerRegisterAttempts)
+        }
+        
+        if customerRegisterAttempts <= 1 && productsCount > 0 && customerErrorMessage == nil {
+            metrics["result"] = "no_issues"
+        } else {
+            metrics["result"] = "has_issues"
+        }
         
         apphudLog("SDK Performance Metrics: \n\(metrics)")
         

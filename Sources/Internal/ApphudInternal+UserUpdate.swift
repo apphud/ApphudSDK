@@ -92,7 +92,7 @@ extension ApphudInternal {
         let fields = initialCall ? ["user_id": self.currentUserID, "initial_call": true] : [:]
 
         return await withCheckedContinuation { continuation in
-            updateUser(fields: fields, delay: delay) { (result, _, data, error, code, duration) in
+            updateUser(fields: fields, delay: delay) { (result, _, data, error, code, duration, attempts) in
 
                 Task {
                     let hasChanges = await self.parseUser(data: data)
@@ -132,7 +132,7 @@ extension ApphudInternal {
                 return
             }
 
-            self.updateUser(fields: ["user_id": userID]) { (result, _, data, _, _, _) in
+            self.updateUser(fields: ["user_id": userID]) { (result, _, data, _, _, _, attempts) in
                 if result {
                     Task {
                         await self.parseUser(data: data)
@@ -144,7 +144,7 @@ extension ApphudInternal {
 
     internal func grantPromotional(_ duration: Int, _ permissionGroup: ApphudGroup?, productId: String?, callback: ApphudBoolCallback?) {
         performWhenUserRegistered {
-            self.grantPromotional(duration, permissionGroup, productId: productId) { (result, _, data, _, _, _) in
+            self.grantPromotional(duration, permissionGroup, productId: productId) { (result, _, data, _, _, _, _) in
                 if result {
                     Task {
                         let hasChanges = await self.parseUser(data: data)
@@ -212,7 +212,7 @@ extension ApphudInternal {
         }
 
         // retry on http level only if setNeedsToUpdateUser = true, otherwise let retry on initial launch level
-        let needsHTTPLevelRetries = params["initial_call"] == nil
+        let initialCall = params["initial_call"] != nil
         setNeedsToUpdateUser = false
 
         appInstallationDate.map { params["first_seen"] = $0 }
@@ -220,7 +220,7 @@ extension ApphudInternal {
         // do not automatically pass currentUserID here,because we have separate method updateUserID
 
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [self] in
-            httpClient?.startRequest(path: .customers, params: params, method: .post, useDecoder: true, retry: needsHTTPLevelRetries) { done, response, data, error, errorCode, duration in
+            httpClient?.startRequest(path: .customers, params: params, method: .post, useDecoder: true, retry: !initialCall, requestID: initialCall ? initialRequestID : nil) { done, response, data, error, errorCode, duration, attempts in
                 if  errorCode == 403 {
                     apphudLog("Unable to perform API requests, because your account has been suspended.", forceDisplay: true)
                     ApphudHttpClient.shared.unauthorized = true
@@ -230,7 +230,7 @@ extension ApphudInternal {
                     apphudLog("Unable to perform API requests, because your API Key is invalid.", forceDisplay: true)
                     ApphudHttpClient.shared.invalidAPiKey = true
                 }
-                callback(done, response, data, error, errorCode, duration)
+                callback(done, response, data, error, errorCode, duration, attempts)
             }
         }
     }
@@ -331,7 +331,7 @@ extension ApphudInternal {
 
             let canSaveToCache = values.2
 
-            httpClient?.startRequest(path: .properties, params: params, method: .post, retry: true) { (result, _, _, error, code, _) in
+            httpClient?.startRequest(path: .properties, params: params, method: .post, retry: true) { (result, _, _, error, code, _, _) in
                 if result {
                     if canSaveToCache {
                         Task {

@@ -25,8 +25,8 @@ internal struct ApphudAPIArrayResponse<T: Decodable>: Decodable {
 }
 
 typealias ApphudParsedResponse = (Bool, [String: Any]?, Data?, Error?, Int)
-typealias ApphudHTTPResponse = (Bool, [String: Any]?, Data?, Error?, Int, Double)
-typealias ApphudHTTPResponseCallback = (Bool, [String: Any]?, Data?, Error?, Int, Double) -> Void
+typealias ApphudHTTPResponse = (Bool, [String: Any]?, Data?, Error?, Int, Double, Int)
+typealias ApphudHTTPResponseCallback = (Bool, [String: Any]?, Data?, Error?, Int, Double, Int) -> Void
 typealias ApphudStringCallback = (String?, Error?) -> Void
 /**
  This is Apphud's internal class.
@@ -111,8 +111,8 @@ public class ApphudHttpClient {
         return URLSession.init(configuration: config)
     }()
 
-    private let GET_TIMEOUT: TimeInterval = 10.0
-    public var POST_CUSTOMERS_TIMEOUT: TimeInterval = 10.0
+    private let GET_TIMEOUT: TimeInterval = 7.0
+    public var POST_CUSTOMERS_TIMEOUT: TimeInterval = 7.0
     private let POST_TIMEOUT: TimeInterval = 20.0
 
     internal func requestInstance(url: URL) -> URLRequest? {
@@ -129,11 +129,11 @@ public class ApphudHttpClient {
         }
     }
 
-    internal func startRequest(path: ApphudEndpoint, apiVersion: ApphudApiVersion = .APIV1, params: [String: Any]?, method: ApphudHttpMethod, useDecoder: Bool = false, retry: Bool = false, callback: ApphudHTTPResponseCallback?) {
+    internal func startRequest(path: ApphudEndpoint, apiVersion: ApphudApiVersion = .APIV1, params: [String: Any]?, method: ApphudHttpMethod, useDecoder: Bool = false, retry: Bool = false, requestID: String? = nil, callback: ApphudHTTPResponseCallback?) {
 
         let timeout = path == .customers ? POST_CUSTOMERS_TIMEOUT : nil
 
-        if let request = makeRequest(path: path.value, apiVersion: apiVersion, params: params, method: method, defaultTimeout: timeout), !suspended {
+        if let request = makeRequest(path: path.value, apiVersion: apiVersion, params: params, method: method, defaultTimeout: timeout, requestID: requestID), !suspended {
             Task(priority: .userInitiated) {
 
                 let retries: Int
@@ -150,7 +150,7 @@ public class ApphudHttpClient {
                 let response = await start(request: request, useDecoder: useDecoder, retries: retries, delay: retryDelay)
 
                 Task { @MainActor in
-                    callback?(response.0, response.1, response.2, response.3, response.4, response.5)
+                    callback?(response.0, response.1, response.2, response.3, response.4, response.5, response.6)
                 }
             }
         } else {
@@ -226,11 +226,7 @@ public class ApphudHttpClient {
         return nil
     }
 
-    private var requestID: String {
-        UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "") + "_" + String(Date().timeIntervalSince1970)
-    }
-
-    private func makeRequest(path: String, apiVersion: ApphudApiVersion, params: [String: Any]?, method: ApphudHttpMethod, defaultTimeout: TimeInterval? = nil) -> URLRequest? {
+    private func makeRequest(path: String, apiVersion: ApphudApiVersion, params: [String: Any]?, method: ApphudHttpMethod, defaultTimeout: TimeInterval? = nil, requestID: String? = nil) -> URLRequest? {
 
         var request: URLRequest?
 
@@ -240,7 +236,7 @@ public class ApphudHttpClient {
 
         if method == .get {
             var components = URLComponents(string: urlString)
-            var items: [URLQueryItem] = [URLQueryItem(name: "api_key", value: apiKey), URLQueryItem(name: "request_id", value: requestID)]
+            var items: [URLQueryItem] = [URLQueryItem(name: "api_key", value: apiKey)]
             if let requestParams = params {
                 for key in requestParams.keys {
                     items.append(URLQueryItem(name: key, value: (requestParams[key] as? LosslessStringConvertible)?.description))
@@ -266,13 +262,14 @@ public class ApphudHttpClient {
         request?.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Accept")
         request?.setValue(platform, forHTTPHeaderField: "X-Platform")
         request?.setValue(self.sdkType, forHTTPHeaderField: "X-SDK")
+        request?.setValue(requestID ?? UUID().uuidString, forHTTPHeaderField: "Idempotency-Key")
         request?.setValue(sdkVersion, forHTTPHeaderField: "X-SDK-VERSION")
         request?.setValue("Apphud \(platform) (\(self.sdkType) \(sdkVersion))", forHTTPHeaderField: "User-Agent")
 
         request?.timeoutInterval = defaultTimeout ?? (method == .get ? GET_TIMEOUT : POST_TIMEOUT)
 
         if method != .get {
-            var finalParams: [String: Any] = ["api_key": apiKey, "request_id": requestID]
+            var finalParams: [String: Any] = ["api_key": apiKey]
             if params != nil {
                 finalParams.merge(params!, uniquingKeysWith: {$1})
             }
@@ -313,32 +310,40 @@ public class ApphudHttpClient {
         let method = request.httpMethod ?? ""
 
         do {
-            let (data, response) = retries > 0 ? try await URLSession.shared.data(for: request, retries: retries, delay: delay) : try await URLSession.shared.data(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse else {
-                return (false, nil, nil, nil, NSURLErrorUnknown, 0)
+            let result: (Data, URLResponse, Int)
+            if retries > 0 {
+                result = try await URLSession.shared.data(for: request, retries: retries, delay: delay)
+            } else {
+                let resp = try await URLSession.shared.data(for: request)
+                result = (resp.0, resp.1, 1)
             }
 
-            let apphudResponse: ApphudParsedResponse = parseResponse(request: request, httpResponse: httpResponse, data: data, parseJson: !useDecoder || apphudIsSandbox())
+            guard let httpResponse = result.1 as? HTTPURLResponse else {
+                return (false, nil, nil, nil, NSURLErrorUnknown, 0, 1)
+            }
+
+            let apphudResponse: ApphudParsedResponse = parseResponse(request: request, httpResponse: httpResponse, data: result.0, parseJson: !useDecoder || apphudIsSandbox())
 
             let requestDuration = Date().timeIntervalSince(startDate)
 
-            let finalHttpResponse: ApphudHTTPResponse = (apphudResponse.0, apphudResponse.1, apphudResponse.2, apphudResponse.3, apphudResponse.4, requestDuration)
+            let finalHttpResponse: ApphudHTTPResponse = (apphudResponse.0, apphudResponse.1, apphudResponse.2, apphudResponse.3, apphudResponse.4, requestDuration, result.2)
 
             return finalHttpResponse
 
         } catch {
+            let apphudError = error as? ApphudError
+            let attempts = apphudError?.attempts ?? retries
 
             let code = (error as NSError?)?.code ?? NSURLErrorUnknown
 
             if ApphudUtils.shared.logLevel == .all {
-                apphudLog("Request \(method) \(request.url?.absoluteString ?? "") failed with code: \(code) after: \(retries) retries error: \(error.localizedDescription)", logLevel: .all)
+                apphudLog("Request \(method) \(request.url?.absoluteString ?? "") failed with code: \(code) after: \(attempts) attempts error: \(error.localizedDescription)", logLevel: .all)
             } else {
-                apphudLog("Request \(method) \(request.url?.absoluteString ?? "") failed with code: \(code) after: \(retries) retries error: \(error.localizedDescription)")
+                apphudLog("Request \(method) \(request.url?.absoluteString ?? "") failed with code: \(code) after: \(attempts) attempts error: \(error.localizedDescription)")
             }
 
             // Handle any errors that occurred during the request
-            return (false, nil, nil, error, code, 0)
+            return (false, nil, nil, error, code, 0, attempts)
         }
     }
 

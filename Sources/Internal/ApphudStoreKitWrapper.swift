@@ -288,7 +288,9 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     }
 
     private func finishCompletedTransactions(for productIdentifier: String) {
-        SKPaymentQueue.default().transactions
+        let transactionsCopy = SKPaymentQueue.default().transactions
+        
+        transactionsCopy
             .filter { $0.payment.productIdentifier == productIdentifier && $0.finishable }
             .forEach { transaction in finishTransaction(transaction) }
     }

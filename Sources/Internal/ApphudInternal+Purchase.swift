@@ -299,6 +299,12 @@ extension ApphudInternal {
             params["product_bundle_id"] = purchasedApphudProduct.id
             params["paywall_id"] = purchasedApphudProduct.paywallId
             params["placement_id"] = purchasedApphudProduct.placementId
+            if let varID = purchasedApphudProduct.variationIdentifier {
+                params["variation_identifier"] = varID
+            }
+            if let expID = purchasedApphudProduct.experimentId {
+                params["experiment_id"] = expID
+            }
         }
 
         purchasingProduct = nil
@@ -318,6 +324,13 @@ extension ApphudInternal {
             }
 
             params["paywall_id"] = paywall?.id
+            if let varID = paywall?.variationIdentifier {
+                params["variation_identifier"] = varID
+            }
+            if let expID = paywall?.experimentId {
+                params["experiment_id"] = expID
+            }
+            
             let apphudP = paywall?.products.first(where: { $0.productId == transactionProductIdentifier })
             apphudP?.id.map { params["product_bundle_id"] = $0 }
         }
@@ -340,7 +353,7 @@ extension ApphudInternal {
 
         apphudLog("Uploading App Store Receipt...")
 
-        httpClient?.startRequest(path: .subscriptions, params: params, method: .post, useDecoder: true, retry: (hasMadePurchase && !fallbackMode)) { (result, _, data, error, errorCode, duration) in
+        httpClient?.startRequest(path: .subscriptions, params: params, method: .post, useDecoder: true, retry: (hasMadePurchase && !fallbackMode)) { (result, _, data, error, errorCode, duration, attempts) in
             Task { @MainActor in
                 if !result && hasMadePurchase && self.fallbackMode {
                     self.requiresReceiptSubmission = true
@@ -463,7 +476,7 @@ extension ApphudInternal {
     // MARK: - Private purchase methods
 
     private func purchase(product: SKProduct, apphudProduct: ApphudProduct?, validate: Bool, value: Double? = nil, callback: ((ApphudPurchaseResult) -> Void)?) {
-        ApphudLoggerService.shared.paywallCheckoutInitiated(paywallId: apphudProduct?.paywallId, placementId: apphudProduct?.placementId, productId: product.productIdentifier)
+        ApphudLoggerService.shared.paywallCheckoutInitiated(apphudProduct: apphudProduct, productId: product.productIdentifier)
 
         purchasingProduct = apphudProduct
 
@@ -565,7 +578,7 @@ extension ApphudInternal {
 
     private func signPromoOffer(productID: String, discountID: String, callback: ((SKPaymentDiscount?, Error?) -> Void)?) {
         let params: [String: Any] = ["product_id": productID, "offer_id": discountID, "application_username": ApphudStoreKitWrapper.shared.appropriateApplicationUsername() ?? "", "device_id": currentDeviceID, "user_id": currentUserID ]
-        httpClient?.startRequest(path: .signOffer, params: params, method: .post) { (result, dict, _, error, _, _) in
+        httpClient?.startRequest(path: .signOffer, params: params, method: .post) { (result, dict, _, error, _, _, _) in
             if result, let responseDict = dict, let dataDict = responseDict["data"] as? [String: Any], let resultsDict = dataDict["results"] as? [String: Any] {
 
                 let signatureData = resultsDict["data"] as? [String: Any]
