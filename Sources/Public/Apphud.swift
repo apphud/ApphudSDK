@@ -186,7 +186,14 @@ final public class Apphud: NSObject {
     @MainActor
     public static func fetchPlacements(maxAttempts: Int = APPHUD_DEFAULT_RETRIES, _ callback: @escaping ([ApphudPlacement], ApphudError?) -> Void) {
         ApphudInternal.shared.fetchOfferingsFull(maxAttempts: maxAttempts) { error in
-            callback(ApphudInternal.shared.placements, error)
+            if ApphudInternal.shared.placements.isEmpty {
+                Task.detached(priority: .userInitiated) {
+                    let response = await ApphudInternal.shared.createOrGetUser(initialCall: false, skipRegistration: false)
+                    await callback(ApphudInternal.shared.placements, error)
+                }
+            } else {
+                callback(ApphudInternal.shared.placements, error)
+            }
         }
     }
 
@@ -676,6 +683,22 @@ final public class Apphud: NSObject {
      */
     @objc public static func setUserProperty(key: ApphudUserPropertyKey, value: Any?, setOnce: Bool = false) {
         ApphudInternal.shared.setUserProperty(key: key, value: value, setOnce: setOnce, increment: false)
+    }
+    /**
+     
+    Desc here
+     
+     */
+    public static func deferPlacements() {
+        ApphudInternal.shared.didPreparePaywalls = true
+    }
+    /**
+     
+    Desc here
+     
+     */
+    public static func setUserAudienceProperties(_ properties: [ApphudUserPropertyKey:Any?], completion: (((Bool) -> Void))? = nil) {
+        ApphudInternal.shared.setAudienceUserProperty(properties) { done in completion?(done) }
     }
 
     /**

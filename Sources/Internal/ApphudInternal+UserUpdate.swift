@@ -322,9 +322,36 @@ extension ApphudInternal {
         }
     }
 
-    @objc internal func updateUserProperties() {
+    internal func setAudienceUserProperty(_ properties: [ApphudUserPropertyKey : Any?], completion: (((Bool) -> Void))? = nil) {
+        performWhenUserRegistered {
+            Task { @MainActor in
+                var audienceProperties: [ApphudUserProperty] = []
+                properties.forEach { property in
+                    if let typeString = self.getType(value: property.value) {
+                        audienceProperties.append(ApphudUserProperty(key: "$audience:\(property.key.key)", value: property.value, increment: false, setOnce: false, type: typeString))
+                    } else {
+                        let givenType = type(of: property.value)
+                        apphudLog("Invalid Audience property type: (\(givenType)). Must be one of: [Int, Float, Double, Bool, String, NSNull, nil]", forceDisplay: true)
+                    }
+                }
+                
+                guard audienceProperties.count > 0 else {
+                    completion?(false)
+                    return
+                }
+                
+                await ApphudDataActor.shared.setPendingUserProperties(audienceProperties)
+                self.updateUserProperties { done in
+                    ApphudInternal.shared.didPreparePaywalls = false
+                    completion?(done)
+                }
+            }
+        }
+    }
+
+    @objc internal func updateUserProperties(completion: (((Bool) -> Void))? = nil) {
         Task {
-            let values = await self.preparePropertiesParams()
+            let values = await self.preparePropertiesParams(isAudience: completion != nil)
             guard let params = values.0, let properties = values.1 else {
                 return
             }
@@ -342,11 +369,13 @@ extension ApphudInternal {
                 } else {
                     apphudLog("User Properties update failed: \(error?.localizedDescription ?? "") with code: \(code)")
                 }
+                
+                completion?(result)
             }
         }
     }
 
-    private func preparePropertiesParams() async -> ([String: Any]?, [[String: Any?]]?, Bool) {
+    private func preparePropertiesParams(isAudience:Bool = false) async -> ([String: Any]?, [[String: Any?]]?, Bool) {
         setNeedsToUpdateUserProperties = false
         guard await ApphudDataActor.shared.pendingUserProps.count > 0 else { return (nil, nil, false) }
         var params = [String: Any]()
@@ -362,7 +391,11 @@ extension ApphudInternal {
                 }
             }
         }
-        params["properties"] = properties
+        if isAudience {
+            params["audience_properties"] = properties
+        } else {
+            params["properties"] = properties
+        }
 
         if canSaveToCache == false {
             // if new properties are not cacheable, then remove old cache and send new props to backend and not cache them
