@@ -182,13 +182,13 @@ final public class Apphud: NSObject {
      - parameter maxAttempts: Number of request attempts before throwing an error. Must be between 1 and 10. Default value is 3.
      - parameter callback: A closure that takes an array of `ApphudPlacement` objects and returns void.
      - parameter error: Optional ApphudError that may occur while fetching products from the App Store. You might want to retry the request if the error comes out.
-     */
+     */    
     @MainActor
     public static func fetchPlacements(maxAttempts: Int = APPHUD_DEFAULT_RETRIES, _ callback: @escaping ([ApphudPlacement], ApphudError?) -> Void) {
         ApphudInternal.shared.fetchOfferingsFull(maxAttempts: maxAttempts) { error in
             if ApphudInternal.shared.placements.isEmpty {
                 Task.detached(priority: .userInitiated) {
-                    let response = await ApphudInternal.shared.createOrGetUser(initialCall: false, skipRegistration: false)
+                    await ApphudInternal.shared.createOrGetUser(initialCall: false, skipRegistration: false)
                     await callback(ApphudInternal.shared.placements, error)
                 }
             } else {
@@ -695,10 +695,15 @@ final public class Apphud: NSObject {
     /**
      
     Desc here
-     
+    Sending user property immediately
      */
-    public static func setUserAudienceProperties(_ properties: [ApphudUserPropertyKey:Any?], completion: (((Bool) -> Void))? = nil) {
-        ApphudInternal.shared.setAudienceUserProperty(properties) { done in completion?(done) }
+    public static func forceFlushUserProperties(completion: (((Bool) -> Void))? = nil) {
+        ApphudInternal.shared.performWhenUserRegistered {
+            ApphudInternal.shared.updateUserProperties() { done in
+                ApphudInternal.shared.didPreparePaywalls = false
+                completion?(done)
+            }
+        }
     }
 
     /**

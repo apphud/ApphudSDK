@@ -312,39 +312,15 @@ extension ApphudInternal {
             apphudLog("Invalid increment property type: (\(givenType)). Must be one of: [Int, Float, Double]", forceDisplay: true)
             return
         }
-
-        performWhenUserRegistered {
-            Task { @MainActor in
-                let property = ApphudUserProperty(key: key.key, value: value, increment: increment, setOnce: setOnce, type: typeString)
-                await ApphudDataActor.shared.addPendingUserProperty(property)
-                self.setNeedsToUpdateUserProperties = true
-            }
+        
+        Task {
+            let property = ApphudUserProperty(key: key.key, value: value, increment: increment, setOnce: setOnce, type: typeString)
+            await ApphudDataActor.shared.addPendingUserProperty(property)
         }
-    }
 
-    internal func setAudienceUserProperty(_ properties: [ApphudUserPropertyKey : Any?], completion: (((Bool) -> Void))? = nil) {
         performWhenUserRegistered {
             Task { @MainActor in
-                var audienceProperties: [ApphudUserProperty] = []
-                properties.forEach { property in
-                    if let typeString = self.getType(value: property.value) {
-                        audienceProperties.append(ApphudUserProperty(key: "$audience:\(property.key.key)", value: property.value, increment: false, setOnce: false, type: typeString))
-                    } else {
-                        let givenType = type(of: property.value)
-                        apphudLog("Invalid Audience property type: (\(givenType)). Must be one of: [Int, Float, Double, Bool, String, NSNull, nil]", forceDisplay: true)
-                    }
-                }
-                
-                guard audienceProperties.count > 0 else {
-                    completion?(false)
-                    return
-                }
-                
-                await ApphudDataActor.shared.setPendingUserProperties(audienceProperties)
-                self.updateUserProperties { done in
-                    ApphudInternal.shared.didPreparePaywalls = false
-                    completion?(done)
-                }
+                self.setNeedsToUpdateUserProperties = true
             }
         }
     }
@@ -380,6 +356,7 @@ extension ApphudInternal {
         guard await ApphudDataActor.shared.pendingUserProps.count > 0 else { return (nil, nil, false) }
         var params = [String: Any]()
         params["device_id"] = self.currentDeviceID
+        params["force"] = isAudience
 
         var canSaveToCache = true
         var properties = [[String: Any?]]()
@@ -391,11 +368,8 @@ extension ApphudInternal {
                 }
             }
         }
-        if isAudience {
-            params["audience_properties"] = properties
-        } else {
-            params["properties"] = properties
-        }
+        
+        params["properties"] = properties
 
         if canSaveToCache == false {
             // if new properties are not cacheable, then remove old cache and send new props to backend and not cache them
