@@ -189,7 +189,7 @@ final public class Apphud: NSObject {
             if ApphudInternal.shared.placements.isEmpty {
                 Task.detached(priority: .userInitiated) {
                     let result = await ApphudInternal.shared.createOrGetUser(initialCall: false, skipRegistration: false)
-                    await callback(ApphudInternal.shared.placements, result.0 ? nil : ApphudError(message: "Error receiving placments", code: result.1))
+                    await callback(ApphudInternal.shared.placements, result.0 ? nil : ApphudError(message: "Error receiving placements", code: result.1))
                 }
             } else {
                 callback(ApphudInternal.shared.placements, error)
