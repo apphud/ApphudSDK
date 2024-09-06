@@ -60,9 +60,8 @@ internal func apphudLog(_ text: String, forceDisplay: Bool = false) {
 internal func apphudLog(_ text: String, logLevel: ApphudLogLevel) {
     if  ApphudUtils.shared.logLevel.rawValue >= logLevel.rawValue {
         let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
-        formatter.timeZone = TimeZone.current
-        formatter.locale = Locale.current
+        formatter.dateStyle = .none
+        formatter.timeStyle = .medium
         let time = formatter.string(from: Date())
         print("[\(time)] [Apphud] \(text)")
     }

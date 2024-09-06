@@ -325,7 +325,7 @@ extension ApphudInternal {
         }
     }
 
-    @objc internal func updateUserProperties(completion: (((Bool) -> Void))? = nil) {
+    @objc internal func updateUserProperties(completion: ((Bool) -> Void)? = nil) {
         Task {
             let values = await self.preparePropertiesParams(isAudience: completion != nil)
             guard let params = values.0, let properties = values.1 else {
@@ -368,7 +368,6 @@ extension ApphudInternal {
                 }
             }
         }
-        
         params["properties"] = properties
 
         if canSaveToCache == false {

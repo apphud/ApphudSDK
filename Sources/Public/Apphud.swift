@@ -188,8 +188,8 @@ final public class Apphud: NSObject {
         ApphudInternal.shared.fetchOfferingsFull(maxAttempts: maxAttempts) { error in
             if ApphudInternal.shared.placements.isEmpty {
                 Task.detached(priority: .userInitiated) {
-                    await ApphudInternal.shared.createOrGetUser(initialCall: false, skipRegistration: false)
-                    await callback(ApphudInternal.shared.placements, error)
+                    let result = await ApphudInternal.shared.createOrGetUser(initialCall: false, skipRegistration: false)
+                    await callback(ApphudInternal.shared.placements, result.0 ? nil : ApphudError(message: "Error receiving placments", code: result.1))
                 }
             } else {
                 callback(ApphudInternal.shared.placements, error)
@@ -684,20 +684,38 @@ final public class Apphud: NSObject {
     @objc public static func setUserProperty(key: ApphudUserPropertyKey, value: Any?, setOnce: Bool = false) {
         ApphudInternal.shared.setUserProperty(key: key, value: value, setOnce: setOnce, increment: false)
     }
+    
     /**
+     This method prevents requesting paywalls and placements during the initial SDK setup.
      
-    Desc here
-     
+     Example:
+     ````swift
+     Apphud.start(apiKey: "api_key")
+     Apphud.deferPlacements()
+     ````
+     Note: This method should be used in conjunction with `forceFlushUserProperties` for real-time user segmentation based on a custom user property.
      */
     public static func deferPlacements() {
         ApphudInternal.shared.didPreparePaywalls = true
     }
+    
     /**
+     This method allows you to immediately send all custom user properties to Apphud.
+    
+     Example:
+     ````swift
+     Apphud.start(apiKey: "api_key")
+     Apphud.deferPlacements()
      
-    Desc here
-    Sending user property immediately
+     Apphud.setUserProperty(key: .init("key_name"), value: "key_value")
+     
+     Apphud.forceFlushUserProperties { done in
+         Apphud.fetchPlacements { placements, error in }
+     }
+     ````
+     Note: This method should be used in conjunction with `deferPlacements` for real-time user segmentation based on a custom user property.
      */
-    public static func forceFlushUserProperties(completion: (((Bool) -> Void))? = nil) {
+    public static func forceFlushUserProperties(completion: ((Bool) -> Void)? = nil) {
         ApphudInternal.shared.performWhenUserRegistered {
             ApphudInternal.shared.updateUserProperties() { done in
                 ApphudInternal.shared.didPreparePaywalls = false
