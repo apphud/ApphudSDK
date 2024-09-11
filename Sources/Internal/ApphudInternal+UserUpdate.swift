@@ -192,8 +192,8 @@ extension ApphudInternal {
         params["device_id"] = self.currentDeviceID
         params["is_debug"] = apphudIsSandbox()
         params["is_new"] = isFreshInstall && currentUser == nil
-        params["need_paywalls"] = !didPreparePaywalls
-        params["need_placements"] = !didPreparePaywalls
+        params["need_paywalls"] = !didPreparePaywalls && !deferPlacements
+        params["need_placements"] = !didPreparePaywalls && !deferPlacements
         params["opt_out"] = ApphudUtils.shared.optOutOfTracking
 
         if params["user_id"] == nil, let userId = currentUser?.userId {
@@ -236,8 +236,13 @@ extension ApphudInternal {
     }
 
     @objc internal func updateCurrentUser() {
+        refreshCurrentUser {}
+    }
+    
+    @objc internal func refreshCurrentUser(completion: @escaping () -> Void) {
         Task.detached(priority: .userInitiated) {
-            await self.createOrGetUser(initialCall: false)
+            _ = await self.createOrGetUser(initialCall: false)
+            completion()
         }
     }
 
@@ -313,7 +318,7 @@ extension ApphudInternal {
             return
         }
         
-        Task {
+        Task { @MainActor in
             let property = ApphudUserProperty(key: key.key, value: value, increment: increment, setOnce: setOnce, type: typeString)
             await ApphudDataActor.shared.addPendingUserProperty(property)
         }

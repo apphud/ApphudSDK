@@ -14,7 +14,7 @@ import Foundation
 import UserNotifications
 import SwiftUI
 
-internal let apphud_sdk_version = "3.4.1"
+internal let apphud_sdk_version = "3.5.0"
 
 // MARK: - Initialization
 
@@ -182,19 +182,32 @@ final public class Apphud: NSObject {
      - parameter maxAttempts: Number of request attempts before throwing an error. Must be between 1 and 10. Default value is 3.
      - parameter callback: A closure that takes an array of `ApphudPlacement` objects and returns void.
      - parameter error: Optional ApphudError that may occur while fetching products from the App Store. You might want to retry the request if the error comes out.
-     */    
+     */
     @MainActor
     public static func fetchPlacements(maxAttempts: Int = APPHUD_DEFAULT_RETRIES, _ callback: @escaping ([ApphudPlacement], ApphudError?) -> Void) {
         ApphudInternal.shared.fetchOfferingsFull(maxAttempts: maxAttempts) { error in
-            if ApphudInternal.shared.placements.isEmpty {
-                Task.detached(priority: .userInitiated) {
-                    let result = await ApphudInternal.shared.createOrGetUser(initialCall: false, skipRegistration: false)
-                    await callback(ApphudInternal.shared.placements, result.0 ? nil : ApphudError(message: "Error receiving placements", code: result.1))
-                }
-            } else {
-                callback(ApphudInternal.shared.placements, error)
-            }
+            callback(ApphudInternal.shared.placements, error)
         }
+    }
+    
+    /**
+     Disables automatic paywall and placement requests during the SDK's initial setup. Developers must explicitly call `fetchPlacements` or `await placements()` methods at a later point in the app's lifecycle to fetch placements with inner paywalls.
+     
+     Example:
+     
+        ```swift
+        Apphud.start(apiKey: "your_api_key")
+        Apphud.deferPlacements()
+        ...
+        Apphud.fetchPlacements { placements in
+           // Handle fetched placements
+        }
+        ```
+     
+     Note: You can use this method alongside `forceFlushUserProperties` to achieve real-time user segmentation based on custom user properties.
+     */
+    public static func deferPlacements() {
+        ApphudInternal.shared.deferPlacements = true
     }
 
     /**
@@ -686,21 +699,7 @@ final public class Apphud: NSObject {
     }
     
     /**
-     This method prevents requesting paywalls and placements during the initial SDK setup.
-     
-     Example:
-     ````swift
-     Apphud.start(apiKey: "api_key")
-     Apphud.deferPlacements()
-     ````
-     Note: This method should be used in conjunction with `forceFlushUserProperties` for real-time user segmentation based on a custom user property.
-     */
-    public static func deferPlacements() {
-        ApphudInternal.shared.didPreparePaywalls = true
-    }
-    
-    /**
-     This method allows you to immediately send all custom user properties to Apphud.
+     This method sends all user properties immediately to Apphud. Should be used for audience segmentation in placements based on user properties.
     
      Example:
      ````swift
@@ -710,17 +709,16 @@ final public class Apphud: NSObject {
      Apphud.setUserProperty(key: .init("key_name"), value: "key_value")
      
      Apphud.forceFlushUserProperties { done in
-         Apphud.fetchPlacements { placements, error in }
+        // now placements will respect user properties that have been sent previously
+         Apphud.fetchPlacements { placements, error in
+         }
      }
-     ````
-     Note: This method should be used in conjunction with `deferPlacements` for real-time user segmentation based on a custom user property.
+     ```
      */
-    public static func forceFlushUserProperties(completion: ((Bool) -> Void)? = nil) {
+    
+    public static func forceFlushUserProperties(completion: @escaping (Bool) -> Void) {
         ApphudInternal.shared.performWhenUserRegistered {
-            ApphudInternal.shared.updateUserProperties() { done in
-                ApphudInternal.shared.didPreparePaywalls = false
-                completion?(done)
-            }
+            ApphudInternal.shared.updateUserProperties(completion: completion)
         }
     }
 

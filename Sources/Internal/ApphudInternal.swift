@@ -112,6 +112,7 @@ final class ApphudInternal: NSObject {
     internal var productsFetchRetries: ApphudRetryLog = (0, 0)
     internal let maxNumberOfProductsFetchRetries: Int = 25
     internal var didPreparePaywalls: Bool = false
+    internal var deferPlacements: Bool = false
     internal var initDate = Date()
     internal var paywallsLoadTime: TimeInterval = 0
     internal var isRegisteringUser = false {
