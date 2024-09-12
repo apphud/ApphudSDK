@@ -318,7 +318,7 @@ extension ApphudInternal {
                 if params["placement_id"] == nil && placement != nil {
                     params["placement_id"] = placement?.id
                 }
-                paywall = placement?.paywalls.first(where: {$0.identifier == observerModePurchaseIdentifiers?.paywall})
+                paywall = placement?.paywalls.first
             } else {
                 paywall = await paywalls.first(where: {$0.identifier == observerModePurchaseIdentifiers?.paywall})
             }
