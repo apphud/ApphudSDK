@@ -330,9 +330,13 @@ extension ApphudInternal {
         }
     }
 
-    @objc internal func updateUserProperties(completion: ((Bool) -> Void)? = nil) {
+    @objc internal func updateUserProperties() {
+        flushUserProperties(force: false, completion: nil)
+    }
+    
+    internal func flushUserProperties(force: Bool, completion: ((Bool) -> Void)? = nil) {
         Task {
-            let values = await self.preparePropertiesParams(isAudience: completion != nil)
+            let values = await self.preparePropertiesParams(isAudience: force)
             guard let params = values.0, let properties = values.1 else {
                 return
             }
