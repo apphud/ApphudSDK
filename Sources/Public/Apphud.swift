@@ -14,7 +14,7 @@ import Foundation
 import UserNotifications
 import SwiftUI
 
-internal let apphud_sdk_version = "3.4.0"
+internal let apphud_sdk_version = "3.5.0"
 
 // MARK: - Initialization
 
@@ -189,61 +189,25 @@ final public class Apphud: NSObject {
             callback(ApphudInternal.shared.placements, error)
         }
     }
-
+    
     /**
-     Asynchronously retrieves the paywalls configured in Product Hub > Paywalls, potentially altered based on the user's involvement in A/B testing, if any. Awaits until the inner `SKProduct`s are loaded from the App Store.
-
-     - Important: In case of network issues this method may return empty array. To get the possible error use `paywallsDidLoadCallback` method instead.
+     Disables automatic paywall and placement requests during the SDK's initial setup. Developers must explicitly call `fetchPlacements` or `await placements()` methods at a later point in the app's lifecycle to fetch placements with inner paywalls.
      
-     For immediate access without awaiting `SKProduct`s, use `rawPaywalls()` method.
-     - parameter maxAttempts: Number of request attempts before throwing an error. Must be between 1 and 10. Default value is 3.
+     Example:
      
-     - Important: This is deprecated method. Retrieve paywalls from within placements instead. See documentation for details: https://docs.apphud.com/docs/paywalls
-
-     - Returns: An array of `ApphudPaywall` objects, representing the configured paywalls.
-     */
-    @available(*, deprecated, message: "Deprecated in favor of placements()")
-    @MainActor
-    @objc public static func paywalls(maxAttempts: Int = APPHUD_DEFAULT_RETRIES) async -> [ApphudPaywall] {
-        await withCheckedContinuation { continuation in
-            ApphudInternal.shared.fetchOfferingsFull(maxAttempts: maxAttempts) { error in
-                continuation.resume(returning: ApphudInternal.shared.paywalls)
-            }
+        ```swift
+        Apphud.start(apiKey: "your_api_key")
+        Apphud.deferPlacements()
+        ...
+        Apphud.fetchPlacements { placements in
+           // Handle fetched placements
         }
-    }
-
-    /**
-    A list of paywalls, potentially altered based on the user's involvement in A/B testing, if any.
-
-    - Important: This function doesn't await until inner `SKProduct`s are loaded from the App Store. That means paywalls may or may not have inner StoreKit products at the time you call this function.
-
-    - Important: This function will return empty array if user is not yet loaded, or placements are not set up in the Product Hub.
-
-    To get paywalls with awaiting for StoreKit products, use await Apphud.paywalls() or
-     Apphud.paywallsDidLoadCallback(...) functions.
-
-    - Returns: An array of `ApphudPaywall` objects, representing the configured paywalls.
-    */
-    @MainActor public static func rawPaywalls() -> [ApphudPaywall] {
-        ApphudInternal.shared.paywalls
-    }
-
-    /**
-     Asynchronously retrieve a specific paywall by identifier configured in Product Hub > Paywalls, potentially altered based on the user's involvement in A/B testing, if any. Awaits until the inner `SKProduct`s are loaded from the App Store.
-
-     For immediate access without awaiting `SKProduct`s, use `ApphudDelegate`'s `userDidLoad` method or the callback in `Apphud.start(...)`.
+        ```
      
-     - Important: In case of network issues this method may return empty array. To get the possible error use `paywallsDidLoadCallback` method instead.
-
-     - Important: This is deprecated method. Retrieve paywalls from within placements instead. See documentation for details: https://docs.apphud.com/docs/placements
-
-     - parameter identifier: The unique identifier for the desired paywall.
-     - Returns: An optional `ApphudPaywall` object if found, or `nil` if no matching paywall is found.
+     Note: You can use this method alongside `forceFlushUserProperties` to achieve real-time user segmentation based on custom user properties.
      */
-    @available(*, deprecated, message: "Deprecated in favor of placement(_ identifier: String)")
-    @MainActor
-    @objc public static func paywall(_ identifier: String) async -> ApphudPaywall? {
-        await paywalls().first(where: { $0.identifier == identifier })
+    public static func deferPlacements() {
+        ApphudInternal.shared.deferPlacements = true
     }
 
     /**
@@ -676,6 +640,30 @@ final public class Apphud: NSObject {
      */
     @objc public static func setUserProperty(key: ApphudUserPropertyKey, value: Any?, setOnce: Bool = false) {
         ApphudInternal.shared.setUserProperty(key: key, value: value, setOnce: setOnce, increment: false)
+    }
+    
+    /**
+     This method sends all user properties immediately to Apphud. Should be used for audience segmentation in placements based on user properties.
+    
+     Example:
+     ````swift
+     Apphud.start(apiKey: "api_key")
+     Apphud.deferPlacements()
+     
+     Apphud.setUserProperty(key: .init("key_name"), value: "key_value")
+     
+     Apphud.forceFlushUserProperties { done in
+        // now placements will respect user properties that have been sent previously
+         Apphud.fetchPlacements { placements, error in
+         }
+     }
+     ```
+     */
+    
+    public static func forceFlushUserProperties(completion: @escaping (Bool) -> Void) {
+        ApphudInternal.shared.performWhenUserRegistered {
+            ApphudInternal.shared.flushUserProperties(force: true, completion: completion)
+        }
     }
 
     /**

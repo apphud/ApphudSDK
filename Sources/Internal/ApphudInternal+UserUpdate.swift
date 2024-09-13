@@ -192,8 +192,8 @@ extension ApphudInternal {
         params["device_id"] = self.currentDeviceID
         params["is_debug"] = apphudIsSandbox()
         params["is_new"] = isFreshInstall && currentUser == nil
-        params["need_paywalls"] = !didPreparePaywalls
-        params["need_placements"] = !didPreparePaywalls
+        params["need_paywalls"] = !didPreparePaywalls && !deferPlacements
+        params["need_placements"] = !didPreparePaywalls && !deferPlacements
         params["opt_out"] = ApphudUtils.shared.optOutOfTracking
 
         if params["user_id"] == nil, let userId = currentUser?.userId {
@@ -236,8 +236,13 @@ extension ApphudInternal {
     }
 
     @objc internal func updateCurrentUser() {
+        refreshCurrentUser {}
+    }
+    
+    @objc internal func refreshCurrentUser(completion: @escaping () -> Void) {
         Task.detached(priority: .userInitiated) {
-            await self.createOrGetUser(initialCall: false)
+            _ = await self.createOrGetUser(initialCall: false)
+            completion()
         }
     }
 
@@ -312,19 +317,26 @@ extension ApphudInternal {
             apphudLog("Invalid increment property type: (\(givenType)). Must be one of: [Int, Float, Double]", forceDisplay: true)
             return
         }
+        
+        Task { @MainActor in
+            let property = ApphudUserProperty(key: key.key, value: value, increment: increment, setOnce: setOnce, type: typeString)
+            await ApphudDataActor.shared.addPendingUserProperty(property)
+        }
 
         performWhenUserRegistered {
             Task { @MainActor in
-                let property = ApphudUserProperty(key: key.key, value: value, increment: increment, setOnce: setOnce, type: typeString)
-                await ApphudDataActor.shared.addPendingUserProperty(property)
                 self.setNeedsToUpdateUserProperties = true
             }
         }
     }
 
     @objc internal func updateUserProperties() {
+        flushUserProperties(force: false, completion: nil)
+    }
+    
+    internal func flushUserProperties(force: Bool, completion: ((Bool) -> Void)? = nil) {
         Task {
-            let values = await self.preparePropertiesParams()
+            let values = await self.preparePropertiesParams(isAudience: force)
             guard let params = values.0, let properties = values.1 else {
                 return
             }
@@ -342,15 +354,18 @@ extension ApphudInternal {
                 } else {
                     apphudLog("User Properties update failed: \(error?.localizedDescription ?? "") with code: \(code)")
                 }
+                
+                completion?(result)
             }
         }
     }
 
-    private func preparePropertiesParams() async -> ([String: Any]?, [[String: Any?]]?, Bool) {
+    private func preparePropertiesParams(isAudience:Bool = false) async -> ([String: Any]?, [[String: Any?]]?, Bool) {
         setNeedsToUpdateUserProperties = false
         guard await ApphudDataActor.shared.pendingUserProps.count > 0 else { return (nil, nil, false) }
         var params = [String: Any]()
         params["device_id"] = self.currentDeviceID
+        params["force"] = isAudience
 
         var canSaveToCache = true
         var properties = [[String: Any?]]()

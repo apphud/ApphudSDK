@@ -150,12 +150,16 @@ extension ApphudInternal {
                     callback?([], error)
                 }
             } else {
-                ApphudStoreKitWrapper.shared.status = .none
-                Task.detached { @MainActor in
-                    self.performWhenStoreKitProductFetched(maxAttempts: maxAttempts) { error in
-                        apphudPerformOnMainThread { callback?(ApphudStoreKitWrapper.shared.products, error) }
-                    }
-                }
+                refreshStoreKitProductsOnly(maxAttempts: maxAttempts, callback: callback)
+            }
+        }
+    }
+    
+    internal func refreshStoreKitProductsOnly(maxAttempts: Int, callback: (([SKProduct], Error?) -> Void)?) {
+        ApphudStoreKitWrapper.shared.status = .none
+        Task.detached { @MainActor in
+            self.performWhenStoreKitProductFetched(maxAttempts: maxAttempts) { error in
+                apphudPerformOnMainThread { callback?(ApphudStoreKitWrapper.shared.products, error) }
             }
         }
     }
@@ -253,18 +257,31 @@ extension ApphudInternal {
     internal func fetchOfferingsFull(maxAttempts: Int = APPHUD_DEFAULT_RETRIES, callback: @escaping (ApphudError?) -> Void) {
         let preparedAttempts = min(max(1, maxAttempts), 10)
         self.customRegistrationAttemptsCount = preparedAttempts
-        performWhenUserRegistered(allowFailure: true) {
-            if (self.currentUser == nil) {
-                apphudLog("Failed to register user with error: \(self.userRegisterRetries.errorCode)", forceDisplay: true)
-            }
-            self.performWhenStoreKitProductFetched(maxAttempts: preparedAttempts) { error in
-                if self.paywallsLoadTime == 0 {
-                    self.paywallsLoadTime = Date().timeIntervalSince(self.initDate)
+        
+        if deferPlacements {
+            deferPlacements = false
+            didPreparePaywalls = false
+            refreshCurrentUser {
+                self.refreshStoreKitProductsOnly(maxAttempts: maxAttempts) { _, error in
+                    callback(error != nil ? ApphudError(error: error!) : nil)
                 }
-                callback(error)
+            }
+        } else {
+            performWhenUserRegistered(allowFailure: true) {
+                if (self.currentUser == nil) {
+                    apphudLog("Failed to register user with error: \(self.userRegisterRetries.errorCode)", forceDisplay: true)
+                }
+                self.performWhenStoreKitProductFetched(maxAttempts: preparedAttempts) { error in
+                    if self.paywallsLoadTime == 0 {
+                        self.paywallsLoadTime = Date().timeIntervalSince(self.initDate)
+                    }
+                    callback(error)
+                }
             }
         }
     }
+    
+    
 
     // MARK: - Product Groups Helper Methods
 

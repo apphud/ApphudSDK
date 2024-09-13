@@ -41,7 +41,7 @@ extension ApphudInternal {
     private func fetchCurrencyWithMaxTimeout(_ completion: @escaping () -> Void) {
 
         Task {
-            let result: Storefront? = nil //await Storefront.current
+            let result: Storefront? = await Storefront.current
             if let store = result, await currentUser?.currency?.countryCodeAlpha3 != store.countryCode {
 
                 storefrontCurrency = ApphudCurrency(countryCode: store.countryCode,
@@ -62,7 +62,7 @@ extension ApphudInternal {
 
         // Task for the timeout
         Task {
-            try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 seconds
+            try? await Task.sleep(nanoseconds: 300_000_000) // 0.3 seconds
             if !currencyTaskFinished {
                 completion()
             }
