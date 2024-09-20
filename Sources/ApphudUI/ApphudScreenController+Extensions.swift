@@ -8,7 +8,7 @@
 
 #if os(iOS)
 import Foundation
-import WebKit
+@preconcurrency import WebKit
 import StoreKit
 import SafariServices
 

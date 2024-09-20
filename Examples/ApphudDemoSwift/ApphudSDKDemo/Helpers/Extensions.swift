@@ -20,6 +20,7 @@ extension UIStackView {
     }
 }
 
+@MainActor
 struct LoaderDialog {
     static var alert = UIAlertController()
     static var progressView = UIProgressView()

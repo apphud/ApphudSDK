@@ -49,7 +49,7 @@ public class ApphudProduct: NSObject, Codable, ObservableObject {
     Returns Product struct for given Product Id. Makes async request to Apple, if not yet fetched. Or returns immediately, if available. Throwable.
      */
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
-    public func product() async throws -> Product? {
+    @MainActor public func product() async throws -> Product? {
         try await ApphudAsyncStoreKit.shared.fetchProduct(productId)
     }
 

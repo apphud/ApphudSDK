@@ -8,6 +8,7 @@
 
 import UIKit
 
+@MainActor
 class Router: NSObject {
 
     static let shared = Router()

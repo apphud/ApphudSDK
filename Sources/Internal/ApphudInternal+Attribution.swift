@@ -11,14 +11,14 @@ import Foundation
 extension ApphudInternal {
 
     // MARK: - Attribution
-    internal func addAttribution(data: [AnyHashable: Any]?, from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ((Bool) -> Void)?) {
+    internal func addAttribution(data: [String: any Sendable]?, from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ((Bool) -> Void)?) {
         performWhenUserRegistered {
             Task {
                 var params: [String: Any] = ["device_id": self.currentDeviceID]
 
                 switch provider {
                 case .custom:
-                    if let customAttribution = data as? [String: Any] {
+                    if let customAttribution = data {
                         params.merge(customAttribution, uniquingKeysWith: { f, _ in f})
                     }
                 case .facebook:
@@ -28,7 +28,7 @@ extension ApphudInternal {
                         return
                     }
                     params["fb_anon_id"] = identifer
-                    if let customAttribution = data as? [String: Any] {
+                    if let customAttribution = data {
                         params.merge(customAttribution, uniquingKeysWith: { f, _ in f})
                     }
                 case .firebase:
@@ -49,10 +49,10 @@ extension ApphudInternal {
                     }
                     params["appsflyer_id"] = identifer
 
-                    if data != nil {
+                    if let data = data {
                         params["appsflyer_data"] = data
 
-                        guard await self.submittedPreviouslyAF(data: data!) else {
+                        guard await self.submittedPreviouslyAF(data: data) else {
                             apphudLog("Already submitted AppsFlyer attribution, skipping", forceDisplay: true)
                             callback?(false)
                             return
@@ -65,10 +65,10 @@ extension ApphudInternal {
                         callback?(false)
                         return
                     }
-                    if data != nil {
+                    if let data = data {
                         params["adjust_data"] = data
 
-                        guard await self.submittedPreviouslyAdjust(data: data!) else {
+                        guard await self.submittedPreviouslyAdjust(data: data) else {
                             apphudLog("Already submitted Adjust attribution, skipping", forceDisplay: true)
                             callback?(false)
                             return
@@ -118,15 +118,15 @@ extension ApphudInternal {
         }
     }
 
-    func submittedPreviouslyAF(data: [AnyHashable: Any]) async -> Bool {
+    func submittedPreviouslyAF(data: [String: any Sendable]) async -> Bool {
         return await self.compareAttribution(first: data, second: ApphudDataActor.shared.submittedAFData ?? [:])
     }
 
-    func submittedPreviouslyAdjust(data: [AnyHashable: Any]) async -> Bool {
+    func submittedPreviouslyAdjust(data: [String: any Sendable]) async -> Bool {
         return await self.compareAttribution(first: data, second: ApphudDataActor.shared.submittedAdjustData ?? [:])
     }
 
-    func compareAttribution(first: [AnyHashable: Any], second: [AnyHashable: Any]) -> Bool {
+    func compareAttribution(first: [String: any Sendable], second: [String: any Sendable]) -> Bool {
         let dictionary1 = NSDictionary(dictionary: first)
         let dictionary2 = NSDictionary(dictionary: second)
 
@@ -188,7 +188,7 @@ extension ApphudInternal {
          */
     }
 
-    @objc internal func getAppleAttribution(_ appleAttibutionToken: String) async -> [AnyHashable: Any]? {
+    @objc internal func getAppleAttribution(_ appleAttibutionToken: String) async -> [String: any Sendable]? {
 
         var request = URLRequest(url: URL(string: "https://api-adservices.apple.com/api/v1/")!)
         request.httpMethod = "POST"
@@ -197,7 +197,7 @@ extension ApphudInternal {
 
         let response = try? await URLSession.shared.data(for: request, retries: 5, delay: 1.0)
         if let data = response?.0,
-           let result = try? JSONSerialization.jsonObject(with: data, options: .allowFragments) as? [String: Any],
+           let result = try? JSONSerialization.jsonObject(with: data, options: .allowFragments) as? [String: any Sendable],
            let attribution = result["attribution"] as? Bool {
             if attribution {
                 return result
