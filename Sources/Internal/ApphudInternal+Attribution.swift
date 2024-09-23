@@ -24,6 +24,12 @@ extension ApphudInternal {
                     if let customAttribution = data {
                         params.merge(customAttribution, uniquingKeysWith: { f, _ in f})
                     }
+                case .branch:
+                    if let customAttribution = data {
+                        let wrappedAttribution = customAttribution["branch_data"] == nil ?
+                        ["branch_data": customAttribution] : customAttribution
+                        params.merge(wrappedAttribution, uniquingKeysWith: { f, _ in f})
+                    }
                 case .facebook:
                     guard identifer != nil, self.submittedFacebookAnonId != identifer else {
                         apphudLog("Facebook Anon ID is nil or didn't change, exiting", forceDisplay: true)

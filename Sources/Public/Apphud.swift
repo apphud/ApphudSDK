@@ -779,8 +779,8 @@ final public class Apphud: NSObject {
      Submits attribution data to Apphud from your chosen attribution network provider.
 
      - parameter data: Required. The attribution data dictionary.
-     - parameter provider: Required. The name of the attribution provider. Currently supports `.appsFlyer` with more to be added soon.
-     - parameter identifier: Optional. An identifier that matches between Apphud and the Attribution provider. This is required for AppsFlyer.
+     - parameter provider: Required. The name of the attribution provider.
+     - parameter identifier: Optional. An identifier that matches between Apphud and the Attribution provider.
      - parameter callback: Optional. A closure that returns `true` if the data was successfully sent to Apphud.
 
      - Note: Properly setting up attribution data is key for tracking and optimizing user acquisition strategies and measuring the ROI of marketing campaigns.
