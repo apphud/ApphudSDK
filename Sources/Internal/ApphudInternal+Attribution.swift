@@ -11,9 +11,12 @@ import Foundation
 extension ApphudInternal {
 
     // MARK: - Attribution
-    internal func addAttribution(data: [String: any Sendable]?, from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ((Bool) -> Void)?) {
+    internal func addAttribution(rawData: [AnyHashable: Any]?, from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ((Bool) -> Void)?) {
         performWhenUserRegistered {
             Task {
+                
+                let data = rawData as? [String: any Sendable]
+                
                 var params: [String: Any] = ["device_id": self.currentDeviceID]
 
                 switch provider {
