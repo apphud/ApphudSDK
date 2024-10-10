@@ -36,19 +36,19 @@ final class ApphudInternal: NSObject {
     internal weak var uiDelegate: ApphudUIDelegate?
 
     // MARK: - Private properties
-    private var userRegisteredCallbacks = [(block: ApphudVoidCallback, allowFailure: Bool)]()
+    @MainActor private var userRegisteredCallbacks = [(block: ApphudVoidCallback, allowFailure: Bool)]()
     private var addedObservers = false
     private var allowIdentifyUser = true
 
     // MARK: - Receipt and products properties
 
-    internal var storeKitProductsFetchedCallbacks = [ApphudErrorCallback]()
+    @MainActor internal var storeKitProductsFetchedCallbacks = [ApphudErrorCallback]()
     internal var customRegistrationAttemptsCount: Int? = nil
     internal var submitReceiptRetries: ApphudRetryLog = (0, 0)
-    internal var submitReceiptCallbacks = [ApphudNSErrorCallback?]()
+    @MainActor internal var submitReceiptCallbacks = [ApphudNSErrorCallback?]()
     internal var restorePurchasesCallback: (([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void)?
     internal var submittingTransaction: String?
-    internal var lastUploadedTransactions: [UInt64] {
+    @MainActor internal var lastUploadedTransactions: [UInt64] {
         get {
             UserDefaults.standard.array(forKey: "ApphudLastUploadedTransactions") as? [UInt64] ?? [UInt64]()
         }
@@ -188,7 +188,7 @@ final class ApphudInternal: NSObject {
     internal var pendingTransactionID: String?
     internal var fallbackMode = false
     internal var registrationStartedAt: Date?
-    internal var currencyTaskFinished = false
+    @MainActor internal var currencyTaskFinished = false
     internal var initialRequestID = UUID().uuidString
     
     internal var isInitialized: Bool {
@@ -718,7 +718,6 @@ final class ApphudInternal: NSObject {
     internal func logout() async {
 
         await ApphudDataActor.shared.clear()
-        currencyTaskFinished = false
         await ApphudKeychain.resetValues()
 
         await ApphudUser.clearCache()
@@ -734,6 +733,7 @@ final class ApphudInternal: NSObject {
         await ApphudDataActor.shared.apphudDataClearCache(key: ApphudPlacementsCacheKey)
 
         await MainActor.run {
+            currencyTaskFinished = false
             paywalls.removeAll()
             placements.removeAll()
             currentUser = nil
@@ -742,15 +742,14 @@ final class ApphudInternal: NSObject {
             userRegisteredCallbacks.removeAll()
             storeKitProductsFetchedCallbacks.removeAll()
             submitReceiptCallbacks.removeAll()
+            lastUploadedTransactions = []
         }
 
         didPreparePaywalls = false
-
         
         submitReceiptRetries = (0, 0)
         restorePurchasesCallback = nil
         submittingTransaction = nil
-        lastUploadedTransactions = []
         lastUploadedPaywallEvent.removeAll()
         lastUploadedPaywallEventDate = nil
         reinstallTracked = false

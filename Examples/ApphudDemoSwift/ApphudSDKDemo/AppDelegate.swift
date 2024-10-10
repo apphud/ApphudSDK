@@ -15,8 +15,8 @@ import AdSupport
 
 public typealias BoolCallback = (Bool) -> Void
 
-@UIApplicationMain
-class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+@main
+class AppDelegate: UIResponder, UIApplicationDelegate, @preconcurrency UNUserNotificationCenterDelegate {
 
     var window: UIWindow?
 
@@ -88,7 +88,7 @@ extension AppDelegate: ApphudUIDelegate {
     }
 }
 
-extension AppDelegate: ApphudDelegate {
+extension AppDelegate: @preconcurrency ApphudDelegate {
     func userDidLoad(rawPaywalls: [ApphudSDK.ApphudPaywall], rawPlacements: [ApphudSDK.ApphudPlacement]?) {
         print("User loaded, paywalls and placements are available")
     }

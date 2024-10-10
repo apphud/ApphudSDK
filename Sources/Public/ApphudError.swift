@@ -17,7 +17,7 @@ public let APPHUD_DEFAULT_RETRIES: Int = 3
 public let APPHUD_MAX_INITIAL_LOAD_TIME: TimeInterval = 10.0
 public let APPHUD_INFINITE_RETRIES: Int = 999_999
 
-public class ApphudError: NSError {
+public class ApphudError: NSError, @unchecked Sendable {
 
     private let codeDomain = "com.apphud.error"
 

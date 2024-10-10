@@ -14,7 +14,7 @@ import Foundation
 import UserNotifications
 import SwiftUI
 
-internal let apphud_sdk_version = "3.5.0"
+internal let apphud_sdk_version = "3.5.3"
 
 // MARK: - Initialization
 
@@ -779,14 +779,14 @@ final public class Apphud: NSObject {
      Submits attribution data to Apphud from your chosen attribution network provider.
 
      - parameter data: Required. The attribution data dictionary.
-     - parameter provider: Required. The name of the attribution provider. Currently supports `.appsFlyer` with more to be added soon.
-     - parameter identifier: Optional. An identifier that matches between Apphud and the Attribution provider. This is required for AppsFlyer.
+     - parameter provider: Required. The name of the attribution provider.
+     - parameter identifier: Optional. An identifier that matches between Apphud and the Attribution provider.
      - parameter callback: Optional. A closure that returns `true` if the data was successfully sent to Apphud.
 
      - Note: Properly setting up attribution data is key for tracking and optimizing user acquisition strategies and measuring the ROI of marketing campaigns.
      */
     @objc public static func addAttribution(data: [AnyHashable: Any]?, from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ApphudBoolCallback?) {
-        ApphudInternal.shared.addAttribution(data: data, from: provider, identifer: identifer, callback: callback)
+        ApphudInternal.shared.addAttribution(rawData: data, from: provider, identifer: identifer, callback: callback)
     }
 
     // MARK: - Eligibility Checks

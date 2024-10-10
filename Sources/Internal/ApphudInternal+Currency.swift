@@ -29,11 +29,18 @@ extension ApphudInternal {
     private func fetchStorefrontCurrency() async {
         await withCheckedContinuation { continuation in
             fetchCurrencyWithMaxTimeout {
-                if !self.currencyTaskFinished {
-                    self.currencyTaskFinished = true
-                    continuation.resume()
-                }
+                continuation.resume()
             }
+        }
+    }
+    
+    @MainActor
+    func canResumeFetchingCurrency() -> Bool {
+        if !currencyTaskFinished {
+            currencyTaskFinished = true
+            return true
+        } else {
+            return false
         }
     }
 
@@ -54,8 +61,10 @@ extension ApphudInternal {
                 Task.detached {
                     await self.fetchCurrencyLegacy()
                 }
+            } else {
+                apphudLog("Storefront currency didn't change, skipping")
             }
-            if !currencyTaskFinished {
+            if await canResumeFetchingCurrency() {
                 completion()
             }
         }
@@ -63,7 +72,7 @@ extension ApphudInternal {
         // Task for the timeout
         Task {
             try? await Task.sleep(nanoseconds: 300_000_000) // 0.3 seconds
-            if !currencyTaskFinished {
+            if await canResumeFetchingCurrency() {
                 completion()
             }
         }

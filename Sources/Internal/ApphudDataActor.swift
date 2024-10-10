@@ -16,11 +16,11 @@ import Foundation
         userPropertiesCache = nil
     }
 
-    internal func setAFData(_ newValue: [AnyHashable: Any]?) {
+    internal func setAFData(_ newValue: [String: any Sendable]?) {
         submittedAFData = newValue
     }
 
-    internal func setAdjustData(_ newValue: [AnyHashable: Any]?) {
+    internal func setAdjustData(_ newValue: [String: any Sendable]?) {
         submittedAdjustData = newValue
     }
 
@@ -39,11 +39,11 @@ import Foundation
         self.pendingUserProps = newValue
     }
 
-    internal var submittedAFData: [AnyHashable: Any]? {
+    internal var submittedAFData: [String: any Sendable]? {
         get {
             let cache = apphudDataFromCache(key: submittedAFDataKey, cacheTimeout: 86_400*7)
             if let data = cache.objectsData, !cache.expired,
-                let object = try? JSONSerialization.jsonObject(with: data, options: []) as? [AnyHashable: Any] {
+               let object = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: any Sendable] {
                 return object
             } else {
                 return nil
@@ -56,11 +56,11 @@ import Foundation
         }
     }
 
-    internal var submittedAdjustData: [AnyHashable: Any]? {
+    internal var submittedAdjustData: [String: any Sendable]? {
         get {
             let cache = apphudDataFromCache(key: submittedAdjustDataKey, cacheTimeout: 86_400*7)
             if let data = cache.objectsData, !cache.expired,
-                let object = try? JSONSerialization.jsonObject(with: data, options: []) as? [AnyHashable: Any] {
+               let object = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: any Sendable] {
                 return object
             } else {
                 return nil

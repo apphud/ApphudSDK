@@ -68,7 +68,7 @@ extension ApphudInternal {
         let upgrade = transaction.isUpgraded
         let productID = transaction.productID
 
-        let transactions = self.lastUploadedTransactions
+        let transactions = await self.lastUploadedTransactions
 
         if transactions.contains(transactionId) {
             return false
@@ -256,11 +256,13 @@ extension ApphudInternal {
                                 eligibilityCheck: Bool = false,
                                 callback: ApphudNSErrorCallback?) async {
 
-        if callback != nil {
-            if eligibilityCheck || self.submitReceiptCallbacks.count > 0 {
-                self.submitReceiptCallbacks.append(callback)
-            } else {
-                self.submitReceiptCallbacks = [callback]
+        await MainActor.run {
+            if callback != nil {
+                if eligibilityCheck || self.submitReceiptCallbacks.count > 0 {
+                    self.submitReceiptCallbacks.append(callback)
+                } else {
+                    self.submitReceiptCallbacks = [callback]
+                }
             }
         }
 
@@ -343,10 +345,13 @@ extension ApphudInternal {
             }
         #endif
         
-        if let transactionId = params["transaction_id"] as? String, let trInt = UInt64(transactionId) {
-            var trx = self.lastUploadedTransactions
-            trx.append(trInt)
-            self.lastUploadedTransactions = trx
+        let transactionId = params["transaction_id"] as? String
+        await MainActor.run {
+            if transactionId != nil, let trInt = UInt64(transactionId!) {
+                var trx = self.lastUploadedTransactions
+                trx.append(trInt)
+                self.lastUploadedTransactions = trx
+            }
         }
         
         self.requiresReceiptSubmission = true

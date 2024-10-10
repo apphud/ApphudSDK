@@ -19,7 +19,7 @@ class PaywallOptionView: UIView {
         view.product = product
         view.translatesAutoresizingMaskIntoConstraints = false
         view.heightAnchor.constraint(equalToConstant: 70).isActive = true
-        view.setup(product)
+        Task { await view.setup(product) }
         return view
     }
 
@@ -57,7 +57,7 @@ class PaywallOptionView: UIView {
         return imgView
     }()
 
-    private func setup(_ product: ApphudProduct) {
-        titleLabel.text = product.skProduct?.pricingDescription() ?? "Loading..."
+    private func setup(_ product: ApphudProduct) async {
+        titleLabel.text = (try? await product.product()?.displayPrice) ?? "Loading..."
     }
 }
