@@ -188,7 +188,7 @@ final class ApphudInternal: NSObject {
     internal var pendingTransactionID: String?
     internal var fallbackMode = false
     internal var registrationStartedAt: Date?
-    internal var currencyTaskFinished = false
+    @MainActor internal var currencyTaskFinished = false
     internal var initialRequestID = UUID().uuidString
     
     internal var isInitialized: Bool {
@@ -718,7 +718,6 @@ final class ApphudInternal: NSObject {
     internal func logout() async {
 
         await ApphudDataActor.shared.clear()
-        currencyTaskFinished = false
         await ApphudKeychain.resetValues()
 
         await ApphudUser.clearCache()
@@ -734,6 +733,7 @@ final class ApphudInternal: NSObject {
         await ApphudDataActor.shared.apphudDataClearCache(key: ApphudPlacementsCacheKey)
 
         await MainActor.run {
+            currencyTaskFinished = false
             paywalls.removeAll()
             placements.removeAll()
             currentUser = nil
