@@ -104,6 +104,7 @@ final class ApphudInternal: NSObject {
             }
         }
     }
+    internal var isWeb2WebInstall: Bool = false
     internal var lastCheckDate = Date()
     internal var userRegisterRetries: ApphudRetryLog = (0, 0)
     internal let maxNumberOfUserRegisterRetries: Int = APPHUD_INFINITE_RETRIES

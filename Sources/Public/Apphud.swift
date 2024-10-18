@@ -788,6 +788,25 @@ final public class Apphud: NSObject {
     @objc public static func addAttribution(data: [AnyHashable: Any]?, from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ApphudBoolCallback?) {
         ApphudInternal.shared.addAttribution(rawData: data, from: provider, identifer: identifer, callback: callback)
     }
+    
+    /**
+        Web-to-Web flow only. Attempts to attribute the user with the provided attribution data.
+        If the `data` parameter contains either `aph_user_id` or `apphud_user_id`, the SDK will submit this information to the Apphud server.
+        The server will return a premium web user if found; otherwise, the callback will return `false`.
+
+        Additionally, the delegate methods `apphudSubscriptionsUpdated` and `apphudDidChangeUserID` will be called.
+
+        The callback returns `true` if the user is successfully attributed via the web and includes the updated `ApphudUser` object.
+        After this callback, you can check the `Apphud.hasPremiumAccess()` method, which should return `true` if the user has premium access.
+
+        - Parameters:
+          - data: A dictionary containing the attribution data.
+          - callback: A closure that returns a boolean indicating whether the web attribution was successful, and the updated `ApphudUser` object.
+        */
+    @MainActor
+    public static func attributeFromWeb(data: [AnyHashable: Any], callback: @escaping (Bool, ApphudUser?) -> Void) {
+        ApphudInternal.shared.tryWebAttribution(attributionData: data, completion: callback)
+    }
 
     // MARK: - Eligibility Checks
 

@@ -217,4 +217,27 @@ extension ApphudInternal {
             return ["token": appleAttibutionToken]
         }
     }
+    
+    @MainActor
+    internal func tryWebAttribution(attributionData: [AnyHashable: Any], completion: @escaping (Bool, ApphudUser?) -> Void) {
+        let userId = attributionData["aph_user_id"] ?? attributionData["apphud_user_id"]
+        if let userId = userId as? String {
+            apphudLog("Found a match from web click, updating userID to \(userId)", forceDisplay: true)
+            isWeb2WebInstall = true
+            self.updateUser(fields: ["user_id": userId, "from_web2web": true]) { (result, _, data, _, _, _, attempts) in
+                if result {
+                    Task {
+                        await self.parseUser(data: data)
+                        Task { @MainActor in
+                            completion(true, self.currentUser)
+                        }
+                    }
+                } else {
+                    completion(false, self.currentUser)
+                }
+            }
+        } else {
+            completion(false, currentUser)
+        }
+    }
 }
