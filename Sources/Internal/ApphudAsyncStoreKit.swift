@@ -115,7 +115,12 @@ internal class ApphudAsyncStoreKit {
 
             if let tr = transaction {
                 _ = await ApphudInternal.shared.handleTransaction(tr)
-                await tr.finish()
+                Task {
+                    if (tr.productType == .consumable) {
+                        try? await Task.sleep(nanoseconds: 3_000_000_000)
+                    }
+                    await tr.finish()
+                }
             }
 
             self.isPurchasing = false

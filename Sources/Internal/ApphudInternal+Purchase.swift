@@ -108,10 +108,10 @@ extension ApphudInternal {
                                            transactionProductIdentifier: productID,
                                            transactionState: isRecentlyPurchased ? .purchased : nil,
                                            receiptString: receipt,
-                                           notifyDelegate: true) { _ in }
+                                                 notifyDelegate: true) { _ in
+                            continuation.resume(returning: true)
+                        }
                     }
-                    
-                    continuation.resume(returning: true)
                 }
             }
         }

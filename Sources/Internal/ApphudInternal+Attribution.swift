@@ -221,9 +221,15 @@ extension ApphudInternal {
     @MainActor
     internal func tryWebAttribution(attributionData: [AnyHashable: Any], completion: @escaping (Bool, ApphudUser?) -> Void) {
         let userId = attributionData["aph_user_id"] ?? attributionData["apphud_user_id"]
-        if let userId = userId as? String {
-            apphudLog("Found a match from web click, updating userID to \(userId)", forceDisplay: true)
-            isWeb2WebInstall = true
+        if let userId = userId as? String, !userId.isEmpty {
+            
+            if (currentUser?.userId == userId) {
+                apphudLog("Already web2web user, skipping")
+                completion(true, currentUser)
+                return
+            }
+            
+            apphudLog("Found a match from web click, updating User ID to \(userId)", forceDisplay: true)
             self.updateUser(fields: ["user_id": userId, "from_web2web": true]) { (result, _, data, _, _, _, attempts) in
                 if result {
                     Task {
