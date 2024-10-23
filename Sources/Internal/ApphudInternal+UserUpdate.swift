@@ -172,7 +172,7 @@ extension ApphudInternal {
     }
 
     @MainActor
-    private func updateUser(fields: [String: Any], delay: Double = 0, callback: @escaping ApphudHTTPResponseCallback) {
+    internal func updateUser(fields: [String: Any], delay: Double = 0, callback: @escaping ApphudHTTPResponseCallback) {
 
         //  Requires @MainActor since it collects data from UIDevice
         #if os(macOS)
@@ -338,6 +338,7 @@ extension ApphudInternal {
         Task {
             let values = await self.preparePropertiesParams(isAudience: force)
             guard let params = values.0, let properties = values.1 else {
+                completion?(false)
                 return
             }
 

@@ -298,7 +298,10 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     internal func finishTransaction(_ transaction: SKPaymentTransaction) {
         apphudLog("Finish Transaction: \(transaction.payment.productIdentifier), state: \(transaction.transactionState.rawValue), id: \(transaction.transactionIdentifier ?? "")")
         NotificationCenter.default.post(name: _ApphudWillFinishTransactionNotification, object: transaction)
-        SKPaymentQueue.default().finishTransaction(transaction)
+    
+        if (transaction.transactionState != .purchasing) {
+            SKPaymentQueue.default().finishTransaction(transaction)
+        }
         self.purchasingProductID = nil
         self.purchasingValue = nil
     }

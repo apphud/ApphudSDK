@@ -113,9 +113,8 @@ internal class ApphudAsyncStoreKit {
                 break
             }
 
-            if let tr = transaction {
-                _ = await ApphudInternal.shared.handleTransaction(tr)
-                await tr.finish()
+            if let transaction {
+                await Self.processTransaction(transaction)
             }
 
             self.isPurchasing = false
@@ -129,6 +128,16 @@ internal class ApphudAsyncStoreKit {
             self.isPurchasing = false
             isPurchasing?.wrappedValue = false
             return ApphudInternal.shared.asyncPurchaseResult(product: product, transaction: nil, error: error)
+        }
+    }
+    
+    fileprivate static func processTransaction(_ transaction: StoreKit.Transaction) async {
+        _ = await ApphudInternal.shared.handleTransaction(transaction)
+        Task {
+            if (transaction.productType == .consumable) {
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+            }
+            await transaction.finish()
         }
     }
     
@@ -181,8 +190,7 @@ final class ApphudAsyncTransactionObserver {
                     return
                 }
 
-                _ = await ApphudInternal.shared.handleTransaction(transaction)
-                await transaction.finish()
+                await ApphudAsyncStoreKit.processTransaction(transaction)
             }
         } else {
             apphudLog("Received transaction [\(transaction.id), \(transaction.productID)] from StoreKit2")
