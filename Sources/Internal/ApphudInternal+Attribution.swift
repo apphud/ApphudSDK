@@ -220,21 +220,38 @@ extension ApphudInternal {
     
     @MainActor
     internal func tryWebAttribution(attributionData: [AnyHashable: Any], completion: @escaping (Bool, ApphudUser?) -> Void) {
-        let userId = attributionData["aph_user_id"] ?? attributionData["apphud_user_id"]
-        if let userId = userId as? String, !userId.isEmpty {
-            
-            if (currentUser?.userId == userId) {
-                apphudLog("Already web2web user, skipping")
-                completion(true, currentUser)
-                return
-            }
-            
-            apphudLog("Found a match from web click, updating User ID to \(userId)", forceDisplay: true)
-            self.updateUser(fields: ["user_id": userId, "from_web2web": true]) { (result, _, data, _, _, _, attempts) in
+        
+        let userId = (attributionData["aph_user_id"] ?? attributionData["apphud_user_id"]) as? String ?? ""
+        let email = (attributionData["email"] ?? attributionData["apphud_user_email"]) as? String ?? ""
+
+        if userId.isEmpty && email.isEmpty {
+            completion(false, currentUser)
+            return
+        }
+        
+        if (email.isEmpty && currentUser?.userId == userId) {
+            apphudLog("Already web2web user, skipping")
+            completion(true, currentUser)
+            return
+        }
+        
+        var params: [String: Any] = ["from_web2web": true]
+        if !userId.isEmpty {
+            params["user_id"] = userId
+        }
+        if !email.isEmpty {
+            params["email"] = email
+        }
+        
+        apphudLog("Found a match from web click, updating User ID to \(userId)", forceDisplay: true)
+        self.performWhenUserRegistered {
+            self.updateUser(fields: params) { (result, _, data, _, _, _, attempts) in
                 if result {
                     Task {
-                        await self.parseUser(data: data)
+                        let changes = await self.parseUser(data: data)
+                        
                         Task { @MainActor in
+                            self.notifyAboutUpdates(changes)
                             completion(true, self.currentUser)
                         }
                     }
@@ -242,8 +259,6 @@ extension ApphudInternal {
                     completion(false, self.currentUser)
                 }
             }
-        } else {
-            completion(false, currentUser)
         }
     }
 }
