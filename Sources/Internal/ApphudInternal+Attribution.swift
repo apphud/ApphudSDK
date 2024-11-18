@@ -74,7 +74,11 @@ extension ApphudInternal {
                         callback?(false)
                         return
                     }
-                    if let data = data {
+                    if var data = data {
+                        if let adid = identifer {
+                            data["adid"] = adid
+                        }
+                        
                         params["adjust_data"] = data
 
                         guard await self.submittedPreviouslyAdjust(data: data) else {
