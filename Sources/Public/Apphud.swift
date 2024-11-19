@@ -14,7 +14,7 @@ import Foundation
 import UserNotifications
 import SwiftUI
 
-internal let apphud_sdk_version = "3.5.6"
+internal let apphud_sdk_version = "3.5.7"
 
 // MARK: - Initialization
 
