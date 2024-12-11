@@ -1,0 +1,6 @@
+framework module AppMetricaFMDB {
+  umbrella header "AppMetricaFMDB-umbrella.h"
+
+  export *
+  module * { export * }
+}

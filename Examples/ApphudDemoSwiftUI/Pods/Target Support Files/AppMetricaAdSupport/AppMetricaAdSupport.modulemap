@@ -1,0 +1,6 @@
+framework module AppMetricaAdSupport {
+  umbrella header "AppMetricaAdSupport-umbrella.h"
+
+  export *
+  module * { export * }
+}

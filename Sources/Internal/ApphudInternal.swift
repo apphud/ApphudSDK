@@ -284,6 +284,7 @@ final class ApphudInternal: NSObject {
 
         guard allowIdentifyUser == true else {
             apphudLog("Abort initializing, because Apphud SDK already initialized. You can only call `Apphud.start()` once per app lifecycle. Or if `Apphud.logout()` was called previously.", forceDisplay: true)
+            performAllUserRegisteredBlocks()
             return
         }
         allowIdentifyUser = false

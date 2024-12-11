@@ -1,0 +1,6 @@
+framework module AppMetricaApphudAdapter {
+  umbrella header "AppMetricaApphudAdapter-umbrella.h"
+
+  export *
+  module * { export * }
+}

@@ -1,0 +1,6 @@
+framework module AppMetricaPlatform {
+  umbrella header "AppMetricaPlatform-umbrella.h"
+
+  export *
+  module * { export * }
+}

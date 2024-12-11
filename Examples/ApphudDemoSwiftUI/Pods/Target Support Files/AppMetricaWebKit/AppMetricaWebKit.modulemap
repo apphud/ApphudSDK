@@ -1,0 +1,6 @@
+framework module AppMetricaWebKit {
+  umbrella header "AppMetricaWebKit-umbrella.h"
+
+  export *
+  module * { export * }
+}

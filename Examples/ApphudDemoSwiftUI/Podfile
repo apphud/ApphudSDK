@@ -5,5 +5,6 @@ source 'https://github.com/CocoaPods/Specs.git'
 use_frameworks!
 
 target 'ApphudDemoSwiftUI' do
-pod 'ApphudSDK', :path => '../../'
+  pod 'AppMetricaAnalytics', '5.8.2'
+  pod 'AppMetricaApphudAdapter', '1.0.0'
 end

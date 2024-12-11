@@ -1,2 +1,20 @@
 ${PODS_ROOT}/Target Support Files/Pods-ApphudDemoSwiftUI/Pods-ApphudDemoSwiftUI-frameworks.sh
+${BUILT_PRODUCTS_DIR}/AppMetricaAdSupport/AppMetricaAdSupport.framework
+${BUILT_PRODUCTS_DIR}/AppMetricaApphudAdapter/AppMetricaApphudAdapter.framework
+${BUILT_PRODUCTS_DIR}/AppMetricaApphudObjCWrapper/AppMetricaApphudObjCWrapper.framework
+${BUILT_PRODUCTS_DIR}/AppMetricaCore/AppMetricaCore.framework
+${BUILT_PRODUCTS_DIR}/AppMetricaCoreExtension/AppMetricaCoreExtension.framework
+${BUILT_PRODUCTS_DIR}/AppMetricaCoreUtils/AppMetricaCoreUtils.framework
+${BUILT_PRODUCTS_DIR}/AppMetricaCrashes/AppMetricaCrashes.framework
+${BUILT_PRODUCTS_DIR}/AppMetricaEncodingUtils/AppMetricaEncodingUtils.framework
+${BUILT_PRODUCTS_DIR}/AppMetricaFMDB/AppMetricaFMDB.framework
+${BUILT_PRODUCTS_DIR}/AppMetricaHostState/AppMetricaHostState.framework
+${BUILT_PRODUCTS_DIR}/AppMetricaLog/AppMetricaLog.framework
+${BUILT_PRODUCTS_DIR}/AppMetricaNetwork/AppMetricaNetwork.framework
+${BUILT_PRODUCTS_DIR}/AppMetricaPlatform/AppMetricaPlatform.framework
+${BUILT_PRODUCTS_DIR}/AppMetricaProtobuf/AppMetricaProtobuf.framework
+${BUILT_PRODUCTS_DIR}/AppMetricaProtobufUtils/AppMetricaProtobufUtils.framework
+${BUILT_PRODUCTS_DIR}/AppMetricaStorageUtils/AppMetricaStorageUtils.framework
+${BUILT_PRODUCTS_DIR}/AppMetricaWebKit/AppMetricaWebKit.framework
 ${BUILT_PRODUCTS_DIR}/ApphudSDK/ApphudSDK.framework
+${BUILT_PRODUCTS_DIR}/KSCrash/KSCrash.framework

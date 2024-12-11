@@ -1,0 +1,6 @@
+framework module AppMetricaApphudObjCWrapper {
+  umbrella header "AppMetricaApphudObjCWrapper-umbrella.h"
+
+  export *
+  module * { export * }
+}
