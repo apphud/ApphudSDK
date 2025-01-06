@@ -53,7 +53,7 @@ extension ApphudInternal {
             _ = await fetchPermissionGroups()
         }
         
-        return await withCheckedContinuation({ continuation in
+        return await withUnsafeContinuation({ continuation in
             performWhenUserRegistered(allowFailure: true) { @MainActor in
                 continuation.resume(returning: self.allAvailableProductIDs())
             }
@@ -165,7 +165,7 @@ extension ApphudInternal {
     }
 
     internal func fetchPermissionGroups() async -> [ApphudGroup]? {
-        await withCheckedContinuation { continuation in
+        await withUnsafeContinuation { continuation in
             ApphudInternal.shared.getProductGroups { groups, _, _ in
                 Task {
                     if let g = groups {
