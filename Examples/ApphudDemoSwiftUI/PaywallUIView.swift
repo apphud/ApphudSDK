@@ -6,9 +6,10 @@
 //
 
 import SwiftUI
-import ApphudSDK
+//import ApphudSDK
 import StoreKit
 
+/*
 // should be equal to identifier in your Apphud > Paywalls
 enum PlacementID: String {
     case main
@@ -170,3 +171,4 @@ struct PaywallUIView_Previews: PreviewProvider {
         PaywallUIView()
     }
 }
+*/

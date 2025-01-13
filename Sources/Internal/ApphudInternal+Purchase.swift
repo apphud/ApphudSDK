@@ -41,7 +41,7 @@ extension ApphudInternal {
 
     @MainActor @objc private func checkTransactionsNow() {
 
-        if Apphud.hasPremiumAccess() || ApphudStoreKitWrapper.shared.isPurchasing {
+        if (Apphud.hasPremiumAccess() && !Apphud.isSandbox()) || ApphudStoreKitWrapper.shared.isPurchasing {
             return
         }
 

@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import ApphudSDK
+//import ApphudSDK
 
 class AppVariables {
 
@@ -14,7 +14,8 @@ class AppVariables {
 
     @MainActor
     static var isPremium: Bool {
-        Apphud.hasActiveSubscription() ||
-        Apphud.isNonRenewingPurchaseActive(productIdentifier: lifetimeProductID)
+        false
+//        Apphud.hasActiveSubscription() ||
+//        Apphud.isNonRenewingPurchaseActive(productIdentifier: lifetimeProductID)
     }
 }

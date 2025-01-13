@@ -12,13 +12,16 @@ import AdSupport
 import AppTrackingTransparency
 import AppMetricaCore
 import ApphudSDK
+import StoreKit
 
 class AppDelegate: NSObject, UIApplicationDelegate {
 
-    
+    var storekit2Observer: AsyncTransactionObserver!
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
 
+        storekit2Observer = AsyncTransactionObserver()
+        
 //        #if DEBUG
 //        Apphud.enableDebugLogs()
 //        #endif
@@ -39,13 +42,14 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         ApphudUtils.enableAllLogs()
         Task {
             if UserDefaults.standard.bool(forKey: "launched") == false {
-                await Apphud.logout()
+//                await Apphud.logout()
             }
             
             UserDefaults.standard.set(true, forKey: "launched")
             
-            let configuration = AppMetricaConfiguration(apiKey: "a41626ba-3f2c-4d33-bd8d-b3f810463687")
+            let configuration = AppMetricaConfiguration(apiKey: "6544a04b-0f21-497f-bbc4-85f80384bbb3")
             configuration?.revenueAutoTrackingEnabled = false
+            configuration?.areLogsEnabled = true
             AppMetrica.clearAppEnvironment()
             AppMetrica.activate(with: configuration!)
             
@@ -53,7 +57,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
                 try? await Task.sleep(nanoseconds: 5_000_000_000)
                 let profileID = AppMetrica.userProfileID
                 let deviceID = AppMetrica.deviceID
-                let apphudUserID = Apphud.userID()
+               let apphudUserID = Apphud.userID()
                 let apphudDeviceID = Apphud.deviceID()
                 
                 print("profle_id = \(profileID), device_id = \(deviceID), aph_user_id = \(apphudUserID), aph_device_id = \(apphudDeviceID)")
@@ -65,6 +69,8 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 
         return true
     }
+    
+    
 
     func registerForNotifications() {
 //        UNUserNotificationCenter.current().delegate = self
@@ -115,3 +121,32 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 //extension AppDelegate: ApphudUIDelegate {
 //
 //}
+
+
+@available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
+final class AsyncTransactionObserver {
+
+    var updates: Task<Void, Never>?
+
+    init() {
+        updates = newTransactionListenerTask()
+    }
+
+    deinit {
+        updates?.cancel()
+    }
+
+    private func newTransactionListenerTask() -> Task<Void, Never> {
+        Task(priority: .background) {
+            for await verificationResult in StoreKit.Transaction.updates {
+                guard case .verified(let transaction) = verificationResult else {
+                    if case .unverified(_, _) = verificationResult {
+                    }
+                    return
+                }
+
+                print("Received transaction [\(transaction.id), \(transaction.productID)] from StoreKit2")
+            }
+        }
+    }
+}
