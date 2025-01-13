@@ -27,7 +27,7 @@ extension ApphudInternal {
 
     @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
     private func fetchStorefrontCurrency() async {
-        await withCheckedContinuation { continuation in
+        await withUnsafeContinuation { continuation in
             fetchCurrencyWithMaxTimeout {
                 continuation.resume()
             }
@@ -97,7 +97,7 @@ extension ApphudInternal {
             })
 
             await continueToFetchStoreKitProducts(maxAttempts: APPHUD_DEFAULT_RETRIES)
-            skProducts = await withCheckedContinuation { continuation in
+            skProducts = await withUnsafeContinuation { continuation in
                 Task { @MainActor in
                     performWhenStoreKitProductFetched(maxAttempts: 3) { _ in
                         continuation.resume(returning: ApphudStoreKitWrapper.shared.products)

@@ -102,7 +102,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         let fetcher = ApphudProductsFetcher()
         fetchers.insert(fetcher)
         
-        return await withCheckedContinuation { continuation in
+        return await withUnsafeContinuation { continuation in
             fetcher.fetchStoreKitProducts(identifiers: identifiers) { products, error, ftchr in
                 let existingIDS = self.products.map { $0.productIdentifier }
                 let uniqueProducts = products.filter { !existingIDS.contains($0.productIdentifier) }
@@ -128,7 +128,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
             return availableProduct
         }
 
-        return await withCheckedContinuation { continuation in
+        return await withUnsafeContinuation { continuation in
             fetchProducts(productIds: [productId]) { prds in
                 continuation.resume(returning: prds?.first(where: { $0.productIdentifier == productId }))
             }
@@ -148,7 +148,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
             return available
         }
 
-        return await withCheckedContinuation { continuation in
+        return await withUnsafeContinuation { continuation in
             fetchProducts(productIds: productIds) { products in
                 continuation.resume(returning: products)
             }

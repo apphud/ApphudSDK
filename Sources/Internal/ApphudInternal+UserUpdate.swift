@@ -91,7 +91,7 @@ extension ApphudInternal {
 
         let fields = initialCall ? ["user_id": self.currentUserID, "initial_call": true] : [:]
 
-        return await withCheckedContinuation { continuation in
+        return await withUnsafeContinuation { continuation in
             updateUser(fields: fields, delay: delay) { (result, _, data, error, code, duration, attempts) in
 
                 Task {
