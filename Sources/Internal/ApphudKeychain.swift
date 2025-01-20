@@ -40,6 +40,8 @@ public class ApphudKeychain: NSObject {
     internal static var canUseKeychain: Bool {
     #if os(iOS) || os(tvOS)
         return UIApplication.shared.isProtectedDataAvailable
+    #elseif os(macOS)
+        return false
     #else
         return true
     #endif
