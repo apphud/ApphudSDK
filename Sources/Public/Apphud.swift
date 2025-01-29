@@ -789,6 +789,10 @@ final public class Apphud: NSObject {
         ApphudInternal.shared.addAttribution(rawData: data, from: provider, identifer: identifer, callback: callback)
     }
     
+    @objc public static func setAttribution(data: ApphudAttributionData, from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ApphudBoolCallback?) {
+        ApphudInternal.shared.addAttribution(data: data, from: provider, identifer: identifer, callback: callback)
+    }
+    
     /**
         Web-to-Web flow only. Attempts to attribute the user with the provided attribution data.
         If the `data` parameter contains either `aph_user_id`, `apphud_user_id`,  `email` or `apphud_user_email`, the SDK will submit this information to the Apphud server.
@@ -934,4 +938,51 @@ final public class Apphud: NSObject {
         ApphudInternal.shared.executeFallback(callback: callback)
     }
 
+}
+
+@objc public class ApphudAttributionData: NSObject {
+    
+    @objc public var rawData: [AnyHashable: Any]
+    
+    @objc public var adNetwork: String?
+    @objc public var mediaSource: String?
+    @objc public var campaign: String?
+    @objc public var adSet: String?
+    @objc public var creative: String?
+    @objc public var keyword: String?
+    @objc public var custom1: String?
+    @objc public var custom2: String?
+
+    @objc public init(
+        rawData: [AnyHashable: Any],
+        adNetwork: String? = nil,
+        mediaSource: String? = nil,
+        campaign: String? = nil,
+        adSet: String? = nil,
+        creative: String? = nil,
+        keyword: String? = nil,
+        custom1: String? = nil,
+        custom2: String? = nil
+    ) {
+        self.rawData = rawData
+        super.init()
+        
+        let rawAdNetwork   = rawData["adNetwork"]   as? String
+        let rawMediaSource = rawData["mediaSource"] as? String
+        let rawCampaign    = rawData["campaign"]    as? String
+        let rawAdSet       = rawData["adSet"]       as? String
+        let rawCreative    = rawData["creative"]    as? String
+        let rawKeyword     = rawData["keyword"]     as? String
+        let rawCustom1     = rawData["custom1"]     as? String
+        let rawCustom2     = rawData["custom2"]     as? String
+        
+        self.adNetwork   = adNetwork   ?? rawAdNetwork
+        self.mediaSource = mediaSource ?? rawMediaSource
+        self.campaign    = campaign    ?? rawCampaign
+        self.adSet       = adSet       ?? rawAdSet
+        self.creative    = creative    ?? rawCreative
+        self.keyword     = keyword     ?? rawKeyword
+        self.custom1     = custom1     ?? rawCustom1
+        self.custom2     = custom2     ?? rawCustom2
+    }
 }
