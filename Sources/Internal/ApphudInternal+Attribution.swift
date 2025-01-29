@@ -136,12 +136,13 @@ extension ApphudInternal {
             Task {
                 let dict = data.rawData as? [String: any Sendable]
                 
+                // ---------- data structure ----------
                 // {
                 //   "device_id": "...",
                 //   "provider": "...",
                 //   "raw_data": {...},
                 //   "attribution": {...},
-                //   "identifer_value": "..."
+                //   "<identifer_key>": "<identifer_value>"
                 // }
                 var params: [String: Any] = [
                     "device_id": self.currentDeviceID,
@@ -257,8 +258,7 @@ extension ApphudInternal {
                 
                 try? await Task.sleep(nanoseconds: 2_000_000_000)
                 
-                self.startAttributionRequest(params: params, apiVersion:.APIV2, provider: provider, identifer: identifer
-                ) { result in
+                self.startAttributionRequest(params: params, apiVersion:.APIV2, provider: provider, identifer: identifer) { result in
                     Task {
                         if result {
                             switch provider {
