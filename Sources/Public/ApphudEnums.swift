@@ -33,7 +33,7 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
      */
     case custom
 
-    func toString() -> String {
+    public func toString() -> String {
         switch self {
         case .appsFlyer:
             return "AppsFlyer"
