@@ -6,7 +6,7 @@
 //
 
 import SwiftUI
-//import ApphudSDK
+import ApphudSDK
 import StoreKit
 import AppMetricaCore
 
@@ -54,6 +54,14 @@ struct ContentView: View {
             }
             .font(.headline)
             .padding()
+            
+            Button("Purchase Gold") {
+                Task { @MainActor in
+                    await self.purchaseGold()
+                }
+            }
+            .font(.headline)
+            .padding()
 
             Button("Finish All Transactions") {
                 Task { @MainActor in
@@ -63,8 +71,9 @@ struct ContentView: View {
             .font(.headline)
             .padding()
             
-            Button("Get Premium") {
+            Button("Restore") {
                 isPaywallPresented.toggle()
+                Apphud.restorePurchases { _, _, _ in }
             }
             .font(.headline)
             .buttonStyle(.bordered)

@@ -1,5 +1,5 @@
 PODS:
-  - ApphudSDK (3.5.7)
+  - ApphudSDK (3.5.9)
   - AppMetricaAdSupport (5.8.2):
     - AppMetricaCore (= 5.8.2)
     - AppMetricaCoreExtension (= 5.8.2)
@@ -104,7 +104,7 @@ SPEC REPOS:
     - KSCrash
 
 SPEC CHECKSUMS:
-  ApphudSDK: d187e5be23a0470879098b84e7bc6d7ab1f4358d
+  ApphudSDK: 4aad14717e9029d9e9defc205d75b4836cbed559
   AppMetricaAdSupport: 6fd6e54fc9d330f152e97c38cd92775071e353b8
   AppMetricaAnalytics: 93374c9f748f85f4d62f2ed2714eeb058eee1d33
   AppMetricaApphudAdapter: 3b58f1e04cc781eaf947f4e313d29d297c5f9238

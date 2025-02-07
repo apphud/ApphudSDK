@@ -41,7 +41,7 @@ extension ApphudInternal {
 
     @MainActor @objc private func checkTransactionsNow() {
 
-        if Apphud.hasPremiumAccess() || ApphudStoreKitWrapper.shared.isPurchasing {
+        if ApphudStoreKitWrapper.shared.isPurchasing {
             return
         }
 
@@ -93,7 +93,7 @@ extension ApphudInternal {
             try? await ApphudAsyncStoreKit.shared.fetchProductIfNeeded(productID)
             let receipt = await appStoreReceipt()
             let isRecentlyPurchased: Bool = purchaseDate > Date().addingTimeInterval(-600)
-            return await withCheckedContinuation { continuation in
+            return await withUnsafeContinuation { continuation in
                 performWhenUserRegistered {
                     apphudLog("Submitting transaction \(transactionId), \(productID) from StoreKit2..")
 
@@ -125,7 +125,7 @@ extension ApphudInternal {
 
         apphudLog("App Store receipt is missing on device, refreshing...")
 
-        return await withCheckedContinuation { continuation in
+        return await withUnsafeContinuation { continuation in
             ApphudStoreKitWrapper.shared.refreshReceipt {
                 continuation.resume(returning: apphudReceiptDataString())
             }
@@ -422,7 +422,7 @@ extension ApphudInternal {
     @MainActor
     @available(iOS 13.0.0, macOS 11.0, watchOS 6.0, tvOS 13.0, *)
     internal func purchase(productId: String, product: ApphudProduct?, validate: Bool, isPurchasing: Binding<Bool>? = nil, value: Double? = nil) async -> ApphudPurchaseResult {
-        await withCheckedContinuation { continuation in
+        await withUnsafeContinuation { continuation in
             isPurchasing?.wrappedValue = true
             purchase(productId: productId, product: product, validate: validate, callback: { result in
                 isPurchasing?.wrappedValue = false

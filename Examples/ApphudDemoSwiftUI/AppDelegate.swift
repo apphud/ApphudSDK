@@ -49,7 +49,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
             
             let configuration = AppMetricaConfiguration(apiKey: "6544a04b-0f21-497f-bbc4-85f80384bbb3")
             configuration?.revenueAutoTrackingEnabled = false
-            configuration?.areLogsEnabled = true
+//            configuration?.areLogsEnabled = true
             AppMetrica.clearAppEnvironment()
             AppMetrica.activate(with: configuration!)
             
