@@ -11,17 +11,108 @@ import Foundation
 extension ApphudInternal {
 
     // MARK: - Attribution
-    internal func setAttribution(data: ApphudAttributionData, from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ((Bool) -> Void)?) {
+    internal func setAttribution(data: ApphudAttributionData, from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ((Bool, String) -> Void)?) {
         performWhenUserRegistered {
             Task {
                 var dict: [String: any Sendable] = data.rawData as? [String: any Sendable] ?? [:]
+            
+                if let identifer = identifer {
+                    dict["identifier"] = identifer
+                }
 
-                // {
-                //   "device_id": "...",
-                //   "provider": "...",
-                //   "raw_data": {...},
-                //   "attribution": {...}
-                // }
+                switch provider {
+                    // ---------- .custom ----------
+                case .custom:
+                    break
+
+                    // ---------- .branch ----------
+                case .branch:
+                    break
+
+                    // ---------- .facebook ----------
+                case .facebook:
+                    guard let fbIdent = identifer,
+                          self.submittedFacebookAnonId != fbIdent
+                    else {
+                        apphudLog("Facebook Anon ID (identifer field) is nil or didn't change, exiting", forceDisplay: true)
+                        callback?(false, "Facebook Anon ID (identifer field) is nil or didn't change, exiting")
+                        return
+                    }
+                    dict["fb_anon_id"] = fbIdent
+
+                    // ---------- .firebase ----------
+                case .firebase:
+                    guard let firebaseId = identifer,
+                          self.submittedFirebaseId != firebaseId
+                    else {
+                        callback?(false, "Firebase ID (identifer field) is nil or didn't change, exiting")
+                        return
+                    }
+                    dict["firebase_id"] = firebaseId
+
+                    // ---------- .appsFlyer ----------
+                case .appsFlyer:
+                    guard let afIdent = identifer else {
+                        callback?(false, "afIdent (identifer field) is nil")
+                        return
+                    }
+                    guard !self.isSendingAppsFlyer else {
+                        apphudLog("Already submitted AppsFlyer attribution, skipping", forceDisplay: true)
+                        callback?(false, "Already submitted AppsFlyer attribution, skipping")
+                        return
+                    }
+
+                    dict["appsflyer_id"] = afIdent
+
+                    guard await self.submittedPreviouslyAF(data: dict) else {
+                        apphudLog("Already submitted AppsFlyer attribution, skipping", forceDisplay: true)
+                        callback?(false, "Already submitted AppsFlyer attribution, skipping")
+                        return
+                    }
+                    self.isSendingAppsFlyer = true
+
+                    // ---------- .adjust ----------
+                case .adjust:
+                    guard !self.isSendingAdjust else {
+                        apphudLog("Already submitted Adjust attribution, skipping", forceDisplay: true)
+                        callback?(false, "Already submitted Adjust attribution, skipping")
+                        return
+                    }
+                    if let adid = identifer {
+                        dict["adid"] = adid
+                    }
+
+                    guard await self.submittedPreviouslyAdjust(data: dict) else {
+                        apphudLog("Already submitted Adjust attribution, skipping", forceDisplay: true)
+                        callback?(false, "Already submitted Adjust attribution, skipping")
+                        return
+                    }
+                    self.isSendingAdjust = true
+
+                    // ---------- .appleAdsAttribution ----------
+                case .appleAdsAttribution:
+                    guard let token = identifer else {
+                        callback?(false, "AppleAdstoken (identifer field) is nil")
+                        return
+                    }
+                    guard !self.didSubmitAppleAdsAttribution else {
+                        apphudLog("Already submitted Apple Ads Attribution, exiting", forceDisplay: true)
+                        callback?(false, "Already submitted Apple Ads Attribution, exiting")
+                        return
+                    }
+
+                    if let searchAdsData = await self.getAppleAttribution(token) {
+                        dict["search_ads_data"] = searchAdsData
+                    } else {
+                        callback?(false,"search_ads_data form Apple is nil")
+                        return
+                    }
+
+                default:
+                    break
+                }
+                
+                // Create Request params with raw_data
                 var params: [String: Any] = [
                     "device_id": self.currentDeviceID,
                     "provider": provider.toString().lowercased(),
@@ -39,98 +130,6 @@ extension ApphudInternal {
                 if let custom2 = data.custom2              { attributionDict["custom_2"]      = custom2 }
                 
                 params["attribution"] = attributionDict
-
-                switch provider {
-                    // ---------- .custom ----------
-                case .custom:
-                    break
-
-                    // ---------- .branch ----------
-                case .branch:
-                    break
-
-                    // ---------- .facebook ----------
-                case .facebook:
-                    guard let fbIdent = identifer,
-                          self.submittedFacebookAnonId != fbIdent
-                    else {
-                        apphudLog("Facebook Anon ID is nil or didn't change, exiting", forceDisplay: true)
-                        callback?(false)
-                        return
-                    }
-                    dict["fb_anon_id"] = fbIdent
-
-                    // ---------- .firebase ----------
-                case .firebase:
-                    guard let firebaseId = identifer,
-                          self.submittedFirebaseId != firebaseId
-                    else {
-                        callback?(false)
-                        return
-                    }
-                    dict["firebase_id"] = firebaseId
-
-                    // ---------- .appsFlyer ----------
-                case .appsFlyer:
-                    guard let afIdent = identifer else {
-                        callback?(false)
-                        return
-                    }
-                    guard !self.isSendingAppsFlyer else {
-                        apphudLog("Already submitted AppsFlyer attribution, skipping", forceDisplay: true)
-                        callback?(false)
-                        return
-                    }
-
-                    dict["appsflyer_id"] = afIdent
-
-                    guard await self.submittedPreviouslyAF(data: dict) else {
-                        apphudLog("Already submitted AppsFlyer attribution, skipping", forceDisplay: true)
-                        callback?(false)
-                        return
-                    }
-                    self.isSendingAppsFlyer = true
-
-                    // ---------- .adjust ----------
-                case .adjust:
-                    guard !self.isSendingAdjust else {
-                        apphudLog("Already submitted Adjust attribution, skipping", forceDisplay: true)
-                        callback?(false)
-                        return
-                    }
-                    if let adid = identifer {
-                        dict["adid"] = adid
-                    }
-
-                    guard await self.submittedPreviouslyAdjust(data: dict) else {
-                        apphudLog("Already submitted Adjust attribution, skipping", forceDisplay: true)
-                        callback?(false)
-                        return
-                    }
-                    self.isSendingAdjust = true
-
-                    // ---------- .appleAdsAttribution ----------
-                case .appleAdsAttribution:
-                    guard let token = identifer else {
-                        callback?(false)
-                        return
-                    }
-                    guard !self.didSubmitAppleAdsAttribution else {
-                        apphudLog("Already submitted Apple Ads Attribution, exiting", forceDisplay: true)
-                        callback?(false)
-                        return
-                    }
-
-                    if let searchAdsData = await self.getAppleAttribution(token) {
-                        dict["search_ads_data"] = searchAdsData
-                    } else {
-                        callback?(false)
-                        return
-                    }
-
-                default:
-                    break
-                }
                 
                 try? await Task.sleep(nanoseconds: 2_000_000_000)
                 
@@ -153,7 +152,7 @@ extension ApphudInternal {
                             }
                         }
                     }
-                    callback?(result)
+                    callback?(result, "")
                 }
             }
         }
