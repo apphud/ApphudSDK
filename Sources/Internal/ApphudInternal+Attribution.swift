@@ -9,20 +9,32 @@
 import Foundation
 
 extension ApphudInternal {
-
+    
     // MARK: - Attribution
     internal func setAttribution(data: ApphudAttributionData, from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ((Bool, String) -> Void)?) {
         performWhenUserRegistered {
             Task {
                 var dict: [String: any Sendable] = data.rawData as? [String: any Sendable] ?? [:]
             
-                if let identifer = identifer {
-                    dict["identifier"] = identifer
-                }
-
                 switch provider {
                     // ---------- .custom ----------
                 case .custom:
+                    break
+                    
+                    // ---------- .voluum ----------
+                case .voluum:
+                    break
+                    
+                    // ---------- .singular ----------
+                case .singular:
+                    break
+                    
+                    // ---------- .tenjin ----------
+                case .tenjin:
+                    break
+
+                    // ---------- .tiktok ----------
+                case .tiktok:
                     break
 
                     // ---------- .branch ----------
@@ -102,7 +114,9 @@ extension ApphudInternal {
                     }
 
                     if let searchAdsData = await self.getAppleAttribution(token) {
-                        dict["search_ads_data"] = searchAdsData
+                        for (key, value) in searchAdsData {
+                            dict[key] = value
+                        }
                     } else {
                         callback?(false,"search_ads_data form Apple is nil")
                         return
@@ -115,7 +129,7 @@ extension ApphudInternal {
                 // Create Request params with raw_data
                 var params: [String: Any] = [
                     "device_id": self.currentDeviceID,
-                    "provider": provider.toString().lowercased(),
+                    "provider": provider.toString(),
                     "raw_data": dict
                 ]
 
