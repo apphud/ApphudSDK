@@ -249,7 +249,7 @@ extension ApphudInternal {
         request.setValue("text/plain", forHTTPHeaderField: "Content-Type")
         request.httpBody = Data(appleAttibutionToken.utf8)
 
-        let response = try? await URLSession.shared.data(for: request, retries: 5, delay: 1.0)
+        let response = try? await URLSession.shared.data(for: request, retries: 5, delay: 7.0)
         if let data = response?.0,
            let result = try? JSONSerialization.jsonObject(with: data, options: .allowFragments) as? [String: any Sendable],
            let attribution = result["attribution"] as? Bool {
