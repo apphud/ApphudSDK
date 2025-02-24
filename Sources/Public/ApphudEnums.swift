@@ -17,8 +17,6 @@ public typealias ApphudEligibilityCallback = (([String: Bool]) -> Void)
  */
 public typealias ApphudBoolCallback = ((Bool) -> Void)
 
-public typealias ApphudBoolCallbackTEST = ((Bool, String) -> Void)
-
 /// List of available attribution providers
 /// has to make Int in order to support Objective-C
 @objc public enum ApphudAttributionProvider: Int {

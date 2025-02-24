@@ -32,22 +32,13 @@
         self.rawData = rawData
         super.init()
         
-        let rawAdNetwork   = rawData["adNetwork"]   as? String
-        let rawMediaSource = rawData["mediaSource"] as? String
-        let rawCampaign    = rawData["campaign"]    as? String
-        let rawAdSet       = rawData["adSet"]       as? String
-        let rawCreative    = rawData["creative"]    as? String
-        let rawKeyword     = rawData["keyword"]     as? String
-        let rawCustom1     = rawData["custom1"]     as? String
-        let rawCustom2     = rawData["custom2"]     as? String
-        
-        self.adNetwork   = adNetwork   ?? rawAdNetwork
-        self.mediaSource = mediaSource ?? rawMediaSource
-        self.campaign    = campaign    ?? rawCampaign
-        self.adSet       = adSet       ?? rawAdSet
-        self.creative    = creative    ?? rawCreative
-        self.keyword     = keyword     ?? rawKeyword
-        self.custom1     = custom1     ?? rawCustom1
-        self.custom2     = custom2     ?? rawCustom2
+        self.adNetwork   = adNetwork
+        self.mediaSource = mediaSource
+        self.campaign    = campaign
+        self.adSet       = adSet
+        self.creative    = creative
+        self.keyword     = keyword
+        self.custom1     = custom1
+        self.custom2     = custom2
     }
 }

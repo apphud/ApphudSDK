@@ -11,7 +11,7 @@ import Foundation
 extension ApphudInternal {
     
     // MARK: - Attribution
-    internal func setAttribution(data: ApphudAttributionData, from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ((Bool, String) -> Void)?) {
+    internal func setAttribution(data: ApphudAttributionData, from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ((Bool) -> Void)?) {
         performWhenUserRegistered {
             Task {
                 var dict: [String: any Sendable] = data.rawData as? [String: any Sendable] ?? [:]
@@ -47,7 +47,7 @@ extension ApphudInternal {
                           self.submittedFacebookAnonId != fbIdent
                     else {
                         apphudLog("Facebook Anon ID (identifer field) is nil or didn't change, exiting", forceDisplay: true)
-                        callback?(false, "Facebook Anon ID (identifer field) is nil or didn't change, exiting")
+                        callback?(false)
                         return
                     }
                     dict["fb_anon_id"] = fbIdent
@@ -57,7 +57,7 @@ extension ApphudInternal {
                     guard let firebaseId = identifer,
                           self.submittedFirebaseId != firebaseId
                     else {
-                        callback?(false, "Firebase ID (identifer field) is nil or didn't change, exiting")
+                        callback?(false)
                         return
                     }
                     dict["firebase_id"] = firebaseId
@@ -65,12 +65,12 @@ extension ApphudInternal {
                     // ---------- .appsFlyer ----------
                 case .appsFlyer:
                     guard let afIdent = identifer else {
-                        callback?(false, "afIdent (identifer field) is nil")
+                        callback?(false)
                         return
                     }
                     guard !self.isSendingAppsFlyer else {
                         apphudLog("Already submitted AppsFlyer attribution, skipping", forceDisplay: true)
-                        callback?(false, "Already submitted AppsFlyer attribution, skipping")
+                        callback?(false)
                         return
                     }
 
@@ -78,7 +78,7 @@ extension ApphudInternal {
 
                     guard await self.submittedPreviouslyAF(data: dict) else {
                         apphudLog("Already submitted AppsFlyer attribution, skipping", forceDisplay: true)
-                        callback?(false, "Already submitted AppsFlyer attribution, skipping")
+                        callback?(false)
                         return
                     }
                     self.isSendingAppsFlyer = true
@@ -87,7 +87,7 @@ extension ApphudInternal {
                 case .adjust:
                     guard !self.isSendingAdjust else {
                         apphudLog("Already submitted Adjust attribution, skipping", forceDisplay: true)
-                        callback?(false, "Already submitted Adjust attribution, skipping")
+                        callback?(false)
                         return
                     }
                     if let adid = identifer {
@@ -96,7 +96,7 @@ extension ApphudInternal {
 
                     guard await self.submittedPreviouslyAdjust(data: dict) else {
                         apphudLog("Already submitted Adjust attribution, skipping", forceDisplay: true)
-                        callback?(false, "Already submitted Adjust attribution, skipping")
+                        callback?(false)
                         return
                     }
                     self.isSendingAdjust = true
@@ -104,12 +104,12 @@ extension ApphudInternal {
                     // ---------- .appleAdsAttribution ----------
                 case .appleAdsAttribution:
                     guard let token = identifer else {
-                        callback?(false, "AppleAdstoken (identifer field) is nil")
+                        callback?(false)
                         return
                     }
                     guard !self.didSubmitAppleAdsAttribution else {
                         apphudLog("Already submitted Apple Ads Attribution, exiting", forceDisplay: true)
-                        callback?(false, "Already submitted Apple Ads Attribution, exiting")
+                        callback?(false)
                         return
                     }
 
@@ -118,7 +118,7 @@ extension ApphudInternal {
                             dict[key] = value
                         }
                     } else {
-                        callback?(false,"search_ads_data form Apple is nil")
+                        callback?(false)
                         return
                     }
 
@@ -166,7 +166,7 @@ extension ApphudInternal {
                             }
                         }
                     }
-                    callback?(result, "")
+                    callback?(result)
                 }
             }
         }

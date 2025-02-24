@@ -776,7 +776,7 @@ final public class Apphud: NSObject {
     @objc public static func setAdvertisingIdentifier(_ idfa: String) {}
 
     /**
-     Submits setAttribution data to Apphud from your chosen attribution network provider.
+     Submits attribution data to Apphud
 
      - parameter data: Required. The ApphudAttributionData model.
      - parameter provider: Required. The name of the attribution provider.
@@ -786,7 +786,7 @@ final public class Apphud: NSObject {
      - Note: Properly setting up attribution data is key for tracking and optimizing user acquisition strategies and measuring the ROI of marketing campaigns.
      */
     
-    @objc public static func setAttribution(data: ApphudAttributionData, from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ApphudBoolCallbackTEST?) {
+    @objc public static func setAttribution(data: ApphudAttributionData, from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ApphudBoolCallback?) {
         ApphudInternal.shared.setAttribution(data: data, from: provider, identifer: identifer, callback: callback)
     }
     
