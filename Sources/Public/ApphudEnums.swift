@@ -52,7 +52,7 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
         case .firebase:
             return "firebase"
         case .custom:
-            return "сustom"
+            return "custom"
         case .singular:
             return "singular"
         case .tenjin:
