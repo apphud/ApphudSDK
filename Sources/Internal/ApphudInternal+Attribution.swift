@@ -135,7 +135,7 @@ extension ApphudInternal {
 
                 var attributionDict: [String: any Sendable] = [:]
                 if let adNetwork = data.adNetwork          { attributionDict["ad_network"]    = adNetwork }
-                if let mediaSource = data.mediaSource      { attributionDict["media_source"]  = mediaSource }
+                if let channel = data.channel              { attributionDict["channel"]  = channel }
                 if let campaign = data.campaign            { attributionDict["campaign"]      = campaign }
                 if let adSet = data.adSet                  { attributionDict["ad_set"]        = adSet }
                 if let creative = data.creative            { attributionDict["creative"]      = creative }

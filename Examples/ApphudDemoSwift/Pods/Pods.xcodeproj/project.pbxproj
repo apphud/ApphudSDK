@@ -15,6 +15,7 @@
 		253C5EE2AEFCF632DC239B2C478FEBA8 /* ApphudPurchaseResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0743237AB3541C749C54E51DC628C2C3 /* ApphudPurchaseResult.swift */; };
 		2860BDC32BD2341500FD60F9 /* Documentation.docc in Sources */ = {isa = PBXBuildFile; fileRef = 2860BDC22BD2341500FD60F9 /* Documentation.docc */; };
 		2860BDC42BD2343800FD60F9 /* Documentation.docc in Sources */ = {isa = PBXBuildFile; fileRef = 2860BDC22BD2341500FD60F9 /* Documentation.docc */; };
+		2896984A2D7AE03600050E55 /* ApphudAttributionData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 289698492D7AE03600050E55 /* ApphudAttributionData.swift */; };
 		2A5C411F70A16089C75108B07F682707 /* ApphudKeychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 320A88D7CEE6BC64647B6435BABB77E7 /* ApphudKeychain.swift */; };
 		2D0CCBAF795A5CC359E4FF4A43AC10D4 /* ApphudAsyncStoreKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF3C79C3AF4718D1C0423EF8EAFEA263 /* ApphudAsyncStoreKit.swift */; };
 		2F48295B831EE2E97C0434306A958D1E /* ApphudAsyncPurchaseResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9ABF8EB52F896A0EA8428E12B2F5728 /* ApphudAsyncPurchaseResult.swift */; };
@@ -60,7 +61,7 @@
 		E66183CE36D12F709B9EE15A20A280C2 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 55491B53CCB52C197797CCFE018C0BF6 /* Foundation.framework */; };
 		EB8C8951C91A73DC322893F20E7A53DC /* ApphudScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73FF0FB70473A543AE2B3FB6ED3AFC9D /* ApphudScreen.swift */; };
 		EB9E162F7A44B0FA4737C008F953F205 /* ApphudScreenController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F674E4D33C008958C6B0AE23700DC34A /* ApphudScreenController.swift */; };
-		EE4710EBE32801216A77470EB5B7F024 /* ApphudSDK-ApphudSDK in Resources */ = {isa = PBXBuildFile; fileRef = FDC773E39B7E921785F22CF4DB1C31F5 /* ApphudSDK-ApphudSDK */; };
+		EE4710EBE32801216A77470EB5B7F024 /* ApphudSDK.bundle in Resources */ = {isa = PBXBuildFile; fileRef = FDC773E39B7E921785F22CF4DB1C31F5 /* ApphudSDK.bundle */; };
 		F48C655AEAA893D6604C3FAB80F31F4C /* ApphudProduct.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2881DFE5FBA3EF211AB9F5150FD467A /* ApphudProduct.swift */; };
 		F5F5D64FD07071AAE782D96CED648C4F /* ApphudUser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DE815E445E387CA81F6684E64DA81D7 /* ApphudUser.swift */; };
 		F7EF7EDD75D4F1BCE2F748F7E9390A71 /* Apphud.swift in Sources */ = {isa = PBXBuildFile; fileRef = 395EEF4F88C76ECACF850453641A59DC /* Apphud.swift */; };
@@ -94,7 +95,7 @@
 		003D0FF37BE114CB7EA6E34F3D0A0960 /* index.html */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.html.documentation; name = index.html; path = docs/documentation/apphudsdk/apphudpaywall/isdefault/index.html; sourceTree = "<group>"; };
 		01254E82D5B2B49667F55798FA4F662D /* index.html */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.html.documentation; name = index.html; path = "docs/documentation/apphudsdk/apphudattributionprovider/hash(into:)/index.html"; sourceTree = "<group>"; };
 		01C8A9C3935D496D5528D68149F6B9A2 /* index.html */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.html.documentation; name = index.html; path = docs/documentation/apphudsdk/apphuderror/index.html; sourceTree = "<group>"; };
-		0264D1C26F4354EC5FA1600B3E6302FB /* Pods-ApphudSDKDemo */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; name = "Pods-ApphudSDKDemo"; path = Pods_ApphudSDKDemo.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		0264D1C26F4354EC5FA1600B3E6302FB /* Pods_ApphudSDKDemo.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_ApphudSDKDemo.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		0276EDC8973EB81214940DAFDD09CA80 /* bundleid.json */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.json; name = bundleid.json; path = docs/data/documentation/apphudsdk/apphudreceipt/bundleid.json; sourceTree = "<group>"; };
 		031E7948586E27FBFEEE9ADFB50CD9C9 /* index.html */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.html.documentation; name = index.html; path = docs/documentation/apphudsdk/apphudattributionprovider/facebook/index.html; sourceTree = "<group>"; };
 		032766127ED5D8DF942639CD39B2C9A9 /* Pods-ApphudSDKTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-ApphudSDKTests.release.xcconfig"; sourceTree = "<group>"; };
@@ -131,7 +132,7 @@
 		0F7CC43557F8FB0364ACF9DFE41A11B9 /* highlight-js-custom-swift.5cda5c20.js */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.javascript; name = "highlight-js-custom-swift.5cda5c20.js"; path = "docs/js/highlight-js-custom-swift.5cda5c20.js"; sourceTree = "<group>"; };
 		1031C5BDF0A2B5B3E30FCD44035CA83A /* ApphudNonRenewingPurchase.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ApphudNonRenewingPurchase.swift; sourceTree = "<group>"; };
 		10B6DBF75E7CA4DE982E2CE4AEE8BE11 /* Pods-ApphudSDKTests-frameworks.sh */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.script.sh; path = "Pods-ApphudSDKTests-frameworks.sh"; sourceTree = "<group>"; };
-		116B608BECADE7354BEF4977EBA361C6 /* ApphudSDK */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; name = ApphudSDK; path = ApphudSDK.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		116B608BECADE7354BEF4977EBA361C6 /* ApphudSDK.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = ApphudSDK.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		11AC67C7EB89B7DF3D124D5DAEF6CBE6 /* main.json */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.json; name = main.json; path = docs/data/documentation/apphudsdk/apphudpaywallid/main.json; sourceTree = "<group>"; };
 		11EC4B7BD9AEB82071D80D4E531D4289 /* init(from:).json */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.json; name = "init(from:).json"; path = "docs/data/documentation/apphudsdk/apphudplacement/init(from:).json"; sourceTree = "<group>"; };
 		11ECEF29A0AE9BE11E7D9E5FD47566F5 /* index.html */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.html.documentation; name = index.html; path = "docs/documentation/apphudsdk/apphuduidelegate/apphudshouldperformrule(rule:)/index.html"; sourceTree = "<group>"; };
@@ -202,6 +203,7 @@
 		27B99E85D3684E9BFF2A64C1AFA2C6A9 /* index.html */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.html.documentation; name = index.html; path = "docs/documentation/apphudsdk/apphud/updateuserid(_:)/index.html"; sourceTree = "<group>"; };
 		2860BDC22BD2341500FD60F9 /* Documentation.docc */ = {isa = PBXFileReference; lastKnownFileType = folder.documentationcatalog; name = Documentation.docc; path = ../Documentation.docc; sourceTree = "<group>"; };
 		2880681FD4BC82A83E0B528F8ACDBB77 /* index.html */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.html.documentation; name = index.html; path = "docs/documentation/apphudsdk/apphuduidelegate/apphudscreendismissaction(screenname:controller:)/index.html"; sourceTree = "<group>"; };
+		289698492D7AE03600050E55 /* ApphudAttributionData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApphudAttributionData.swift; sourceTree = "<group>"; };
 		28F9B48AC27CE8076ECC1B93A949E203 /* index.html */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.html.documentation; name = index.html; path = "docs/documentation/apphudsdk/apphud/paywallshown(_:)/index.html"; sourceTree = "<group>"; };
 		290AD43326A6EAF3CF812FD02CB6A146 /* highlight-js-bash.1b52852f.js */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.javascript; name = "highlight-js-bash.1b52852f.js"; path = "docs/js/highlight-js-bash.1b52852f.js"; sourceTree = "<group>"; };
 		2A127E8F17E908B153DA348A236172E7 /* objectwillchange.json */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.json; name = objectwillchange.json; path = docs/data/documentation/apphudsdk/apphudproduct/objectwillchange.json; sourceTree = "<group>"; };
@@ -597,7 +599,7 @@
 		B4BC7628F0539A9572147EF4A3352E50 /* !=(_:_:).json */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.json; name = "!=(_:_:).json"; path = "docs/data/documentation/apphudsdk/apphudattributionprovider/!=(_:_:).json"; sourceTree = "<group>"; };
 		B4EEE8541FBC95225721D863CB01B4AB /* index.html */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.html.documentation; name = index.html; path = "docs/documentation/apphudsdk/apphud/placement(_:)/index.html"; sourceTree = "<group>"; };
 		B546D69224B129C8DEC13385A9FF212F /* json.json */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.json; name = json.json; path = docs/data/documentation/apphudsdk/apphudpaywall/json.json; sourceTree = "<group>"; };
-		B56C96D34D319EFFDF946CE818A07979 /* Pods-ApphudSDKTests */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; name = "Pods-ApphudSDKTests"; path = Pods_ApphudSDKTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		B56C96D34D319EFFDF946CE818A07979 /* Pods_ApphudSDKTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_ApphudSDKTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		B5FF74F0F5A7DDAD417414FF63AFCB16 /* index.html */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.html.documentation; name = index.html; path = "docs/documentation/apphudsdk/apphuduidelegate/apphuddidfailpurchase(product:offerid:errorcode:screenname:)/index.html"; sourceTree = "<group>"; };
 		B67C7A61091328611C0DB339D7655364 /* favicon.ico */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = image.ico; name = favicon.ico; path = docs/favicon.ico; sourceTree = "<group>"; };
 		B6B3222C438D3FF092437169B386053A /* index.html */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.html.documentation; name = index.html; path = docs/documentation/apphudsdk/apphudasyncpurchaseresult/index.html; sourceTree = "<group>"; };
@@ -791,7 +793,7 @@
 		FCDC6D4AA59A0B2C98D26C3F69E9A6A8 /* index.html */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.html.documentation; name = index.html; path = docs/documentation/apphudsdk/apphudpurchaseresult/success/index.html; sourceTree = "<group>"; };
 		FCE1DF713928393D817A16989E42471C /* index.html */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.html.documentation; name = index.html; path = docs/documentation/apphudsdk/apphudpaywallid/hashvalue/index.html; sourceTree = "<group>"; };
 		FD15F9F859D61198ECF19BFDB4C60949 /* init(from:).json */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.json; name = "init(from:).json"; path = "docs/data/documentation/apphudsdk/apphudsubscriptionstatus/init(from:).json"; sourceTree = "<group>"; };
-		FDC773E39B7E921785F22CF4DB1C31F5 /* ApphudSDK-ApphudSDK */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = "ApphudSDK-ApphudSDK"; path = ApphudSDK.bundle; sourceTree = BUILT_PRODUCTS_DIR; };
+		FDC773E39B7E921785F22CF4DB1C31F5 /* ApphudSDK.bundle */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ApphudSDK.bundle; sourceTree = BUILT_PRODUCTS_DIR; };
 		FE5478A48DE43E9402548F772B8AB830 /* documentation-topic.1d1eec04.css */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.css; name = "documentation-topic.1d1eec04.css"; path = "docs/css/documentation-topic.1d1eec04.css"; sourceTree = "<group>"; };
 		FE6D0C1534ED2E4A6BB69AC91D490C8B /* index.html */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.html.documentation; name = index.html; path = "docs/documentation/apphudsdk/apphud/setcustompurchasevalue(_:productid:)/index.html"; sourceTree = "<group>"; };
 		FE71B376E25535E0986AFCF60F113C84 /* islocal.json */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.json; name = islocal.json; path = docs/data/documentation/apphudsdk/apphudsubscription/islocal.json; sourceTree = "<group>"; };
@@ -866,6 +868,7 @@
 				73FF0FB70473A543AE2B3FB6ED3AFC9D /* ApphudScreen.swift */,
 				8A4E3FF1AAB253CC86B6A57DA3C452B6 /* ApphudSubscription.swift */,
 				D528846787A4B437B25CB8D4F1C52AF6 /* ApphudUIDelegate.swift */,
+				289698492D7AE03600050E55 /* ApphudAttributionData.swift */,
 				2DE815E445E387CA81F6684E64DA81D7 /* ApphudUser.swift */,
 				A2DAA054448A92C8EBF529E794F83C73 /* ApphudUserPropertyKey.swift */,
 				BCCD45E2E88394BA1185F28BCD601904 /* ApphudUtils.swift */,
@@ -1578,10 +1581,10 @@
 		A139B85D8B844B92CF32B739BEEDF10E /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				116B608BECADE7354BEF4977EBA361C6 /* ApphudSDK */,
-				FDC773E39B7E921785F22CF4DB1C31F5 /* ApphudSDK-ApphudSDK */,
-				0264D1C26F4354EC5FA1600B3E6302FB /* Pods-ApphudSDKDemo */,
-				B56C96D34D319EFFDF946CE818A07979 /* Pods-ApphudSDKTests */,
+				116B608BECADE7354BEF4977EBA361C6 /* ApphudSDK.framework */,
+				FDC773E39B7E921785F22CF4DB1C31F5 /* ApphudSDK.bundle */,
+				0264D1C26F4354EC5FA1600B3E6302FB /* Pods_ApphudSDKDemo.framework */,
+				B56C96D34D319EFFDF946CE818A07979 /* Pods_ApphudSDKTests.framework */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -1710,7 +1713,7 @@
 			);
 			name = ApphudSDK;
 			productName = ApphudSDK;
-			productReference = 116B608BECADE7354BEF4977EBA361C6 /* ApphudSDK */;
+			productReference = 116B608BECADE7354BEF4977EBA361C6 /* ApphudSDK.framework */;
 			productType = "com.apple.product-type.framework";
 		};
 		38EC234C697A4C00957FAF0E2787FD69 /* ApphudSDK-ApphudSDK */ = {
@@ -1727,7 +1730,7 @@
 			);
 			name = "ApphudSDK-ApphudSDK";
 			productName = ApphudSDK;
-			productReference = FDC773E39B7E921785F22CF4DB1C31F5 /* ApphudSDK-ApphudSDK */;
+			productReference = FDC773E39B7E921785F22CF4DB1C31F5 /* ApphudSDK.bundle */;
 			productType = "com.apple.product-type.bundle";
 		};
 		4B5E44478D36BF195BA940FA313BA745 /* Pods-ApphudSDKDemo */ = {
@@ -1746,7 +1749,7 @@
 			);
 			name = "Pods-ApphudSDKDemo";
 			productName = Pods_ApphudSDKDemo;
-			productReference = 0264D1C26F4354EC5FA1600B3E6302FB /* Pods-ApphudSDKDemo */;
+			productReference = 0264D1C26F4354EC5FA1600B3E6302FB /* Pods_ApphudSDKDemo.framework */;
 			productType = "com.apple.product-type.framework";
 		};
 		76F451124F20293D7826F1C4F8541B8B /* Pods-ApphudSDKTests */ = {
@@ -1765,7 +1768,7 @@
 			);
 			name = "Pods-ApphudSDKTests";
 			productName = Pods_ApphudSDKTests;
-			productReference = B56C96D34D319EFFDF946CE818A07979 /* Pods-ApphudSDKTests */;
+			productReference = B56C96D34D319EFFDF946CE818A07979 /* Pods_ApphudSDKTests.framework */;
 			productType = "com.apple.product-type.framework";
 		};
 /* End PBXNativeTarget section */
@@ -1818,7 +1821,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				EE4710EBE32801216A77470EB5B7F024 /* ApphudSDK-ApphudSDK in Resources */,
+				EE4710EBE32801216A77470EB5B7F024 /* ApphudSDK.bundle in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1885,6 +1888,7 @@
 				784E275840C4BAA967397AD056ABF15E /* ApphudNonRenewingPurchase.swift in Sources */,
 				606B25F5044E0F6C6644178707C93F68 /* ApphudPaywall.swift in Sources */,
 				6E7EF4B013BCA5153C9EAC992BF6ECD6 /* ApphudPlacement.swift in Sources */,
+				2896984A2D7AE03600050E55 /* ApphudAttributionData.swift in Sources */,
 				F48C655AEAA893D6604C3FAB80F31F4C /* ApphudProduct.swift in Sources */,
 				5EF3752B5173DEF03FCC5CCCD8D26257 /* ApphudProductsStorage.swift in Sources */,
 				253C5EE2AEFCF632DC239B2C478FEBA8 /* ApphudPurchaseResult.swift in Sources */,

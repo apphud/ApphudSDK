@@ -785,8 +785,7 @@ final public class Apphud: NSObject {
 
      - Note: Properly setting up attribution data is key for tracking and optimizing user acquisition strategies and measuring the ROI of marketing campaigns.
      */
-    
-    @objc public static func setAttribution(data: ApphudAttributionData, from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ApphudBoolCallback?) {
+    public static func setAttribution(data: ApphudAttributionData, from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ApphudBoolCallback?) {
         ApphudInternal.shared.setAttribution(data: data, from: provider, identifer: identifer, callback: callback)
     }
     
