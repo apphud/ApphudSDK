@@ -19,26 +19,32 @@ extension ApphudInternal {
                 switch provider {
                     // ---------- .custom ----------
                 case .custom:
+                    dict["identifier"] = identifer
                     break
                     
                     // ---------- .voluum ----------
                 case .voluum:
+                    dict["identifier"] = identifer
                     break
                     
                     // ---------- .singular ----------
                 case .singular:
+                    dict["identifier"] = identifer
                     break
                     
                     // ---------- .tenjin ----------
                 case .tenjin:
+                    dict["identifier"] = identifer
                     break
 
                     // ---------- .tiktok ----------
                 case .tiktok:
+                    dict["identifier"] = identifer
                     break
 
                     // ---------- .branch ----------
                 case .branch:
+                    dict["identifier"] = identifer
                     break
 
                     // ---------- .facebook ----------
@@ -125,7 +131,7 @@ extension ApphudInternal {
                 default:
                     break
                 }
-                
+                                
                 // Create Request params with raw_data
                 var params: [String: Any] = [
                     "device_id": self.currentDeviceID,
