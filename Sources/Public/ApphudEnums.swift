@@ -28,27 +28,39 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
     case branch
     case firebase
     case facebook
+    case singular
+    case tenjin
+    case tiktok
+    case voluum
     /**
     Pass custom attribution data to Apphud. Contact your support manager for details.
      */
     case custom
 
-    func toString() -> String {
+    public func toString() -> String {
         switch self {
         case .appsFlyer:
-            return "AppsFlyer"
+            return "appsflyer"
         case .adjust:
-            return "Adjust"
+            return "adjust"
         case .branch:
-            return "Branch"
+            return "branch"
         case .facebook:
-            return "Facebook"
+            return "facebook"
         case .appleAdsAttribution:
-            return "Apple Ads Attribution"
+            return "search_ads"
         case .firebase:
-            return "Firebase"
+            return "firebase"
         case .custom:
-            return "Custom"
+            return "custom"
+        case .singular:
+            return "singular"
+        case .tenjin:
+            return "tenjin"
+        case .tiktok:
+            return "tiktok"
+        case .voluum:
+            return "voluum"
         default:
             return "Unavailable"
         }

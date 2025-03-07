@@ -14,7 +14,7 @@ import Foundation
 import UserNotifications
 import SwiftUI
 
-internal let apphud_sdk_version = "3.5.9"
+internal let apphud_sdk_version = "3.6.0"
 
 // MARK: - Initialization
 
@@ -776,17 +776,17 @@ final public class Apphud: NSObject {
     @objc public static func setAdvertisingIdentifier(_ idfa: String) {}
 
     /**
-     Submits attribution data to Apphud from your chosen attribution network provider.
+     Submits attribution data to Apphud
 
-     - parameter data: Required. The attribution data dictionary.
+     - parameter data: Required. The ApphudAttributionData model.
      - parameter provider: Required. The name of the attribution provider.
      - parameter identifier: Optional. An identifier that matches between Apphud and the Attribution provider.
      - parameter callback: Optional. A closure that returns `true` if the data was successfully sent to Apphud.
 
      - Note: Properly setting up attribution data is key for tracking and optimizing user acquisition strategies and measuring the ROI of marketing campaigns.
      */
-    @objc public static func addAttribution(data: [AnyHashable: Any]?, from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ApphudBoolCallback?) {
-        ApphudInternal.shared.addAttribution(rawData: data, from: provider, identifer: identifer, callback: callback)
+    public static func setAttribution(data: ApphudAttributionData, from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ApphudBoolCallback?) {
+        ApphudInternal.shared.setAttribution(data: data, from: provider, identifer: identifer, callback: callback)
     }
     
     /**
