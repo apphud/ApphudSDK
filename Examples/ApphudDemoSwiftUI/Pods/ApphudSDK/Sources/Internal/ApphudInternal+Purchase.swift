@@ -55,8 +55,28 @@ extension ApphudInternal {
                         await handleTransaction(transaction)
                     }
                 }
+//                for await result in StoreKit.Transaction.all {
+//                    if case .verified(let transaction) = result {
+//                        if transaction.productType == .consumable, await alreadyTrackedNonRenewing(transaction) == false {
+//                            apphudLog("Found new consumable purchase: \(transaction.id)", logLevel: .all)
+//                            await handleTransaction(transaction)
+//                        } else if transaction.productType == .autoRenewable, await alreadyTrackedSub(transaction) == false {
+//                            
+//                        }
+//                    }
+//                }
             }
         }
+    }
+    
+    @available(iOS 15.0, *)
+    private func alreadyTrackedNonRenewing(_ transaction: StoreKit.Transaction) async -> Bool {
+        await (currentUser?.purchases.contains(where: { $0.purchasedAt.timeIntervalSince1970 == transaction.purchaseDate.timeIntervalSince1970 && $0.productId == transaction.productID }) ?? false)
+    }
+    
+    @available(iOS 15.0, *)
+    private func alreadyTrackedSub(_ transaction: StoreKit.Transaction) async -> Bool {
+        await (currentUser?.subscriptions.contains(where: { $0.productId == transaction.productID }) ?? false)
     }
 
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)

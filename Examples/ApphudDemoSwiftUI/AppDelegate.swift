@@ -22,11 +22,11 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 
         storekit2Observer = AsyncTransactionObserver()
         
-//        #if DEBUG
-//        Apphud.enableDebugLogs()
-//        #endif
-//        Apphud.start(apiKey: "app_4sY9cLggXpMDDQMmvc5wXUPGReMp8G")
-//        Apphud.setDeviceIdentifiers(idfa: nil, idfv: UIDevice.current.identifierForVendor?.uuidString)
+        #if DEBUG
+        ApphudUtils.enableAllLogs()
+        #endif
+        Apphud.start(apiKey: "app_4sY9cLggXpMDDQMmvc5wXUPGReMp8G")
+        Apphud.setDeviceIdentifiers(idfa: nil, idfv: UIDevice.current.identifierForVendor?.uuidString)
 //        fetchIDFA()
 //
 //        /** Custom User Properties Examples */
