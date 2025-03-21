@@ -59,15 +59,15 @@ extension ApphudInternal {
 
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
     @discardableResult internal func handleTransaction(_ transaction: StoreKit.Transaction) async -> Bool {
-        // use original transaction id
-        let transactionId = transaction.originalID
+        let transactionId = transaction.id
         let refundDate = transaction.revocationDate
         let expirationDate = transaction.expirationDate
         let purchaseDate = transaction.purchaseDate
         let upgrade = transaction.isUpgraded
         let productID = transaction.productID
 
-        if await isAlreadyTracked(transactionId: transactionId, productId: productID, purchaseDate: purchaseDate) {
+        // use original transaction id to compare if already tracked
+        if await isAlreadyTracked(transactionId: transaction.originalID, productId: productID, purchaseDate: purchaseDate) {
             apphudLog("This transaction already tracked by Apphud: \(transactionId), skipping", logLevel: .debug)
             return false
         }
