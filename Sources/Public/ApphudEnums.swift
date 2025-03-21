@@ -68,7 +68,7 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
 }
 
 internal enum ApphudIAPCodingKeys: String, CodingKey {
-    case id, expiresAt, productId, cancelledAt, startedAt, inRetryBilling, autorenewEnabled, introductoryActivated, environment, local, groupId, status, kind
+    case id, expiresAt, productId, cancelledAt, startedAt, inRetryBilling, autorenewEnabled, introductoryActivated, environment, local, groupId, status, kind, originalTransactionId, transactionId
 }
 
 internal enum ApphudIAPKind: String {

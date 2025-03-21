@@ -34,6 +34,11 @@ public class ApphudNonRenewingPurchase: Codable {
      Returns `true` if purchase is made in test environment, i.e. sandbox or local purchase.
      */
     public let isSandbox: Bool
+    
+    /**
+     Transaction identifier of the purchase. Can be null if decoding from cache during SDK upgrade.
+     */
+    @objc public let transactionId: String?
 
     /**
      Returns `true` if purchase was made using Local StoreKit Configuration File. Read more: https://docs.apphud.com/docs/testing-troubleshooting#local-storekit-testing
@@ -44,14 +49,14 @@ public class ApphudNonRenewingPurchase: Codable {
 
     required public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: ApphudIAPCodingKeys.self)
-        (self.productId, self.canceledAt, self.purchasedAt, self.isSandbox, self.isLocal) = try Self.decodeValues(from: values)
+        (self.productId, self.canceledAt, self.purchasedAt, self.isSandbox, self.isLocal, self.transactionId) = try Self.decodeValues(from: values)
     }
 
     internal init(with values: KeyedDecodingContainer<ApphudIAPCodingKeys>) throws {
-        (self.productId, self.canceledAt, self.purchasedAt, self.isSandbox, self.isLocal) = try Self.decodeValues(from: values)
+        (self.productId, self.canceledAt, self.purchasedAt, self.isSandbox, self.isLocal, self.transactionId) = try Self.decodeValues(from: values)
     }
 
-    private static func decodeValues(from values: KeyedDecodingContainer<ApphudIAPCodingKeys>) throws -> (String, Date?, Date, Bool, Bool) {
+    private static func decodeValues(from values: KeyedDecodingContainer<ApphudIAPCodingKeys>) throws -> (String, Date?, Date, Bool, Bool, String?) {
 
         let kind = try values.decode(String.self, forKey: .kind)
 
@@ -62,8 +67,9 @@ public class ApphudNonRenewingPurchase: Codable {
         let purchasedAt = try values.decode(String.self, forKey: .startedAt).apphudIsoDate ?? Date()
         let isSandbox = (try values.decode(String.self, forKey: .environment)) == ApphudEnvironment.sandbox.rawValue
         let isLocal = try values.decode(Bool.self, forKey: .local)
+        let trxID = try? values.decode(String.self, forKey: .transactionId)
 
-        return (productId, canceledAt, purchasedAt, isSandbox, isLocal)
+        return (productId, canceledAt, purchasedAt, isSandbox, isLocal, trxID)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -74,6 +80,7 @@ public class ApphudNonRenewingPurchase: Codable {
         try container.encode(isSandbox ? ApphudEnvironment.sandbox.rawValue : ApphudEnvironment.production.rawValue, forKey: .environment)
         try container.encode(isLocal, forKey: .local)
         try container.encode(ApphudIAPKind.nonrenewable.rawValue, forKey: .kind)
+        try? container.encode(transactionId, forKey: .transactionId)
     }
 
     /**
@@ -92,6 +99,7 @@ public class ApphudNonRenewingPurchase: Codable {
         canceledAt = Date().addingTimeInterval(3600)
         isSandbox = apphudIsSandbox()
         isLocal = false
+        transactionId = "0"
     }
 
     internal var stateDescription: String {
