@@ -98,6 +98,11 @@ public class ApphudSubscription: Codable {
      False value means that user has canceled the subscription from App Store settings. 
      */
     @objc public let isAutorenewEnabled: Bool
+    
+    /**
+     Original transaction identifier of the subscription.  Can be null if decoding from cache during SDK upgrade.
+     */
+    @objc public let originalTransactionId: String?
 
     /**
      True value means that user has already used introductory offer for this subscription (free trial, pay as you go or pay up front).
@@ -116,14 +121,14 @@ public class ApphudSubscription: Codable {
 
     required public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: ApphudIAPCodingKeys.self)
-        (self.id, self.expiresDate, self.productId, self.canceledAt, self.startedAt, self.isInRetryBilling, self.isAutorenewEnabled, self.isIntroductoryActivated, self.isSandbox, self.isLocal, self.groupId, self.status) = try Self.decodeValues(from: values)
+        (self.id, self.expiresDate, self.productId, self.canceledAt, self.startedAt, self.isInRetryBilling, self.isAutorenewEnabled, self.isIntroductoryActivated, self.isSandbox, self.isLocal, self.groupId, self.status, self.originalTransactionId) = try Self.decodeValues(from: values)
     }
 
     internal init(with values: KeyedDecodingContainer<ApphudIAPCodingKeys>) throws {
-        (self.id, self.expiresDate, self.productId, self.canceledAt, self.startedAt, self.isInRetryBilling, self.isAutorenewEnabled, self.isIntroductoryActivated, self.isSandbox, self.isLocal, self.groupId, self.status) = try Self.decodeValues(from: values)
+        (self.id, self.expiresDate, self.productId, self.canceledAt, self.startedAt, self.isInRetryBilling, self.isAutorenewEnabled, self.isIntroductoryActivated, self.isSandbox, self.isLocal, self.groupId, self.status, self.originalTransactionId) = try Self.decodeValues(from: values)
     }
 
-    private static func decodeValues(from values: KeyedDecodingContainer<ApphudIAPCodingKeys>) throws -> (String, Date, String, Date?, Date, Bool, Bool, Bool, Bool, Bool, String, ApphudSubscriptionStatus) {
+    private static func decodeValues(from values: KeyedDecodingContainer<ApphudIAPCodingKeys>) throws -> (String, Date, String, Date?, Date, Bool, Bool, Bool, Bool, Bool, String, ApphudSubscriptionStatus, String?) {
 
         let expiresDateString = try values.decode(String.self, forKey: .expiresAt)
         guard let expDate = expiresDateString.apphudIsoDate else { throw ApphudError(message: "Missing Expires Date") }
@@ -140,8 +145,9 @@ public class ApphudSubscription: Codable {
         let isLocal = try values.decode(Bool.self, forKey: .local)
         let groupId = try values.decode(String.self, forKey: .groupId)
         let status = try values.decode(ApphudSubscriptionStatus.self, forKey: .status)
-
-        return (id, expiresDate, productId, canceledAt, startedAt, isInRetryBilling, isAutorenewEnabled, isIntroductoryActivated, isSandbox, isLocal, groupId, status)
+        let origID = try? values.decode(String.self, forKey: .originalTransactionId)
+        
+        return (id, expiresDate, productId, canceledAt, startedAt, isInRetryBilling, isAutorenewEnabled, isIntroductoryActivated, isSandbox, isLocal, groupId, status, origID)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -159,6 +165,7 @@ public class ApphudSubscription: Codable {
         try container.encode(groupId, forKey: .groupId)
         try container.encode(status.rawValue, forKey: .status)
         try container.encode(ApphudIAPKind.autorenewable.rawValue, forKey: .kind)
+        try? container.encode(originalTransactionId, forKey: .originalTransactionId)
     }
 
     internal init(product: SKProduct) {
@@ -174,6 +181,7 @@ public class ApphudSubscription: Codable {
         groupId = stub_key
         status = product.apphudIsTrial ? .trial : product.apphudIsPaidIntro ? .intro : .regular
         isIntroductoryActivated = status == .trial || status == .intro
+        originalTransactionId = nil
     }
 
     internal var stateDescription: String {

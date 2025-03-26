@@ -141,6 +141,20 @@ internal class ApphudAsyncStoreKit {
         }
     }
     
+    func fetchLatestTransaction() async -> StoreKit.Transaction? {
+        var latestTransaction: StoreKit.Transaction?
+        
+        for await result in StoreKit.Transaction.all {
+            if case .verified(let transaction) = result {
+                if latestTransaction == nil || latestTransaction!.purchaseDate < transaction.purchaseDate {
+                    latestTransaction = transaction
+                }
+            }
+        }
+        
+        return latestTransaction
+    }
+    
     #if os(iOS) || os(tvOS) || os(macOS) || os(watchOS)
     @MainActor
     func purchase(product: Product, apphudProduct: ApphudProduct?, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {

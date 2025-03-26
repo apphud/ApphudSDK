@@ -526,7 +526,7 @@ final class ApphudInternal: NSObject {
         }
 
         checkPendingRules()
-        setNeedToCheckTransactions()
+        checkTransactionsNow()
 
         let minCheckInterval: Double = 60
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {

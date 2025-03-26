@@ -11,10 +11,10 @@ import Foundation
 extension ApphudInternal {
     
     // MARK: - Attribution
-    internal func setAttribution(data: ApphudAttributionData, from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ((Bool) -> Void)?) {
+    internal func setAttribution(data: ApphudAttributionData?, from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ((Bool) -> Void)?) {
         performWhenUserRegistered {
             Task {
-                var dict: [String: any Sendable] = data.rawData as? [String: any Sendable] ?? [:]
+                var dict: [String: any Sendable] = data?.rawData as? [String: any Sendable] ?? [:]
             
                 switch provider {
                     // ---------- .custom ----------
@@ -140,15 +140,17 @@ extension ApphudInternal {
                 ]
 
                 var attributionDict: [String: any Sendable] = [:]
-                if let adNetwork = data.adNetwork          { attributionDict["ad_network"]    = adNetwork }
-                if let channel = data.channel              { attributionDict["channel"]  = channel }
-                if let campaign = data.campaign            { attributionDict["campaign"]      = campaign }
-                if let adSet = data.adSet                  { attributionDict["ad_set"]        = adSet }
-                if let creative = data.creative            { attributionDict["creative"]      = creative }
-                if let keyword = data.keyword              { attributionDict["keyword"]       = keyword }
-                if let custom1 = data.custom1              { attributionDict["custom_1"]      = custom1 }
-                if let custom2 = data.custom2              { attributionDict["custom_2"]      = custom2 }
                 
+                if let data = data {
+                    if let adNetwork = data.adNetwork          { attributionDict["ad_network"]    = adNetwork }
+                    if let channel = data.channel              { attributionDict["channel"]  = channel }
+                    if let campaign = data.campaign            { attributionDict["campaign"]      = campaign }
+                    if let adSet = data.adSet                  { attributionDict["ad_set"]        = adSet }
+                    if let creative = data.creative            { attributionDict["creative"]      = creative }
+                    if let keyword = data.keyword              { attributionDict["keyword"]       = keyword }
+                    if let custom1 = data.custom1              { attributionDict["custom_1"]      = custom1 }
+                    if let custom2 = data.custom2              { attributionDict["custom_2"]      = custom2 }
+                }
                 params["attribution"] = attributionDict
                 
                 try? await Task.sleep(nanoseconds: 2_000_000_000)

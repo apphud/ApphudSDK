@@ -35,11 +35,11 @@ extension ApphudInternal {
     internal func setNeedToCheckTransactions() {
         apphudPerformOnMainThread {
             NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(self.checkTransactionsNow), object: nil)
-            self.perform(#selector(self.checkTransactionsNow), with: nil, afterDelay: 3)
+            self.perform(#selector(self.checkTransactionsNow), with: nil, afterDelay: 0.5)
         }
     }
 
-    @MainActor @objc private func checkTransactionsNow() {
+    @MainActor @objc internal func checkTransactionsNow() {
 
         if ApphudStoreKitWrapper.shared.isPurchasing {
             return
@@ -48,12 +48,10 @@ extension ApphudInternal {
         if #available(iOS 15.0, tvOS 15.0, watchOS 8.0, macOS 12.0, *) {
 
             if ApphudAsyncStoreKit.shared.isPurchasing { return }
-
-            Task {
-                for await result in StoreKit.Transaction.currentEntitlements {
-                    if case .verified(let transaction) = result {
-                        await handleTransaction(transaction)
-                    }
+            
+            Task(priority: .background) {
+                if let latestTransaction = await ApphudAsyncStoreKit.shared.fetchLatestTransaction() {
+                    await handleTransaction(latestTransaction)
                 }
             }
         }
@@ -68,8 +66,13 @@ extension ApphudInternal {
         let upgrade = transaction.isUpgraded
         let productID = transaction.productID
 
+        // use original transaction id to compare if already tracked
+        if await isAlreadyTracked(transactionId: transaction.originalID, productId: productID, purchaseDate: purchaseDate) {
+            apphudLog("This transaction already tracked by Apphud: \(transactionId), skipping", logLevel: .debug)
+            return false
+        }
+        
         let transactions = await self.lastUploadedTransactions
-
         if transactions.contains(transactionId) {
             return false
         }
@@ -79,7 +82,7 @@ extension ApphudInternal {
         case .autoRenewable:
             isActive = expirationDate != nil && expirationDate! > Date() && refundDate == nil && upgrade == false
         default:
-            isActive = purchaseDate > Date().addingTimeInterval(-86_400) && refundDate == nil
+            isActive = refundDate == nil
         }
 
         if isActive {
@@ -115,6 +118,22 @@ extension ApphudInternal {
                 }
             }
         }
+        return false
+    }
+    
+    fileprivate func isAlreadyTracked(transactionId: UInt64, productId: String, purchaseDate: Date) async -> Bool {
+        
+        var trackedPurchases = await (ApphudInternal.shared.currentUser?.purchases ?? []).map { ($0.productId, $0.transactionId, $0.purchasedAt) }
+        let trackedSubs = await (ApphudInternal.shared.currentUser?.subscriptions ?? []).map { ($0.productId, $0.originalTransactionId, $0.startedAt) }
+        
+        trackedPurchases.append(contentsOf: trackedSubs)
+
+        for (pID, trxID, purchDate) in trackedPurchases {
+            if pID == productId && (abs(purchDate.timeIntervalSince(purchaseDate)) < 2 || trxID == String(transactionId)) {
+                return true
+            }
+        }
+        
         return false
     }
 
