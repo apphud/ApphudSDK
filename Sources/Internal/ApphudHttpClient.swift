@@ -158,23 +158,37 @@ public class ApphudHttpClient {
         }
     }
 
-    internal func loadScreenHtmlData(screenID: String, callback: @escaping (String?, Error?) -> Void) {
-
-        if let data = cachedScreenData(id: screenID), let string = String(data: data, encoding: .utf8) {
-            callback(string, nil)
-            apphudLog("using cached html data for screen id = \(screenID)", logLevel: .all)
+    internal func loadScreenHtmlData(screenID: String? = nil, url: URL? = nil, callback: @escaping (String?, Error?) -> Void) {
+        guard screenID != nil || url != nil else {
+            callback(nil, nil)
             return
         }
 
-        if let request = makeScreenRequest(screenID: screenID) {
+        let cacheId = screenID ?? url?.absoluteString ?? ""
 
+        if let data = cachedScreenData(id: cacheId), let string = String(data: data, encoding: .utf8) {
+            callback(string, nil)
+            apphudLog("using cached html data for \(screenID != nil ? "screen id = \(screenID!)" : "url = \(url!)")", logLevel: .all)
+            return
+        }
+
+        let request: URLRequest?
+        if let screenID = screenID {
+            request = makeScreenRequest(screenID: screenID)
+        } else if let url = url {
+            request = requestInstance(url: url)
+        } else {
+            request = nil
+        }
+
+        if let request = request {
             apphudLog("started loading screen html data:\(request)", logLevel: .all)
 
             let task = session.dataTask(with: request) { (data, response, error) in
                 var string: String?
                 if let data = data, let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode < 299,
                    let stringData = String(data: data, encoding: .utf8) {
-                    self.cacheScreenData(id: screenID, html: data)
+                    self.cacheScreenData(id: cacheId, html: data)
                     string = stringData
                 }
                 DispatchQueue.main.async {

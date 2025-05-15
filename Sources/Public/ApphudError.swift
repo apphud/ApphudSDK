@@ -15,7 +15,9 @@ public let APPHUD_ERROR_NO_INTERNET = -999
 public let APPHUD_NO_PRODUCTS = -998
 public let APPHUD_DEFAULT_RETRIES: Int = 3
 public let APPHUD_MAX_INITIAL_LOAD_TIME: TimeInterval = 10.0
+public let APPHUD_MAX_PAYWALL_LOAD_TIME: TimeInterval = 7.0
 public let APPHUD_INFINITE_RETRIES: Int = 999_999
+public let APPHUD_NO_VISUAL_PAYWALL: Int = -995
 
 public class ApphudError: NSError, @unchecked Sendable {
 

@@ -62,6 +62,8 @@ public class ApphudProduct: NSObject, Codable, ObservableObject {
 
     internal var id: String?
 
+    public internal(set) var properties: [String: ApphudAnyCodable]?
+    
     @objc public internal(set) var paywallId: String?
     @objc public internal(set) var placementId: String?
     @objc public internal(set) var placementIdentifier: String?
@@ -74,14 +76,16 @@ public class ApphudProduct: NSObject, Codable, ObservableObject {
         case store
         case productId
         case placementId
+        case properties
     }
 
-    init(id: String?, name: String?, productId: String, store: String, skProduct: SKProduct?) {
+    init(id: String?, name: String?, properties: [String: ApphudAnyCodable], productId: String, store: String, skProduct: SKProduct?) {
         self.id = id
         self.name = name
         self.productId = productId
         self.store = store
         self.skProduct = skProduct
+        self.properties = properties
     }
 
     required public init(from decoder: Decoder) throws {
@@ -90,6 +94,7 @@ public class ApphudProduct: NSObject, Codable, ObservableObject {
         name = try? values.decode(String.self, forKey: .name)
         productId = try values.decode(String.self, forKey: .productId)
         store = try values.decode(String.self, forKey: .store)
+        properties = try? values.decode([String: ApphudAnyCodable].self, forKey: .properties)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -98,5 +103,6 @@ public class ApphudProduct: NSObject, Codable, ObservableObject {
         try? container.encode(name, forKey: .name)
         try container.encode(store, forKey: .store)
         try container.encode(productId, forKey: .productId)
+        try? container.encode(properties, forKey: .properties)
     }
 }

@@ -5,6 +5,12 @@
 //  Created by Renat Kurbanov on 29.04.2021.
 //
 import Foundation
+import WebKit
+
+#if os(iOS)
+import UIKit
+import ObjectiveC
+#endif
 
 /**
  An enumeration for commonly used paywall identifiers in Apphud. Ensure that the identifiers used here match those in the Apphud Product Hub -> Paywalls section. This enum facilitates the retrieval of specific paywall configurations in your code.
@@ -93,6 +99,14 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
 
         return [:]
     }
+    
+    public func hasVisualPaywall() -> Bool {
+        if let urlString = paywallURL, let url = URL(string: urlString) {
+            return true
+        }
+        
+        return false
+    }
 
     internal var id: String
     private var jsonString: String?
@@ -100,6 +114,26 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
     internal var placementId: String?
     internal var variationIdentifier: String?
     internal var experimentId: String?
+    
+    internal var paywallURL: String? {
+        json?["figma_url"] as? String
+    }
+     
+//    internal func getPaywallContent() async -> String? {
+//        guard let urlString = paywallURL,
+//              let url = URL(string: urlString) else {
+//            return nil
+//        }
+//        
+//        return await withCheckedContinuation { continuation in
+//            ApphudInternal.shared.httpClient?.loadScreenHtmlData(url: url) { string, error in
+//                if let error = error {
+//                    apphudLog("Failed to cache paywall content for id: \(self.id), error: \(error)")
+//                }
+//                continuation.resume(returning: string)
+//            }
+//        }
+//    }
 
     @MainActor
     internal func update(placementId: String?, placementIdentifier: String?) {

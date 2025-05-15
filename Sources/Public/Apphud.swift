@@ -63,7 +63,7 @@ final public class Apphud: NSObject {
 
     /**
      Updates the user ID. Use this when you need to change the user identifier during the app's runtime.
-
+s
      - parameter userID: Required. The new user ID value.
      */
     @MainActor

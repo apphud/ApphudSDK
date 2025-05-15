@@ -597,3 +597,59 @@ extension Error {
         }
     }
 }
+
+
+public struct ApphudAnyCodable: Codable {
+    let value: Any
+
+    init(_ value: Any?) {
+        self.value = value ?? ()
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let intVal = try? container.decode(Int.self) {
+            value = intVal
+        } else if let doubleVal = try? container.decode(Double.self) {
+            value = doubleVal
+        } else if let stringVal = try? container.decode(String.self) {
+            value = stringVal
+        } else if let dictVal = try? container.decode([String: ApphudAnyCodable].self) {
+            value = dictVal
+        } else if container.decodeNil() {
+            value = ()
+        } else {
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Unsupported type")
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch value {
+        case let intVal as Int:
+            try container.encode(intVal)
+        case let doubleVal as Double:
+            try container.encode(doubleVal)
+        case let stringVal as String:
+            try container.encode(stringVal)
+        case let dictVal as [String: ApphudAnyCodable]:
+            try container.encode(dictVal)
+        default:
+            try container.encodeNil()
+        }
+    }
+    
+    internal func toJSONValue() -> Any {
+        switch value {
+        case let v as String: return v
+        case let v as Int: return v
+        case let v as Double: return v
+        case let v as [String: ApphudAnyCodable]:
+            return Dictionary(uniqueKeysWithValues: v.map { ($0, $1.toJSONValue()) })
+        case let v as [ApphudAnyCodable]:
+            return v.map { $0.toJSONValue() }
+        case is Void: return NSNull()
+        default: return "\(value)" // or NSNull()
+        }
+    }
+}
