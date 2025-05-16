@@ -14,7 +14,7 @@ import Foundation
 import UserNotifications
 import SwiftUI
 
-internal let apphud_sdk_version = "3.6.2"
+internal let apphud_sdk_version = "4.0.0"
 
 // MARK: - Initialization
 
@@ -65,10 +65,12 @@ final public class Apphud: NSObject {
      Updates the user ID. Use this when you need to change the user identifier during the app's runtime.
 s
      - parameter userID: Required. The new user ID value.
+     - parameter callback: A closure that gets called with the updated `ApphudUser` object. The user object may be nil
+                          if user registering fails.
      */
     @MainActor
-    @objc public static func updateUserID(_ userID: String) {
-        ApphudInternal.shared.updateUserID(userID: userID)
+    public static func updateUserID(_ userID: String, callback: ((ApphudUser?) -> Void)? = nil) {
+        ApphudInternal.shared.updateUserID(userID: userID, callback: callback)
     }
 
     /**
@@ -98,6 +100,35 @@ s
      */
     @objc public static func logout() async {
         await ApphudInternal.shared.logout()
+    }
+    
+    /**
+     Refreshes current user data including paywalls, placements, subscriptions, non-renewing purchases, and promotionals.
+     
+     This method triggers a refresh of all user-related data from Apphud servers. You can use this method to manually
+     update the user's data when needed, such as when the app returns from background.
+     
+     To receive notifications about data updates, implement the following `ApphudListener` methods:
+     - `apphudSubscriptionsUpdated`
+     - `apphudNonRenewingPurchasesUpdated`
+     
+     - Important: Do not call this method on app launch as Apphud SDK automatically refreshes user data during initialization.
+     
+     - Parameter callback: A closure that gets called with the updated `ApphudUser` object. The user object may be nil
+                          if the refresh operation fails.
+     
+     Example usage:
+     ```swift
+     Apphud.refreshUserData { user in
+         if let user = user {
+             // Handle updated user data
+         }
+     }
+     ```
+     */
+    @MainActor
+    public static func refreshUserData(callback: ((ApphudUser?) -> Void)) {
+        ApphudInternal.shared.refreshUserData(callback: callback)
     }
 
     /**
@@ -683,6 +714,21 @@ s
         ApphudInternal.shared.setUserProperty(key: key, value: by, setOnce: false, increment: true)
     }
 
+    // MARK: - Paywalls Presentation
+    
+    @MainActor
+    public func preloadPaywall(paywall: ApphudPaywall, callback: ) {
+        let controller = try ApphudPaywallController.create(paywall: paywall)
+        controller.preload(maxTimeout: 3.5) { _ in }
+    }
+    
+    public func presentPaywall(paywall: ApphudPaywall, onTopOf: UIViewController) throws {
+        let controller = try ApphudPaywallController.create(paywall: paywall)
+        controller.preload(maxTimeout: 3.5) { _ in }
+        onTopOf.present(controller, animated: true)
+    }
+    
+    
     // MARK: - Rules & Screens Methods
     #if os(iOS)
     /**

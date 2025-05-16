@@ -92,6 +92,48 @@ public class ApphudPaywallController: UIViewController, @preconcurrency ApphudVi
         }
     }
 
+    /**
+     Creates and preloads an instance of `ApphudPaywallController` with the specified paywall.
+
+     This method creates a paywall controller and immediately starts preloading its content.
+     It verifies that the provided `ApphudPaywall` contains a visual paywall URL and initiates
+     loading of both the visual content and product information.
+
+     - Parameters:
+        - paywall: The `ApphudPaywall` object used to configure the view controller.
+        - maxTimeout: Maximum time (in seconds) to wait for the paywall to load. If not specified, defaults to `APPHUD_MAX_PAYWALL_LOAD_TIME`.
+        - completion: A closure that is called exactly once with either:
+                    - `(controller, true)` when both the paywall content and products are successfully loaded
+                    - `(controller, false)` when the timeout is reached before loading completes
+     - Throws: `ApphudError` if the paywall has no visual URL.
+
+     Example:
+     ```swift
+     do {
+         try ApphudPaywallController.createAndPreload(paywall: paywall) { controller, ready in
+             if ready {
+                 // Paywall is ready to be presented
+                 present(controller, animated: true)
+             } else {
+                 // Loading timed out, handle the error
+             }
+         }
+     } catch {
+         print("Failed to create paywall screen: \(error)")
+     }
+     ```
+     */
+    public static func createAndPreload(
+        paywall: ApphudPaywall,
+        maxTimeout: Double? = APPHUD_MAX_PAYWALL_LOAD_TIME,
+        completion: @escaping (ApphudPaywallController, Bool) -> Void
+    ) throws {
+        let controller = try create(paywall: paywall)
+        controller.preload(maxTimeout: maxTimeout) { success in
+            completion(controller, success)
+        }
+    }
+
     // MARK: - Private methods below
     
     private var readyCallback: ((Bool) -> Void)?
@@ -123,6 +165,8 @@ public class ApphudPaywallController: UIViewController, @preconcurrency ApphudVi
             wv.trailingAnchor.constraint(equalTo: self.view.trailingAnchor),
             wv.bottomAnchor.constraint(equalTo: self.view.bottomAnchor)
         ])
+        wv.scrollView.showsVerticalScrollIndicator = false
+        wv.clipsToBounds = false
         
         return wv
     }()
@@ -130,16 +174,6 @@ public class ApphudPaywallController: UIViewController, @preconcurrency ApphudVi
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-    
-//    public override func viewWillAppear(_ animated: Bool) {
-//        super.viewWillAppear(animated)
-//        paywallView.frame = view.bounds
-//    }
-//    
-//    public override func viewDidLoad() {
-//        super.viewDidLoad()
-//        view.backgroundColor = .white
-//    }
         
     @MainActor
     private func productsInfo() async -> [[String: any Sendable]]? {
@@ -188,10 +222,10 @@ public class ApphudPaywallController: UIViewController, @preconcurrency ApphudVi
             dismiss(animated: true)
             return
         }
-                
+
         navigationDelegate = NavigationDelegateHelper()
         
-        view.backgroundColor = .green
+        view.backgroundColor = .purple
         
         paywallView.viewDelegate = self
         paywallView.navigationDelegate = navigationDelegate

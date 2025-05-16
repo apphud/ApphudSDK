@@ -122,13 +122,41 @@ extension ApphudInternal {
             }
         }
     }
+    
+    @MainActor
+    internal func refreshUserData(callback: (ApphudUser?) -> Void) {
+        let needsRefreshRequest = self.currentUser != nil
+
+        performWhenUserRegistered {
+            if needsRefreshRequest {
+                self.deferPlacements = false
+                self.didPreparePaywalls = false
+
+                self.updateUser(fields: [:]) { (result, _, data, _, _, _, _) in
+                    if result {
+                        Task {
+                            await self.parseUser(data: data)
+                            Task { @MainActor in
+                                callback(self.currentUser)
+                            }
+                        }
+                    } else {
+                        callback(self.currentUser)
+                    }
+                }
+            } else {
+                callback(self.currentUser)
+            }
+        }
+    }
 
     @MainActor
-    internal func updateUserID(userID: String) {
+    internal func updateUserID(userID: String, callback: ((ApphudUser?) -> Void)? = nil) {
         performWhenUserRegistered {
 
             guard self.currentUserID != userID else {
                 apphudLog("Will not update User ID to \(userID), because current value is the same")
+                callback?(self.currentUser)
                 return
             }
 
@@ -136,7 +164,12 @@ extension ApphudInternal {
                 if result {
                     Task {
                         await self.parseUser(data: data)
+                        Task { @MainActor in
+                            callback?(self.currentUser)
+                        }
                     }
+                } else {
+                    callback?(self.currentUser)
                 }
             }
         }
