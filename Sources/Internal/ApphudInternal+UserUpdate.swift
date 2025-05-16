@@ -124,7 +124,7 @@ extension ApphudInternal {
     }
     
     @MainActor
-    internal func refreshUserData(callback: (ApphudUser?) -> Void) {
+    internal func refreshUserData(callback: @escaping (ApphudUser?) -> Void) {
         let needsRefreshRequest = self.currentUser != nil
 
         performWhenUserRegistered {
@@ -225,7 +225,7 @@ extension ApphudInternal {
         params["device_id"] = self.currentDeviceID
         params["is_debug"] = apphudIsSandbox()
         params["is_new"] = isFreshInstall && currentUser == nil
-        params["need_paywalls"] = !didPreparePaywalls && !deferPlacements
+        params["need_paywalls"] = false
         params["need_placements"] = !didPreparePaywalls && !deferPlacements
         params["opt_out"] = ApphudUtils.shared.optOutOfTracking
 

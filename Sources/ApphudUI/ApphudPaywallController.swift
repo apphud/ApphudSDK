@@ -7,69 +7,13 @@ import UIKit
 import WebKit
 
 public class ApphudPaywallController: UIViewController, @preconcurrency ApphudViewDelegate {
-    
-    // MARK: - Public methods below
-    
-    /**
-     Instance of a ApphudPaywall.
-     */
-    var paywall: ApphudPaywall
-    
-    /**
-     Creates an instance of `ApphudPaywallController` with the specified paywall.
 
-     This method verifies that the provided `ApphudPaywall` contains a visual paywall URL.
-     If the paywall does not contain a visual URL, an `ApphudError` is thrown.
-
-     - Parameter paywall: The `ApphudPaywall` object used to configure the view controller.
-     - Throws: `ApphudError` if the paywall has no visual URL.
-     - Returns: A fully configured instance of `ApphudPaywallController`.
-
-     Example:
-     ```swift
-     do {
-         let vc = try ApphudPaywallController.create(paywall: paywall)
-         present(vc, animated: true)
-     } catch {
-         print("Failed to create paywall screen: \(error)")
-     }
-     ```
-     */
-    public static func create(paywall: ApphudPaywall) throws -> ApphudPaywallController {
-        guard paywall.hasVisualPaywall() else {
-            throw ApphudError(message: "Paywall \(paywall.identifier) has no visual URL", code: APPHUD_NO_VISUAL_PAYWALL)
-        }
-        return ApphudPaywallController(paywall: paywall)
-    }
+    public internal(set) var paywall: ApphudPaywall
+    internal private(set) var isReady: Bool = false
     
-    /**
-     Preloads the paywall content and product information asynchronously.
-     
-     This method initiates the loading of both the visual paywall content and associated product information.
-     It provides a way to prepare the paywall before displaying it to the user, ensuring a smoother presentation.
-     
-     - Parameters:
-        - maxTimeout: Maximum time (in seconds) to wait for the paywall to load. If not specified, defaults to `APPHUD_MAX_PAYWALL_LOAD_TIME`.
-                     After this timeout, the callback will be called with `false` if the loading hasn't completed.
-        - callback: A closure that is called exactly once, either:
-                  - with `true` when both the paywall content and products are successfully loaded
-                  - with `false` when the timeout is reached before loading completes
-     
-     - Note: The callback is guaranteed to be called only once, either on successful load or timeout, whichever comes first.
-     
-     Example usage:
-     ```swift
-     paywallController.preload(maxTimeout: 5.0) { success in
-         if success {
-             // Paywall is ready to be presented
-             present(paywallController, animated: true)
-         } else {
-             // Loading timed out, handle the error
-         }
-     }
-     ```
-     */
-    public func preload(maxTimeout: Double? = APPHUD_MAX_PAYWALL_LOAD_TIME, callback: @escaping (Bool) -> Void) {
+    // MARK: - Private methods below
+    
+    internal func preload(maxTimeout: Double? = APPHUD_MAX_PAYWALL_LOAD_TIME, callback: @escaping (ApphudError?) -> Void) {
         self.readyCallback = callback
         startLoading()
         
@@ -79,7 +23,8 @@ public class ApphudPaywallController: UIViewController, @preconcurrency ApphudVi
                 try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
                 if let cb = self?.readyCallback {
                     self?.readyCallback = nil
-                    cb(false)
+                    let e = ApphudError(message: "Failed to load paywall content within the specified timeout", code: APPHUD_PAYWALL_LOAD_TIMEOUT)
+                    cb(e)
                 }
             }
         }
@@ -91,54 +36,10 @@ public class ApphudPaywallController: UIViewController, @preconcurrency ApphudVi
             }
         }
     }
-
-    /**
-     Creates and preloads an instance of `ApphudPaywallController` with the specified paywall.
-
-     This method creates a paywall controller and immediately starts preloading its content.
-     It verifies that the provided `ApphudPaywall` contains a visual paywall URL and initiates
-     loading of both the visual content and product information.
-
-     - Parameters:
-        - paywall: The `ApphudPaywall` object used to configure the view controller.
-        - maxTimeout: Maximum time (in seconds) to wait for the paywall to load. If not specified, defaults to `APPHUD_MAX_PAYWALL_LOAD_TIME`.
-        - completion: A closure that is called exactly once with either:
-                    - `(controller, true)` when both the paywall content and products are successfully loaded
-                    - `(controller, false)` when the timeout is reached before loading completes
-     - Throws: `ApphudError` if the paywall has no visual URL.
-
-     Example:
-     ```swift
-     do {
-         try ApphudPaywallController.createAndPreload(paywall: paywall) { controller, ready in
-             if ready {
-                 // Paywall is ready to be presented
-                 present(controller, animated: true)
-             } else {
-                 // Loading timed out, handle the error
-             }
-         }
-     } catch {
-         print("Failed to create paywall screen: \(error)")
-     }
-     ```
-     */
-    public static func createAndPreload(
-        paywall: ApphudPaywall,
-        maxTimeout: Double? = APPHUD_MAX_PAYWALL_LOAD_TIME,
-        completion: @escaping (ApphudPaywallController, Bool) -> Void
-    ) throws {
-        let controller = try create(paywall: paywall)
-        controller.preload(maxTimeout: maxTimeout) { success in
-            completion(controller, success)
-        }
-    }
-
-    // MARK: - Private methods below
+   
+    private var readyCallback: ((ApphudError?) -> Void)?
     
-    private var readyCallback: ((Bool) -> Void)?
-    
-    private init(paywall: ApphudPaywall) {
+    internal init(paywall: ApphudPaywall) {
         self.paywall = paywall
         super.init(nibName: nil, bundle: nil)
         self.modalPresentationStyle = .fullScreen
@@ -229,7 +130,8 @@ public class ApphudPaywallController: UIViewController, @preconcurrency ApphudVi
         
         paywallView.viewDelegate = self
         paywallView.navigationDelegate = navigationDelegate
-        paywallView.load(URLRequest(url: url, cachePolicy: Apphud.isSandbox() ? .reloadIgnoringCacheData : .returnCacheDataElseLoad))
+        paywallView.load(URLRequest(url: url,
+                                    cachePolicy: /*Apphud.isSandbox() ? .reloadIgnoringCacheData :*/ .returnCacheDataElseLoad))
     }
     
     private func handleInfosAndViewLoaded() {
@@ -239,7 +141,7 @@ public class ApphudPaywallController: UIViewController, @preconcurrency ApphudVi
                 view.viewWithTag(1000)?.removeFromSuperview()
                 if let cb = self.readyCallback {
                     self.readyCallback = nil
-                    cb(true)
+                    cb(nil)
                 }
             }
         }
@@ -265,6 +167,11 @@ public class ApphudPaywallController: UIViewController, @preconcurrency ApphudVi
     public func apphudViewDidLoad() {
         isApphudViewLoaded = true
         handleInfosAndViewLoaded()
+    }
+    
+    public override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        ApphudRulesManager.shared.pendingPaywallControllers.removeValue(forKey: paywall.identifier)
     }
     
     @MainActor

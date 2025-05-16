@@ -18,6 +18,8 @@ internal class ApphudRulesManager {
     static let shared = ApphudRulesManager()
     var pendingController: UIViewController?
 
+    var pendingPaywallControllers: [String: UIViewController] = [:]
+    
     private var handledRules = [String]()
 
     private var apsInfo: [AnyHashable: Any]?

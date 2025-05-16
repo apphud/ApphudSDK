@@ -127,7 +127,7 @@ s
      ```
      */
     @MainActor
-    public static func refreshUserData(callback: ((ApphudUser?) -> Void)) {
+    public static func refreshUserData(callback: @escaping ((ApphudUser?) -> Void)) {
         ApphudInternal.shared.refreshUserData(callback: callback)
     }
 
@@ -242,25 +242,6 @@ s
     }
 
     /**
-     Retrieves the paywalls configured in Product Hub > Paywalls, potentially altered based on the user's involvement in A/B testing, if any. Awaits until the inner `SKProduct`s are loaded from the App Store.
-
-     For immediate access without awaiting `SKProduct`s, use `ApphudDelegate`'s `userDidLoad` method or the callback in `Apphud.start(...)`.
-
-     - Important: This is deprecated method. Retrieve paywalls from within placements instead. See documentation for details: https://docs.apphud.com/docs/placements
-
-     - parameter maxAttempts: Number of request attempts before throwing an error. Must be between 1 and 10. Default value is 3.
-     - parameter callback: A closure that takes an array of `ApphudPaywall` objects and returns void.
-     - parameter error: Optional ApphudError that may occur while fetching products from the App Store. You might want to retry the request if the error comes out.
-     */
-    @available(*, deprecated, message: "Deprecated in favor of fetchPlacements(...)")
-    @MainActor
-    @objc public static func paywallsDidLoadCallback(maxAttempts: Int = APPHUD_DEFAULT_RETRIES, _ callback: @escaping ([ApphudPaywall], Error?) -> Void) {
-        ApphudInternal.shared.fetchOfferingsFull(maxAttempts: maxAttempts) { error in
-            callback(ApphudInternal.shared.paywalls, error)
-        }
-    }
-
-    /**
      Notifies Apphud when a purchase process is initiated from a paywall in `Observer Mode`, enabling the use of A/B experiments. This method should be called right before executing your own purchase method, and it's specifically required only when the SDK is in Observer Mode.
 
      - Important: Observer mode only. Call this method immediately before your custom purchase method.
@@ -274,7 +255,7 @@ s
      YourClass.purchase(someProduct)
      ```
      */
-    @objc public static func willPurchaseProductFrom(paywallIdentifier: String, placementIdentifier: String?) {
+    @objc public static func willPurchaseProductFrom(paywallIdentifier: String, placementIdentifier: String) {
         ApphudInternal.shared.willPurchaseProductFrom(paywallId: paywallIdentifier, placementId: placementIdentifier)
     }
 
@@ -717,15 +698,30 @@ s
     // MARK: - Paywalls Presentation
     
     @MainActor
-    public func preloadPaywall(paywall: ApphudPaywall, callback: ) {
-        let controller = try ApphudPaywallController.create(paywall: paywall)
-        controller.preload(maxTimeout: 3.5) { _ in }
+    public static func requestPaywallController(placementIdentifier: String, maxTimeout: TimeInterval? = APPHUD_MAX_PAYWALL_LOAD_TIME, completion: @escaping (ApphudPaywallController, ApphudError?) -> Void) throws {
+        
+        Task {
+            let placement = await Apphud.placement(placementIdentifier)
+            if let paywall = placement?.paywall {
+                try requestPaywallController(paywall: paywall, maxTimeout: maxTimeout, completion: completion)
+            } else {
+                throw ApphudError(message: "No paywall for \(placementIdentifier) placement", code: APPHUD_INVALID_IDENTIFIER)
+            }
+        }
     }
     
-    public func presentPaywall(paywall: ApphudPaywall, onTopOf: UIViewController) throws {
-        let controller = try ApphudPaywallController.create(paywall: paywall)
-        controller.preload(maxTimeout: 3.5) { _ in }
-        onTopOf.present(controller, animated: true)
+    @MainActor
+    public static func requestPaywallController(paywall: ApphudPaywall, maxTimeout: TimeInterval? = APPHUD_MAX_PAYWALL_LOAD_TIME, completion: @escaping (ApphudPaywallController, ApphudError?) -> Void) throws {
+        guard paywall.hasVisualPaywall() else {
+            throw ApphudError(message: "Paywall \(paywall.identifier) has no visual URL", code: APPHUD_NO_VISUAL_PAYWALL)
+        }
+        
+        let vc = ApphudPaywallController(paywall: paywall)
+        ApphudRulesManager.shared.pendingPaywallControllers[paywall.identifier] = vc
+        
+        vc.preload(maxTimeout: APPHUD_MAX_PAYWALL_LOAD_TIME) { error in
+            completion(vc, error)
+        }
     }
     
     
@@ -763,6 +759,7 @@ s
         return ApphudRulesManager.shared.pendingRule()
     }
     #endif
+
     // MARK: - Push Notifications
 
     /**
