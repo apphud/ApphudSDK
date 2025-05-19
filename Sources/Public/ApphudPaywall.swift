@@ -116,7 +116,22 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
     internal var experimentId: String?
     
     internal var paywallURL: String? {
-        json?["figma_url"] as? String
+        guard let dict = json?["apphud_paywall_urls"] as? [String: String] else {
+            return nil
+        }
+           
+        var langCode: String?
+        if #available(iOS 16, *) {
+            langCode = Locale.current.language.languageCode?.identifier
+        } else {
+            langCode = Locale.current.languageCode
+        }
+        
+        if langCode == nil {
+            langCode = "default"
+        }
+        
+        return dict[langCode!] ?? dict["default"]
     }
      
 //    internal func getPaywallContent() async -> String? {

@@ -32,6 +32,8 @@ internal class ApphudView: WKWebView {
         let config = WKWebViewConfiguration()
         if #available(iOS 14.5, *) {
             config.preferences.isTextInteractionEnabled = false
+            config.mediaTypesRequiringUserActionForPlayback = []
+            config.allowsInlineMediaPlayback = true
         }
         
         let wv = ApphudView(frame: UIScreen.main.bounds, configuration: config)
