@@ -34,6 +34,7 @@
 		1A513B1C2BBF022A00A0EDC6 /* FacebookCore in Frameworks */ = {isa = PBXBuildFile; productRef = 1A513B1B2BBF022A00A0EDC6 /* FacebookCore */; };
 		1A9A8A632BBF04F500AF7268 /* Amplitude in Frameworks */ = {isa = PBXBuildFile; productRef = 1A9A8A622BBF04F500AF7268 /* Amplitude */; };
 		1A9A8A662BBF073200AF7268 /* BranchSDK in Frameworks */ = {isa = PBXBuildFile; productRef = 1A9A8A652BBF073200AF7268 /* BranchSDK */; };
+		281AA4362DDB57E8001251FA /* PaywallParentController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 281AA4352DDB57E4001251FA /* PaywallParentController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -61,6 +62,7 @@
 		1A513B092BBED1D400A0EDC6 /* SettingsTableViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsTableViewController.swift; sourceTree = "<group>"; };
 		1A513B0B2BBED37E00A0EDC6 /* SettingsTableViewCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsTableViewCell.swift; sourceTree = "<group>"; };
 		1A513B0D2BBEFA2C00A0EDC6 /* sampleapp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = sampleapp.entitlements; sourceTree = "<group>"; };
+		281AA4352DDB57E4001251FA /* PaywallParentController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallParentController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -138,6 +140,7 @@
 				1A3BBC762BBDDF8E00CEC9FB /* Paywalls.storyboard */,
 				1A3BBC7F2BBDE8FA00CEC9FB /* OnboardingPaywallViewController.swift */,
 				1A3BBC882BBE9BF300CEC9FB /* InAppPaywallViewController.swift */,
+				281AA4352DDB57E4001251FA /* PaywallParentController.swift */,
 				1A3BBC922BBEA3D900CEC9FB /* PaywallProductView.swift */,
 			);
 			path = Paywalls;
@@ -294,6 +297,7 @@
 				1A3BBC8B2BBE9CFB00CEC9FB /* TabBarController.swift in Sources */,
 				1A513B062BBEB65200A0EDC6 /* ColorGeneratorViewController.swift in Sources */,
 				1A513B0A2BBED1D400A0EDC6 /* SettingsTableViewController.swift in Sources */,
+				281AA4362DDB57E8001251FA /* PaywallParentController.swift in Sources */,
 				1A3BBC802BBDE8FA00CEC9FB /* OnboardingPaywallViewController.swift in Sources */,
 				1A513B0C2BBED37E00A0EDC6 /* SettingsTableViewCell.swift in Sources */,
 				1A3BBC842BBE92C900CEC9FB /* Router.swift in Sources */,
@@ -530,8 +534,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/apphud/ApphudSDK";
 			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 3.2.8;
+				branch = "visual-paywalls";
+				kind = branch;
 			};
 		};
 		1A513B152BBEFFED00A0EDC6 /* XCRemoteSwiftPackageReference "AppsFlyerFramework-Static" */ = {

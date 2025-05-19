@@ -1,4 +1,5 @@
 {
+  "originHash" : "2d5ff7d7fdd2f5cc3963c06020aacd52544b8d9f24d52905fe08417d66b6f94c",
   "pins" : [
     {
       "identity" : "amplitude-ios",
@@ -23,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apphud/ApphudSDK",
       "state" : {
-        "revision" : "fcc4cced82d2cabe65c8566df3f273acacc5b1ab",
-        "version" : "3.2.8"
+        "branch" : "visual-paywalls",
+        "revision" : "739ff1e675dd4498ee7fc4a3505dad9e31ea1491"
       }
     },
     {
@@ -55,5 +56,5 @@
       }
     }
   ],
-  "version" : 2
+  "version" : 3
 }

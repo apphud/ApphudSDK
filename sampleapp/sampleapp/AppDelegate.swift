@@ -17,11 +17,11 @@ import BranchSDK
 class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate, AppsFlyerLibDelegate {
     // MARK: - AppsFlyer delegate
     func onConversionDataSuccess(_ conversionInfo: [AnyHashable : Any]) {
-        Apphud.addAttribution(data: conversionInfo, from: .appsFlyer, identifer: AppsFlyerLib.shared().getAppsFlyerUID()) { _ in }
+        Apphud.setAttribution(data: ApphudAttributionData(rawData: conversionInfo), from: .appsFlyer, callback: nil)
     }
     
     func onConversionDataFail(_ error: Error) {
-        Apphud.addAttribution(data: ["error" : error.localizedDescription], from: .appsFlyer, identifer: AppsFlyerLib.shared().getAppsFlyerUID()) { _ in }
+        Apphud.setAttribution(data: ApphudAttributionData(rawData: [:]), from: .appsFlyer, identifer: AppsFlyerLib.shared().getAppsFlyerUID()) { _ in }
     }
     
     var window: UIWindow?
@@ -39,6 +39,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         Apphud.setDelegate(self)
         Apphud.setUIDelegate(self)
         //
+        
+//        setupAnalytics(launchOptions: launchOptions)
+        
+        // Register Remote Notifications
+        registerForNotifications()
+        //
+        
+        return true
+    }
+    
+    func setupAnalytics(launchOptions: [UIApplication.LaunchOptionsKey: Any]?) {
         
         // Setup AppsFlyer
         AppsFlyerLib.shared().appsFlyerDevKey = "12345"
@@ -58,12 +69,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             // Access and use deep link data here (nav to page, display content, etc.)
         }
         //
-        
-        // Register Remote Notifications
-        registerForNotifications()
-        //
-        
-        return true
     }
     
     func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
