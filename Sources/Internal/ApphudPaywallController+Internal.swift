@@ -84,7 +84,9 @@ extension ApphudPaywallController {
         paywallView.viewDelegate = self
         paywallView.navigationDelegate = navigationDelegate
         paywallView.load(URLRequest(url: url,
-                                    cachePolicy: /*Apphud.isSandbox() ? .reloadIgnoringCacheData :*/ .returnCacheDataElseLoad))
+                                    cachePolicy:
+                                        Apphud.isSandbox() ? .reloadIgnoringCacheData : .returnCacheDataElseLoad
+                                   ))
     }
     
     private func handleInfosAndViewLoaded() {
