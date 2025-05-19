@@ -31,8 +31,12 @@ extension ApphudInternal {
             apphudLog("Failed to decode ApphudUser, error: \(error)")
         }
 
-        if let pwls = await currentUser?.paywalls {
-            await preparePaywalls(pwls: pwls, writeToCache: true, completionBlock: nil)
+        
+        let pwls = await currentUser?.paywalls
+        let plmnts = await currentUser?.placements
+        
+        if pwls != nil || plmnts != nil {
+            await preparePaywalls(pwls: pwls ?? [], writeToCache: true, completionBlock: nil)
         } else {
             didPreparePaywalls = true
         }

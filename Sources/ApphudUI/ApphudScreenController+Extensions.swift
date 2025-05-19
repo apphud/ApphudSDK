@@ -216,7 +216,7 @@ extension ApphudScreenController {
             // if error occurred, restore subscriptions
             if !(errorCode == .paymentCancelled) {
                 // maybe remove?
-                Apphud.restorePurchases { _, _, _  in }
+                Apphud.restorePurchases { _  in }
             }
 
             ApphudInternal.shared.uiDelegate?.apphudDidFailPurchase?(product: product, offerID: offerID, errorCode: errorCode, screenName: self.rule.screen_name)

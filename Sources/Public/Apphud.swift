@@ -569,11 +569,11 @@ s
 
      - Returns: An optional `Error`. If the error is `nil`, you can check the user's premium status using the `Apphud.hasActiveSubscription()` or `Apphud.hasPremiumAccess()` methods.
      */
-    @MainActor @objc @discardableResult public static func restorePurchases() async -> Error? {
+    @MainActor @discardableResult public static func restorePurchases() async -> ApphudRestoreResult? {
         return await withUnsafeContinuation({ continunation in
             Task { @MainActor in
-                ApphudInternal.shared.restorePurchases { _, _, error in
-                    continunation.resume(returning: error)
+                ApphudInternal.shared.restorePurchases { result in
+                    continunation.resume(returning: result)
                 }
             }
         })
@@ -585,7 +585,7 @@ s
      - parameter callback: Required. A closure that returns an array of `ApphudSubscription` objects, an array of `ApphudNonRenewingPurchase` objects, and an optional `Error`.
      - Note: The presence of a subscription in the callback does not guarantee that it is active. You should check the `isActive()` property on each subscription.
      */
-    @MainActor public static func restorePurchases(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {
+    @MainActor public static func restorePurchases(callback: @escaping (ApphudRestoreResult) -> Void) {
         ApphudInternal.shared.restorePurchases(callback: callback)
     }
 
@@ -703,6 +703,7 @@ s
         Task {
             let placement = await Apphud.placement(placementIdentifier)
             if let paywall = placement?.paywall {
+                print("[TEST] Did receive paywall from placement, building webview")
                 try requestPaywallController(paywall: paywall, maxTimeout: maxTimeout, completion: completion)
             } else {
                 throw ApphudError(message: "No paywall for \(placementIdentifier) placement", code: APPHUD_INVALID_IDENTIFIER)

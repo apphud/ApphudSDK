@@ -8,14 +8,14 @@
 import UIKit
 import WebKit
 
-public protocol ApphudViewDelegate {
+internal protocol ApphudViewDelegate {
     func apphudViewHandleClose()
     func apphudViewHandlePurchase(index: Int)
     func apphudViewHandleRestore()
     func apphudViewDidLoad()
 }
 
-public class ApphudView: WKWebView {
+internal class ApphudView: WKWebView {
     
     var viewDelegate: ApphudViewDelegate?
     
@@ -25,6 +25,38 @@ public class ApphudView: WKWebView {
                 replaceProductsInfo(infos: productsInfo)
             }
         }
+    }
+    
+    static func create(parentView: UIView) -> ApphudView {
+        
+        let config = WKWebViewConfiguration()
+        if #available(iOS 14.5, *) {
+            config.preferences.isTextInteractionEnabled = false
+        }
+        
+        let wv = ApphudView(frame: UIScreen.main.bounds, configuration: config)
+        parentView.addSubview(wv)
+        wv.backgroundColor = .white
+        wv.allowsLinkPreview = false
+        wv.allowsBackForwardNavigationGestures = false
+        wv.scrollView.layer.masksToBounds = false
+        wv.scrollView.contentInsetAdjustmentBehavior = .never
+        wv.isOpaque = false
+        wv.scrollView.isOpaque = false
+        wv.backgroundColor = UIColor.clear
+        wv.scrollView.backgroundColor = UIColor.clear
+        wv.scrollView.alwaysBounceVertical = false
+        wv.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            wv.topAnchor.constraint(equalTo: parentView.topAnchor),
+            wv.leadingAnchor.constraint(equalTo: parentView.leadingAnchor),
+            wv.trailingAnchor.constraint(equalTo: parentView.trailingAnchor),
+            wv.bottomAnchor.constraint(equalTo: parentView.bottomAnchor)
+        ])
+        wv.scrollView.showsVerticalScrollIndicator = false
+        wv.clipsToBounds = false
+        
+        return wv
     }
     
     public func replaceProductsInfo(infos: [[String: any Sendable]]) {

@@ -14,20 +14,11 @@ extension ApphudInternal {
 
     // MARK: - Main Purchase and Submit Receipt methods
 
-    @MainActor internal func migrateiOS14PurchasesIfNeeded() {
-        if apphudShouldMigrate() {
-            ApphudInternal.shared.restorePurchases { (subscriptions, purchases, error) in
-                if error == nil {
-                    apphudDidMigrate()
-                }
-            }
-        }
-    }
-    
-    @MainActor internal func restorePurchases(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {
+    @MainActor internal func restorePurchases(callback: @escaping (ApphudRestoreResult) -> Void) {
         self.restorePurchasesCallback = { subs, purchases, error in
             if error != nil { ApphudStoreKitWrapper.shared.restoreTransactions() }
-            callback(subs, purchases, error)
+            let result = ApphudRestoreResult(subscriptions: subs, nonRenewingPurchases: purchases, error: error)
+            callback(result)
         }
         self.submitReceiptRestore(allowsReceiptRefresh: true, transaction: nil)
     }

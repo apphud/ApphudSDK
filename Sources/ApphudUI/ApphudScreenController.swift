@@ -322,9 +322,9 @@ class ApphudScreenController: UIViewController {
 
     internal func restoreTapped() {
         self.startLoading()
-        Apphud.restorePurchases { subscriptions, _, _ in
+        Apphud.restorePurchases { result in
             self.stopLoading()
-            if subscriptions?.first?.isActive() ?? false {
+            if Apphud.hasPremiumAccess() {
                 self.dismiss()
             }
         }

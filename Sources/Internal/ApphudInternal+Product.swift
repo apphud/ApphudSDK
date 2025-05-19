@@ -281,8 +281,6 @@ extension ApphudInternal {
         }
     }
     
-    
-
     // MARK: - Product Groups Helper Methods
 
     @MainActor internal var allAvailableProducts: [ApphudProduct] {

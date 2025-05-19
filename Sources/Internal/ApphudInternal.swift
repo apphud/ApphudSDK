@@ -405,7 +405,6 @@ final class ApphudInternal: NSObject {
                 Task { @MainActor in
                     self.performAllUserRegisteredBlocks()
                     self.checkForUnreadNotifications()
-                    self.migrateiOS14PurchasesIfNeeded()
                     self.perform(#selector(self.forceSendAttributionDataIfNeeded), with: nil, afterDelay: 10.0)
                 }
             } else {
