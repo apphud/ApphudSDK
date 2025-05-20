@@ -22,20 +22,20 @@ extension ApphudPaywallScreenState: Equatable {
 
 extension ApphudPaywallScreenController {
         
-    internal func load(maxTimeout: Double? = APPHUD_MAX_PAYWALL_LOAD_TIME) {
-        startLoading()
-        
-        // Handle timeout
-        if let timeout = maxTimeout {
-            Task { [weak self] in
-                try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
-                if let self, self.state == .loading {
-                    let e = ApphudError(message: "Failed to load paywall content within the specified timeout.", code: APPHUD_PAYWALL_LOAD_TIMEOUT)
-                    self.handleFinishedLoading(error: e)
-                }
+    internal func setMaxTimeout(maxTimeout: TimeInterval) {
+        Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(maxTimeout * 1_000_000_000))
+            if let self, self.state == .loading {
+                let e = ApphudError(message: "Failed to load paywall content within the specified timeout.", code: APPHUD_PAYWALL_LOAD_TIMEOUT)
+                self.handleFinishedLoading(error: e)
             }
         }
+    }
+    
+    internal func load() {
         
+        startLoading()
+                
         Task { [weak self] in
             if let infos = await self?.productsInfo() {
                 self?.productsInfo = infos

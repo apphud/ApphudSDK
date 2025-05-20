@@ -26,11 +26,7 @@ internal class ApphudScreensManager {
 
     @MainActor
     internal func preloadPaywall(_ paywall: ApphudPaywall) {
-        do {
-            _ = try requestPaywallController(paywall: paywall)
-        } catch {
-            
-        }
+        _ = requestPaywallController(paywall: paywall)
     }
     
     internal func unloadPaywalls(_ identifier: String? = nil) {
@@ -42,7 +38,7 @@ internal class ApphudScreensManager {
     }
     
     @MainActor
-    internal func requestPaywallController(paywall: ApphudPaywall, maxTimeout: TimeInterval? = APPHUD_MAX_PAYWALL_LOAD_TIME) -> ApphudPaywallScreenController? {
+    internal func requestPaywallController(paywall: ApphudPaywall) -> ApphudPaywallScreenController? {
         
         if let vc = ApphudScreensManager.shared.pendingPaywallControllers[paywall.identifier] as? ApphudPaywallScreenController {
             apphudLog("Using preloaded paywall \(paywall.identifier)")
@@ -57,7 +53,7 @@ internal class ApphudScreensManager {
         
         let vc = ApphudPaywallScreenController(paywall: paywall)
         ApphudScreensManager.shared.pendingPaywallControllers[paywall.identifier] = vc
-        vc.load(maxTimeout: APPHUD_MAX_PAYWALL_LOAD_TIME)
+        vc.load()
         
         return vc
     }

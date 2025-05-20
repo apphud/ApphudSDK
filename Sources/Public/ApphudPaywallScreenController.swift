@@ -12,7 +12,7 @@ public protocol ApphudPaywallScreenDelegate {
     
     /// Called when the paywall controller finishes loading its content.
     /// This method will not be triggered if the controller was already in a loaded state when the delegate was assigned.
-    /// Check the `didFinishLoading` property to determine the current loading state.
+    /// Check the `state` property to determine the current loading state.
     /// - Parameter controller: The instance of `ApphudPaywallScreenController`. If `error` is `nil`, the paywall loaded successfully.
     /// - Parameter error: An optional error indicating that the paywall failed to load.
     func apphudPaywallScreenControllerDidFinishLoading(controller: ApphudPaywallScreenController, error: ApphudError?)
@@ -65,12 +65,11 @@ public protocol ApphudPaywallScreenDelegate {
 public enum ApphudPaywallScreenState {
     
     /// The paywall is currently loading its content.
-    /// You may show a loading indicator or skeleton view during this state.
     case loading
-
+    
     /// The paywall has finished loading and is ready to be displayed.
     case ready
-
+    
     /// An error occurred while loading the paywall.
     ///
     /// This state indicates that the content could not be loaded due to a network issue,
@@ -80,21 +79,36 @@ public enum ApphudPaywallScreenState {
     case error(error: ApphudError)
 }
 
-
 public class ApphudPaywallScreenController: UIViewController, @preconcurrency ApphudViewDelegate {
 
     /// Apphud paywall object.
     public let paywall: ApphudPaywall
     
     /// Indicates whether the paywall controller has finished loading its content.
-    /// You can present the screen before it is fully loaded; a placeholder (black screen) will be shown.
-    /// You may also customize the UI by adding your own loading skeleton to the view hierarchy.
     public internal(set) var state: ApphudPaywallScreenState = .loading
 
-    /// Called when the paywall controller finishes loading its content.
-    /// Returns an error if loading failed. This callback will not be triggered if the controller was already loaded when the callback was assigned.
-    /// Check the `didFinishLoading` property to determine the current state.
-    public var didLoadCallback: ((ApphudError?) -> Void)?
+    /// Sets a callback to be triggered when the paywall controller finishes loading.
+    ///
+    /// If the controller is still loading, the callback will be stored and called later.
+    /// If loading is already complete, the callback is called immediately with either `nil` (success) or an `ApphudError` (failure).
+    ///
+    /// Use the `state` property to check the current loading status.
+    ///
+    /// - Parameters:
+    ///   - maxTimeout: Maximum time to wait before triggering a timeout error starting from method call. Default value is 5.0 seconds.
+    ///   - callback: Called with `nil` on success or an `ApphudError` on failure.
+    public func didLoadCallback(maxTimeout: TimeInterval = APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT,
+                                callback: ((ApphudError?) -> Void)?) {
+        switch state {
+        case .loading:
+            setMaxTimeout(maxTimeout: maxTimeout)
+            self.didLoadCallback = callback
+        case .ready:
+            callback?(nil)
+        case .error(let error):
+            callback?(error)
+        }
+    }
 
     /// Delegate of the paywall controller
     public var delegate: ApphudPaywallScreenDelegate?
@@ -111,6 +125,7 @@ public class ApphudPaywallScreenController: UIViewController, @preconcurrency Ap
         fatalError("init(coder:) has not been implemented")
     }
     
+    internal var didLoadCallback: ((ApphudError?) -> Void)?
     internal var isApphudViewLoaded = false
     internal var navigationDelegate: NavigationDelegateHelper?
     internal var cachePolicy: NSURLRequest.CachePolicy = .returnCacheDataElseLoad
