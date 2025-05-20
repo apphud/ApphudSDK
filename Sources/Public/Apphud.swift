@@ -708,6 +708,8 @@ s
      You must manually add this controller to your view hierarchy. If the paywall does not include a valid visual URL, this method returns `nil`.
 
      If `preloadPaywall(_:)` was not previously called for this paywall, it will begin loading at the time this method is called.
+     
+     To manually delay presentation until the content is fully loaded, use the controller’s `readyCallback` or implement the `ApphudPaywallScreenDelegate`'s  `apphudPaywallScreenControllerIsReady(:)` method.
 
      - Parameter paywall: The `ApphudPaywall` object to load.
      - Returns: An instance of `ApphudPaywallScreenController`, or `nil` if the paywall doesn't contain a valid URL.

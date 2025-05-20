@@ -13,6 +13,7 @@ internal protocol ApphudViewDelegate {
     func apphudViewHandlePurchase(index: Int)
     func apphudViewHandleRestore()
     func apphudViewDidLoad()
+    func apphudViewDidExecuteJS(error: Error?)
 }
 
 internal class ApphudView: WKWebView {
@@ -70,12 +71,15 @@ internal class ApphudView: WKWebView {
         
 //        apphudLog("[ApphudView] Will execute JS:\n\n\(jsonString)")
         
-        evaluateJavaScript("PaywallSDK.shared().processDomMacros(\(jsonString));") { result, error in
+        evaluateJavaScript("PaywallSDK.shared().processDomMacros(\(jsonString));") { [weak self] result, error in
             if let error {
                 print("[ApphudView] Failed to execute JS: \(error.localizedDescription)")
             } else {
                 print("[ApphudView] Executed JS successfully: \(String(describing: result))")
             }
+            guard let self = self else {return}
+            
+            self.viewDelegate?.apphudViewDidExecuteJS(error: error)
         }
     }
     

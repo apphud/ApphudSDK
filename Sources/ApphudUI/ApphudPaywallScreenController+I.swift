@@ -16,10 +16,12 @@ extension ApphudPaywallScreenController {
         if let timeout = maxTimeout {
             Task { [weak self] in
                 try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
-                if let cb = self?.readyCallback {
-                    self?.readyCallback = nil
+                if let cb = self?.didLoadCallback, let self = self {
+                    self.didLoadCallback = nil
                     let e = ApphudError(message: "Failed to load paywall content within the specified timeout", code: APPHUD_PAYWALL_LOAD_TIMEOUT)
                     cb(e)
+                    self.didFinishLoading = true
+                    self.delegate?.apphudPaywallScreenControllerDidFinishLoading(controller: self, error: e)
                 }
             }
         }
@@ -78,7 +80,7 @@ extension ApphudPaywallScreenController {
 
         navigationDelegate = NavigationDelegateHelper()
         
-        view.backgroundColor = .purple
+        view.backgroundColor = .black
         
         paywallView.viewDelegate = self
         paywallView.navigationDelegate = navigationDelegate
@@ -92,14 +94,17 @@ extension ApphudPaywallScreenController {
                 guard let self else { return }
 
                 self.paywallView.productsInfo = productsInfo
-
-                if let cb = self.readyCallback {
-                    self.readyCallback = nil
-                    self.isReady = true
-                    cb(nil)
-                    self.delegate?.apphudPaywallScreenControllerIsReady(controller: self)
-                }
             }
+        }
+    }
+    
+    func apphudViewDidExecuteJS(error: (any Error)?) {
+        if let cb = self.didLoadCallback {
+            self.didLoadCallback = nil
+            self.didFinishLoading = true
+            cb(nil)
+            let aphError = error != nil ? ApphudError(error: error!) : nil
+            self.delegate?.apphudPaywallScreenControllerDidFinishLoading(controller: self, error: aphError)
         }
     }
     
@@ -139,7 +144,15 @@ extension ApphudPaywallScreenController {
         isApphudViewLoaded = true
         handleInfosAndViewLoaded()
     }
-        
+    
+    public override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+    }
+    
+    public override func viewDidLoad() {
+        super.viewDidLoad()
+    }
+
     public override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         
@@ -175,6 +188,12 @@ extension ApphudPaywallScreenController {
             guard let aphView = webView as? ApphudView else {return }
             
             aphView.viewDelegate?.apphudViewDidLoad()
+        }
+        
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: any Error) {
+            guard let aphView = webView as? ApphudView else {return }
+            
+            aphView.viewDelegate?.apphudViewDidExecuteJS(error: error)
         }
         
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {

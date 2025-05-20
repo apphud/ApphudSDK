@@ -10,10 +10,12 @@ import StoreKit
 /// A protocol that defines methods for handling paywall-related events and user interactions.
 public protocol ApphudPaywallScreenDelegate {
     
-    /// Called when the paywall controller has finished loading its content.
-    /// This delegate method will not be called if controller already in a ready state by the time you set a delegate. See `isReady` property.
-    /// - Parameter controller: The paywall controller instance that is now ready.
-    func apphudPaywallScreenControllerIsReady(controller: ApphudPaywallScreenController)
+    /// Called when the paywall controller finishes loading its content.
+    /// This method will not be triggered if the controller was already in a loaded state when the delegate was assigned.
+    /// Check the `didFinishLoading` property to determine the current loading state.
+    /// - Parameter controller: The instance of `ApphudPaywallScreenController`. If `error` is `nil`, the paywall loaded successfully.
+    /// - Parameter error: An optional error indicating that the paywall failed to load.
+    func apphudPaywallScreenControllerDidFinishLoading(controller: ApphudPaywallScreenController, error: ApphudError?)
     
     /// Called before a purchase is initiated through the paywall.
     /// - Parameters:
@@ -65,13 +67,15 @@ public class ApphudPaywallScreenController: UIViewController, @preconcurrency Ap
     public let paywall: ApphudPaywall
     
     /// Indicates whether the paywall controller has finished loading its content.
-    /// You can still present the screen even if it's not fully loaded — a loading skeleton will be displayed until the content is ready.
-    public internal(set) var isReady: Bool = false
+    /// You can present the screen before it is fully loaded; a placeholder (black screen) will be shown.
+    /// You may also customize the UI by adding your own loading skeleton to the view hierarchy.
+    public internal(set) var didFinishLoading: Bool = false
 
-    /// Invoked when the paywall controller has finished loading its content. Returns an error if something went wrong during loading.
-    /// You can still present the screen even if it's not fully loaded — a loading skeleton will be displayed until the content is ready.
-    public var readyCallback: ((ApphudError?) -> Void)?
-    
+    /// Called when the paywall controller finishes loading its content.
+    /// Returns an error if loading failed. This callback will not be triggered if the controller was already loaded when the callback was assigned.
+    /// Check the `didFinishLoading` property to determine the current state.
+    public var didLoadCallback: ((ApphudError?) -> Void)?
+
     /// Delegate of the paywall controller
     public var delegate: ApphudPaywallScreenDelegate?
         
