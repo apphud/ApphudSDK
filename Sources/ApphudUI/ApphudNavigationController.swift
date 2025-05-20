@@ -60,7 +60,7 @@ internal class ApphudNavigationController: UINavigationController {
 
     func handleDidDismiss() {
         ApphudInternal.shared.uiDelegate?.apphudDidDismissScreen?(controller: self)
-        ApphudRulesManager.shared.pendingController = nil
+        ApphudScreensManager.shared.pendingController = nil
     }
 }
 

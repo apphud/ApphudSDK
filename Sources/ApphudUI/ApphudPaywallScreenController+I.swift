@@ -1,5 +1,5 @@
 //
-//  ApphudPaywallController+Internal.swift
+//  ApphudPaywallScreenController+Internal.swift
 //  Pods
 //
 //  Created by Renat Kurbanov on 19.05.2025.
@@ -7,10 +7,9 @@
 
 import WebKit
 
-extension ApphudPaywallController {
+extension ApphudPaywallScreenController {
         
-    internal func preload(maxTimeout: Double? = APPHUD_MAX_PAYWALL_LOAD_TIME, callback: @escaping (ApphudError?) -> Void) {
-        self.readyCallback = callback
+    internal func load(maxTimeout: Double? = APPHUD_MAX_PAYWALL_LOAD_TIME) {
         startLoading()
         
         // Handle timeout
@@ -83,24 +82,22 @@ extension ApphudPaywallController {
         
         paywallView.viewDelegate = self
         paywallView.navigationDelegate = navigationDelegate
-        paywallView.load(URLRequest(url: url,
-                                    cachePolicy:
-                .returnCacheDataElseLoad
-//                .reloadIgnoringCacheData
-                                     //   Apphud.isSandbox() ? .reloadIgnoringCacheData : .returnCacheDataElseLoad
-                                   ))
+        paywallView.load(URLRequest(url: url, cachePolicy: cachePolicy))
     }
     
     private func handleInfosAndViewLoaded() {
         if let productsInfo, isApphudViewLoaded {
-            Task {
-                paywallView.productsInfo = productsInfo
-                view.viewWithTag(1000)?.removeFromSuperview()
+            Task { [weak self] in
+
+                guard let self else { return }
+
+                self.paywallView.productsInfo = productsInfo
+
                 if let cb = self.readyCallback {
                     self.readyCallback = nil
                     self.isReady = true
                     cb(nil)
-                    self.delegate?.apphudPaywallControllerIsReady(controller: self)
+                    self.delegate?.apphudPaywallScreenControllerIsReady(controller: self)
                 }
             }
         }
@@ -111,10 +108,14 @@ extension ApphudPaywallController {
     }
     
     private func dismissNow(userAction: Bool) {
-        let shouldClose = self.delegate?.apphudPaywallControllerShouldDismiss(controller: self, userAction: userAction) ?? true
+        let shouldClose = self.delegate?.ApphudPaywallScreenControllerShouldDismiss(controller: self, userClosed: userAction) ?? true
         if shouldClose {
-            self.delegate?.apphudPaywallControllerWillDismiss(controller: self, userAction: userAction)
+            self.delegate?.apphudPaywallScreenControllerWillDismiss(controller: self, userClosed: userAction)
             dismiss(animated: true)
+        }
+        
+        if !userAction && Apphud.hasPremiumAccess() {
+            ApphudScreensManager.shared.unloadPaywalls()
         }
     }
     
@@ -122,11 +123,11 @@ extension ApphudPaywallController {
     public func apphudViewHandlePurchase(index: Int) {
         let product = paywall.products[index]
         
-        self.delegate?.apphudPaywallControllerWillPurchase(controller: self, product: product)
+        self.delegate?.apphudPaywallScreenControllerWillPurchase(controller: self, product: product)
         
         Apphud.purchase(product) { [weak self] result in
             if let self {
-                self.delegate?.apphudPaywallControllerPurchaseResult(controller: self, result: result)
+                self.delegate?.apphudPaywallScreenControllerPurchaseResult(controller: self, result: result)
                 if result.success {
                     self.dismissNow(userAction: false)
                 }
@@ -138,23 +139,28 @@ extension ApphudPaywallController {
         isApphudViewLoaded = true
         handleInfosAndViewLoaded()
     }
-    
-    public override func didMove(toParent parent: UIViewController?) {
-        super.didMove(toParent: parent)
-        ApphudRulesManager.shared.pendingPaywallControllers.removeValue(forKey: paywall.identifier)
-    }
-    
+        
     public override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        
+        if !didTrackPaywallShown {
+            didTrackPaywallShown = true
+            Apphud.paywallShown(paywall)
+        }
+        
+        ApphudScreensManager.shared.pendingPaywallControllers.removeValue(forKey: paywall.identifier)
+        
+        // preload the same paywall again for the next call
+        Apphud.preloadPaywallScreen(paywall)
     }
     
     @MainActor
     internal func apphudViewHandleRestore() {
-        self.delegate?.apphudPaywallControllerWillRestore(controller: self)
+        self.delegate?.apphudPaywallScreenControllerWillRestore(controller: self)
         Apphud.restorePurchases { [weak self] result in
             
             if let self {
-                self.delegate?.apphudPaywallControllerRestoreResult(controller: self, result: result)
+                self.delegate?.apphudPaywallScreenControllerRestoreResult(controller: self, result: result)
                 if Apphud.hasPremiumAccess() {
                     self.dismissNow(userAction: false)
                 }

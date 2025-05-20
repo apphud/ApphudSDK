@@ -68,7 +68,7 @@ internal class ApphudView: WKWebView {
             return
         }
         
-        print("[ApphudView] Will execute JS:\n\n\(jsonString)")
+//        apphudLog("[ApphudView] Will execute JS:\n\n\(jsonString)")
         
         evaluateJavaScript("PaywallSDK.shared().processDomMacros(\(jsonString));") { result, error in
             if let error {

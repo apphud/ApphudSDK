@@ -350,7 +350,7 @@ extension ApphudInternal {
         #if os(iOS)
             if hasMadePurchase {
                 Task { @MainActor in
-                    ApphudRulesManager.shared.cacheActiveScreens()
+                    ApphudScreensManager.shared.cacheActiveScreens()
                 }
             }
         #endif

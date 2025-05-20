@@ -507,7 +507,7 @@ final class ApphudInternal: NSObject {
     private func checkPendingRules() {
         #if os(iOS)
         performWhenUserRegistered {
-            ApphudRulesManager.shared.handlePendingAPSInfo()
+            ApphudScreensManager.shared.handlePendingAPSInfo()
         }
         #endif
     }
@@ -686,7 +686,7 @@ final class ApphudInternal: NSObject {
                     ruleDict = ruleDict.merging(properties ?? [:], uniquingKeysWith: {_, new in new})
                     let rule = ApphudRule(dictionary: ruleDict)
                     Task { @MainActor in
-                        ApphudRulesManager.shared.handleRule(rule: rule)
+                        ApphudScreensManager.shared.handleRule(rule: rule)
                     }
                 }
             })

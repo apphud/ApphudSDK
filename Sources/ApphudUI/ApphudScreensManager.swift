@@ -1,5 +1,5 @@
 //
-//  ApphudRulesManager.swift
+//  ApphudScreensManager.swift
 //  apphudTestApp
 //
 //  Created by ren6 on 22/08/2019.
@@ -14,8 +14,8 @@ import UIKit
 
 #if os(iOS)
 @MainActor
-internal class ApphudRulesManager {
-    static let shared = ApphudRulesManager()
+internal class ApphudScreensManager {
+    static let shared = ApphudScreensManager()
     var pendingController: UIViewController?
 
     var pendingPaywallControllers: [String: UIViewController] = [:]
@@ -24,6 +24,44 @@ internal class ApphudRulesManager {
 
     private var apsInfo: [AnyHashable: Any]?
 
+    @MainActor
+    internal func preloadPaywall(_ paywall: ApphudPaywall) {
+        do {
+            _ = try requestPaywallController(paywall: paywall)
+        } catch {
+            
+        }
+    }
+    
+    internal func unloadPaywalls(_ identifier: String? = nil) {
+        if let identifier {
+            pendingPaywallControllers.removeValue(forKey: identifier)
+        } else {
+            pendingPaywallControllers.removeAll()
+        }
+    }
+    
+    @MainActor
+    internal func requestPaywallController(paywall: ApphudPaywall, maxTimeout: TimeInterval? = APPHUD_MAX_PAYWALL_LOAD_TIME) -> ApphudPaywallScreenController? {
+        
+        if let vc = ApphudScreensManager.shared.pendingPaywallControllers[paywall.identifier] as? ApphudPaywallScreenController {
+            apphudLog("Using preloaded paywall \(paywall.identifier)")
+            return vc
+        }
+        
+        guard paywall.hasVisualPaywall() else {
+            let e = ApphudError(message: "Paywall \(paywall.identifier) has no visual URL", code: APPHUD_NO_VISUAL_PAYWALL)
+            apphudLog(e.localizedDescription, forceDisplay: true)
+            return nil
+        }
+        
+        let vc = ApphudPaywallScreenController(paywall: paywall)
+        ApphudScreensManager.shared.pendingPaywallControllers[paywall.identifier] = vc
+        vc.load(maxTimeout: APPHUD_MAX_PAYWALL_LOAD_TIME)
+        
+        return vc
+    }
+    
     @discardableResult internal func handleNotification(_ apsInfo: [AnyHashable: Any]) -> Bool {
 
         guard let rule_id = apsInfo["rule_id"] as? String else {

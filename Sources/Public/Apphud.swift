@@ -268,15 +268,6 @@ s
         ApphudLoggerService.shared.paywallShown(paywall: paywall)
     }
 
-    /**
-    Logs a "Paywall Closed" event which is required for A/B Testing analytics.
-
-    - parameter paywall: The `ApphudPaywall` instance that was shown to the user.
-    */
-    @objc public static func paywallClosed(_ paywall: ApphudPaywall) {
-        ApphudLoggerService.shared.paywallClosed(paywallId: paywall.id, placementId: paywall.placementId)
-    }
-
     // MARK: - Products
     /**
      Fetches product structures (`Product` structs) asynchronously from the App Store. This method throws an error if there is a problem in fetching the products.
@@ -697,35 +688,52 @@ s
 
     // MARK: - Paywalls Presentation
     
+    /**
+     Preloads the paywall screen to enable faster presentation.
+
+     You should call this method as early as possible—ideally after you receive your placements and before the paywall is actually presented.
+
+     If the provided paywall doesn't contain a valid URL, this method does nothing.
+
+     - Parameter paywall: The `ApphudPaywall` object to preload.
+     */
     @MainActor
-    public static func requestPaywallController(placementIdentifier: String, maxTimeout: TimeInterval? = APPHUD_MAX_PAYWALL_LOAD_TIME, completion: @escaping (ApphudPaywallController, ApphudError?) -> Void) throws {
-        
-        Task {
-            let placement = await Apphud.placement(placementIdentifier)
-            if let paywall = placement?.paywall {
-                print("[TEST] Did receive paywall from placement, building webview")
-                try requestPaywallController(paywall: paywall, maxTimeout: maxTimeout, completion: completion)
-            } else {
-                throw ApphudError(message: "No paywall for \(placementIdentifier) placement", code: APPHUD_INVALID_IDENTIFIER)
-            }
-        }
+    public static func preloadPaywallScreen(_ paywall: ApphudPaywall) {
+        ApphudScreensManager.shared.preloadPaywall(paywall)
     }
     
+    /**
+     Returns an instance of `ApphudPaywallScreenController` for the given paywall.
+
+     You must manually add this controller to your view hierarchy. If the paywall does not include a valid visual URL, this method returns `nil`.
+
+     If `preloadPaywall(_:)` was not previously called for this paywall, it will begin loading at the time this method is called.
+
+     - Parameter paywall: The `ApphudPaywall` object to load.
+     - Returns: An instance of `ApphudPaywallScreenController`, or `nil` if the paywall doesn't contain a valid URL.
+     */
     @MainActor
-    public static func requestPaywallController(paywall: ApphudPaywall, maxTimeout: TimeInterval? = APPHUD_MAX_PAYWALL_LOAD_TIME, completion: @escaping (ApphudPaywallController, ApphudError?) -> Void) throws {
-        guard paywall.hasVisualPaywall() else {
-            throw ApphudError(message: "Paywall \(paywall.identifier) has no visual URL", code: APPHUD_NO_VISUAL_PAYWALL)
-        }
-        
-        let vc = ApphudPaywallController(paywall: paywall)
-        ApphudRulesManager.shared.pendingPaywallControllers[paywall.identifier] = vc
-        
-        vc.preload(maxTimeout: APPHUD_MAX_PAYWALL_LOAD_TIME) { error in
-            completion(vc, error)
-        }
+    public static func getPaywallScreenController(_ paywall: ApphudPaywall) -> ApphudPaywallScreenController? {
+        ApphudScreensManager.shared.requestPaywallController(paywall: paywall)
     }
     
-    
+    /**
+     Removes the preloaded paywall screen from memory cache.
+
+     Call this method when the specified paywall is no longer needed.
+     For example, after a user completes onboarding and the onboarding paywall will not be shown again.
+
+     The SDK automatically removes all preloaded paywalls after a successful purchase.
+
+     If the provided paywall does not contain a valid visual URL, this method does nothing.
+
+     - Parameter paywall: The `ApphudPaywall` object to unload.
+     */
+    @MainActor
+    public static func unloadPaywallScreen(_ paywall: ApphudPaywall) {
+        ApphudScreensManager.shared.unloadPaywalls(paywall.identifier)
+    }
+
     // MARK: - Rules & Screens Methods
     #if os(iOS)
     /**
@@ -735,7 +743,7 @@ s
      */
     @MainActor
     @objc public static func showPendingScreen() {
-        return ApphudRulesManager.shared.showPendingScreen()
+        return ApphudScreensManager.shared.showPendingScreen()
     }
 
     /**
@@ -746,7 +754,7 @@ s
      */
     @MainActor
     @objc public static func pendingScreenController() -> UIViewController? {
-        return ApphudRulesManager.shared.pendingController
+        return ApphudScreensManager.shared.pendingController
     }
 
     /**
@@ -757,7 +765,7 @@ s
      */
     @MainActor
     @objc public static func pendingRule() -> ApphudRule? {
-        return ApphudRulesManager.shared.pendingRule()
+        return ApphudScreensManager.shared.pendingRule()
     }
     #endif
 
@@ -798,7 +806,7 @@ s
      */
     @MainActor
     @discardableResult @objc public static func handlePushNotification(apsInfo: [AnyHashable: Any]) -> Bool {
-        return ApphudRulesManager.shared.handleNotification(apsInfo)
+        return ApphudScreensManager.shared.handleNotification(apsInfo)
     }
     #endif
     // MARK: - Attribution
