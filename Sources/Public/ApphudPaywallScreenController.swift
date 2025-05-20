@@ -95,7 +95,7 @@ public class ApphudPaywallScreenController: UIViewController, @preconcurrency Ap
     /// Use the `state` property to check the current loading status.
     ///
     /// - Parameters:
-    ///   - maxTimeout: Maximum time to wait before triggering a timeout error starting from method call. Default value is 5.0 seconds.
+    ///   - maxTimeout: Maximum time to wait before triggering a timeout error starting from method call. Default is `APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT`.
     ///   - callback: Called with `nil` on success or an `ApphudError` on failure.
     public func didLoadCallback(maxTimeout: TimeInterval = APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT,
                                 callback: ((ApphudError?) -> Void)?) {
