@@ -73,9 +73,9 @@ internal class ApphudView: WKWebView {
         
         evaluateJavaScript("PaywallSDK.shared().processDomMacros(\(jsonString));") { [weak self] result, error in
             if let error {
-                print("[ApphudView] Failed to execute JS: \(error.localizedDescription)")
+                apphudLog("[ApphudView] Failed to execute JS: \(error.localizedDescription)")
             } else {
-                print("[ApphudView] Executed JS successfully: \(String(describing: result))")
+                apphudLog("[ApphudView] Executed JS successfully: \(String(describing: result))")
             }
             guard let self = self else {return}
             

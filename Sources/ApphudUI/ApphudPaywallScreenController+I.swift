@@ -7,6 +7,19 @@
 
 import WebKit
 
+extension ApphudPaywallScreenState: Equatable {
+    public static func == (lhs: ApphudPaywallScreenState, rhs: ApphudPaywallScreenState) -> Bool {
+        switch (lhs, rhs) {
+        case (.loading, .loading), (.ready, .ready):
+            return true
+        case (.error, .error):
+            return true // You can refine this if ApphudError is Equatable
+        default:
+            return false
+        }
+    }
+}
+
 extension ApphudPaywallScreenController {
         
     internal func load(maxTimeout: Double? = APPHUD_MAX_PAYWALL_LOAD_TIME) {
@@ -16,12 +29,9 @@ extension ApphudPaywallScreenController {
         if let timeout = maxTimeout {
             Task { [weak self] in
                 try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
-                if let cb = self?.didLoadCallback, let self = self {
-                    self.didLoadCallback = nil
-                    let e = ApphudError(message: "Failed to load paywall content within the specified timeout", code: APPHUD_PAYWALL_LOAD_TIMEOUT)
-                    cb(e)
-                    self.didFinishLoading = true
-                    self.delegate?.apphudPaywallScreenControllerDidFinishLoading(controller: self, error: e)
+                if let self, self.state == .loading {
+                    let e = ApphudError(message: "Failed to load paywall content within the specified timeout.", code: APPHUD_PAYWALL_LOAD_TIMEOUT)
+                    self.handleFinishedLoading(error: e)
                 }
             }
         }
@@ -99,12 +109,25 @@ extension ApphudPaywallScreenController {
     }
     
     func apphudViewDidExecuteJS(error: (any Error)?) {
+        handleFinishedLoading(error: error)
+    }
+    
+    func handleFinishedLoading(error: (any Error)?) {
+        guard self.state == .loading else { return }
+        
+        var aphError = error != nil ? ApphudError(error: error!) : nil
+        
+        if let nsError = error as? NSError, nsError.userInfo.description.contains("Can't find variable: PaywallSDK"), nsError.localizedDescription.contains("A JavaScript exception occurred") {
+            aphError = ApphudError(message: "Invalid Paywall Screen URL: \(String(describing: paywall.paywallURL))", code: APPHUD_PAYWALL_SCREEN_INVALID)
+        }
+        
+        self.state = aphError != nil ? .error(error: aphError!) : .ready
+        
+        self.delegate?.apphudPaywallScreenControllerDidFinishLoading(controller: self, error: aphError)
+
         if let cb = self.didLoadCallback {
             self.didLoadCallback = nil
-            self.didFinishLoading = true
-            cb(nil)
-            let aphError = error != nil ? ApphudError(error: error!) : nil
-            self.delegate?.apphudPaywallScreenControllerDidFinishLoading(controller: self, error: aphError)
+            cb(aphError)
         }
     }
     
@@ -186,7 +209,7 @@ extension ApphudPaywallScreenController {
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             
             guard let aphView = webView as? ApphudView else {return }
-            
+                        
             aphView.viewDelegate?.apphudViewDidLoad()
         }
         

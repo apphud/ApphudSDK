@@ -61,6 +61,26 @@ public protocol ApphudPaywallScreenDelegate {
     func apphudPaywallScreenControllerWillNavigate(controller: ApphudPaywallScreenController, url: URL)
 }
 
+/// Represents the current loading state of a paywall screen.
+public enum ApphudPaywallScreenState {
+    
+    /// The paywall is currently loading its content.
+    /// You may show a loading indicator or skeleton view during this state.
+    case loading
+
+    /// The paywall has finished loading and is ready to be displayed.
+    case ready
+
+    /// An error occurred while loading the paywall.
+    ///
+    /// This state indicates that the content could not be loaded due to a network issue,
+    /// invalid paywall URL, or another error. Developer should show default paywall instead.
+    ///
+    /// - Parameter error: The error describing the failure.
+    case error(error: ApphudError)
+}
+
+
 public class ApphudPaywallScreenController: UIViewController, @preconcurrency ApphudViewDelegate {
 
     /// Apphud paywall object.
@@ -69,7 +89,7 @@ public class ApphudPaywallScreenController: UIViewController, @preconcurrency Ap
     /// Indicates whether the paywall controller has finished loading its content.
     /// You can present the screen before it is fully loaded; a placeholder (black screen) will be shown.
     /// You may also customize the UI by adding your own loading skeleton to the view hierarchy.
-    public internal(set) var didFinishLoading: Bool = false
+    public internal(set) var state: ApphudPaywallScreenState = .loading
 
     /// Called when the paywall controller finishes loading its content.
     /// Returns an error if loading failed. This callback will not be triggered if the controller was already loaded when the callback was assigned.

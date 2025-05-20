@@ -50,7 +50,7 @@ internal class ApphudScreensManager {
         }
         
         guard paywall.hasVisualPaywall() else {
-            let e = ApphudError(message: "Paywall \(paywall.identifier) has no visual URL", code: APPHUD_NO_VISUAL_PAYWALL)
+            let e = ApphudError(message: "Paywall \(paywall.identifier) has no visual URL", code: APPHUD_PAYWALL_SCREEN_NOT_FOUND)
             apphudLog(e.localizedDescription, forceDisplay: true)
             return nil
         }
