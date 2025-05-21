@@ -373,6 +373,12 @@ public class ApphudHttpClient {
             dictionary = nil
         }
 
+        if let requestID = request.allHTTPHeaderFields?["Idempotency-Key"] as? String, let responseID = httpResponse.allHeaderFields["idempotency-key"] as? String ?? httpResponse.allHeaderFields["Idempotency-Key"] as? String, !requestID.isEmpty, !responseID.isEmpty, requestID != responseID {
+            apphudLog("Invalid Response for \(String(describing: request.url))", logLevel: .all)
+            let error = ApphudError(message: "Invalid HTTP Response")
+            return (false, nil, data, error, 400)
+        }
+        
         if code >= 200 && code < 300 {
             if let dictionary = dictionary {
                 if ApphudUtils.shared.logLevel == .all,
