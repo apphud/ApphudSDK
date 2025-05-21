@@ -46,7 +46,7 @@ public protocol ApphudPaywallScreenDelegate {
     ///   - controller: The paywall controller instance.
     ///   - userClosed: Whether the dismissal was triggered by tapping the close button.
     /// - Returns: Boolean indicating whether the controller should be dismissed.
-    func ApphudPaywallScreenControllerShouldDismiss(controller: ApphudPaywallScreenController, userClosed: Bool) -> Bool
+    func apphudPaywallScreenControllerShouldDismiss(controller: ApphudPaywallScreenController, userClosed: Bool) -> Bool
 
     /// Called before the paywall controller is dismissed.
     /// - Parameters:
@@ -54,11 +54,12 @@ public protocol ApphudPaywallScreenDelegate {
     ///   - userClosed: Whether the dismissal was triggered by tapping the close button.
     func apphudPaywallScreenControllerWillDismiss(controller: ApphudPaywallScreenController, userClosed: Bool)
     
-    /// Called when the user attempts to navigate to an external URL from the paywall.
+    /// Called when the user attempts to open external URL from the paywall. Default is `true`. Return `false` if you want to handle this manually.
+    /// SDK will open URL in SFSafariViewController.
     /// - Parameters:
     ///   - controller: The paywall controller instance.
     ///   - url: The URL that will be opened.
-    func apphudPaywallScreenControllerWillNavigate(controller: ApphudPaywallScreenController, url: URL)
+    func apphudPaywallScreenControllerShouldOpen(url: URL, controller: ApphudPaywallScreenController) -> Bool
 }
 
 /// Represents the current loading state of a paywall screen.

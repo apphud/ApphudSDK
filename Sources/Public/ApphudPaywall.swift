@@ -101,11 +101,7 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
     }
     
     public func hasVisualPaywall() -> Bool {
-        if let urlString = paywallURL, let url = URL(string: urlString) {
-            return true
-        }
-        
-        return false
+        paywallURL != nil
     }
 
     internal var id: String
@@ -115,7 +111,7 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
     internal var variationIdentifier: String?
     internal var experimentId: String?
     
-    internal var paywallURL: String? {
+    internal var paywallURL: URL? {
         guard let dict = json?["apphud_paywall_urls"] as? [String: String] else {
             return nil
         }
@@ -131,7 +127,20 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
             langCode = "default"
         }
         
-        return dict[langCode!] ?? dict["default"]
+        guard let finalURLString = dict[langCode!] ?? dict["default"], var url = URL(string: finalURLString) else {
+            return nil
+        }
+        
+        var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        var queryItems = components?.queryItems ?? []
+        queryItems.append(URLQueryItem(name: "live", value: "true"))
+        components?.queryItems = queryItems
+
+        if let newURL = components?.url {
+            url = newURL
+        }
+        
+        return url
     }
      
 //    internal func getPaywallContent() async -> String? {
