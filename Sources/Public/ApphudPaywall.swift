@@ -159,6 +159,10 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
 //        }
 //    }
 
+    public func update(json: String) {
+        self.jsonString = json
+    }
+    
     @MainActor
     internal func update(placementId: String?, placementIdentifier: String?) {
         objectWillChange.send()
