@@ -189,7 +189,7 @@ extension ApphudPaywallScreenController: WKUIDelegate {
             Apphud.paywallShown(paywall)
         }
         
-        ApphudScreensManager.shared.pendingPaywallControllers.removeValue(forKey: paywall.identifier)
+        ApphudScreensManager.shared.unloadPaywalls(paywall.identifier)
     }
     
     public override func viewWillDisappear(_ animated: Bool) {

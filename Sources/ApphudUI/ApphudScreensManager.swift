@@ -41,8 +41,13 @@ internal class ApphudScreensManager {
     internal func requestPaywallController(paywall: ApphudPaywall) -> ApphudPaywallScreenController? {
         
         if let vc = ApphudScreensManager.shared.pendingPaywallControllers[paywall.identifier] as? ApphudPaywallScreenController {
-            apphudLog("Using preloaded paywall \(paywall.identifier)")
-            return vc
+            switch vc.state {
+            case .error(_):
+                unloadPaywalls(paywall.identifier)
+            case .loading, .ready:
+                apphudLog("Using preloaded paywall \(paywall.identifier)")
+                return vc
+            }
         }
         
         guard paywall.hasVisualPaywall() else {
