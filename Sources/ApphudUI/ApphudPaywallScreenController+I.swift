@@ -128,8 +128,6 @@ extension ApphudPaywallScreenController: WKUIDelegate {
             try? await Task.sleep(nanoseconds: 300_000_000)
         }
         
-        self.delegate?.apphudPaywallScreenControllerDidFinishLoading(controller: self, error: aphError)
-
         if let cb = self.didLoadCallback {
             self.didLoadCallback = nil
             cb(aphError)
@@ -137,20 +135,20 @@ extension ApphudPaywallScreenController: WKUIDelegate {
     }
     
     internal func apphudViewHandleClose() {
-        dismissNow(userAction: true)
+        let shouldClose = completionHandler?(.canceled) ?? .allow
+        if shouldClose == .allow {
+            dismissNow(userAction: true)
+        }
     }
     
     private func dismissNow(userAction: Bool) {
-        let shouldClose = self.delegate?.apphudPaywallScreenControllerShouldDismiss(controller: self, userClosed: userAction) ?? true
-        if shouldClose {
-            self.delegate?.apphudPaywallScreenControllerWillDismiss(controller: self, userClosed: userAction)
-            if self.shouldPopOnDismiss, let nc = navigationController {
-                nc.popViewController(animated: true)
-            } else {
-                dismiss(animated: true)
-            }
-        }
         
+        if self.shouldPopOnDismiss, let nc = navigationController {
+            nc.popViewController(animated: true)
+        } else {
+            dismiss(animated: true)
+        }
+
         if !userAction && Apphud.hasPremiumAccess() {
             ApphudScreensManager.shared.unloadPaywalls()
         }
@@ -160,14 +158,17 @@ extension ApphudPaywallScreenController: WKUIDelegate {
     public func apphudViewHandlePurchase(index: Int) {
         let product = paywall.products[index]
         
-        self.delegate?.apphudPaywallScreenControllerWillPurchase(controller: self, product: product)
+        self.delegate?.apphudPaywallScreenInitiatePurchase(controller: self, product: product)
         
         Apphud.purchase(product) { [weak self] result in
             if let self {
-                self.delegate?.apphudPaywallScreenControllerPurchaseResult(controller: self, result: result)
                 if result.success {
-                    self.dismissNow(userAction: false)
+                    let shouldClose = self.completionHandler?(.purchased(result: result)) ?? .allow
+                    if shouldClose == .allow {
+                        self.dismissNow(userAction: false)
+                    }
                 }
+                
             }
         }
     }
@@ -206,13 +207,15 @@ extension ApphudPaywallScreenController: WKUIDelegate {
     
     @MainActor
     internal func apphudViewHandleRestore() {
-        self.delegate?.apphudPaywallScreenControllerWillRestore(controller: self)
+        self.delegate?.apphudPaywallScreenInitiateRestore(controller: self)
         Apphud.restorePurchases { [weak self] result in
             
             if let self {
-                self.delegate?.apphudPaywallScreenControllerRestoreResult(controller: self, result: result)
                 if Apphud.hasPremiumAccess() {
-                    self.dismissNow(userAction: false)
+                    let shouldClose = self.completionHandler?(.restored) ?? .allow
+                    if shouldClose == .allow {
+                        self.dismissNow(userAction: false)
+                    }
                 }
             }
         }
@@ -226,7 +229,7 @@ extension ApphudPaywallScreenController: WKUIDelegate {
             if url.host == "pay.apphud.com" {
                 webView.load(navigationAction.request)
             } else {
-                if self.delegate?.apphudPaywallScreenControllerShouldOpen(url: url, controller: self) ?? true {
+                if self.delegate?.apphudPaywallScreenShouldOpen(url: url, controller: self) ?? true {
                     let controller = SFSafariViewController(url: url)
                     self.present(controller, animated: true)
                 }

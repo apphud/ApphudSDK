@@ -9,57 +9,22 @@ import StoreKit
 
 /// A protocol that defines methods for handling paywall-related events and user interactions.
 public protocol ApphudPaywallScreenDelegate {
-    
-    /// Called when the paywall controller finishes loading its content.
-    /// This method will not be triggered if the controller was already in a loaded state when the delegate was assigned.
-    /// Check the `state` property to determine the current loading state.
-    /// - Parameter controller: The instance of `ApphudPaywallScreenController`. If `error` is `nil`, the paywall loaded successfully.
-    /// - Parameter error: An optional error indicating that the paywall failed to load.
-    func apphudPaywallScreenControllerDidFinishLoading(controller: ApphudPaywallScreenController, error: ApphudError?)
-    
     /// Called before a purchase is initiated through the paywall.
     /// - Parameters:
     ///   - controller: The paywall controller instance where the purchase is occurring.
     ///   - product: The product that will be purchased.
-    func apphudPaywallScreenControllerWillPurchase(controller: ApphudPaywallScreenController, product: ApphudProduct)
-    
-    /// Called when a purchase attempt has completed with a result.
-    /// - Parameters:
-    ///   - controller: The paywall controller instance where the purchase occurred.
-    ///   - result: The result of the purchase attempt.
-    func apphudPaywallScreenControllerPurchaseResult(controller: ApphudPaywallScreenController, result: ApphudPurchaseResult)
-    
+    func apphudPaywallScreenInitiatePurchase(controller: ApphudPaywallScreenController, product: ApphudProduct)
+        
     /// Called before a restore purchases operation is initiated.
     /// - Parameter controller: The paywall controller instance where the restore is occurring.
-    func apphudPaywallScreenControllerWillRestore(controller: ApphudPaywallScreenController)
-    
-    /// Called when a restore purchases operation has completed with a result.
-    /// - Parameters:
-    ///   - controller: The paywall controller instance where the restore occurred.
-    ///   - result: The result of the restore attempt.
-    func apphudPaywallScreenControllerRestoreResult(controller: ApphudPaywallScreenController, result: ApphudRestoreResult)
-    
-    /// Called to determine if the paywall controller should be dismissed.
-    /// If developer returns false, the paywall will not be dismissed, which means that developer should handle the paywall dismissal manually.
-    /// If not implemented, the paywall will be dismissed by default.
-    /// - Parameters:
-    ///   - controller: The paywall controller instance.
-    ///   - userClosed: Whether the dismissal was triggered by tapping the close button.
-    /// - Returns: Boolean indicating whether the controller should be dismissed.
-    func apphudPaywallScreenControllerShouldDismiss(controller: ApphudPaywallScreenController, userClosed: Bool) -> Bool
-
-    /// Called before the paywall controller is dismissed.
-    /// - Parameters:
-    ///   - controller: The paywall controller instance being dismissed.
-    ///   - userClosed: Whether the dismissal was triggered by tapping the close button.
-    func apphudPaywallScreenControllerWillDismiss(controller: ApphudPaywallScreenController, userClosed: Bool)
+    func apphudPaywallScreenInitiateRestore(controller: ApphudPaywallScreenController)
     
     /// Called when the user attempts to open external URL from the paywall. Default is `true`. Return `false` if you want to handle this manually.
     /// SDK will open URL in SFSafariViewController.
     /// - Parameters:
     ///   - controller: The paywall controller instance.
     ///   - url: The URL that will be opened.
-    func apphudPaywallScreenControllerShouldOpen(url: URL, controller: ApphudPaywallScreenController) -> Bool
+    func apphudPaywallScreenShouldOpen(url: URL, controller: ApphudPaywallScreenController) -> Bool
 }
 
 /// Represents the current loading state of a paywall screen.
@@ -80,14 +45,27 @@ public enum ApphudPaywallScreenState {
     case error(error: ApphudError)
 }
 
+public enum ApphudPaywallResult {
+    case purchased(result: ApphudPurchaseResult)
+    case restored
+    case canceled
+}
+
+public enum ApphudPaywallDismissPolicy {
+    case allow
+    case cancel
+}
+
 public class ApphudPaywallScreenController: UIViewController, @preconcurrency ApphudViewDelegate {
 
     /// Apphud paywall object.
     public let paywall: ApphudPaywall
     
-    /// Indicates whether the paywall controller has finished loading its content.
-    public internal(set) var state: ApphudPaywallScreenState = .loading
-
+    /// Delegate of the paywall controller
+    public var delegate: ApphudPaywallScreenDelegate?
+    
+    public var completionHandler: ((ApphudPaywallResult) -> ApphudPaywallDismissPolicy)?
+    
     /// Sets a callback to be triggered when the paywall controller finishes loading.
     ///
     /// If the controller is still loading, the callback will be stored and called later.
@@ -98,26 +76,26 @@ public class ApphudPaywallScreenController: UIViewController, @preconcurrency Ap
     /// - Parameters:
     ///   - maxTimeout: Maximum time to wait before triggering a timeout error starting from method call. Default is `APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT`.
     ///   - callback: Called with `nil` on success or an `ApphudError` on failure.
-    public func didLoadCallback(maxTimeout: TimeInterval = APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT,
-                                callback: ((ApphudError?) -> Void)?) {
+    public func didLoadHandler(maxTimeout: TimeInterval = APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT,
+                                handler: ((ApphudError?) -> Void)?) {
         switch state {
         case .loading:
             setMaxTimeout(maxTimeout: maxTimeout)
-            self.didLoadCallback = callback
+            self.didLoadCallback = handler
         case .ready:
-            callback?(nil)
+            handler?(nil)
         case .error(let error):
-            callback?(error)
+            handler?(error)
         }
     }
+    
+    /// Indicates whether the paywall controller has finished loading its content.
+    public internal(set) var state: ApphudPaywallScreenState = .loading
     
     /**
      Indicates whether controller should pop the navigation stack instead of being dismissed modally.
      */
     public var shouldPopOnDismiss = false
-
-    /// Delegate of the paywall controller
-    public var delegate: ApphudPaywallScreenDelegate?
         
     // MARK: - Internal methods below
     
