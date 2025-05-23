@@ -26,7 +26,7 @@ internal class ApphudScreensManager {
 
     @MainActor
     internal func preloadPaywall(_ paywall: ApphudPaywall) {
-        _ = requestPaywallController(paywall: paywall)
+        _ = try? requestPaywallController(paywall: paywall)
     }
     
     internal func unloadPaywalls(_ identifier: String? = nil) {
@@ -38,13 +38,14 @@ internal class ApphudScreensManager {
     }
     
     @MainActor
-    internal func requestPaywallController(paywall: ApphudPaywall) -> ApphudPaywallScreenController? {
+    internal func requestPaywallController(paywall: ApphudPaywall) throws -> ApphudPaywallScreenController {
         
         if let vc = ApphudScreensManager.shared.pendingPaywallControllers[paywall.identifier] as? ApphudPaywallScreenController {
             
             switch vc.state {
-            case .error(_):
+            case .error(let e):
                 unloadPaywalls(paywall.identifier)
+                throw e
             case .loading, .ready:
                 apphudLog("Using preloaded paywall \(paywall.identifier)")
                 return vc
@@ -54,7 +55,7 @@ internal class ApphudScreensManager {
         guard paywall.hasVisualPaywall() else {
             let e = ApphudError(message: "Paywall \(paywall.identifier) has no visual URL", code: APPHUD_PAYWALL_SCREEN_NOT_FOUND)
             apphudLog(e.localizedDescription, forceDisplay: true)
-            return nil
+            throw e
         }
         
         let vc = ApphudPaywallScreenController(paywall: paywall)

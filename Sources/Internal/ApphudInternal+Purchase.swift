@@ -14,10 +14,15 @@ extension ApphudInternal {
 
     // MARK: - Main Purchase and Submit Receipt methods
 
-    @MainActor internal func restorePurchases(callback: @escaping (ApphudRestoreResult) -> Void) {
+    @MainActor internal func restorePurchases(callback: @escaping (ApphudPurchaseResult) -> Void) {
         self.restorePurchasesCallback = { subs, purchases, error in
             if error != nil { ApphudStoreKitWrapper.shared.restoreTransactions() }
-            let result = ApphudRestoreResult(subscriptions: subs, nonRenewingPurchases: purchases, error: error)
+            
+            let activeSub = subs?.first { $0.isActive() }
+            let activePurch = purchases?.first { $0.isActive() }
+
+            let result = ApphudPurchaseResult(activeSub, activePurch, nil, error)
+            result.isRestoreResult = true
             callback(result)
         }
         self.submitReceiptRestore(allowsReceiptRefresh: true, transaction: nil)

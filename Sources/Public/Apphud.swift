@@ -549,6 +549,7 @@ s
      - parameter productIdentifier: The product identifier for the in-app purchase to check.
      - Returns: `true` if the user has an active purchase with the given product identifier; `false` if the product is refunded, never purchased, or inactive.
      */
+    
     @MainActor public static func isNonRenewingPurchaseActive(productIdentifier: String) -> Bool {
         nonRenewingPurchases()?.first(where: {$0.productId == productIdentifier})?.isActive() ?? false
     }
@@ -560,7 +561,7 @@ s
 
      - Returns: An optional `Error`. If the error is `nil`, you can check the user's premium status using the `Apphud.hasActiveSubscription()` or `Apphud.hasPremiumAccess()` methods.
      */
-    @MainActor @discardableResult public static func restorePurchases() async -> ApphudRestoreResult? {
+    @MainActor @discardableResult public static func restorePurchases() async -> ApphudPurchaseResult? {
         return await withUnsafeContinuation({ continunation in
             Task { @MainActor in
                 ApphudInternal.shared.restorePurchases { result in
@@ -571,12 +572,12 @@ s
     }
 
     /**
-     Implements the `Restore Purchases` mechanism. This method sends the current App Store Receipt to Apphud and returns information about the user's subscriptions and in-app purchases.
 
+     Implements the `Restore /.  m,,.Purchases` mechanism. This method sends the current App Store Receipt to Apphud and returns information about the user's subscriptions and in-app purchases.
      - parameter callback: Required. A closure that returns an array of `ApphudSubscription` objects, an array of `ApphudNonRenewingPurchase` objects, and an optional `Error`.
      - Note: The presence of a subscription in the callback does not guarantee that it is active. You should check the `isActive()` property on each subscription.
      */
-    @MainActor public static func restorePurchases(callback: @escaping (ApphudRestoreResult) -> Void) {
+    @MainActor public static func restorePurchases(callback: @escaping (ApphudPurchaseResult) -> Void) {
         ApphudInternal.shared.restorePurchases(callback: callback)
     }
 
@@ -698,8 +699,14 @@ s
      - Parameter paywall: The `ApphudPaywall` object to preload.
      */
     @MainActor
-    public static func preloadPaywallScreen(_ paywall: ApphudPaywall) {
-        ApphudScreensManager.shared.preloadPaywall(paywall)
+    public static func preloadPaywallScreens(placementIdentifiers: [String]) {
+        Apphud.fetchPlacements { placements, _ in
+            for placement in placements {
+                if placementIdentifiers.contains(placement.identifier), let p = placement.paywall {
+                    ApphudScreensManager.shared.preloadPaywall(p)
+                }
+            }
+        }
     }
     
     /**
@@ -715,8 +722,22 @@ s
      - Returns: An instance of `ApphudPaywallScreenController`, or `nil` if the paywall doesn't contain a valid URL.
      */
     @MainActor
-    public static func getPaywallScreenController(_ paywall: ApphudPaywall) -> ApphudPaywallScreenController? {
-        ApphudScreensManager.shared.requestPaywallController(paywall: paywall)
+    public static func fetchPaywallScreen(_ paywall: ApphudPaywall, maxTimeout: TimeInterval = APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT, completion: @escaping (ApphudPaywallScreenFetchResult) -> Void) {
+        do {
+            let controller = try ApphudScreensManager.shared.requestPaywallController(paywall: paywall)
+            switch controller.state {
+            case .error(let error):
+                completion(.error(error: error))
+            case .loading:
+                controller.didLoadHandler(maxTimeout: maxTimeout) { error in
+                    completion(error != nil ? .error(error: error!) : .success(controller: controller))
+                }
+            case .ready:
+                completion(.success(controller: controller))
+            }
+        } catch {
+            completion(.error(error: error as? ApphudError ?? ApphudError(error: error)))
+        }
     }
     
     /**

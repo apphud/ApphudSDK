@@ -135,7 +135,7 @@ extension ApphudPaywallScreenController: WKUIDelegate {
     }
     
     internal func apphudViewHandleClose() {
-        let shouldClose = completionHandler?(.canceled) ?? .allow
+        let shouldClose = completionHandler?(.userClosed) ?? .allow
         if shouldClose == .allow {
             dismissNow(userAction: true)
         }
@@ -162,13 +162,18 @@ extension ApphudPaywallScreenController: WKUIDelegate {
         
         Apphud.purchase(product) { [weak self] result in
             if let self {
+                
+                var shouldClose: ApphudPaywallDismissPolicy = .allow
+                
                 if result.success {
-                    let shouldClose = self.completionHandler?(.purchased(result: result)) ?? .allow
-                    if shouldClose == .allow {
-                        self.dismissNow(userAction: false)
-                    }
+                    shouldClose = self.completionHandler?(.success(result)) ?? .allow
+                } else {
+                    shouldClose = self.completionHandler?(.failure(result.error ?? ApphudError(message: "Purchase failed", code: 0))) ?? .cancel
                 }
                 
+                if shouldClose == .allow {
+                    self.dismissNow(userAction: false)
+                }
             }
         }
     }
@@ -201,7 +206,7 @@ extension ApphudPaywallScreenController: WKUIDelegate {
         super.viewWillDisappear(animated)
         if (!Apphud.hasPremiumAccess()) {
             // preload the same paywall again for the next call
-            Apphud.preloadPaywallScreen(paywall)
+            ApphudScreensManager.shared.preloadPaywall(paywall)
         }
     }
     
@@ -211,11 +216,17 @@ extension ApphudPaywallScreenController: WKUIDelegate {
         Apphud.restorePurchases { [weak self] result in
             
             if let self {
+                
+                var shouldClose: ApphudPaywallDismissPolicy = .allow
+                
                 if Apphud.hasPremiumAccess() {
-                    let shouldClose = self.completionHandler?(.restored) ?? .allow
-                    if shouldClose == .allow {
-                        self.dismissNow(userAction: false)
-                    }
+                    shouldClose = self.completionHandler?(.success(result)) ?? .allow
+                } else {
+                    shouldClose = self.completionHandler?(.failure(result.error ?? ApphudError(message: "No active purchases", code: 0))) ?? .cancel
+                }
+                
+                if shouldClose == .allow {
+                    self.dismissNow(userAction: false)
                 }
             }
         }

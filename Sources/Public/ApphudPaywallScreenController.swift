@@ -45,14 +45,34 @@ public enum ApphudPaywallScreenState {
     case error(error: ApphudError)
 }
 
-public enum ApphudPaywallResult {
-    case purchased(result: ApphudPurchaseResult)
-    case restored
-    case canceled
+public enum ApphudPaywallScreenFetchResult {
+    case success(controller: ApphudPaywallScreenController)
+    case error(error: ApphudError)
 }
 
+/// Represents the result of a user's interaction with the paywall screen.
+public enum ApphudPaywallResult {
+    
+    /// The user successfully completed a purchase or restored a previous active subscription or non-renewing purchase.
+    /// - Parameter result: The result of the purchase, including transaction details.
+    case success(ApphudPurchaseResult)
+    
+    /// Indicates that the purchase was either canceled by the user, failed due to an error,
+    /// or no active subscription or non-renewing purchase was found during a restore attempt.
+    /// - Parameter error: The error describing the reason for failure.
+    case failure(Error)
+    
+    /// The user tapped on a close button.
+    case userClosed
+}
+
+/// Defines whether the paywall screen should be dismissed after user interaction.
 public enum ApphudPaywallDismissPolicy {
+    
+    /// The paywall screen should be dismissed.
     case allow
+    
+    /// The paywall screen should remain visible.
     case cancel
 }
 
@@ -64,6 +84,14 @@ public class ApphudPaywallScreenController: UIViewController, @preconcurrency Ap
     /// Delegate of the paywall controller
     public var delegate: ApphudPaywallScreenDelegate?
     
+    /// A callback triggered when the user finishes interacting with the paywall.
+    ///
+    /// Use this closure to respond to purchases, failures, or user cancellations.
+    /// Return a `ApphudPaywallDismissPolicy` value to control whether the paywall
+    /// should be automatically dismissed after the result.
+    ///
+    /// - Parameter result: The result of the user's interaction with the paywall.
+    /// - Returns: A dismiss policy indicating whether the paywall should be closed.
     public var completionHandler: ((ApphudPaywallResult) -> ApphudPaywallDismissPolicy)?
     
     /// Sets a callback to be triggered when the paywall controller finishes loading.
