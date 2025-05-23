@@ -144,7 +144,11 @@ extension ApphudPaywallScreenController: WKUIDelegate {
         let shouldClose = self.delegate?.apphudPaywallScreenControllerShouldDismiss(controller: self, userClosed: userAction) ?? true
         if shouldClose {
             self.delegate?.apphudPaywallScreenControllerWillDismiss(controller: self, userClosed: userAction)
-            dismiss(animated: true)
+            if self.shouldPopOnDismiss, let nc = navigationController {
+                nc.popViewController(animated: true)
+            } else {
+                dismiss(animated: true)
+            }
         }
         
         if !userAction && Apphud.hasPremiumAccess() {

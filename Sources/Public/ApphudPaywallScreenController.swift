@@ -110,6 +110,11 @@ public class ApphudPaywallScreenController: UIViewController, @preconcurrency Ap
             callback?(error)
         }
     }
+    
+    /**
+     Indicates whether controller should pop the navigation stack instead of being dismissed modally.
+     */
+    public var shouldPopOnDismiss = false
 
     /// Delegate of the paywall controller
     public var delegate: ApphudPaywallScreenDelegate?

@@ -41,6 +41,7 @@ internal class ApphudScreensManager {
     internal func requestPaywallController(paywall: ApphudPaywall) -> ApphudPaywallScreenController? {
         
         if let vc = ApphudScreensManager.shared.pendingPaywallControllers[paywall.identifier] as? ApphudPaywallScreenController {
+            
             switch vc.state {
             case .error(_):
                 unloadPaywalls(paywall.identifier)
