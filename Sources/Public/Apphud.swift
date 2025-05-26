@@ -700,13 +700,7 @@ s
      */
     @MainActor
     public static func preloadPaywallScreens(placementIdentifiers: [String]) {
-        Apphud.fetchPlacements { placements, _ in
-            for placement in placements {
-                if placementIdentifiers.contains(placement.identifier), let p = placement.paywall {
-                    ApphudScreensManager.shared.preloadPaywall(p)
-                }
-            }
-        }
+        ApphudScreensManager.shared.preloadPlacements(identifiers: placementIdentifiers)
     }
     
     /**
@@ -723,21 +717,7 @@ s
      */
     @MainActor
     public static func fetchPaywallScreen(_ paywall: ApphudPaywall, maxTimeout: TimeInterval = APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT, completion: @escaping (ApphudPaywallScreenFetchResult) -> Void) {
-        do {
-            let controller = try ApphudScreensManager.shared.requestPaywallController(paywall: paywall)
-            switch controller.state {
-            case .error(let error):
-                completion(.error(error: error))
-            case .loading:
-                controller.onLoad(maxTimeout: maxTimeout) { error in
-                    completion(error != nil ? .error(error: error!) : .success(controller: controller))
-                }
-            case .ready:
-                completion(.success(controller: controller))
-            }
-        } catch {
-            completion(.error(error: error as? ApphudError ?? ApphudError(error: error)))
-        }
+        ApphudScreensManager.shared.requestPaywallcontroller(paywall, maxTimeout: maxTimeout, completion: completion)
     }
     
     /**

@@ -24,6 +24,16 @@ internal class ApphudScreensManager {
 
     private var apsInfo: [AnyHashable: Any]?
 
+    internal func preloadPlacements(identifiers: [String]) {
+        ApphudInternal.shared.fetchOfferingsFull(maxAttempts: APPHUD_DEFAULT_RETRIES) { error in
+            for placement in ApphudInternal.shared.placements {
+                if identifiers.contains(placement.identifier), let p = placement.paywall {
+                    self.preloadPaywall(p)
+                }
+            }
+        }
+    }
+    
     @MainActor
     internal func preloadPaywall(_ paywall: ApphudPaywall) {
         _ = try? requestPaywallController(paywall: paywall)
@@ -34,6 +44,24 @@ internal class ApphudScreensManager {
             pendingPaywallControllers.removeValue(forKey: identifier)
         } else {
             pendingPaywallControllers.removeAll()
+        }
+    }
+    
+    internal func requestPaywallcontroller(_ paywall: ApphudPaywall, maxTimeout: TimeInterval = APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT, completion: @escaping (ApphudPaywallScreenFetchResult) -> Void) {
+        do {
+            let controller = try ApphudScreensManager.shared.requestPaywallController(paywall: paywall)
+            switch controller.state {
+            case .error(let error):
+                completion(.error(error: error))
+            case .loading:
+                controller.onLoad(maxTimeout: maxTimeout) { error in
+                    completion(error != nil ? .error(error: error!) : .success(controller: controller))
+                }
+            case .ready:
+                completion(.success(controller: controller))
+            }
+        } catch {
+            completion(.error(error: error as? ApphudError ?? ApphudError(error: error)))
         }
     }
     
