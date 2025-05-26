@@ -330,10 +330,16 @@ final class ApphudInternal: NSObject {
         }
 
         self.currentUser = cachedUser
+        
+        Task.detached {
+            await self.currentUser?.updateProductTypes()
+            await self.updatePremiumStatus(user: self.currentUser)
+        }
+        
         self.initDate = Date()
         
         Task(priority: .userInitiated) {
-
+            
             var isIdenticalUserIds = true
             if self.currentUserID != userIDFromKeychain {
                 isIdenticalUserIds = false

@@ -156,6 +156,20 @@ public struct ApphudUser: Codable {
 
     private static let ApphudMigrateCachesKey = "ApphudMigrateCachesKey"
 
+    func updateProductTypes(currentMap: [String: Bool?]? = nil) async {
+        if #available(iOS 15.0, *) {
+            for purchase in purchases {
+                if purchase.isConsumable == nil {
+                    if let existingValue = currentMap?[purchase.productId] as? Bool {
+                        purchase.isConsumable = existingValue
+                    } else {
+                        _ = await purchase.isConsumablePurchase()
+                    }
+                }
+            }
+        }
+    }
+    
     func toCacheV2() async {
         let encoder = JSONEncoder()
         do {

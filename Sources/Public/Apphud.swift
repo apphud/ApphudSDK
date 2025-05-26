@@ -477,12 +477,11 @@ s
     // MARK: - Check Status
 
     /**
-     Determines if the user has active premium access through a subscription or a non-renewing purchase (lifetime).
-     
-     __If you have consumable purchases, do not use this method in current SDK version.__
+     Determines whether the user currently has premium access, either through an active subscription or a non-consumable (lifetime) purchase.
 
-     - Important: Do not use this method if you offer consumable in-app purchases (like coin packs) as the SDK does not differentiate consumables from non-consumables.
-     - Returns: `true` if the user has an active subscription or an active non-renewing purchase.
+     __Important: On iOS 13 and 14, this method will return `true` for consumable purchases.  If your app has consumable purchases and target iOS 13 and 14, do not use this method. __
+
+     - Returns: `true` if the user has an active subscription or a valid non-consumable purchase.
      */
     @objc public static func hasPremiumAccess() -> Bool {
         ApphudInternal.shared.isPremium
@@ -491,7 +490,6 @@ s
     /**
      Checks if the user has an active premium subscription.
 
-     - Important: If your app includes lifetime (non-consumable) or consumable purchases, you should use the `Apphud.isNonRenewingPurchaseActive(productIdentifier:)` method to check their status.
      - Returns: `true` if the user currently has an active subscription.
      */
     @objc public static func hasActiveSubscription() -> Bool {
@@ -531,7 +529,7 @@ s
     }
 
     /**
-     Retrieves all non-renewing purchases (consumables, non-consumables, or non-renewing subscriptions) made by the user. Purchases are cached on the device and sorted by purchase date. Note that Apphud only tracks consumables if they were purchased after integrating the Apphud SDK.
+     Retrieves all non-renewing purchases (consumables, non-consumables, or non-renewing subscriptions) made by the user. Purchases are cached on the device and sorted by purchase date.
 
      - Returns: An array of `ApphudNonRenewingPurchase` objects representing all standard in-app purchases made by the user, or `nil` if the SDK is not initialized.
      */
