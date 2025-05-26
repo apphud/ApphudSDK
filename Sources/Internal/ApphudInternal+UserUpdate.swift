@@ -22,6 +22,10 @@ extension ApphudInternal {
         let oldStates = await currentUser?.subscriptionsStates()
         let oldPurchasesStates = await currentUser?.purchasesStates()
 
+        let currentProductTypesMap = await currentUser?.purchases.reduce(into: [String: Bool?]()) { result, purchase in
+            result[purchase.productId] = purchase.isConsumable
+        }
+        
         do {
             let response = try decoder.decode(ApphudUserResponse<ApphudUser>.self, from: data)
             await MainActor.run {
@@ -30,7 +34,9 @@ extension ApphudInternal {
         } catch {
             apphudLog("Failed to decode ApphudUser, error: \(error)")
         }
-
+        
+        await currentUser?.updateProductTypes(currentMap: currentProductTypesMap)
+        await updatePremiumStatus(user: currentUser)
         
         let pwls = await currentUser?.paywalls
         let plmnts = await currentUser?.placements
@@ -43,7 +49,7 @@ extension ApphudInternal {
 
         let newStates = await currentUser?.subscriptionsStates()
         let newPurchasesStates = await currentUser?.purchasesStates()
-
+                
         await currentUser?.toCacheV2()
 
         Task { @MainActor in
@@ -63,7 +69,7 @@ extension ApphudInternal {
     
     func updatePremiumStatus(user: ApphudUser?) {
         let hasActiveSub = user?.subscriptions.first(where: { $0.isActive() }) != nil
-        let hasActivePurch = user?.purchases.first(where: { $0.isActive() }) != nil
+        let hasActivePurch = user?.purchases.first(where: { $0.isActive() && ($0.isConsumable != true) }) != nil
         
         let premium = hasActiveSub || hasActivePurch
         

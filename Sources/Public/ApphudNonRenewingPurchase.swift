@@ -44,19 +44,37 @@ public class ApphudNonRenewingPurchase: Codable {
      Returns `true` if purchase was made using Local StoreKit Configuration File. Read more: https://docs.apphud.com/docs/testing-troubleshooting#local-storekit-testing
      */
     public let isLocal: Bool
+    
+    @available(iOS 15.0, *)
+    public func isConsumablePurchase() async -> Bool {
+        if isConsumable != nil {
+            return isConsumable!
+        } else {
+            print("FETCHING PRODUCT TYPE FOR: \(productId)")
+            isConsumable = await productType() == .consumable
+            return isConsumable!
+        }
+    }
+    
+    internal var isConsumable: Bool?
+    
+    @available(iOS 15.0, *)
+    internal func productType() async -> StoreKit.Product.ProductType? {
+        try? await Product.products(for: [productId]).first?.type
+    }
 
     // MARK: - Private methods
 
     required public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: ApphudIAPCodingKeys.self)
-        (self.productId, self.canceledAt, self.purchasedAt, self.isSandbox, self.isLocal, self.transactionId) = try Self.decodeValues(from: values)
+        (self.productId, self.canceledAt, self.purchasedAt, self.isSandbox, self.isLocal, self.transactionId, self.isConsumable) = try Self.decodeValues(from: values)
     }
 
     internal init(with values: KeyedDecodingContainer<ApphudIAPCodingKeys>) throws {
-        (self.productId, self.canceledAt, self.purchasedAt, self.isSandbox, self.isLocal, self.transactionId) = try Self.decodeValues(from: values)
+        (self.productId, self.canceledAt, self.purchasedAt, self.isSandbox, self.isLocal, self.transactionId, self.isConsumable) = try Self.decodeValues(from: values)
     }
 
-    private static func decodeValues(from values: KeyedDecodingContainer<ApphudIAPCodingKeys>) throws -> (String, Date?, Date, Bool, Bool, String?) {
+    private static func decodeValues(from values: KeyedDecodingContainer<ApphudIAPCodingKeys>) throws -> (String, Date?, Date, Bool, Bool, String?, Bool?) {
 
         let kind = try values.decode(String.self, forKey: .kind)
 
@@ -68,8 +86,9 @@ public class ApphudNonRenewingPurchase: Codable {
         let isSandbox = (try values.decode(String.self, forKey: .environment)) == ApphudEnvironment.sandbox.rawValue
         let isLocal = try values.decode(Bool.self, forKey: .local)
         let trxID = try? values.decode(String.self, forKey: .transactionId)
+        let isConsumable = try? values.decode(Bool.self, forKey: .isConsumable)
 
-        return (productId, canceledAt, purchasedAt, isSandbox, isLocal, trxID)
+        return (productId, canceledAt, purchasedAt, isSandbox, isLocal, trxID, isConsumable)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -81,6 +100,7 @@ public class ApphudNonRenewingPurchase: Codable {
         try container.encode(isLocal, forKey: .local)
         try container.encode(ApphudIAPKind.nonrenewable.rawValue, forKey: .kind)
         try? container.encode(transactionId, forKey: .transactionId)
+        try? container.encode(isConsumable, forKey: .isConsumable)
     }
 
     /**
