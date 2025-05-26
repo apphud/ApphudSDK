@@ -13,6 +13,7 @@ internal protocol ApphudViewDelegate {
     func apphudViewHandlePurchase(index: Int)
     func apphudViewHandleRestore()
     func apphudViewDidLoad()
+    func apphudViewShouldLoad(url: URL) -> Bool
     func apphudViewDidExecuteJS(error: Error?)
 }
 

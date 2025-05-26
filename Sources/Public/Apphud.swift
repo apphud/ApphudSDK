@@ -745,7 +745,7 @@ s
      - Note: Call this method to show a Screen that was delayed due to specific conditions or user actions in your app. This helps in managing the user experience more effectively, ensuring Screens are presented at the most appropriate time.
      */
     @MainActor
-    @objc public static func showPendingScreen() {
+    @objc public static func showPendingRuleScreen() {
         return ApphudScreensManager.shared.showPendingScreen()
     }
 
@@ -756,7 +756,7 @@ s
      - Note: Use this method to retrieve the view controller for a delayed Screen if you need to present it manually or modify it before presentation.
      */
     @MainActor
-    @objc public static func pendingScreenController() -> UIViewController? {
+    @objc public static func pendingRuleScreenController() -> UIViewController? {
         return ApphudScreensManager.shared.pendingController
     }
 

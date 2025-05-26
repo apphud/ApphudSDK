@@ -231,7 +231,7 @@ extension ApphudPaywallScreenController: WKUIDelegate {
         self.onTransactionStarted?(nil)
         
         if self.useSystemLoadingIndicator {
-            self.startLoading()
+            self.showLoadingIndicator()
         }
         
         Apphud.restorePurchases { [weak self] result in
@@ -255,6 +255,18 @@ extension ApphudPaywallScreenController: WKUIDelegate {
         }
     }
     
+    func apphudViewShouldLoad(url: URL) -> Bool {
+        if (paywall.paywallURL?.host == url.host) {
+            return true
+        } else {
+            if self.onShouldOpenURL?(url) ?? true {
+                let controller = SFSafariViewController(url: url)
+                self.present(controller, animated: true)
+            }
+            return false
+        }
+    }
+    
     public func webView(_ webView: WKWebView,
                      createWebViewWith configuration: WKWebViewConfiguration,
                      for navigationAction: WKNavigationAction,
@@ -263,10 +275,7 @@ extension ApphudPaywallScreenController: WKUIDelegate {
             if url.host == "pay.apphud.com" {
                 webView.load(navigationAction.request)
             } else {
-                if self.onShouldOpenURL?(url) ?? true {
-                    let controller = SFSafariViewController(url: url)
-                    self.present(controller, animated: true)
-                }
+                _ = apphudViewShouldLoad(url: url)
             }
         }
         return nil
@@ -306,9 +315,11 @@ extension ApphudPaywallScreenController: WKUIDelegate {
                 }
                 
                 return .cancel
+            } else if aphView.viewDelegate?.apphudViewShouldLoad(url: url) ?? true {
+                return .allow
             }
             
-            return .allow
+            return .cancel
         }
         
         private func extractProductIndex(from url: URL) -> Int? {

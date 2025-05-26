@@ -93,28 +93,6 @@ public class ApphudPaywallScreenController: UIViewController, @preconcurrency Ap
     /// - Returns: A dismiss policy indicating whether the paywall should be closed.
     public var onFinished: ((ApphudPaywallResult) -> ApphudPaywallDismissPolicy)?
 
-    /// Called when the paywall finishes loading its content.
-    ///
-    /// If loading is still in progress, the handler will be stored and called later.
-    /// If loading is already complete, it's called immediately with either `nil` (success)
-    /// or an `ApphudError` (failure).
-    ///
-    /// - Parameters:
-    ///   - maxTimeout: Maximum time to wait before triggering a timeout error. Default is `APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT`.
-    ///   - handler: Called with `nil` on success or an `ApphudError` on failure.
-    public func onLoad(maxTimeout: TimeInterval = APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT,
-                       handler: ((ApphudError?) -> Void)?) {
-        switch state {
-        case .loading:
-            setMaxTimeout(maxTimeout: maxTimeout)
-            self.didLoadCallback = handler
-        case .ready:
-            handler?(nil)
-        case .error(let error):
-            handler?(error)
-        }
-    }
-
     /// Called when the user initiates a purchase or starts restoring purchases.
     ///
     /// By default, if `useSystemLoadingIndicator` is `true`, the SDK will display a system loading indicator automatically.
@@ -156,4 +134,17 @@ public class ApphudPaywallScreenController: UIViewController, @preconcurrency Ap
     internal var didTrackPaywallShown = false
     
     internal let loadingView = ApphudLoadingView()
+    
+    internal func onLoad(maxTimeout: TimeInterval = APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT,
+                       handler: ((ApphudError?) -> Void)?) {
+        switch state {
+        case .loading:
+            setMaxTimeout(maxTimeout: maxTimeout)
+            self.didLoadCallback = handler
+        case .ready:
+            handler?(nil)
+        case .error(let error):
+            handler?(error)
+        }
+    }
 }
