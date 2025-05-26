@@ -45,8 +45,15 @@ public enum ApphudPaywallScreenState {
     case error(error: ApphudError)
 }
 
+/// Represents the result of attempting to fetch and prepare a paywall screen for display.
 public enum ApphudPaywallScreenFetchResult {
+    
+    /// The paywall screen was successfully fetched and is ready to be presented.
+    /// - Parameter controller: A fully initialized `ApphudPaywallScreenController` instance.
     case success(controller: ApphudPaywallScreenController)
+    
+    /// An error occurred while fetching or initializing the paywall screen.
+    /// - Parameter error: The error describing what went wrong.
     case error(error: ApphudError)
 }
 
