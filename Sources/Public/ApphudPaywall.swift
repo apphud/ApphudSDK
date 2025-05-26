@@ -142,22 +142,6 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
         
         return url
     }
-     
-//    internal func getPaywallContent() async -> String? {
-//        guard let urlString = paywallURL,
-//              let url = URL(string: urlString) else {
-//            return nil
-//        }
-//        
-//        return await withCheckedContinuation { continuation in
-//            ApphudInternal.shared.httpClient?.loadScreenHtmlData(url: url) { string, error in
-//                if let error = error {
-//                    apphudLog("Failed to cache paywall content for id: \(self.id), error: \(error)")
-//                }
-//                continuation.resume(returning: string)
-//            }
-//        }
-//    }
 
     public func update(json: String) {
         self.jsonString = json
