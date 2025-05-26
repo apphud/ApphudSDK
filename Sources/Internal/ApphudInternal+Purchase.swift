@@ -16,8 +16,8 @@ extension ApphudInternal {
 
     @MainActor internal func migrateiOS14PurchasesIfNeeded() {
         if apphudShouldMigrate() {
-            ApphudInternal.shared.restorePurchases { (subscriptions, purchases, error) in
-                if error == nil {
+            ApphudInternal.shared.restorePurchases { result in
+                if result.error == nil {
                     apphudDidMigrate()
                 }
             }
