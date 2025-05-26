@@ -135,7 +135,7 @@ extension ApphudPaywallScreenController: WKUIDelegate {
     }
     
     internal func apphudViewHandleClose() {
-        let shouldClose = completionHandler?(.userClosed) ?? .allow
+        let shouldClose = onFinished?(.userClosed) ?? .allow
         if shouldClose == .allow {
             dismissNow(userAction: true)
         }
@@ -158,17 +158,23 @@ extension ApphudPaywallScreenController: WKUIDelegate {
     public func apphudViewHandlePurchase(index: Int) {
         let product = paywall.products[index]
         
-        self.delegate?.apphudPaywallScreenInitiatePurchase(controller: self, product: product)
+        self.onTransactionStarted?(product)
+        
+        if self.useSystemLoadingIndicator {
+            showLoadingIndicator()
+        }
         
         Apphud.purchase(product) { [weak self] result in
             if let self {
                 
+                self.hideLoadingIndicator()
+                
                 var shouldClose: ApphudPaywallDismissPolicy = .allow
                 
                 if result.success {
-                    shouldClose = self.completionHandler?(.success(result)) ?? .allow
+                    shouldClose = self.onFinished?(.success(result)) ?? .allow
                 } else {
-                    shouldClose = self.completionHandler?(.failure(result.error ?? ApphudError(message: "Purchase failed", code: 0))) ?? .cancel
+                    shouldClose = self.onFinished?(.failure(result.error ?? ApphudError(message: "Purchase failed", code: 0))) ?? .cancel
                 }
                 
                 if shouldClose == .allow {
@@ -176,6 +182,15 @@ extension ApphudPaywallScreenController: WKUIDelegate {
                 }
             }
         }
+    }
+    
+    func showLoadingIndicator() {
+        loadingView.startLoading(in: self.view) // auto-dismisses in 30 seconds
+    }
+    
+    func hideLoadingIndicator() {
+        // Manually dismiss if needed
+        loadingView.finishLoading()
     }
     
     public func apphudViewDidLoad() {
@@ -212,17 +227,25 @@ extension ApphudPaywallScreenController: WKUIDelegate {
     
     @MainActor
     internal func apphudViewHandleRestore() {
-        self.delegate?.apphudPaywallScreenInitiateRestore(controller: self)
+        
+        self.onTransactionStarted?(nil)
+        
+        if self.useSystemLoadingIndicator {
+            self.startLoading()
+        }
+        
         Apphud.restorePurchases { [weak self] result in
             
             if let self {
                 
+                self.hideLoadingIndicator()
+                
                 var shouldClose: ApphudPaywallDismissPolicy = .allow
                 
                 if Apphud.hasPremiumAccess() {
-                    shouldClose = self.completionHandler?(.success(result)) ?? .allow
+                    shouldClose = self.onFinished?(.success(result)) ?? .allow
                 } else {
-                    shouldClose = self.completionHandler?(.failure(result.error ?? ApphudError(message: "No active purchases", code: 0))) ?? .cancel
+                    shouldClose = self.onFinished?(.failure(result.error ?? ApphudError(message: "No active purchases", code: 0))) ?? .cancel
                 }
                 
                 if shouldClose == .allow {
@@ -240,7 +263,7 @@ extension ApphudPaywallScreenController: WKUIDelegate {
             if url.host == "pay.apphud.com" {
                 webView.load(navigationAction.request)
             } else {
-                if self.delegate?.apphudPaywallScreenShouldOpen(url: url, controller: self) ?? true {
+                if self.onShouldOpenURL?(url) ?? true {
                     let controller = SFSafariViewController(url: url)
                     self.present(controller, animated: true)
                 }

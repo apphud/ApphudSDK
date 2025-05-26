@@ -7,26 +7,6 @@ import UIKit
 import WebKit
 import StoreKit
 
-/// A protocol that defines methods for handling paywall-related events and user interactions.
-public protocol ApphudPaywallScreenDelegate {
-    /// Called before a purchase is initiated through the paywall.
-    /// - Parameters:
-    ///   - controller: The paywall controller instance where the purchase is occurring.
-    ///   - product: The product that will be purchased.
-    func apphudPaywallScreenInitiatePurchase(controller: ApphudPaywallScreenController, product: ApphudProduct)
-        
-    /// Called before a restore purchases operation is initiated.
-    /// - Parameter controller: The paywall controller instance where the restore is occurring.
-    func apphudPaywallScreenInitiateRestore(controller: ApphudPaywallScreenController)
-    
-    /// Called when the user attempts to open external URL from the paywall. Default is `true`. Return `false` if you want to handle this manually.
-    /// SDK will open URL in SFSafariViewController.
-    /// - Parameters:
-    ///   - controller: The paywall controller instance.
-    ///   - url: The URL that will be opened.
-    func apphudPaywallScreenShouldOpen(url: URL, controller: ApphudPaywallScreenController) -> Bool
-}
-
 /// Represents the current loading state of a paywall screen.
 public enum ApphudPaywallScreenState {
     
@@ -88,31 +68,42 @@ public class ApphudPaywallScreenController: UIViewController, @preconcurrency Ap
     /// Apphud paywall object.
     public let paywall: ApphudPaywall
     
-    /// Delegate of the paywall controller
-    public var delegate: ApphudPaywallScreenDelegate?
+    /// Indicates whether the paywall controller has finished loading its content.
+    public internal(set) var state: ApphudPaywallScreenState = .loading
     
-    /// A callback triggered when the user finishes interacting with the paywall.
+    /**
+     Indicates whether controller should pop the navigation stack instead of being dismissed modally.
+     */
+    public var shouldPopOnDismiss = false
+    
+    /// Determines whether the SDK should display a system loading indicator during purchase or restore actions.
     ///
-    /// Use this closure to respond to purchases, failures, or user cancellations.
-    /// Return a `ApphudPaywallDismissPolicy` value to control whether the paywall
-    /// should be automatically dismissed after the result.
+    /// If set to `true` (default), the SDK will automatically show and hide a system-provided loading spinner
+    /// while a transaction is in progress.
     ///
-    /// - Parameter result: The result of the user's interaction with the paywall.
+    /// Set this to `false` if you want to show a custom loading indicator using the `onTransactionStarted` callback.
+    public var useSystemLoadingIndicator: Bool = true
+
+    /// Called when the user finishes interacting with the paywall.
+    ///
+    /// Use this to handle purchases, failures, or user cancellations.
+    /// Return a `ApphudPaywallDismissPolicy` to determine whether the paywall should be dismissed.
+    ///
+    /// - Parameter result: The result of the user's interaction.
     /// - Returns: A dismiss policy indicating whether the paywall should be closed.
-    public var completionHandler: ((ApphudPaywallResult) -> ApphudPaywallDismissPolicy)?
-    
-    /// Sets a callback to be triggered when the paywall controller finishes loading.
+    public var onFinished: ((ApphudPaywallResult) -> ApphudPaywallDismissPolicy)?
+
+    /// Called when the paywall finishes loading its content.
     ///
-    /// If the controller is still loading, the callback will be stored and called later.
-    /// If loading is already complete, the callback is called immediately with either `nil` (success) or an `ApphudError` (failure).
-    ///
-    /// Use the `state` property to check the current loading status.
+    /// If loading is still in progress, the handler will be stored and called later.
+    /// If loading is already complete, it's called immediately with either `nil` (success)
+    /// or an `ApphudError` (failure).
     ///
     /// - Parameters:
-    ///   - maxTimeout: Maximum time to wait before triggering a timeout error starting from method call. Default is `APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT`.
-    ///   - callback: Called with `nil` on success or an `ApphudError` on failure.
-    public func didLoadHandler(maxTimeout: TimeInterval = APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT,
-                                handler: ((ApphudError?) -> Void)?) {
+    ///   - maxTimeout: Maximum time to wait before triggering a timeout error. Default is `APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT`.
+    ///   - handler: Called with `nil` on success or an `ApphudError` on failure.
+    public func onLoad(maxTimeout: TimeInterval = APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT,
+                       handler: ((ApphudError?) -> Void)?) {
         switch state {
         case .loading:
             setMaxTimeout(maxTimeout: maxTimeout)
@@ -123,14 +114,24 @@ public class ApphudPaywallScreenController: UIViewController, @preconcurrency Ap
             handler?(error)
         }
     }
+
+    /// Called when the user initiates a purchase or starts restoring purchases.
+    ///
+    /// By default, if `useSystemLoadingIndicator` is `true`, the SDK will display a system loading indicator automatically.
+    /// If you want to show your own custom loading indicator, set `useSystemLoadingIndicator = false` and handle the UI in this callback.
+    ///
+    /// - Parameter product: The `ApphudProduct` being purchased, or `nil` if the user initiated a restore action.
+    public var onTransactionStarted: ((ApphudProduct?) -> Void)?
     
-    /// Indicates whether the paywall controller has finished loading its content.
-    public internal(set) var state: ApphudPaywallScreenState = .loading
-    
-    /**
-     Indicates whether controller should pop the navigation stack instead of being dismissed modally.
-     */
-    public var shouldPopOnDismiss = false
+    /// A callback that is triggered when the user taps a link that would open an external URL from the paywall.
+    ///
+    /// By default, the SDK opens the URL in a `SFSafariViewController`.
+    /// Return `false` to override this behavior and handle the URL manually.
+    ///
+    /// - Parameters:
+    ///   - url: The external URL the user tapped.
+    /// - Returns: `true` to allow the SDK to open the URL automatically, `false` to prevent it.
+    public var onShouldOpenURL: ((URL) -> Bool)?
         
     // MARK: - Internal methods below
     
@@ -153,4 +154,6 @@ public class ApphudPaywallScreenController: UIViewController, @preconcurrency Ap
         return ApphudView.create(parentView: self.view)
     }()
     internal var didTrackPaywallShown = false
+    
+    internal let loadingView = ApphudLoadingView()
 }

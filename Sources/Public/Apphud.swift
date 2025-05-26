@@ -573,7 +573,7 @@ s
 
     /**
 
-     Implements the `Restore /.  m,,.Purchases` mechanism. This method sends the current App Store Receipt to Apphud and returns information about the user's subscriptions and in-app purchases.
+     Implements the `Restore Purchases` mechanism. This method sends the current App Store Receipt to Apphud and returns information about the user's subscriptions and in-app purchases.
      - parameter callback: Required. A closure that returns an array of `ApphudSubscription` objects, an array of `ApphudNonRenewingPurchase` objects, and an optional `Error`.
      - Note: The presence of a subscription in the callback does not guarantee that it is active. You should check the `isActive()` property on each subscription.
      */
@@ -729,7 +729,7 @@ s
             case .error(let error):
                 completion(.error(error: error))
             case .loading:
-                controller.didLoadHandler(maxTimeout: maxTimeout) { error in
+                controller.onLoad(maxTimeout: maxTimeout) { error in
                     completion(error != nil ? .error(error: error!) : .success(controller: controller))
                 }
             case .ready:
