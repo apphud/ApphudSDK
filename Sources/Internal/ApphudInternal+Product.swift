@@ -11,6 +11,14 @@ import StoreKit
 
 extension ApphudInternal {
 
+    @MainActor internal func performWhenStoreKitProductFetched(maxAttempts: Int) async -> ApphudError? {
+        await withUnsafeContinuation { continuation in
+            performWhenStoreKitProductFetched(maxAttempts: maxAttempts) { error in
+                continuation.resume(returning: error)
+            }
+        }
+    }
+    
     /// Returns false if products groups map dictionary not yet received, block is added to array and will be performed later.
     @MainActor internal func performWhenStoreKitProductFetched(maxAttempts: Int, callback : @escaping ApphudErrorCallback) {
         switch ApphudStoreKitWrapper.shared.status {
@@ -280,6 +288,55 @@ extension ApphudInternal {
             }
         }
     }
+    
+    internal func getRenderedProperties(_ paywall: ApphudPaywall, callback: @escaping (Error?) -> Void) {
+        
+        var items = [[String: any Sendable]]()
+        for product in paywall.products {
+            var info: [String: Any] = [:]
+            info["item_id"] = product.itemId
+            let productInfo = product.skProduct?.screenProperties() ?? [:]
+            info["product_info"] = productInfo
+            items.append(info)
+        }
+        
+        httpClient?.startRequest(path: .renderProductProperties, apiVersion: .APIV2, params: ["device_id": currentDeviceID, "items": items], method: .post, useDecoder: true, retry: true) { _, _, data, error, code, duration, attempts in
+            
+            do {
+                if let data = data {
+                    
+                    struct RenderedPropertiesItem: Decodable {
+                        let itemId: String
+                        let properties: [String: ApphudAnyCodable]?
+                    }
+                    
+                    typealias ApphudArrayResponse = ApphudAPIDataResponse<ApphudAPIArrayResponse <RenderedPropertiesItem>>
+                    
+                    
+                    let decoder = JSONDecoder()
+                    decoder.keyDecodingStrategy = .convertFromSnakeCase
+                    let response = try decoder.decode(ApphudArrayResponse.self, from: data)
+                    
+                    for item in response.data.results {
+                        let product = paywall.products.first { $0.itemId == item.itemId }
+                        if let product {
+                            let props = item.properties
+                            product.properties = props
+                        }
+                    }
+                    
+                    callback(nil)
+                } else {
+                    callback(error)
+                }
+            } catch {
+                apphudLog("Failed to decode products structure with error: \(error)")
+                callback(error)
+            }
+            
+        }
+    }
+    
     
     // MARK: - Product Groups Helper Methods
 

@@ -57,21 +57,20 @@ public class ApphudProduct: NSObject, Codable, ObservableObject {
      Current product's paywall identifier, if available.
      */
     @objc public internal(set) var paywallIdentifier: String?
-
-    // MARK: - Private
-
-    internal var id: String?
-
     public internal(set) var properties: [String: ApphudAnyCodable]?
-    
     @objc public internal(set) var paywallId: String?
     @objc public internal(set) var placementId: String?
     @objc public internal(set) var placementIdentifier: String?
     @objc public internal(set) var variationIdentifier: String?
     @objc public internal(set) var experimentId: String?
     
+    // MARK: - Private
+    internal var id: String?
+    internal var itemId: String?
+    
     private enum CodingKeys: String, CodingKey {
         case id
+        case itemId
         case name
         case store
         case productId
@@ -79,7 +78,7 @@ public class ApphudProduct: NSObject, Codable, ObservableObject {
         case properties
     }
 
-    init(id: String?, name: String?, properties: [String: ApphudAnyCodable], productId: String, store: String, skProduct: SKProduct?) {
+    init(id: String?, itemId: String?, name: String?, properties: [String: ApphudAnyCodable], productId: String, store: String, skProduct: SKProduct?) {
         self.id = id
         self.name = name
         self.productId = productId
@@ -91,6 +90,7 @@ public class ApphudProduct: NSObject, Codable, ObservableObject {
     required public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         id = try? values.decode(String.self, forKey: .id)
+        itemId = try? values.decode(String.self, forKey: .itemId)
         name = try? values.decode(String.self, forKey: .name)
         productId = try values.decode(String.self, forKey: .productId)
         store = try values.decode(String.self, forKey: .store)
@@ -100,9 +100,29 @@ public class ApphudProduct: NSObject, Codable, ObservableObject {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try? container.encode(id, forKey: .id)
+        try? container.encode(itemId, forKey: .itemId)
         try? container.encode(name, forKey: .name)
         try container.encode(store, forKey: .store)
         try container.encode(productId, forKey: .productId)
         try? container.encode(properties, forKey: .properties)
+    }
+    
+    internal func jsonProperties() -> [String: Any] {
+        let langCode = Locale.current.languageCode ?? "en"
+        var innerProps: ApphudAnyCodable?
+        if let props = properties {
+            if props[langCode] != nil {
+                innerProps = props[langCode]
+            } else {
+                innerProps = props["en"]
+            }
+        }
+        
+        if let innerProps = innerProps?.value as? [String: ApphudAnyCodable] {
+            let jsonProps = innerProps.mapValues { $0.toJSONValue() }
+            return jsonProps
+        } else {
+            return [:]
+        }
     }
 }

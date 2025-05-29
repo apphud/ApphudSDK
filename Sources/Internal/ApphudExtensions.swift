@@ -307,6 +307,30 @@ extension Product {
 
 extension SKProduct {
 
+    func screenProperties() -> [String: any Sendable] {
+        var props = [String: any Sendable]()
+        if let symbol = priceLocale.currencySymbol {
+            props["currency_symbol"] = symbol
+        }
+        
+        if let code = priceLocale.currencyCode {
+            props["currency_code"] = code
+        }
+        
+        props["price"] = price
+        props["formatted_price"] = apphudLocalizedPrice()
+        
+        if let intro = introductoryPrice {
+            props["intro_price"] = intro.price.floatValue
+            props["formatted_intro_price"] = apphudLocalizedDiscountPrice(discount: intro)
+            props["intro_units_count"] = intro.subscriptionPeriod.numberOfUnits
+            props["intro_periods_count"] = intro.numberOfPeriods
+            props["intro_payment_mode"] = paymentModeString(intro.paymentMode)
+        }
+        
+        return props
+    }
+    
     var apphudIsPaidIntro: Bool {
         introductoryPrice != nil && introductoryPrice!.price.doubleValue > 0
     }
@@ -382,27 +406,26 @@ extension SKProduct {
         return unit
     }
 
-    private func apphudPromoParameters(discount: SKProductDiscount) -> [String: Any] {
-
-        let periods_count = discount.numberOfPeriods
-
-        let unit_count = discount.subscriptionPeriod.numberOfUnits
-
-        var mode: String = ""
-        switch discount.paymentMode {
+    private func paymentModeString(_ paymentMode: SKProductDiscount.PaymentMode) -> String {
+        switch paymentMode {
         case .payUpFront:
-            mode = "pay_up_front"
+            return "pay_up_front"
         case .payAsYouGo:
-            mode = "pay_as_you_go"
+            return "pay_as_you_go"
         case .freeTrial:
-            mode = "trial"
-        default:
-            break
+            return "trial"
+        @unknown default:
+            return ""
         }
+    }
+    
+    private func apphudPromoParameters(discount: SKProductDiscount) -> [String: Any] {
+        let periods_count = discount.numberOfPeriods
+        let unit_count = discount.subscriptionPeriod.numberOfUnits
 
         let unit = apphudUnitStringFrom(periodUnit: discount.subscriptionPeriod.unit)
 
-        return ["unit": unit, "units_count": unit_count, "periods_count": periods_count, "mode": mode, "price": discount.price.floatValue, "offer_id": discount.identifier ?? ""]
+        return ["unit": unit, "units_count": unit_count, "periods_count": periods_count, "mode": paymentModeString(discount.paymentMode), "price": discount.price.floatValue, "offer_id": discount.identifier ?? ""]
     }
 
     func apphudPromoIdentifiers() -> [String] {

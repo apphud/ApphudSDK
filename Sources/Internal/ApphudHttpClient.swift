@@ -47,7 +47,7 @@ public class ApphudHttpClient {
 
     enum ApphudEndpoint: Equatable {
 
-        case customers, push, logs, events, screens, attribution, products, paywalls, subscriptions, signOffer, promotions, properties, receipt, notifications, readNotifications, rule(String)
+        case customers, push, logs, events, screens, attribution, products, paywalls, subscriptions, signOffer, promotions, properties, receipt, notifications, readNotifications, rule(String), renderProductProperties
 
         var value: String {
             switch self {
@@ -83,6 +83,8 @@ public class ApphudHttpClient {
                 return "notifications/read"
             case .rule(let ruleID):
                 return "rules/\(ruleID)"
+            case .renderProductProperties:
+                return "paywall_configs/items/render_properties"
             }
         }
     }

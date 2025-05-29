@@ -49,7 +49,7 @@ internal class ApphudScreensManager {
     
     internal func requestPaywallcontroller(_ paywall: ApphudPaywall, maxTimeout: TimeInterval = APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT, completion: @escaping (ApphudPaywallScreenFetchResult) -> Void) {
         do {
-            let controller = try ApphudScreensManager.shared.requestPaywallController(paywall: paywall)
+            let controller = try requestPaywallController(paywall: paywall)
             switch controller.state {
             case .error(let error):
                 completion(.error(error: error))
@@ -76,6 +76,7 @@ internal class ApphudScreensManager {
                 throw e
             case .loading, .ready:
                 apphudLog("Using preloaded paywall \(paywall.identifier)")
+                vc.load()
                 return vc
             }
         }

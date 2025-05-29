@@ -47,39 +47,28 @@ extension ApphudPaywallScreenController: WKUIDelegate {
    
     @MainActor
     private func productsInfo() async -> [[String: any Sendable]]? {
-        return await withCheckedContinuation { continuation in
-            ApphudInternal.shared.performWhenStoreKitProductFetched(maxAttempts: 1) { [weak self] _ in
-                var infos = [[String: any Sendable]]()
-                for p in self?.paywall.products ?? [] {
-                    if let skProduct = p.skProduct {
-                                                
-                        var finalInfo = skProduct.apphudSubmittableParameters()
-                        
-                        let langCode = Locale.current.languageCode ?? "en"
-                        var innerProps: ApphudAnyCodable?
-                        if let props = p.properties {
-                            if props[langCode] != nil {
-                                innerProps = props[langCode]
-                            } else {
-                                innerProps = props["en"]
-                            }
-                        }
-                        
-                        if let innerProps = innerProps?.value as? [String: ApphudAnyCodable] {
-                            let jsonProps = innerProps.mapValues { $0.toJSONValue() }
-                            finalInfo.merge(jsonProps, uniquingKeysWith: { old, new in new })
-                        }
-                        
-                        finalInfo.removeValue(forKey: "promo_offers")
-                        
-                        infos.append(finalInfo)
-                    } else {
-                        infos.append([:])
-                    }
-                }
-                continuation.resume(returning: infos)
+        
+        _ = await ApphudInternal.shared.performWhenStoreKitProductFetched(maxAttempts: 1)
+        
+        await paywall.renderProperties()
+        
+        var infos = [[String: any Sendable]]()
+        
+        for p in paywall.products {
+            if let skProduct = p.skProduct {
+                                        
+                var finalInfo = skProduct.apphudSubmittableParameters()
+                
+                finalInfo.merge(p.jsonProperties(), uniquingKeysWith: { _, new in new })
+                finalInfo.removeValue(forKey: "promo_offers")
+                
+                infos.append(finalInfo)
+            } else {
+                infos.append([:])
             }
         }
+        
+        return infos
     }
         
     private func startLoading() {

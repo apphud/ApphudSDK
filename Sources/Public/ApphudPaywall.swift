@@ -111,6 +111,8 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
     internal var variationIdentifier: String?
     internal var experimentId: String?
     
+    internal var renderedProductProperties: Bool = false
+    
     internal var paywallURL: URL? {
         guard let dict = json?["apphud_paywall_urls"] as? [String: String] else {
             return nil
@@ -145,6 +147,16 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
 
     public func update(json: String) {
         self.jsonString = json
+    }
+    
+    internal func renderProperties() async {
+        self.renderedProductProperties = true
+        
+        return await withUnsafeContinuation { continuation in
+            ApphudInternal.shared.getRenderedProperties(self) { error in
+                continuation.resume()
+            }
+        }
     }
     
     @MainActor
