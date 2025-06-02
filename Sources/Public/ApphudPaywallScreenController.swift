@@ -28,7 +28,7 @@ public enum ApphudPaywallScreenState {
 /// Represents the result of attempting to fetch and prepare a paywall screen for display.
 public enum ApphudPaywallScreenFetchResult {
     
-    /// The paywall screen was successfully fetched and is ready to be presented.
+    /// The paywall screen was successfully fetched and is ready to be presented. You must manually show this controller.
     /// - Parameter controller: A fully initialized `ApphudPaywallScreenController` instance.
     case success(controller: ApphudPaywallScreenController)
     

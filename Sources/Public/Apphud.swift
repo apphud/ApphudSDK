@@ -477,20 +477,20 @@ s
     // MARK: - Check Status
 
     /**
-     Determines whether the user currently has premium access, either through an active subscription or a non-consumable (lifetime) purchase.
+     Determines whether the user currently has premium access, either through an active auto-renewable subscription, non-renewing subscription or a non-consumable (lifetime) purchase.
 
      __Important: On iOS 13 and 14, this method will return `true` for consumable purchases.  If your app has consumable purchases and target iOS 13 and 14, do not use this method. __
 
-     - Returns: `true` if the user has an active subscription or a valid non-consumable purchase.
+     - Returns: `true` if the user has an active auto-renewable subscription, non-renewing subscription or a valid non-consumable purchase.
      */
     @objc public static func hasPremiumAccess() -> Bool {
         ApphudInternal.shared.isPremium
     }
 
     /**
-     Checks if the user has an active premium subscription.
+     Checks if the user has an active premium auto-renewable subscription.
 
-     - Returns: `true` if the user currently has an active subscription.
+     - Returns: `true` if the user currently has an active auto-renewable subscription.
      */
     @objc public static func hasActiveSubscription() -> Bool {
         ApphudInternal.shared.hasActiveSubscription
@@ -506,9 +506,9 @@ s
     }
 
     /**
-     Retrieves the most recently purchased subscription object for the current user. Subscriptions are cached on the device.
+     Retrieves the most recently purchased auto-renewable subscription object for the current user. Subscriptions are cached on the device.
 
-     - Note: A non-nil return value does not guarantee that the subscription is active. Use the `Apphud.hasActiveSubscription()` method or check the `isActive` property of the subscription to determine if premium functionality should be unlocked for the user.
+     - Note: A non-nil return value does not guarantee that the auto-renewable subscription is active. Use the `Apphud.hasActiveSubscription()` method or check the `isActive` property of the auto-renewable subscription to determine if premium functionality should be unlocked for the user.
      - Returns: The most recent `ApphudSubscription` object if available, otherwise `nil`.
      */
     @MainActor public static func subscription() -> ApphudSubscription? {
@@ -516,7 +516,7 @@ s
     }
 
     /**
-     Retrieves all subscriptions that the user has ever purchased. This method is useful if your app has more than one subscription group.
+     Retrieves all auto-renewable subscriptions that the user has ever purchased. This method is useful if your app has more than one subscription group.
 
      - Returns: An array of `ApphudSubscription` objects representing all subscriptions ever purchased by the user, or `nil` if the SDK is not initialized.
      */
@@ -542,7 +542,7 @@ s
     }
 
     /**
-     Checks if the user has an active non-renewing purchase with a specific product identifier. This includes consumables, non-consumables, or non-renewing subscriptions. Note that Apphud only tracks consumables if they were purchased after integrating the Apphud SDK.
+     Checks if the user has an active non-renewing purchase with a specific product identifier. This includes consumables, non-consumables, or non-renewing subscriptions.
 
      - parameter productIdentifier: The product identifier for the in-app purchase to check.
      - Returns: `true` if the user has an active purchase with the given product identifier; `false` if the product is refunded, never purchased, or inactive.
