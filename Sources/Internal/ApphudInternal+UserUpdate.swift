@@ -21,10 +21,6 @@ extension ApphudInternal {
 
         let oldStates = await currentUser?.subscriptionsStates()
         let oldPurchasesStates = await currentUser?.purchasesStates()
-
-        let currentProductTypesMap = await currentUser?.purchases.reduce(into: [String: Bool?]()) { result, purchase in
-            result[purchase.productId] = purchase.isConsumable
-        }
         
         do {
             let response = try decoder.decode(ApphudUserResponse<ApphudUser>.self, from: data)
@@ -35,7 +31,7 @@ extension ApphudInternal {
             apphudLog("Failed to decode ApphudUser, error: \(error)")
         }
         
-        await currentUser?.updateProductTypes(currentMap: currentProductTypesMap)
+        await currentUser?.updateProductTypes()
         await updatePremiumStatus(user: currentUser)
         
         let pwls = await currentUser?.paywalls

@@ -156,16 +156,17 @@ public struct ApphudUser: Codable {
 
     private static let ApphudMigrateCachesKey = "ApphudMigrateCachesKey"
 
-    func updateProductTypes(currentMap: [String: Bool?]? = nil) async {
-        if #available(iOS 15.0, *) {
-            for purchase in purchases {
-                if purchase.isConsumable == nil {
-                    if let existingValue = currentMap?[purchase.productId] as? Bool {
-                        purchase.isConsumable = existingValue
-                    } else {
-                        _ = await purchase.isConsumablePurchase()
-                    }
-                }
+    func updateProductTypes() async {
+        guard #available(iOS 15.0, *) else { return }
+
+        for purchase in purchases {
+            guard purchase.isConsumable == nil else { continue }
+
+            if let knownType = await ApphudDataActor.shared.knownProductType(for: purchase.productId) {
+                purchase.isConsumable = knownType == .consumable
+            } else if let type = await purchase.productType() {
+                await ApphudDataActor.shared.setProductType(type, for: purchase.productId)
+                purchase.isConsumable = type == .consumable
             }
         }
     }

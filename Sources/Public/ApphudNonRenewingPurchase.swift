@@ -47,20 +47,26 @@ public class ApphudNonRenewingPurchase: Codable {
     
     @available(iOS 15.0, *)
     public func isConsumablePurchase() async -> Bool {
-        if isConsumable != nil {
-            return isConsumable!
-        } else {
-            print("FETCHING PRODUCT TYPE FOR: \(productId)")
-            isConsumable = await productType() == .consumable
-            return isConsumable!
+        if let cached = isConsumable {
+            return cached
         }
+        
+        apphudLog("Unknown consumable type, fetching for: \(productId)", forceDisplay: true)
+        let result = await productType() == .consumable
+        isConsumable = result
+        return result
     }
     
     internal var isConsumable: Bool?
     
     @available(iOS 15.0, *)
-    internal func productType() async -> StoreKit.Product.ProductType? {
-        try? await Product.products(for: [productId]).first?.type
+    internal func productType() async -> Product.ProductType? {
+        guard let product = try? await Product.products(for: [productId]).first else {
+            return nil
+        }
+        apphudLog("Unknown product type, fetching for: \(productId)", forceDisplay: true)
+        
+        return product.type
     }
 
     // MARK: - Private methods

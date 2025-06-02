@@ -8,6 +8,24 @@
 import Foundation
 import StoreKit
 
+@available(iOS 15.0, *)
+public enum ApphudProductType: String {
+    case consumable
+    case nonConsumable
+    case autoRenewable
+    case nonRenewable
+    
+    static func from(_ type: Product.ProductType) -> ApphudProductType? {
+        switch type {
+        case .autoRenewable: return .autoRenewable
+        case .nonRenewable: return .nonRenewable
+        case .consumable: return .consumable
+        case .nonConsumable: return .nonConsumable
+        default: return nil
+        }
+    }
+}
+
 /**
  Apphud's wrapper around `SKProduct`.
  
