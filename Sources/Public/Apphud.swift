@@ -690,13 +690,14 @@ s
     // MARK: - Paywalls Presentation
     
     /**
-     Preloads the paywall screen to enable faster presentation.
+     Preloads and caches one or more paywall screens to enable faster presentation.
 
-     You should call this method as early as possible—ideally after you receive your placements and before the paywall is actually presented.
+     Call this immediately after `Apphud.start()`— to warm up the paywall Screen you plan to show later.
 
-     If the provided paywall doesn't contain a valid URL, this method does nothing.
+     If a paywall identifier does not have a Screen, it will be ignored.
 
-     - Parameter paywall: The `ApphudPaywall` object to preload.
+     - Parameters:
+       - placementIdentifiers: An array of placement identifiers to preload.
      */
     @MainActor
     public static func preloadPaywallScreens(placementIdentifiers: [String]) {
@@ -704,16 +705,16 @@ s
     }
     
     /**
-     Returns an instance of `ApphudPaywallScreenController` for the given paywall.
+     Asynchronously fetches a paywall Screen for the given paywall.
 
-     You must manually add this controller to your view hierarchy. If the paywall does not include a valid visual URL, this method returns `nil`.
+     You must manually add returned controller to your view hierarchy.
+     If the paywall does not have a Screen, this method returns nil.
+     If you did not call `preloadPaywallScreens(placementIdentifiers:)` beforehand, loading will start when this method is called.
 
-     If `preloadPaywall(_:)` was not previously called for this paywall, it will begin loading at the time this method is called.
-     
-     To manually delay presentation until the content is fully loaded, use the controller’s `readyCallback` or implement the `ApphudPaywallScreenDelegate`'s  `apphudPaywallScreenControllerIsReady(:)` method.
-
-     - Parameter paywall: The `ApphudPaywall` object to load.
-     - Returns: An instance of `ApphudPaywallScreenController`, or `nil` if the paywall doesn't contain a valid URL.
+     - Parameters:
+       - paywall: The `ApphudPaywall` instance whose Screen you want to display.
+       - maxTimeout: Maximum time (in seconds) to wait for the Screen to load. If this interval elapses without success, the completion handler is called with an error. Defaults to `APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT`.
+       - completion: A closure receiving an `ApphudPaywallScreenFetchResult`, which contains either a ready-to-use `ApphudPaywallScreenController` or an error.
      */
     @MainActor
     public static func fetchPaywallScreen(_ paywall: ApphudPaywall, maxTimeout: TimeInterval = APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT, completion: @escaping (ApphudPaywallScreenFetchResult) -> Void) {
@@ -721,14 +722,14 @@ s
     }
     
     /**
-     Removes the preloaded paywall screen from memory cache.
+     Removes the preloaded paywall Screen from memory cache.
 
      Call this method when the specified paywall is no longer needed.
-     For example, after a user completes onboarding and the onboarding paywall will not be shown again.
+     For example, after a user completes onboarding and the onboarding paywall will never be shown again.
 
      The SDK automatically removes all preloaded paywalls after a successful purchase.
 
-     If the provided paywall does not contain a valid visual URL, this method does nothing.
+     If the provided paywall does not contain a valid Screen, this method does nothing.
 
      - Parameter paywall: The `ApphudPaywall` object to unload.
      */
