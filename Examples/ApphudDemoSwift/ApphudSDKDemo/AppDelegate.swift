@@ -26,6 +26,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate, @preconcurrency UNUserNot
         Apphud.setDeviceIdentifiers(idfa: nil, idfv: UIDevice.current.identifierForVendor?.uuidString)
         fetchIDFA()
         
+        Apphud.preloadPaywallScreens(placementIdentifiers: ["MY_PLAYWALL_PLACEMENT_ID", "ANOTHER_PLACEMENT_ID"])
+        
         /** Custom User Properties Examples */
         Apphud.setUserProperty(key: .email, value: "user@example.com", setOnce: true)
         Apphud.setUserProperty(key: .init("custom_prop_1"), value: 0.5)

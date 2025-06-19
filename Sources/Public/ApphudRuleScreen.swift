@@ -1,12 +1,12 @@
 //
-//  ApphudScreen.swift
+//  ApphudRuleScreen.swift
 //  Apphud, Inc
 //
 //  Created by ren6 on 26/08/2019.
 //  Copyright © 2019 Apphud Inc. All rights reserved.
 //
 
-public struct ApphudScreen {
+public struct ApphudRuleScreen {
 
     public var status_bar_color: String?
     public var name: String?

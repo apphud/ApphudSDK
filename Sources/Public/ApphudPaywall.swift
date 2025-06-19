@@ -101,7 +101,7 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
     }
     
     public func hasVisualPaywall() -> Bool {
-        paywallURL != nil
+        screen?.paywallURL != nil
     }
 
     internal var id: String
@@ -110,41 +110,10 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
     internal var placementId: String?
     internal var variationIdentifier: String?
     internal var experimentId: String?
+    internal var screen: ApphudPaywallScreen?
     
     internal var renderedProductProperties: Bool = false
     
-    internal var paywallURL: URL? {
-        guard let dict = json?["apphud_paywall_urls"] as? [String: String] else {
-            return nil
-        }
-           
-        var langCode: String?
-        if #available(iOS 16, *) {
-            langCode = Locale.current.language.languageCode?.identifier
-        } else {
-            langCode = Locale.current.languageCode
-        }
-        
-        if langCode == nil {
-            langCode = "default"
-        }
-        
-        guard let finalURLString = dict[langCode!] ?? dict["default"], var url = URL(string: finalURLString) else {
-            return nil
-        }
-        
-        var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
-        var queryItems = components?.queryItems ?? []
-        queryItems.append(URLQueryItem(name: "live", value: "true"))
-        components?.queryItems = queryItems
-
-        if let newURL = components?.url {
-            url = newURL
-        }
-        
-        return url
-    }
-
     public func update(json: String) {
         self.jsonString = json
     }
@@ -183,6 +152,7 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
         case experimentId
         case variationIdentifier
         case variationName
+        case screen
         case isDefault = "default"
         case jsonString = "json"
         case products = "items"
@@ -202,6 +172,7 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
         jsonString = try? values.decode(String.self, forKey: .jsonString)
         isDefault = try values.decode(Bool.self, forKey: .isDefault)
         products = try values.decode([ApphudProduct].self, forKey: .products)
+        screen = try? values.decode(ApphudPaywallScreen.self, forKey: .screen)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -217,5 +188,6 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
         try? container.encode(jsonString, forKey: .jsonString)
         try container.encode(isDefault, forKey: .isDefault)
         try container.encode(products, forKey: .products)
+        try? container.encode(screen, forKey: .screen)
     }
 }

@@ -11,8 +11,8 @@ import ApphudSDK
 import StoreKit
 import SwiftUI
 
-enum PaywallID: String {
-    case main // should be equal to identifier in your Apphud > Paywalls
+enum PlacementID: String {
+    case main // should be equal to identifier in your Apphud > Placements
     case onboarding
 }
 
@@ -52,7 +52,7 @@ class PaywallViewController: UIViewController {
 
     private func loadPaywalls() async {
         let placements = await Apphud.placements()
-        let placement = placements.first(where: { $0.identifier == PaywallID.onboarding.rawValue }) ?? placements.first
+        let placement = placements.first(where: { $0.identifier == PlacementID.onboarding.rawValue }) ?? placements.first
         if let paywall = placement?.paywall {
             self.handlePaywallReady(paywall: paywall)
         }
@@ -103,8 +103,6 @@ class PaywallViewController: UIViewController {
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
 
-        // send Apphud log, that your paywall closed
-        self.paywall.map { Apphud.paywallClosed($0) }
         dismissCompletion?()
     }
 

@@ -7,13 +7,14 @@
 //
 
 import UIKit
+import ApphudSDK
 
 @MainActor
 class Router: NSObject {
 
     static let shared = Router()
 
-    func showRepeatPaywall(_ id: PaywallID, purchaseCallback: @escaping (Bool) -> Void, completion: @escaping () -> Void) {
+    func showRepeatPaywall(_ id: PlacementID, purchaseCallback: @escaping (Bool) -> Void, completion: @escaping () -> Void) {
         let storyBoard: UIStoryboard = UIStoryboard(name: "Main", bundle: nil)
         let paywallRepeatController = storyBoard.instantiateViewController(withIdentifier: "PaywallViewController") as! PaywallViewController
         paywallRepeatController.purchaseCallback = purchaseCallback

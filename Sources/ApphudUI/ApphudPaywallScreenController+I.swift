@@ -72,7 +72,7 @@ extension ApphudPaywallScreenController: WKUIDelegate {
     }
         
     private func startLoading() {
-        guard let url = paywall.paywallURL else {
+        guard let url = paywall.screen?.paywallURL else {
             dismiss(animated: true)
             return
         }
@@ -108,7 +108,7 @@ extension ApphudPaywallScreenController: WKUIDelegate {
         var aphError = error != nil ? ApphudError(error: error!) : nil
         
         if let nsError = error as? NSError, nsError.userInfo.description.contains("Can't find variable: PaywallSDK"), nsError.localizedDescription.contains("A JavaScript exception occurred") {
-            aphError = ApphudError(message: "Invalid Paywall Screen URL: \(String(describing: paywall.paywallURL))", code: APPHUD_PAYWALL_SCREEN_INVALID)
+            aphError = ApphudError(message: "Invalid Paywall Screen URL: \(String(describing: paywall.screen?.paywallURL))", code: APPHUD_PAYWALL_SCREEN_INVALID)
         }
         
         self.state = aphError != nil ? .error(error: aphError!) : .ready
@@ -245,7 +245,7 @@ extension ApphudPaywallScreenController: WKUIDelegate {
     }
     
     func apphudViewShouldLoad(url: URL) -> Bool {
-        if (paywall.paywallURL?.host == url.host) {
+        if (paywall.screen?.paywallURL?.host == url.host) {
             return true
         } else {
             if self.onShouldOpenURL?(url) ?? true {
