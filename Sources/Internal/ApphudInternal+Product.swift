@@ -293,11 +293,21 @@ extension ApphudInternal {
         
         var items = [[String: any Sendable]]()
         for product in paywall.products {
+            if product.hasMacros() == false {
+                apphudLog("Product \(product.productId) has no macros, skipping")
+                continue
+            }
             var info: [String: Any] = [:]
             info["item_id"] = product.itemId
             let productInfo = product.skProduct?.screenProperties() ?? [:]
             info["product_info"] = productInfo
             items.append(info)
+        }
+        
+        if items.isEmpty {
+            apphudLog("No products macros to render, skipping")
+            callback(nil)
+            return
         }
         
         httpClient?.startRequest(path: .renderProductProperties, apiVersion: .APIV2, params: ["device_id": currentDeviceID, "items": items], method: .post, useDecoder: true, retry: true) { _, _, data, error, code, duration, attempts in

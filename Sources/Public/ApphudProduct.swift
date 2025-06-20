@@ -143,4 +143,17 @@ public class ApphudProduct: NSObject, Codable, ObservableObject {
             return [:]
         }
     }
+    
+    internal func hasMacros() -> Bool {
+        let jsonPros = self.jsonProperties()
+        for value in jsonPros.values {
+            if let value = value as? String {
+                if value.contains("{") {
+                    return true
+                }
+            }
+        }
+        
+        return false
+    }
 }

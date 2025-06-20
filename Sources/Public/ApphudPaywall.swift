@@ -119,10 +119,17 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
     }
     
     internal func renderProperties() async {
+        if self.renderedProductProperties { return }
+        
         self.renderedProductProperties = true
         
         return await withUnsafeContinuation { continuation in
             ApphudInternal.shared.getRenderedProperties(self) { error in
+                
+                if error != nil {
+                    self.renderedProductProperties = false
+                }
+                
                 continuation.resume()
             }
         }

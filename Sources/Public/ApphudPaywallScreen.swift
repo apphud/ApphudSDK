@@ -6,22 +6,31 @@
 //
 
 internal struct ApphudPaywallScreen: Codable {
+    
     public var id: String
+    public var defaultURL: String?
     public var urls: [String: String]
     
     internal var paywallURL: URL? {
-        var langCode: String = ""
+        
+        let langCode: String?
         if #available(iOS 16, *) {
-            langCode = Locale.current.language.languageCode?.identifier ?? "default"
+            langCode = Locale.current.language.languageCode?.identifier
         } else {
-            langCode = Locale.current.languageCode ?? "default"
+            langCode = Locale.current.languageCode
         }
         
-        if langCode.isEmpty {
-            langCode = "default"
+        var finalURLString: String? = nil
+        
+        if let langCode {
+            finalURLString = urls[langCode]
         }
         
-        guard let finalURLString = urls[langCode] ?? urls["default"] ?? urls["en"], var url = URL(string: finalURLString) else {
+        if finalURLString == nil {
+            finalURLString = defaultURL ?? urls["en"] ?? urls.first?.value
+        }
+        
+        guard let finalURLString, var url = URL(string: finalURLString) else {
             return nil
         }
         

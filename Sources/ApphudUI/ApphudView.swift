@@ -70,18 +70,43 @@ internal class ApphudView: WKWebView {
             return
         }
         
-//        apphudLog("[ApphudView] Will execute JS:\n\n\(jsonString)")
+        apphudLog("[ApphudView] Will execute JS:\n\n\(jsonString)")
         
         evaluateJavaScript("PaywallSDK.shared().processDomMacros(\(jsonString));") { [weak self] result, error in
-            if let error {
-                apphudLog("[ApphudView] Failed to execute JS: \(error.localizedDescription)")
-            } else {
-                apphudLog("[ApphudView] Executed JS successfully: \(String(describing: result))")
-            }
-            guard let self = self else {return}
             
-            self.viewDelegate?.apphudViewDidExecuteJS(error: error)
+            guard let self = self else {return}
+
+            if let error {
+                apphudLog("[Apphud] Failed to execute JS: \(error.localizedDescription)")
+                self.viewDelegate?.apphudViewDidExecuteJS(error: error)
+
+            } else {
+                apphudLog("[Apphud] Executed JS successfully: \(String(describing: result))")
+                                
+                let insets = getSafeAreaInsets()
+                self.evaluateJavaScript("PaywallSDK.shared().applyCustomInsets(\(insets.top), \(insets.bottom));") { [weak self] result, error in
+                    guard let self = self else {return}
+                    
+                    if let error {
+                        apphudLog("[Apphud] Failed to apply safe area insets: \(String(describing: error))")
+                    }
+                    
+                    self.viewDelegate?.apphudViewDidExecuteJS(error: nil)
+                }
+            }
         }
     }
     
+    func getSafeAreaInsets() -> UIEdgeInsets {
+        if #available(iOS 13.0, *) {
+            return UIApplication.shared
+                .connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .flatMap { $0.windows }
+                .first(where: \.isKeyWindow)?
+                .safeAreaInsets ?? .zero
+        } else {
+            return UIApplication.shared.keyWindow?.safeAreaInsets ?? .zero
+        }
+    }
 }
