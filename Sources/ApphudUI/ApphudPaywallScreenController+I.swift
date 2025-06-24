@@ -121,6 +121,10 @@ extension ApphudPaywallScreenController: WKUIDelegate {
             self.didLoadCallback = nil
             cb(aphError)
         }
+        
+        if self.state == .ready {
+            apphudLog("Screen is ready")
+        }
     }
     
     internal func apphudViewHandleClose() {

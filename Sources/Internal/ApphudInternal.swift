@@ -373,7 +373,7 @@ final class ApphudInternal: NSObject {
        return self.currentUser?.subscriptions.count ?? 0 > 0 || self.currentUser?.purchases.count ?? 0 > 0
     }
 
-    internal var cacheTimeout: TimeInterval = apphudIsSandbox() ? 60 : 90000
+    internal var cacheTimeout: TimeInterval = apphudIsSandbox() ? 5 : 90000
     internal func setCacheTimeout(_ value: TimeInterval) {
         if (value >= 0 && value < 86_400*2) {
             self.cacheTimeout = value

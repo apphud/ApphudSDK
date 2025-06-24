@@ -76,7 +76,6 @@ internal class ApphudScreensManager {
                 throw e
             case .loading, .ready:
                 apphudLog("Using preloaded paywall \(paywall.identifier)")
-                vc.load()
                 return vc
             }
         }

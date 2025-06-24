@@ -100,8 +100,21 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
         return [:]
     }
     
+    /**
+     Use this function to know whether paywall has a valid visual Screen.
+     */
     public func hasVisualPaywall() -> Bool {
         screen?.paywallURL != nil
+    }
+    
+    /**
+     Use this function to know whether Screen is ready to be displayed immediately.
+     */
+    @MainActor
+    public func isVisualPaywallPreloaded() -> Bool {
+        let vc = ApphudScreensManager.shared.pendingPaywallControllers[identifier] as? ApphudPaywallScreenController
+        
+        return vc?.state == .ready
     }
 
     internal var id: String

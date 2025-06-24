@@ -708,6 +708,7 @@ s
      You must manually add returned controller to your view hierarchy.
      If the paywall does not have a Screen, this method returns nil.
      If you did not call `preloadPaywallScreens(placementIdentifiers:)` beforehand, loading will start when this method is called.
+     If paywall Screen already pre-loaded, it will present immediately. You can use ApphudPaywall's `isScreenPreloaded` function.
 
      - Parameters:
        - paywall: The `ApphudPaywall` instance whose Screen you want to display.
