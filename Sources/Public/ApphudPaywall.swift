@@ -131,13 +131,37 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
         self.jsonString = json
     }
     
-    internal func renderProperties() async {
+    internal func itemsToRender() -> [[String: any Sendable]] {
+        var items = [[String: any Sendable]]()
+        for product in products {
+            if product.hasMacros() == false {
+                apphudLog("Product \(product.productId) has no macros, skipping")
+                continue
+            }
+            var info: [String: Any] = [:]
+            info["item_id"] = product.itemId
+            let productInfo = product.skProduct?.screenProperties() ?? [:]
+            info["product_info"] = productInfo
+            items.append(info)
+        }
+        
+        return items
+    }
+            
+    internal func renderPropertiesIfNeeded() async {
         if self.renderedProductProperties { return }
         
         self.renderedProductProperties = true
         
+        let items = itemsToRender()
+        if items.isEmpty {
+            apphudLog("No products macros to render, skipping")
+            return
+        }
+        
         return await withUnsafeContinuation { continuation in
-            ApphudInternal.shared.getRenderedProperties(self) { error in
+            
+            ApphudInternal.shared.getRenderedProperties(self, items: items, locale: Locale.current.apphudLanguageCode()) { error in
                 
                 if error != nil {
                     self.renderedProductProperties = false
@@ -155,6 +179,7 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
         self.placementIdentifier = placementIdentifier
         products.forEach({ product in
             product.paywallId = id
+            product.paywall = self
             product.paywallIdentifier = identifier
             product.placementId = placementId
             product.placementIdentifier = placementIdentifier

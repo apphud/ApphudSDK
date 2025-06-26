@@ -36,22 +36,36 @@ public enum ApphudProductType: String {
  */
 
 public class ApphudProduct: NSObject, Codable, ObservableObject {
-
+    
     /**
      Product identifier from App Store Connect.
      */
     @objc public internal(set) var productId: String
-
+    
     /**
      Product name from Apphud Dashboard
      */
     @objc public internal(set) var name: String?
-
+    
     /**
      Always `app_store` in iOS SDK.
      */
     @objc public internal(set) var store: String
+    
+    /**
+     Returns product macros defined in the Paywalls section of Product Hub.
 
+     By default, values are extracted based on the device's current locale.
+     
+     - Parameter locale: The language code to use for localization. Defaults to the device's locale.
+     - Returns: A dictionary of localized macro values.
+     */
+    public func macroValues(locale: String = Locale.current.apphudLanguageCode()) async -> [String: any Sendable]? {
+        await paywall?.renderPropertiesIfNeeded()
+        
+        return jsonProperties(langCode: locale, fallback: false)
+    }
+    
     /**
      When paywalls are successfully loaded, skProduct model will always be present if App Store returned model for this product id. getPaywalls method will return callback only when StoreKit products are fetched and mapped with Apphud products.
      
@@ -75,16 +89,17 @@ public class ApphudProduct: NSObject, Codable, ObservableObject {
      Current product's paywall identifier, if available.
      */
     @objc public internal(set) var paywallIdentifier: String?
-    public internal(set) var properties: [String: ApphudAnyCodable]?
     @objc public internal(set) var paywallId: String?
     @objc public internal(set) var placementId: String?
     @objc public internal(set) var placementIdentifier: String?
     @objc public internal(set) var variationIdentifier: String?
     @objc public internal(set) var experimentId: String?
+    internal var paywall: ApphudPaywall?
     
     // MARK: - Private
     internal var id: String?
     internal var itemId: String?
+    internal var properties: [String: ApphudAnyCodable]?
     
     private enum CodingKeys: String, CodingKey {
         case id
@@ -125,14 +140,14 @@ public class ApphudProduct: NSObject, Codable, ObservableObject {
         try? container.encode(properties, forKey: .properties)
     }
     
-    internal func jsonProperties() -> [String: Any] {
-        let langCode = Locale.current.languageCode ?? "en"
+    internal func jsonProperties(langCode: String = Locale.current.apphudLanguageCode(), fallback: Bool = true) -> [String: any Sendable]? {
+        
         var innerProps: ApphudAnyCodable?
         if let props = properties {
             if props[langCode] != nil {
                 innerProps = props[langCode]
-            } else {
-                innerProps = props["en"]
+            } else if fallback {
+                innerProps = props.keys.first.flatMap { props[$0] }
             }
         }
         
@@ -140,12 +155,13 @@ public class ApphudProduct: NSObject, Codable, ObservableObject {
             let jsonProps = innerProps.mapValues { $0.toJSONValue() }
             return jsonProps
         } else {
-            return [:]
+            return nil
         }
     }
     
     internal func hasMacros() -> Bool {
-        let jsonPros = self.jsonProperties()
+        guard let jsonPros = self.jsonProperties() else {return false}
+        
         for value in jsonPros.values {
             if let value = value as? String {
                 if value.contains("{") {

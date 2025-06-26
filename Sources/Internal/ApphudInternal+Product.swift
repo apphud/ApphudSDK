@@ -289,38 +289,19 @@ extension ApphudInternal {
         }
     }
     
-    internal func getRenderedProperties(_ paywall: ApphudPaywall, callback: @escaping (Error?) -> Void) {
-        
-        var items = [[String: any Sendable]]()
-        for product in paywall.products {
-            if product.hasMacros() == false {
-                apphudLog("Product \(product.productId) has no macros, skipping")
-                continue
-            }
-            var info: [String: Any] = [:]
-            info["item_id"] = product.itemId
-            let productInfo = product.skProduct?.screenProperties() ?? [:]
-            info["product_info"] = productInfo
-            items.append(info)
-        }
-        
-        if items.isEmpty {
-            apphudLog("No products macros to render, skipping")
-            callback(nil)
-            return
-        }
-        
-        httpClient?.startRequest(path: .renderProductProperties, apiVersion: .APIV2, params: ["device_id": currentDeviceID, "items": items], method: .post, useDecoder: true, retry: true) { _, _, data, error, code, duration, attempts in
+    internal func getRenderedProperties(_ paywall: ApphudPaywall, items: [[String: any Sendable]],  locale: String, callback: @escaping (Error?) -> Void) {
+                
+        httpClient?.startRequest(path: .renderProductProperties, apiVersion: .APIV2, params: ["device_id": currentDeviceID, "items": items, "locale": locale], method: .post, useDecoder: true, retry: true) { _, _, data, error, code, duration, attempts in
             
             do {
                 if let data = data {
                     
-                    struct RenderedPropertiesItem: Decodable {
-                        let itemId: String
-                        let properties: [String: ApphudAnyCodable]?
-                    }
+//                    struct RenderedPropertiesItem: Decodable {
+//                        let itemId: String
+//                        let properties: [String: ApphudAnyCodable]?
+//                    }
                     
-                    typealias ApphudArrayResponse = ApphudAPIDataResponse<ApphudAPIArrayResponse <RenderedPropertiesItem>>
+                    typealias ApphudArrayResponse = ApphudAPIDataResponse<ApphudAPIArrayResponse <ApphudAnyCodable>>
                     
                     
                     let decoder = JSONDecoder()
@@ -328,11 +309,9 @@ extension ApphudInternal {
                     let response = try decoder.decode(ApphudArrayResponse.self, from: data)
                     
                     for item in response.data.results {
-                        let product = paywall.products.first { $0.itemId == item.itemId }
-                        if let product {
-                            let props = item.properties
-                            product.properties = props
-                        }
+                        let dict = item.value as? [String: ApphudAnyCodable]
+                        let product = paywall.products.first { $0.itemId == (dict?["paywall_item_id"]?.value as? String) }
+                        product?.properties = [locale: item]
                     }
                     
                     callback(nil)

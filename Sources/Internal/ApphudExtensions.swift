@@ -37,6 +37,20 @@ extension Date {
     }
 }
 
+extension Locale {
+    
+    public func apphudLanguageCode() -> String {
+        let langCode: String?
+        if #available(iOS 16, *) {
+            langCode = Locale.current.language.languageCode?.identifier
+        } else {
+            langCode = Locale.current.languageCode
+        }
+        
+        return langCode ?? "en"
+    }
+}
+
 extension String {
     /// Helper method to parse date string into Date object
     internal var apphudIsoDate: Date? {

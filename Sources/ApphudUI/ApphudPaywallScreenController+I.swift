@@ -50,7 +50,7 @@ extension ApphudPaywallScreenController: WKUIDelegate {
         
         _ = await ApphudInternal.shared.performWhenStoreKitProductFetched(maxAttempts: 1)
         
-        await paywall.renderProperties()
+        await paywall.renderPropertiesIfNeeded()
         
         var infos = [[String: any Sendable]]()
         
@@ -59,7 +59,9 @@ extension ApphudPaywallScreenController: WKUIDelegate {
                                         
                 var finalInfo = skProduct.apphudSubmittableParameters()
                 
-                finalInfo.merge(p.jsonProperties(), uniquingKeysWith: { _, new in new })
+                if let props = p.jsonProperties() {
+                    finalInfo.merge(props, uniquingKeysWith: { _, new in new })
+                }
                 finalInfo.removeValue(forKey: "promo_offers")
                 
                 infos.append(finalInfo)
