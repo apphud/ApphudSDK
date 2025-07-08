@@ -405,9 +405,6 @@ public class ApphudHttpClient {
             return (false, nil, data, modifiedError, code)
         } else {
             let error = ApphudError(message: "HTTP Request Failed")
-#if DEBUG
-            apphudLog("cURL: \n \(request.cURL())", logLevel: .all)
-#endif
             return (false, nil, data, error, code)
         }
     }
