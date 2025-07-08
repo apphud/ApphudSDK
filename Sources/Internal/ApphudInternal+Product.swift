@@ -260,6 +260,10 @@ extension ApphudInternal {
             }
         }
     }
+    
+    1. проверить пейволы
+    2. проверить что билдятся все 3 example target
+    3. сделать версию 3.7.0 вместо 4.0.0
 
     @MainActor
     internal func fetchOfferingsFull(maxAttempts: Int = APPHUD_DEFAULT_RETRIES, callback: @escaping (ApphudError?) -> Void) {
@@ -267,11 +271,13 @@ extension ApphudInternal {
         self.customRegistrationAttemptsCount = preparedAttempts
         
         if deferPlacements {
-            deferPlacements = false
-            didPreparePaywalls = false
-            refreshCurrentUser {
-                self.refreshStoreKitProductsOnly(maxAttempts: maxAttempts) { _, error in
-                    callback(error != nil ? ApphudError(error: error!) : nil)
+            performWhenUserRegistered {
+                deferPlacements = false
+                didPreparePaywalls = false
+                refreshCurrentUser {
+                    self.refreshStoreKitProductsOnly(maxAttempts: maxAttempts) { _, error in
+                        callback(error != nil ? ApphudError(error: error!) : nil)
+                    }
                 }
             }
         } else {

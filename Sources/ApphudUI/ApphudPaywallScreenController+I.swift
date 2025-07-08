@@ -151,6 +151,12 @@ extension ApphudPaywallScreenController: WKUIDelegate {
     
     @MainActor
     public func apphudViewHandlePurchase(index: Int) {
+        
+        guard index >= 0 && index < paywall.products.count else {
+            apphudLog("Invalid product index \(index), only \(paywall.products.count) products available", forceDisplay: true)
+            return
+        }
+        
         let product = paywall.products[index]
         
         self.onTransactionStarted?(product)
@@ -302,10 +308,10 @@ extension ApphudPaywallScreenController: WKUIDelegate {
                     aphView.viewDelegate?.apphudViewHandleRestore()
                 } else if url.lastPathComponent == "close" {
                     aphView.viewDelegate?.apphudViewHandleClose()
-                } else if url.absoluteString.contains("product-index") {
-                    let index = extractProductIndex(from: url)
-                    if let index = index, index >= 0 {
-                        aphView.viewDelegate?.apphudViewHandlePurchase(index: index)
+                } else if url.absoluteString.contains("/purchase/") {
+                    let index = url.lastPathComponent
+                    if index.count > 0, let int = Int(index), int >= 0 {
+                        aphView.viewDelegate?.apphudViewHandlePurchase(index: int)
                     }
                 }
                 
@@ -315,15 +321,6 @@ extension ApphudPaywallScreenController: WKUIDelegate {
             }
             
             return .cancel
-        }
-        
-        private func extractProductIndex(from url: URL) -> Int? {
-            guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-                  let queryItems = components.queryItems else {
-                return nil
-            }
-
-            return queryItems.first(where: { $0.name == "product-index" })?.value.flatMap(Int.init)
         }
     }
 }
