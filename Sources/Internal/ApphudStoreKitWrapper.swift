@@ -215,12 +215,6 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
                 case .purchasing:
                     self.isPurchasing = true
 
-                    Task { @MainActor in
-                        if #available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *) {
-                            try? await ApphudAsyncStoreKit.shared.fetchProductIfNeeded(trx.payment.productIdentifier)
-                        }
-                    }
-
                     if !ApphudUtils.shared.isFlutter {
                         // Do not access applicationUsername on Flutter to avoid crash
                         apphudLog("Payment is in purchasing state \(trx.payment.productIdentifier) for username: \(trx.payment.applicationUsername ?? "")")

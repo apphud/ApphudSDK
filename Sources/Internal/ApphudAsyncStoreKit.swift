@@ -209,7 +209,6 @@ final class ApphudAsyncTransactionObserver {
         } else {
             apphudLog("Received transaction [\(transaction.id), \(transaction.productID)] from StoreKit2")
             Task { @MainActor in
-                try? await ApphudAsyncStoreKit.shared.fetchProductIfNeeded(transaction.productID)
                 await ApphudInternal.shared.handleTransaction(transaction)
             }
         }

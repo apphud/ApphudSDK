@@ -93,7 +93,6 @@ extension ApphudInternal {
             }
 
             let product = await ApphudStoreKitWrapper.shared.fetchProduct(productID)
-            try? await ApphudAsyncStoreKit.shared.fetchProductIfNeeded(productID)
             let receipt = await appStoreReceipt()
             let isRecentlyPurchased: Bool = purchaseDate > Date().addingTimeInterval(-600)
             return await withUnsafeContinuation { continuation in
