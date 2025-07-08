@@ -98,7 +98,7 @@ public class ApphudSubscription: Codable {
      False value means that user has canceled the subscription from App Store settings. 
      */
     @objc public let isAutorenewEnabled: Bool
-    
+
     /**
      Original transaction identifier of the subscription.  Can be null if decoding from cache during SDK upgrade.
      */
@@ -146,7 +146,7 @@ public class ApphudSubscription: Codable {
         let groupId = try values.decode(String.self, forKey: .groupId)
         let status = try values.decode(ApphudSubscriptionStatus.self, forKey: .status)
         let origID = try? values.decode(String.self, forKey: .originalTransactionId)
-        
+
         return (id, expiresDate, productId, canceledAt, startedAt, isInRetryBilling, isAutorenewEnabled, isIntroductoryActivated, isSandbox, isLocal, groupId, status, origID)
     }
 

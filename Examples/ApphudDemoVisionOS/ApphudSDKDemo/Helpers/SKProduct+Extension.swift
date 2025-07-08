@@ -9,7 +9,7 @@
 import Foundation
 import StoreKit
 
-//extension SKProduct {
+// extension SKProduct {
 //
 //    /**
 //     Returns product pricing terms in the following format:
@@ -249,4 +249,4 @@ import StoreKit
 //                return ""
 //        }
 //    }
-//}
+// }

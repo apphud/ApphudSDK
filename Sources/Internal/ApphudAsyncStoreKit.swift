@@ -77,9 +77,9 @@ internal class ApphudAsyncStoreKit {
             throw error
         }
     }
-    
+
     @MainActor
-    internal func purchaseResult(product: Product, _ scene:Any? = nil, apphudProduct: ApphudProduct?, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
+    internal func purchaseResult(product: Product, _ scene: Any? = nil, apphudProduct: ApphudProduct?, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
         self.isPurchasing = true
         await productsStorage.append(product)
         isPurchasing?.wrappedValue = true
@@ -96,7 +96,7 @@ internal class ApphudAsyncStoreKit {
             #else
             let result = try await product.purchase(confirmIn: (scene as! UIScene), options: options)
             #endif
-            
+
             var transaction: StoreKit.Transaction?
 
             switch result {
@@ -106,9 +106,8 @@ internal class ApphudAsyncStoreKit {
                 transaction = trx
             case .pending:
                 break
-            case .userCancelled:
+                case .userCancelled:
                 ApphudLoggerService.shared.paywallPaymentCancelled(paywallId: apphudProduct?.paywallId, placementId: apphudProduct?.placementId, product: product)
-                break
             default:
                 break
             }
@@ -130,20 +129,20 @@ internal class ApphudAsyncStoreKit {
             return ApphudInternal.shared.asyncPurchaseResult(product: product, transaction: nil, error: error)
         }
     }
-    
+
     fileprivate static func processTransaction(_ transaction: StoreKit.Transaction) async {
         _ = await ApphudInternal.shared.handleTransaction(transaction)
         Task {
-            if (transaction.productType == .consumable) {
+            if transaction.productType == .consumable {
                 try? await Task.sleep(nanoseconds: 3_000_000_000)
             }
             await transaction.finish()
         }
     }
-    
+
     func fetchLatestTransaction() async -> StoreKit.Transaction? {
         var latestTransaction: StoreKit.Transaction?
-        
+
         for await result in StoreKit.Transaction.all {
             if case .verified(let transaction) = result {
                 if latestTransaction == nil || latestTransaction!.purchaseDate < transaction.purchaseDate {
@@ -151,18 +150,18 @@ internal class ApphudAsyncStoreKit {
                 }
             }
         }
-        
+
         return latestTransaction
     }
-    
+
     #if os(iOS) || os(tvOS) || os(macOS) || os(watchOS)
     @MainActor
     func purchase(product: Product, apphudProduct: ApphudProduct?, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
-        return await purchaseResult(product: product, apphudProduct: apphudProduct, isPurchasing:isPurchasing)
+        return await purchaseResult(product: product, apphudProduct: apphudProduct, isPurchasing: isPurchasing)
     }
     #else
     @MainActor
-    func purchase(product: Product, scene:UIScene, apphudProduct: ApphudProduct?, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
+    func purchase(product: Product, scene: UIScene, apphudProduct: ApphudProduct?, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
         return await purchaseResult(product: product, scene, apphudProduct: apphudProduct, isPurchasing: isPurchasing)
     }
     #endif

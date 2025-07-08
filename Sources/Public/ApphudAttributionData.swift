@@ -9,7 +9,7 @@
 import Foundation
 
 public struct ApphudAttributionData {
-    
+
     /// Raw attribution data received from MMPs, such as AppsFlyer or Branch.
     /// Pass only `rawData` if no custom override logic is needed.
     public let rawData: [AnyHashable: Any]

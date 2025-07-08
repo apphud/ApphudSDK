@@ -170,7 +170,7 @@ public struct ApphudUser: Codable {
             }
         }
     }
-    
+
     func toCacheV2() async {
         let encoder = JSONEncoder()
         do {

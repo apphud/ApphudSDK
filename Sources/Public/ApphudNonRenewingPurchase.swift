@@ -34,7 +34,7 @@ public class ApphudNonRenewingPurchase: Codable {
      Returns `true` if purchase is made in test environment, i.e. sandbox or local purchase.
      */
     public let isSandbox: Bool
-    
+
     /**
      Transaction identifier of the purchase. Can be null if decoding from cache during SDK upgrade.
      */
@@ -44,28 +44,28 @@ public class ApphudNonRenewingPurchase: Codable {
      Returns `true` if purchase was made using Local StoreKit Configuration File. Read more: https://docs.apphud.com/docs/testing-troubleshooting#local-storekit-testing
      */
     public let isLocal: Bool
-    
+
     @available(iOS 15.0, *)
     public func isConsumablePurchase() async -> Bool {
         if let cached = isConsumable {
             return cached
         }
-        
+
         apphudLog("Unknown consumable type, fetching for: \(productId)", forceDisplay: true)
         let result = await productType() == .consumable
         isConsumable = result
         return result
     }
-    
+
     internal var isConsumable: Bool?
-    
+
     @available(iOS 15.0, *)
     internal func productType() async -> Product.ProductType? {
         guard let product = try? await Product.products(for: [productId]).first else {
             return nil
         }
         apphudLog("Unknown product type, fetching for: \(productId)", forceDisplay: true)
-        
+
         return product.type
     }
 

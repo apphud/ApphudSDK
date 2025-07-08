@@ -9,43 +9,32 @@
 import Foundation
 
 extension ApphudInternal {
-    
+
     // MARK: - Attribution
     internal func setAttribution(data: ApphudAttributionData?, from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ((Bool) -> Void)?) {
         performWhenUserRegistered {
             Task {
                 var dict: [String: any Sendable] = data?.rawData as? [String: any Sendable] ?? [:]
-            
+
                 switch provider {
-                    // ---------- .custom ----------
+// ---------- .custom ----------
                 case .custom:
                     dict["identifier"] = identifer
-                    break
-                    
-                    // ---------- .voluum ----------
-                case .voluum:
+// ---------- .voluum ----------
+                                    case .voluum:
                     dict["identifier"] = identifer
-                    break
-                    
-                    // ---------- .singular ----------
-                case .singular:
+// ---------- .singular ----------
+                                    case .singular:
                     dict["identifier"] = identifer
-                    break
-                    
-                    // ---------- .tenjin ----------
-                case .tenjin:
+// ---------- .tenjin ----------
+                                    case .tenjin:
                     dict["identifier"] = identifer
-                    break
-
-                    // ---------- .tiktok ----------
-                case .tiktok:
+// ---------- .tiktok ----------
+                                    case .tiktok:
                     dict["identifier"] = identifer
-                    break
-
-                    // ---------- .branch ----------
-                case .branch:
+// ---------- .branch ----------
+                                    case .branch:
                     dict["identifier"] = identifer
-                    break
 
                     // ---------- .facebook ----------
                 case .facebook:
@@ -131,7 +120,7 @@ extension ApphudInternal {
                 default:
                     break
                 }
-                                
+
                 // Create Request params with raw_data
                 var params: [String: Any] = [
                     "device_id": self.currentDeviceID,
@@ -140,22 +129,22 @@ extension ApphudInternal {
                 ]
 
                 var attributionDict: [String: any Sendable] = [:]
-                
+
                 if let data = data {
-                    if let adNetwork = data.adNetwork          { attributionDict["ad_network"]    = adNetwork }
-                    if let channel = data.channel              { attributionDict["channel"]  = channel }
-                    if let campaign = data.campaign            { attributionDict["campaign"]      = campaign }
-                    if let adSet = data.adSet                  { attributionDict["ad_set"]        = adSet }
-                    if let creative = data.creative            { attributionDict["creative"]      = creative }
-                    if let keyword = data.keyword              { attributionDict["keyword"]       = keyword }
-                    if let custom1 = data.custom1              { attributionDict["custom_1"]      = custom1 }
-                    if let custom2 = data.custom2              { attributionDict["custom_2"]      = custom2 }
+                    if let adNetwork = data.adNetwork { attributionDict["ad_network"]    = adNetwork }
+                    if let channel = data.channel { attributionDict["channel"]  = channel }
+                    if let campaign = data.campaign { attributionDict["campaign"]      = campaign }
+                    if let adSet = data.adSet { attributionDict["ad_set"]        = adSet }
+                    if let creative = data.creative { attributionDict["creative"]      = creative }
+                    if let keyword = data.keyword { attributionDict["keyword"]       = keyword }
+                    if let custom1 = data.custom1 { attributionDict["custom_1"]      = custom1 }
+                    if let custom2 = data.custom2 { attributionDict["custom_2"]      = custom2 }
                 }
                 params["attribution"] = attributionDict
-                
+
                 try? await Task.sleep(nanoseconds: 2_000_000_000)
-                
-                self.startAttributionRequest(params: params, apiVersion:.APIV2, provider: provider, identifer: identifer) { result in
+
+                self.startAttributionRequest(params: params, apiVersion: .APIV2, provider: provider, identifer: identifer) { result in
                     Task {
                         if result {
                             switch provider {
@@ -179,7 +168,7 @@ extension ApphudInternal {
             }
         }
     }
-    
+
     func submittedPreviouslyAF(data: [String: any Sendable]) async -> Bool {
         return await self.compareAttribution(first: data, second: ApphudDataActor.shared.submittedAFData ?? [:])
     }
@@ -270,10 +259,10 @@ extension ApphudInternal {
             return ["token": appleAttibutionToken]
         }
     }
-    
+
     @MainActor
     internal func tryWebAttribution(attributionData: [AnyHashable: Any], completion: @escaping (Bool, ApphudUser?) -> Void) {
-        
+
         let userId = (attributionData["aph_user_id"] ?? attributionData["apphud_user_id"]) as? String ?? ""
         let email = (attributionData["email"] ?? attributionData["apphud_user_email"]) as? String ?? ""
 
@@ -281,13 +270,13 @@ extension ApphudInternal {
             completion(false, currentUser)
             return
         }
-        
-        if (email.isEmpty && currentUser?.userId == userId) {
+
+        if email.isEmpty && currentUser?.userId == userId {
             apphudLog("Already web2web user, skipping")
             completion(true, currentUser)
             return
         }
-        
+
         var params: [String: Any] = ["from_web2web": true]
         if !userId.isEmpty {
             params["user_id"] = userId
@@ -295,14 +284,14 @@ extension ApphudInternal {
         if !email.isEmpty {
             params["email"] = email
         }
-        
+
         apphudLog("Found a match from web click, updating User ID to \(userId)", forceDisplay: true)
         self.performWhenUserRegistered {
-            self.updateUser(fields: params) { (result, _, data, _, _, _, attempts) in
+            self.updateUser(fields: params) { (result, _, data, _, _, _, _) in
                 if result {
                     Task {
                         let changes = await self.parseUser(data: data)
-                        
+
                         Task { @MainActor in
                             self.notifyAboutUpdates(changes)
                             completion(true, self.currentUser)

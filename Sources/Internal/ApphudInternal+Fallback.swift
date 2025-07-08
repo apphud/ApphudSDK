@@ -40,13 +40,13 @@ extension ApphudInternal {
         if self.paywalls.count > 0 && self.allAvailableProductIDs().count > 0 {
             preparePaywalls(pwls: self.paywalls, writeToCache: false, completionBlock: nil)
             apphudLog("fallback mode with cached paywalls", logLevel: .all)
-            
+
             if callback != nil {
                 self.performWhenStoreKitProductFetched(maxAttempts: APPHUD_DEFAULT_RETRIES) { error in
                     callback?(self.paywalls, error)
                 }
             }
-            
+
             return
         }
 

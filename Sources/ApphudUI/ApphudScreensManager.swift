@@ -19,13 +19,13 @@ internal class ApphudScreensManager {
     var pendingController: UIViewController?
 
     var pendingPaywallControllers: [String: UIViewController] = [:]
-    
+
     private var handledRules = [String]()
 
     private var apsInfo: [AnyHashable: Any]?
 
     internal func preloadPlacements(identifiers: [String]) {
-        ApphudInternal.shared.fetchOfferingsFull(maxAttempts: APPHUD_DEFAULT_RETRIES) { error in
+        ApphudInternal.shared.fetchOfferingsFull(maxAttempts: APPHUD_DEFAULT_RETRIES) { _ in
             for placement in ApphudInternal.shared.placements {
                 if identifiers.contains(placement.identifier), let p = placement.paywall {
                     self.preloadPaywall(p)
@@ -33,12 +33,12 @@ internal class ApphudScreensManager {
             }
         }
     }
-    
+
     @MainActor
     internal func preloadPaywall(_ paywall: ApphudPaywall) {
         _ = try? requestPaywallController(paywall: paywall)
     }
-    
+
     internal func unloadPaywalls(_ identifier: String? = nil) {
         if let identifier {
             pendingPaywallControllers.removeValue(forKey: identifier)
@@ -46,7 +46,7 @@ internal class ApphudScreensManager {
             pendingPaywallControllers.removeAll()
         }
     }
-    
+
     internal func requestPaywallcontroller(_ paywall: ApphudPaywall, maxTimeout: TimeInterval = APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT, completion: @escaping (ApphudPaywallScreenFetchResult) -> Void) {
         do {
             let controller = try requestPaywallController(paywall: paywall)
@@ -64,12 +64,12 @@ internal class ApphudScreensManager {
             completion(.error(error: error as? ApphudError ?? ApphudError(error: error)))
         }
     }
-    
+
     @MainActor
     internal func requestPaywallController(paywall: ApphudPaywall) throws -> ApphudPaywallScreenController {
-        
+
         if let vc = ApphudScreensManager.shared.pendingPaywallControllers[paywall.identifier] as? ApphudPaywallScreenController {
-            
+
             switch vc.state {
             case .error(let e):
                 unloadPaywalls(paywall.identifier)
@@ -79,20 +79,20 @@ internal class ApphudScreensManager {
                 return vc
             }
         }
-        
+
         guard paywall.hasVisualPaywall() else {
             let e = ApphudError(message: "Paywall \(paywall.identifier) has no visual URL", code: APPHUD_PAYWALL_SCREEN_NOT_FOUND)
             apphudLog(e.localizedDescription, forceDisplay: true)
             throw e
         }
-        
+
         let vc = ApphudPaywallScreenController(paywall: paywall)
         ApphudScreensManager.shared.pendingPaywallControllers[paywall.identifier] = vc
         vc.load()
-        
+
         return vc
     }
-    
+
     @discardableResult internal func handleNotification(_ apsInfo: [AnyHashable: Any]) -> Bool {
 
         guard let rule_id = apsInfo["rule_id"] as? String else {

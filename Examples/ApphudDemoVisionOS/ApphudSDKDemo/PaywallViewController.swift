@@ -103,8 +103,6 @@ class PaywallViewController: UIViewController {
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
 
-        // send Apphud log, that your paywall closed
-        self.paywall.map { Apphud.paywallClosed($0) }
         dismissCompletion?()
     }
 

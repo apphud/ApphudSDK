@@ -31,7 +31,7 @@ import StoreKit
         guard let string = _knownProductTypes[productId] else {
             return nil
         }
-        
+
         switch string {
         case ApphudProductType.consumable.rawValue:
             return .consumable
@@ -54,7 +54,7 @@ import StoreKit
             defaults.set(_knownProductTypes, forKey: knownProductTypesKey)
         }
     }
-    
+
     internal func clear() {
         submittedAFData = nil
         submittedAdjustData = nil
@@ -72,14 +72,14 @@ import StoreKit
     internal func setUserPropertiesCache(_ newValue: [[String: Any?]]?) {
         userPropertiesCache = newValue
     }
-    
+
     private(set) var pendingUserProps = [ApphudUserProperty]()
-    
+
     internal func addPendingUserProperty(_ newValue: ApphudUserProperty) {
         self.pendingUserProps.removeAll { prop -> Bool in newValue.key == prop.key }
         self.pendingUserProps.append(newValue)
     }
-    
+
     internal func setPendingUserProperties(_ newValue: [ApphudUserProperty]) {
         self.pendingUserProps = newValue
     }

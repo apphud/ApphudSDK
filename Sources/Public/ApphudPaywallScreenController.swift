@@ -3,19 +3,20 @@
 //  apphud
 //
 
+#if os(iOS)
 import UIKit
 import WebKit
 import StoreKit
 
 /// Represents the current loading state of a paywall screen.
 public enum ApphudPaywallScreenState {
-    
+
     /// The paywall is currently loading its content.
     case loading
-    
+
     /// The paywall has finished loading and is ready to be displayed.
     case ready
-    
+
     /// An error occurred while loading the paywall.
     ///
     /// This state indicates that the content could not be loaded due to a network issue,
@@ -27,11 +28,11 @@ public enum ApphudPaywallScreenState {
 
 /// Represents the result of attempting to fetch and prepare a paywall screen for display.
 public enum ApphudPaywallScreenFetchResult {
-    
+
     /// The paywall screen was successfully fetched and is ready to be presented. You must manually show this controller.
     /// - Parameter controller: A fully initialized `ApphudPaywallScreenController` instance.
     case success(controller: ApphudPaywallScreenController)
-    
+
     /// An error occurred while fetching or initializing the paywall screen.
     /// - Parameter error: The error describing what went wrong.
     case error(error: ApphudError)
@@ -39,26 +40,26 @@ public enum ApphudPaywallScreenFetchResult {
 
 /// Represents the result of a user's interaction with the paywall screen.
 public enum ApphudPaywallResult {
-    
+
     /// The user successfully completed a purchase or restored a previous active subscription or non-renewing purchase.
     /// - Parameter result: The result of the purchase, including transaction details.
     case success(ApphudPurchaseResult)
-    
+
     /// Indicates that the purchase was either canceled by the user, failed due to an error,
     /// or no active subscription or non-renewing purchase was found during a restore attempt.
     /// - Parameter error: The error describing the reason for failure.
     case failure(Error)
-    
+
     /// The user tapped on a close button.
     case userClosed
 }
 
 /// Defines whether the paywall screen should be dismissed after user interaction.
 public enum ApphudPaywallDismissPolicy {
-    
+
     /// The paywall screen should be dismissed.
     case allow
-    
+
     /// The paywall screen should remain visible.
     case cancel
 }
@@ -67,15 +68,15 @@ public class ApphudPaywallScreenController: UIViewController, @preconcurrency Ap
 
     /// Apphud paywall object.
     public let paywall: ApphudPaywall
-    
+
     /// Indicates whether the paywall controller has finished loading its content.
     public internal(set) var state: ApphudPaywallScreenState = .loading
-    
+
     /**
      Indicates whether controller should pop the navigation stack instead of being dismissed modally.
      */
     public var shouldPopOnDismiss = false
-    
+
     /// Determines whether the SDK should display a system loading indicator during purchase or restore actions.
     ///
     /// If set to `true` (default), the SDK will automatically show and hide a system-provided loading spinner
@@ -100,7 +101,7 @@ public class ApphudPaywallScreenController: UIViewController, @preconcurrency Ap
     ///
     /// - Parameter product: The `ApphudProduct` being purchased, or `nil` if the user initiated a restore action.
     public var onTransactionStarted: ((ApphudProduct?) -> Void)?
-    
+
     /// A callback that is triggered when the user taps a link that would open an external URL from the paywall.
     ///
     /// By default, the SDK opens the URL in a `SFSafariViewController`.
@@ -110,19 +111,19 @@ public class ApphudPaywallScreenController: UIViewController, @preconcurrency Ap
     ///   - url: The external URL the user tapped.
     /// - Returns: `true` to allow the SDK to open the URL automatically, `false` to prevent it.
     public var onShouldOpenURL: ((URL) -> Bool)?
-        
+
     // MARK: - Internal methods below
-    
+
     internal init(paywall: ApphudPaywall) {
         self.paywall = paywall
         super.init(nibName: nil, bundle: nil)
         self.modalPresentationStyle = .fullScreen
     }
-    
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-    
+
     internal var didLoadCallback: ((ApphudError?) -> Void)?
     internal var isApphudViewLoaded = false
     internal var navigationDelegate: NavigationDelegateHelper?
@@ -132,9 +133,9 @@ public class ApphudPaywallScreenController: UIViewController, @preconcurrency Ap
         return ApphudView.create(parentView: self.view)
     }()
     internal var didTrackPaywallShown = false
-    
+
     internal let loadingView = ApphudLoadingView()
-    
+
     internal func onLoad(maxTimeout: TimeInterval = APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT,
                        handler: ((ApphudError?) -> Void)?) {
         switch state {
@@ -148,3 +149,5 @@ public class ApphudPaywallScreenController: UIViewController, @preconcurrency Ap
         }
     }
 }
+
+#endif

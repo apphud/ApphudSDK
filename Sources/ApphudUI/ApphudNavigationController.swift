@@ -27,10 +27,6 @@ internal class ApphudNavigationController: UINavigationController {
         self.presentationController?.delegate = self
     }
 
-    override func viewDidDisappear(_ animated: Bool) {
-        super.viewDidDisappear(animated)
-    }
-
     func pushScreenController(screenID: String, rule: ApphudRule) {
 
         var controller = pendingScreenController(screenID: screenID)

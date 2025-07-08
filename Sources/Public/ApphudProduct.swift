@@ -14,7 +14,7 @@ public enum ApphudProductType: String {
     case nonConsumable
     case autoRenewable
     case nonRenewable
-    
+
     static func from(_ type: Product.ProductType) -> ApphudProductType? {
         switch type {
         case .autoRenewable: return .autoRenewable
@@ -36,22 +36,22 @@ public enum ApphudProductType: String {
  */
 
 public class ApphudProduct: NSObject, Codable, ObservableObject {
-    
+
     /**
      Product identifier from App Store Connect.
      */
     @objc public internal(set) var productId: String
-    
+
     /**
      Product name from Apphud Dashboard
      */
     @objc public internal(set) var name: String?
-    
+
     /**
      Always `app_store` in iOS SDK.
      */
     @objc public internal(set) var store: String
-    
+
     /**
      Returns product macros defined in the Paywalls section of Product Hub.
 
@@ -62,10 +62,10 @@ public class ApphudProduct: NSObject, Codable, ObservableObject {
      */
     public func macroValues(locale: String = Locale.current.apphudLanguageCode()) async -> [String: any Sendable]? {
         await paywall?.renderPropertiesIfNeeded()
-        
+
         return jsonProperties(langCode: locale, fallback: false)
     }
-    
+
     /**
      When paywalls are successfully loaded, skProduct model will always be present if App Store returned model for this product id. getPaywalls method will return callback only when StoreKit products are fetched and mapped with Apphud products.
      
@@ -95,12 +95,12 @@ public class ApphudProduct: NSObject, Codable, ObservableObject {
     @objc public internal(set) var variationIdentifier: String?
     @objc public internal(set) var experimentId: String?
     internal var paywall: ApphudPaywall?
-    
+
     // MARK: - Private
     internal var id: String?
     internal var itemId: String?
     internal var properties: [String: ApphudAnyCodable]?
-    
+
     private enum CodingKeys: String, CodingKey {
         case id
         case itemId
@@ -139,9 +139,9 @@ public class ApphudProduct: NSObject, Codable, ObservableObject {
         try container.encode(productId, forKey: .productId)
         try? container.encode(properties, forKey: .properties)
     }
-    
+
     internal func jsonProperties(langCode: String = Locale.current.apphudLanguageCode(), fallback: Bool = true) -> [String: any Sendable]? {
-        
+
         var innerProps: ApphudAnyCodable?
         if let props = properties {
             if props[langCode] != nil {
@@ -150,7 +150,7 @@ public class ApphudProduct: NSObject, Codable, ObservableObject {
                 innerProps = props.keys.first.flatMap { props[$0] }
             }
         }
-        
+
         if let innerProps = innerProps?.value as? [String: ApphudAnyCodable] {
             let jsonProps = innerProps.mapValues { $0.toJSONValue() }
             return jsonProps
@@ -158,10 +158,10 @@ public class ApphudProduct: NSObject, Codable, ObservableObject {
             return nil
         }
     }
-    
+
     internal func hasMacros() -> Bool {
         guard let jsonPros = self.jsonProperties() else {return false}
-        
+
         for value in jsonPros.values {
             if let value = value as? String {
                 if value.contains("{") {
@@ -169,7 +169,7 @@ public class ApphudProduct: NSObject, Codable, ObservableObject {
                 }
             }
         }
-        
+
         return false
     }
 }

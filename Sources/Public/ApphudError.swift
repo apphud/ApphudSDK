@@ -27,12 +27,12 @@ public class ApphudError: NSError, @unchecked Sendable {
     private let codeDomain = "com.apphud.error"
 
     var attempts: Int?
-    
+
     public func networkIssue() -> Bool {
         let noInternetErrors = [NSURLErrorNotConnectedToInternet, NSURLErrorCannotConnectToHost, NSURLErrorCannotFindHost, APPHUD_ERROR_NO_INTERNET]
         return noInternetErrors.contains(code)
     }
-    
+
     init(message: String, code: Int = 0) {
         super.init(domain: codeDomain, code: code, userInfo: [NSLocalizedDescriptionKey: message])
     }
@@ -40,7 +40,7 @@ public class ApphudError: NSError, @unchecked Sendable {
     init(error: Error) {
         super.init(domain: (error as NSError).domain, code: (error as NSError).code, userInfo: [NSLocalizedDescriptionKey: (error as NSError).localizedDescription])
     }
-    
+
     init(httpErrorCode: Int, attempts: Int) {
         super.init(domain: codeDomain, code: httpErrorCode, userInfo: [NSLocalizedDescriptionKey: "HTTP Request Failed"])
         self.attempts = attempts

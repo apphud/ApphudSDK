@@ -15,14 +15,14 @@ class ApphudLoadingView: UIView {
         blur.translatesAutoresizingMaskIntoConstraints = false
         return blur
     }()
-    
+
     private let activityIndicator: UIActivityIndicatorView = {
         let indicator = UIActivityIndicatorView(style: .large)
-        indicator.color = .label 
+        indicator.color = .label
         indicator.translatesAutoresizingMaskIntoConstraints = false
         return indicator
     }()
-    
+
     private var autoDismissTimer: Timer?
 
     override init(frame: CGRect) {
@@ -45,7 +45,7 @@ class ApphudLoadingView: UIView {
             blurView.bottomAnchor.constraint(equalTo: self.bottomAnchor),
             blurView.leadingAnchor.constraint(equalTo: self.leadingAnchor),
             blurView.trailingAnchor.constraint(equalTo: self.trailingAnchor),
-            
+
             activityIndicator.centerXAnchor.constraint(equalTo: self.centerXAnchor),
             activityIndicator.centerYAnchor.constraint(equalTo: self.centerYAnchor)
         ])

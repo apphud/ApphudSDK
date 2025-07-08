@@ -27,7 +27,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, @preconcurrency UNUserNot
         #endif
         Apphud.start(apiKey: "app_4sY9cLggXpMDDQMmvc5wXUPGReMp8G")
         Apphud.setDeviceIdentifiers(idfa: nil, idfv: UIDevice.current.identifierForVendor?.uuidString)
-        
+
         /** Custom User Properties Examples */
         Apphud.setUserProperty(key: .email, value: "user@example.com", setOnce: true)
         Apphud.setUserProperty(key: .init("custom_prop_1"), value: 0.5)
@@ -40,13 +40,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate, @preconcurrency UNUserNot
 
         return true
     }
-    
+
     func registerForNotifications() {
         UNUserNotificationCenter.current().delegate = self
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { (_, _) in }
         UIApplication.shared.registerForRemoteNotifications()
     }
-    
+
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
         print("error: \(error)")
     }

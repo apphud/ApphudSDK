@@ -5,6 +5,7 @@
 //  Created by Renat Kurbanov on 14.05.2025.
 //
 
+#if os(iOS)
 import UIKit
 import WebKit
 
@@ -18,9 +19,9 @@ internal protocol ApphudViewDelegate {
 }
 
 internal class ApphudView: WKWebView {
-    
+
     var viewDelegate: ApphudViewDelegate?
-    
+
     var productsInfo: [[String: Any]]? {
         didSet {
             if let productsInfo {
@@ -28,16 +29,16 @@ internal class ApphudView: WKWebView {
             }
         }
     }
-    
+
     static func create(parentView: UIView) -> ApphudView {
-        
+
         let config = WKWebViewConfiguration()
         if #available(iOS 14.5, *) {
             config.preferences.isTextInteractionEnabled = false
             config.mediaTypesRequiringUserActionForPlayback = []
             config.allowsInlineMediaPlayback = true
         }
-        
+
         let wv = ApphudView(frame: UIScreen.main.bounds, configuration: config)
         parentView.addSubview(wv)
         wv.backgroundColor = .white
@@ -59,21 +60,21 @@ internal class ApphudView: WKWebView {
         ])
         wv.scrollView.showsVerticalScrollIndicator = false
         wv.clipsToBounds = false
-        
+
         return wv
     }
-    
+
     public func replaceProductsInfo(infos: [[String: any Sendable]]) {
         guard let jsonData = try? JSONSerialization.data(withJSONObject: infos, options: []),
               let jsonString = String(data: jsonData, encoding: .utf8) else {
             print("Failed to serialize infos to JSON")
             return
         }
-        
+
         apphudLog("[ApphudView] Will execute JS:\n\n\(jsonString)")
-        
+
         evaluateJavaScript("PaywallSDK.shared().processDomMacros(\(jsonString));") { [weak self] result, error in
-            
+
             guard let self = self else {return}
 
             if let error {
@@ -82,21 +83,21 @@ internal class ApphudView: WKWebView {
 
             } else {
                 apphudLog("[Apphud] Executed JS successfully: \(String(describing: result))")
-                                
+
                 let insets = getSafeAreaInsets()
-                self.evaluateJavaScript("PaywallSDK.shared().applyCustomInsets(\(insets.top), \(insets.bottom));") { [weak self] result, error in
+                self.evaluateJavaScript("PaywallSDK.shared().applyCustomInsets(\(insets.top), \(insets.bottom));") { [weak self] _, error in
                     guard let self = self else {return}
-                    
+
                     if let error {
                         apphudLog("[Apphud] Failed to apply safe area insets: \(String(describing: error))")
                     }
-                    
+
                     self.viewDelegate?.apphudViewDidExecuteJS(error: nil)
                 }
             }
         }
     }
-    
+
     func getSafeAreaInsets() -> UIEdgeInsets {
         if #available(iOS 13.0, *) {
             return UIApplication.shared
@@ -110,3 +111,5 @@ internal class ApphudView: WKWebView {
         }
     }
 }
+
+#endif

@@ -23,11 +23,11 @@ extension ApphudInternal {
             }
         }
     }
-    
+
     @MainActor internal func restorePurchases(callback: @escaping (ApphudPurchaseResult) -> Void) {
         self.restorePurchasesCallback = { subs, purchases, error in
             if error != nil { ApphudStoreKitWrapper.shared.restoreTransactions() }
-            
+
             let activeSub = subs?.first { $0.isActive() }
             let activePurch = purchases?.first { $0.isActive() }
 
@@ -54,7 +54,7 @@ extension ApphudInternal {
         if #available(iOS 15.0, tvOS 15.0, watchOS 8.0, macOS 12.0, *) {
 
             if ApphudAsyncStoreKit.shared.isPurchasing { return }
-            
+
             Task(priority: .background) {
                 if let latestTransaction = await ApphudAsyncStoreKit.shared.fetchLatestTransaction() {
                     await handleTransaction(latestTransaction)
@@ -77,7 +77,7 @@ extension ApphudInternal {
             apphudLog("This transaction already tracked by Apphud: \(transactionId), skipping", logLevel: .debug)
             return false
         }
-        
+
         let transactions = await self.lastUploadedTransactions
         if transactions.contains(transactionId) {
             return false
@@ -126,12 +126,12 @@ extension ApphudInternal {
         }
         return false
     }
-    
+
     fileprivate func isAlreadyTracked(transactionId: UInt64, productId: String, purchaseDate: Date) async -> Bool {
-        
+
         var trackedPurchases = await (ApphudInternal.shared.currentUser?.purchases ?? []).map { ($0.productId, $0.transactionId, $0.purchasedAt) }
         let trackedSubs = await (ApphudInternal.shared.currentUser?.subscriptions ?? []).map { ($0.productId, $0.originalTransactionId, $0.startedAt) }
-        
+
         trackedPurchases.append(contentsOf: trackedSubs)
 
         for (pID, trxID, purchDate) in trackedPurchases {
@@ -139,7 +139,7 @@ extension ApphudInternal {
                 return true
             }
         }
-        
+
         return false
     }
 
@@ -303,7 +303,7 @@ extension ApphudInternal {
                                      "environment": environment,
                                      "observer_mode": ApphudUtils.shared.storeKitObserverMode]
 
-        if (!ApphudUtils.shared.useStoreKitV2 || transactionIdentifier == nil), let receipt = receiptString {
+        if !ApphudUtils.shared.useStoreKitV2 || transactionIdentifier == nil, let receipt = receiptString {
             params["receipt_data"] = receipt
         }
 
@@ -357,7 +357,7 @@ extension ApphudInternal {
             if let expID = paywall?.experimentId {
                 params["experiment_id"] = expID
             }
-            
+
             let apphudP = paywall?.products.first(where: { $0.productId == transactionProductIdentifier })
             apphudP?.id.map { params["product_bundle_id"] = $0 }
         }
@@ -369,7 +369,7 @@ extension ApphudInternal {
                 }
             }
         #endif
-        
+
         let transactionId = params["transaction_id"] as? String
         await MainActor.run {
             if transactionId != nil, let trInt = UInt64(transactionId!) {
@@ -378,12 +378,12 @@ extension ApphudInternal {
                 self.lastUploadedTransactions = trx
             }
         }
-        
+
         self.requiresReceiptSubmission = true
 
         apphudLog("Uploading App Store Receipt...")
 
-        httpClient?.startRequest(path: .subscriptions, params: params, method: .post, useDecoder: true, retry: (hasMadePurchase && !fallbackMode)) { (result, _, data, error, errorCode, duration, attempts) in
+        httpClient?.startRequest(path: .subscriptions, params: params, method: .post, useDecoder: true, retry: (hasMadePurchase && !fallbackMode)) { (result, _, data, error, errorCode, duration, _) in
             Task { @MainActor in
                 if !result && hasMadePurchase && self.fallbackMode {
                     self.requiresReceiptSubmission = true
@@ -419,7 +419,7 @@ extension ApphudInternal {
                     self.lastUploadedTransactions = []
                     self.scheduleSubmitReceiptRetry(error: error, code: errorCode)
                 }
-                
+
                 while !self.submitReceiptCallbacks.isEmpty {
                     let callback = self.submitReceiptCallbacks.removeFirst()
                     callback?(error)
@@ -457,9 +457,9 @@ extension ApphudInternal {
     }
 
     @MainActor internal func purchase(productId: String, product: ApphudProduct?, validate: Bool, value: Double? = nil, callback: ((ApphudPurchaseResult) -> Void)?) {
-        
+
         let skProduct = product?.skProduct ?? ApphudStoreKitWrapper.shared.products.first(where: { $0.productIdentifier == productId })
-        
+
         if let skProduct = skProduct {
             purchase(product: skProduct, apphudProduct: product, validate: validate, value: value, callback: callback)
         } else {

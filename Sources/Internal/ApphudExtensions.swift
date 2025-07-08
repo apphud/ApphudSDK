@@ -38,7 +38,7 @@ extension Date {
 }
 
 extension Locale {
-    
+
     public func apphudLanguageCode() -> String {
         let langCode: String?
         if #available(iOS 16, *) {
@@ -46,7 +46,7 @@ extension Locale {
         } else {
             langCode = Locale.current.languageCode
         }
-        
+
         return langCode ?? "en"
     }
 }
@@ -326,14 +326,14 @@ extension SKProduct {
         if let symbol = priceLocale.currencySymbol {
             props["currency_symbol"] = symbol
         }
-        
+
         if let code = priceLocale.currencyCode {
             props["currency_code"] = code
         }
-        
+
         props["price"] = price
         props["formatted_price"] = apphudLocalizedPrice()
-        
+
         if let intro = introductoryPrice {
             props["intro_price"] = intro.price.floatValue
             props["formatted_intro_price"] = apphudLocalizedDiscountPrice(discount: intro)
@@ -341,10 +341,10 @@ extension SKProduct {
             props["intro_periods_count"] = intro.numberOfPeriods
             props["intro_payment_mode"] = paymentModeString(intro.paymentMode)
         }
-        
+
         return props
     }
-    
+
     var apphudIsPaidIntro: Bool {
         introductoryPrice != nil && introductoryPrice!.price.doubleValue > 0
     }
@@ -376,7 +376,7 @@ extension SKProduct {
             params["currency_code"] = currencyCode
         }
         #endif
-        
+
         if let introData = apphudIntroParameters() {
             params.merge(introData, uniquingKeysWith: {$1})
         }
@@ -432,7 +432,7 @@ extension SKProduct {
             return ""
         }
     }
-    
+
     private func apphudPromoParameters(discount: SKProductDiscount) -> [String: Any] {
         let periods_count = discount.numberOfPeriods
         let unit_count = discount.subscriptionPeriod.numberOfUnits
@@ -635,7 +635,6 @@ extension Error {
     }
 }
 
-
 public struct ApphudAnyCodable: Codable {
     let value: Any
 
@@ -675,7 +674,7 @@ public struct ApphudAnyCodable: Codable {
             try container.encodeNil()
         }
     }
-    
+
     internal func toJSONValue() -> Any {
         switch value {
         case let v as String: return v

@@ -21,7 +21,7 @@ extension ApphudInternal {
 
         let oldStates = await currentUser?.subscriptionsStates()
         let oldPurchasesStates = await currentUser?.purchasesStates()
-        
+
         do {
             let response = try decoder.decode(ApphudUserResponse<ApphudUser>.self, from: data)
             await MainActor.run {
@@ -30,13 +30,13 @@ extension ApphudInternal {
         } catch {
             apphudLog("Failed to decode ApphudUser, error: \(error)")
         }
-        
+
         await currentUser?.updateProductTypes()
         await updatePremiumStatus(user: currentUser)
-        
+
         let pwls = await currentUser?.paywalls
         let plmnts = await currentUser?.placements
-        
+
         if pwls != nil || plmnts != nil {
             await preparePaywalls(pwls: pwls ?? [], writeToCache: true, completionBlock: nil)
         } else {
@@ -45,7 +45,7 @@ extension ApphudInternal {
 
         let newStates = await currentUser?.subscriptionsStates()
         let newPurchasesStates = await currentUser?.purchasesStates()
-                
+
         await currentUser?.toCacheV2()
 
         Task { @MainActor in
@@ -62,13 +62,13 @@ extension ApphudInternal {
         let hasPurchasesChanges = (oldPurchasesStates != newPurchasesStates && currentPurchs != nil)
         return (hasSubscriptionChanges, hasPurchasesChanges)
     }
-    
+
     func updatePremiumStatus(user: ApphudUser?) {
         let hasActiveSub = user?.subscriptions.first(where: { $0.isActive() }) != nil
         let hasActivePurch = user?.purchases.first(where: { $0.isActive() && ($0.isConsumable != true) }) != nil
-        
+
         let premium = hasActiveSub || hasActivePurch
-        
+
         isPremium = premium
         hasActiveSubscription = hasActiveSub
     }
@@ -98,7 +98,7 @@ extension ApphudInternal {
         let fields = initialCall ? ["user_id": self.currentUserID, "initial_call": true] : [:]
 
         return await withUnsafeContinuation { continuation in
-            updateUser(fields: fields, delay: delay) { (result, _, data, error, code, duration, attempts) in
+            updateUser(fields: fields, delay: delay) { (result, _, data, error, code, duration, _) in
 
                 Task {
                     let hasChanges = await self.parseUser(data: data)
@@ -128,7 +128,7 @@ extension ApphudInternal {
             }
         }
     }
-    
+
     @MainActor
     internal func refreshUserData(callback: @escaping (ApphudUser?) -> Void) {
         let needsRefreshRequest = self.currentUser != nil
@@ -166,7 +166,7 @@ extension ApphudInternal {
                 return
             }
 
-            self.updateUser(fields: ["user_id": userID]) { (result, _, data, _, _, _, attempts) in
+            self.updateUser(fields: ["user_id": userID]) { (result, _, data, _, _, _, _) in
                 if result {
                     Task {
                         await self.parseUser(data: data)
@@ -239,7 +239,7 @@ extension ApphudInternal {
             params["user_id"] = userId
         }
 
-        if let currency = storefrontCurrency, (currentUser?.currency?.countryCode != currency.countryCode || currentUser?.currency?.countryCodeAlpha3 != currency.countryCodeAlpha3) {
+        if let currency = storefrontCurrency, currentUser?.currency?.countryCode != currency.countryCode || currentUser?.currency?.countryCodeAlpha3 != currency.countryCodeAlpha3 {
 
             if currency.countryCodeAlpha3 != nil {
                 params["store_id"] = currency.storeId
@@ -277,7 +277,7 @@ extension ApphudInternal {
     @objc internal func updateCurrentUser() {
         refreshCurrentUser {}
     }
-    
+
     @objc internal func refreshCurrentUser(completion: @escaping () -> Void) {
         Task.detached(priority: .userInitiated) {
             _ = await self.createOrGetUser(initialCall: false)
@@ -356,7 +356,7 @@ extension ApphudInternal {
             apphudLog("Invalid increment property type: (\(givenType)). Must be one of: [Int, Float, Double]", forceDisplay: true)
             return
         }
-        
+
         Task { @MainActor in
             let property = ApphudUserProperty(key: key.key, value: value, increment: increment, setOnce: setOnce, type: typeString)
             await ApphudDataActor.shared.addPendingUserProperty(property)
@@ -372,7 +372,7 @@ extension ApphudInternal {
     @objc internal func updateUserProperties() {
         flushUserProperties(force: false, completion: nil)
     }
-    
+
     internal func flushUserProperties(force: Bool, completion: ((Bool) -> Void)? = nil) {
         Task {
             let values = await self.preparePropertiesParams(isAudience: force)
@@ -394,13 +394,13 @@ extension ApphudInternal {
                 } else {
                     apphudLog("User Properties update failed: \(error?.localizedDescription ?? "") with code: \(code)")
                 }
-                
+
                 completion?(result)
             }
         }
     }
 
-    private func preparePropertiesParams(isAudience:Bool = false) async -> ([String: Any]?, [[String: Any?]]?, Bool) {
+    private func preparePropertiesParams(isAudience: Bool = false) async -> ([String: Any]?, [[String: Any?]]?, Bool) {
         setNeedsToUpdateUserProperties = false
         guard await ApphudDataActor.shared.pendingUserProps.count > 0 else { return (nil, nil, false) }
         var params = [String: Any]()

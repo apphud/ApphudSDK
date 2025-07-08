@@ -173,13 +173,13 @@ class PaywallViewController: UIViewController {
             }
         }))
         sheet.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-        
+
         if let popoverController = sheet.popoverPresentationController {
             popoverController.sourceView = self.view // The view containing the anchor rectangle for the popover.
             popoverController.sourceRect = CGRect(x: self.view.bounds.midX, y: self.view.bounds.midY, width: 0, height: 0) // The rectangle in the specified view in which to anchor the popover.
             popoverController.permittedArrowDirections = [] // Optional: No arrow or specify direction
         }
-        
+
         present(sheet, animated: true)
     }
 }

@@ -41,14 +41,14 @@ class AppDelegate: NSObject, UIApplicationDelegate, @preconcurrency UNUserNotifi
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { _, _ in }
         UIApplication.shared.registerForRemoteNotifications()
     }
-    
+
     func fetchIDFA() {
         DispatchQueue.main.asyncAfter(deadline: .now()+2.0) {
             if #available(iOS 14.5, *) {
                 ATTrackingManager.requestTrackingAuthorization { status in
                     guard status == .authorized else {return}
                     let idfa = ASIdentifierManager.shared().advertisingIdentifier.uuidString
-                    
+
                     Apphud.setDeviceIdentifiers(idfa: idfa, idfv: UIDevice.current.identifierForVendor?.uuidString)
                 }
             }

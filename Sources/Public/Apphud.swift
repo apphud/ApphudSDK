@@ -101,7 +101,7 @@ s
     @objc public static func logout() async {
         await ApphudInternal.shared.logout()
     }
-    
+
     /**
      Refreshes current user data including paywalls, placements, subscriptions, non-renewing purchases, and promotionals.
      
@@ -165,7 +165,7 @@ s
     @MainActor
     public static func placements(maxAttempts: Int = APPHUD_DEFAULT_RETRIES) async -> [ApphudPlacement] {
         await withUnsafeContinuation { continuation in
-            ApphudInternal.shared.fetchOfferingsFull(maxAttempts: maxAttempts) { error in
+            ApphudInternal.shared.fetchOfferingsFull(maxAttempts: maxAttempts) { _ in
                 continuation.resume(returning: ApphudInternal.shared.placements)
             }
         }
@@ -220,7 +220,7 @@ s
             callback(ApphudInternal.shared.placements, error)
         }
     }
-    
+
     /**
      Disables automatic paywall and placement requests during the SDK's initial setup. Developers must explicitly call `fetchPlacements` or `await placements()` methods at a later point in the app's lifecycle to fetch placements with inner paywalls.
      
@@ -406,7 +406,7 @@ s
     #else
     @MainActor
     public static func purchase(_ product: Product, scene: UIScene, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
-        await ApphudAsyncStoreKit.shared.purchase(product: product,scene: scene, apphudProduct: apphudProductFor(product), isPurchasing: isPurchasing)
+        await ApphudAsyncStoreKit.shared.purchase(product: product, scene: scene, apphudProduct: apphudProductFor(product), isPurchasing: isPurchasing)
     }
     #endif
     /**
@@ -547,7 +547,7 @@ s
      - parameter productIdentifier: The product identifier for the in-app purchase to check.
      - Returns: `true` if the user has an active purchase with the given product identifier; `false` if the product is refunded, never purchased, or inactive.
      */
-    
+
     @MainActor public static func isNonRenewingPurchaseActive(productIdentifier: String) -> Bool {
         nonRenewingPurchases()?.first(where: {$0.productId == productIdentifier})?.isActive() ?? false
     }
@@ -643,7 +643,7 @@ s
     @objc public static func setUserProperty(key: ApphudUserPropertyKey, value: Any?, setOnce: Bool = false) {
         ApphudInternal.shared.setUserProperty(key: key, value: value, setOnce: setOnce, increment: false)
     }
-    
+
     /**
      This method sends all user properties immediately to Apphud. Should be used for audience segmentation in placements based on user properties.
     
@@ -661,7 +661,7 @@ s
      }
      ```
      */
-    
+
     public static func forceFlushUserProperties(completion: @escaping (Bool) -> Void) {
         ApphudInternal.shared.performWhenUserRegistered {
             ApphudInternal.shared.flushUserProperties(force: true, completion: completion)
@@ -686,7 +686,7 @@ s
     }
 
     // MARK: - Paywalls Presentation
-    
+#if os(iOS)
     /**
      Preloads and caches one or more paywall screens to enable faster presentation.
 
@@ -701,7 +701,7 @@ s
     public static func preloadPaywallScreens(placementIdentifiers: [String]) {
         ApphudScreensManager.shared.preloadPlacements(identifiers: placementIdentifiers)
     }
-    
+
     /**
      Asynchronously fetches a paywall Screen for the given paywall.
 
@@ -719,7 +719,7 @@ s
     public static func fetchPaywallScreen(_ paywall: ApphudPaywall, maxTimeout: TimeInterval = APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT, completion: @escaping (ApphudPaywallScreenFetchResult) -> Void) {
         ApphudScreensManager.shared.requestPaywallcontroller(paywall, maxTimeout: maxTimeout, completion: completion)
     }
-    
+
     /**
      Removes the preloaded paywall Screen from memory cache.
 
@@ -738,7 +738,7 @@ s
     }
 
     // MARK: - Rules & Screens Methods
-    #if os(iOS)
+
     /**
      Presents an Apphud Screen that was previously delayed for presentation. This is typically used in conjunction with the `apphudShouldShowScreen` delegate method, where returning `false` would delay the Screen's presentation.
 
@@ -843,7 +843,7 @@ s
     public static func setAttribution(data: ApphudAttributionData?, from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ApphudBoolCallback?) {
         ApphudInternal.shared.setAttribution(data: data, from: provider, identifer: identifer, callback: callback)
     }
-    
+
     /**
         Web-to-Web flow only. Attempts to attribute the user with the provided attribution data.
         If the `data` parameter contains either `aph_user_id`, `apphud_user_id`,  `email` or `apphud_user_email`, the SDK will submit this information to the Apphud server.
@@ -961,10 +961,10 @@ s
     @objc public static func isSandbox() -> Bool {
         return apphudIsSandbox()
     }
-    
+
     @available(*, unavailable, message: "No longer needed. Purchases migrate automatically. Just remove this code.")
     @MainActor public static func migratePurchasesIfNeeded(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {}
-    
+
     /**
      Override default paywalls and placements cache timeout value. Default cache value is 9000 seconds (25 hours).
      If expired, will make SDK to disregard cache and force refresh paywalls and placements.
@@ -977,14 +977,14 @@ s
     @objc public static func setPaywallsCacheTimeout(_ value: TimeInterval) {
         ApphudInternal.shared.setCacheTimeout(value)
     }
-    
+
     /**
      Explicitly loads fallback paywalls from the json file, if it was added to the project resources.
      By default, SDK automatically tries to load paywalls from the JSON file, if possible.
      However, developer can also call this method directly for more control.
      For more details, visit https://docs.apphud.com/docs/paywalls#set-up-fallback-mode
     */
-    @MainActor 
+    @MainActor
     public static func loadFallbackPaywalls(callback: @escaping ([ApphudPaywall]?, ApphudError?) -> Void) {
         ApphudInternal.shared.executeFallback(callback: callback)
     }
