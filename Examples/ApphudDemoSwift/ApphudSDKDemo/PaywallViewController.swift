@@ -11,8 +11,8 @@ import ApphudSDK
 import StoreKit
 import SwiftUI
 
-enum PaywallID: String {
-    case main // should be equal to identifier in your Apphud > Paywalls
+enum PlacementID: String {
+    case main // should be equal to identifier in your Apphud > Placements
     case onboarding
 }
 
@@ -52,7 +52,7 @@ class PaywallViewController: UIViewController {
 
     private func loadPaywalls() async {
         let placements = await Apphud.placements()
-        let placement = placements.first(where: { $0.identifier == PaywallID.onboarding.rawValue }) ?? placements.first
+        let placement = placements.first(where: { $0.identifier == PlacementID.onboarding.rawValue }) ?? placements.first
         if let paywall = placement?.paywall {
             self.handlePaywallReady(paywall: paywall)
         }
@@ -103,8 +103,6 @@ class PaywallViewController: UIViewController {
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
 
-        // send Apphud log, that your paywall closed
-        self.paywall.map { Apphud.paywallClosed($0) }
         dismissCompletion?()
     }
 
@@ -175,13 +173,13 @@ class PaywallViewController: UIViewController {
             }
         }))
         sheet.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-        
+
         if let popoverController = sheet.popoverPresentationController {
             popoverController.sourceView = self.view // The view containing the anchor rectangle for the popover.
             popoverController.sourceRect = CGRect(x: self.view.bounds.midX, y: self.view.bounds.midY, width: 0, height: 0) // The rectangle in the specified view in which to anchor the popover.
             popoverController.permittedArrowDirections = [] // Optional: No arrow or specify direction
         }
-        
+
         present(sheet, animated: true)
     }
 }

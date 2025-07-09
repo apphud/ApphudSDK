@@ -25,9 +25,9 @@ class ApphudLoggerService {
         case paywallConfigs = "/v2/paywall_configs"
         case subscriptions = "/v1/subscriptions"
     }
-    
+
     internal var customerLoadTime: Double = 0
-    internal var errorCode: Int? = nil
+    internal var errorCode: Int?
     internal var customerRegisterAttempts: Int = 0
     internal var didSend = false
     internal static let shared = ApphudLoggerService()
@@ -45,7 +45,7 @@ class ApphudLoggerService {
     }
 
     internal func paywallCheckoutInitiated(apphudProduct: ApphudProduct?, productId: String?) {
-        ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_checkout_initiated", "properties": ["paywall_id":  apphudProduct?.paywallId, "placement_id": apphudProduct?.placementId, "product_id": productId, "variation_identifier": apphudProduct?.variationIdentifier, "experiment_id": apphudProduct?.experimentId].compactMapValues { $0 } ])
+        ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_checkout_initiated", "properties": ["paywall_id": apphudProduct?.paywallId, "placement_id": apphudProduct?.placementId, "product_id": productId, "variation_identifier": apphudProduct?.variationIdentifier, "experiment_id": apphudProduct?.experimentId].compactMapValues { $0 } ])
     }
 
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
@@ -77,15 +77,15 @@ class ApphudLoggerService {
             params["error_code"] = retryLog.errorCode
 
             self.durationLogs.append(params)
-            
-            if (key == .customers) {
+
+            if key == .customers {
                 self.customerLoadTime = Double(round(100 * value) / 100)
                 self.errorCode = retryLog.errorCode
                 self.customerRegisterAttempts = retryLog.count
             }
         }
     }
-    
+
     @objc private func durationTimerAction() {
         let sdkLaunchedAt = ApphudInternal.shared.initDate.timeIntervalSince1970 * 1000.0
         let productsCount = ApphudStoreKitWrapper.shared.products.count
@@ -98,7 +98,7 @@ class ApphudLoggerService {
                                               "products_load_time": Double(round(100 * productsLoadTime) / 100) * 1000.0,
                        "products_count": productsCount
         ]
-        
+
         if let errorString = ApphudStoreKitWrapper.shared.latestError()?.localizedDescription {
             metrics["storekit_error"] = errorString
         }
@@ -108,17 +108,17 @@ class ApphudLoggerService {
         if customerRegisterAttempts > 1 {
             metrics["failed_attempts"] = String(customerRegisterAttempts)
         }
-        
+
         if customerRegisterAttempts <= 1 && productsCount > 0 && customerErrorMessage == nil {
             metrics["result"] = "no_issues"
         } else {
             metrics["result"] = "has_issues"
         }
-        
+
         apphudLog("SDK Performance Metrics: \n\(metrics)")
-        
-        if ((ApphudInternal.shared.isFreshInstall || ApphudInternal.shared.isRedownload) &&
-            customerLoadTime > 0 && productsLoadTime > 0 && paywallsLoadTime > 0 && !didSend) {
+
+        if (ApphudInternal.shared.isFreshInstall || ApphudInternal.shared.isRedownload) &&
+            customerLoadTime > 0 && productsLoadTime > 0 && paywallsLoadTime > 0 && !didSend {
             didSend = true
             ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_products_loaded", "properties": metrics.compactMapValues { $0 }])
         }

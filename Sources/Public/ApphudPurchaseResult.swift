@@ -39,8 +39,13 @@ public class ApphudPurchaseResult: NSObject {
      */
     @objc public let error: Error?
 
+    /**
+     Indicates whether the purchase result was triggered by a restore action.
+    */
+    public var isRestoreResult: Bool = false
+
     public var success: Bool {
-        error == nil
+        error == nil && (subscription?.isActive() ?? false || nonRenewingPurchase?.isActive() ?? false)
     }
 
     // MARK: - Private methods

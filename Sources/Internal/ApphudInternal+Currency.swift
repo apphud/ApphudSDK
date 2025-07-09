@@ -33,7 +33,7 @@ extension ApphudInternal {
             }
         }
     }
-    
+
     @MainActor
     func canResumeFetchingCurrency() -> Bool {
         if !currencyTaskFinished {

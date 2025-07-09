@@ -11,8 +11,16 @@ import StoreKit
 
 extension ApphudInternal {
 
+    @MainActor internal func performWhenStoreKitProductFetched(maxAttempts: Int) async -> ApphudError? {
+        await withUnsafeContinuation { continuation in
+            performWhenStoreKitProductFetched(maxAttempts: maxAttempts) { error in
+                continuation.resume(returning: error)
+            }
+        }
+    }
+
     /// Returns false if products groups map dictionary not yet received, block is added to array and will be performed later.
-    @MainActor internal func performWhenStoreKitProductFetched(maxAttempts: Int, callback : @escaping ApphudErrorCallback) {
+    @MainActor internal func performWhenStoreKitProductFetched(maxAttempts: Int, callback: @escaping ApphudErrorCallback) {
         switch ApphudStoreKitWrapper.shared.status {
         case .none:
             self.storeKitProductsFetchedCallbacks.append(callback)
@@ -46,13 +54,13 @@ extension ApphudInternal {
             block(error)
         }
     }
-    
+
     internal func fetchAllAvailableProductIDs() async -> Set<String> {
-        
+
         if await permissionGroups == nil {
             _ = await fetchPermissionGroups()
         }
-        
+
         return await withUnsafeContinuation({ continuation in
             performWhenUserRegistered(allowFailure: true) { @MainActor in
                 continuation.resume(returning: self.allAvailableProductIDs())
@@ -66,9 +74,9 @@ extension ApphudInternal {
         paywalls.forEach { p in
             productIDs.append(contentsOf: p.products.map { $0.productId })
         }
-        
+
         placements.forEach { pl in
-            productIDs.append(contentsOf: pl.paywall?.products.map{ $0.productId } ?? [])
+            productIDs.append(contentsOf: pl.paywall?.products.map { $0.productId } ?? [])
         }
 
         permissionGroups?.forEach({ group in
@@ -83,9 +91,9 @@ extension ApphudInternal {
         let productIds = await allAvailableProductIDs()
 
         guard productIds.count > 0 else {
-            if (userRegisterRetries.count > 0) {
+            if userRegisterRetries.count > 0 {
                 let error: ApphudError?
-                if (await currentUser == nil) {
+                if await currentUser == nil {
                     error = ApphudError(message: "Failed to register User", code: userRegisterRetries.errorCode)
                 } else {
                     error = ApphudError(message: "No Paywalls Found", code: APPHUD_NO_PRODUCTS)
@@ -99,16 +107,16 @@ extension ApphudInternal {
             }
             return
         }
-        
+
         if case .loading = ApphudStoreKitWrapper.shared.status {
             return
         }
-        
+
         if case .fetched = ApphudStoreKitWrapper.shared.status {
             apphudLog("Already Fetched All Products")
             return await handleDidFetchAllProducts(storeKitProducts: ApphudStoreKitWrapper.shared.products, error: nil)
         }
-        
+
         var result: ([SKProduct], ApphudError?) = ([], nil)
         var requestCount = 0
         var shouldTry = true
@@ -154,7 +162,7 @@ extension ApphudInternal {
             }
         }
     }
-    
+
     internal func refreshStoreKitProductsOnly(maxAttempts: Int, callback: (([SKProduct], Error?) -> Void)?) {
         ApphudStoreKitWrapper.shared.status = .none
         Task.detached { @MainActor in
@@ -185,7 +193,7 @@ extension ApphudInternal {
             return
         }
 
-        httpClient?.startRequest(path: .products, apiVersion: .APIV3, params: ["observer_mode": ApphudUtils.shared.storeKitObserverMode, "device_id": currentDeviceID], method: .get, useDecoder: true, retry: true) { _, _, data, error, code, duration, attempts in
+        httpClient?.startRequest(path: .products, apiVersion: .APIV3, params: ["observer_mode": ApphudUtils.shared.storeKitObserverMode, "device_id": currentDeviceID], method: .get, useDecoder: true, retry: true) { _, _, data, error, code, duration, _ in
 
             if error == nil {
                 ApphudLoggerService.shared.add(key: .products, value: duration, retryLog: self.productsFetchRetries)
@@ -240,12 +248,12 @@ extension ApphudInternal {
         }
 
         DispatchQueue.main.async {
-            self.performWhenStoreKitProductFetched(maxAttempts: self.customRegistrationAttemptsCount ?? APPHUD_DEFAULT_RETRIES) { error in
+            self.performWhenStoreKitProductFetched(maxAttempts: self.customRegistrationAttemptsCount ?? APPHUD_DEFAULT_RETRIES) { _ in
                 self.updatePaywallsAndPlacements()
                 completionBlock?(self.paywalls, nil)
                 self.delegate?.paywallsDidFullyLoad(paywalls: self.paywalls)
                 self.delegate?.placementsDidFullyLoad(placements: self.placements)
-                
+
                 if self.deviceIdentifiers.0 == nil && self.deviceIdentifiers.1 == nil && self.submittedDeviceIdentifiers == nil {
                     apphudLog("Device Identifiers (IDFA and/or IDFV) were not set. Failing to pass at least the IDFV might disrupt some of your MMP integration setups. Learn more: https://docs.apphud.com/docs/device-identifiers", forceDisplay: true)
                 }
@@ -257,18 +265,20 @@ extension ApphudInternal {
     internal func fetchOfferingsFull(maxAttempts: Int = APPHUD_DEFAULT_RETRIES, callback: @escaping (ApphudError?) -> Void) {
         let preparedAttempts = min(max(1, maxAttempts), 10)
         self.customRegistrationAttemptsCount = preparedAttempts
-        
+
         if deferPlacements {
-            deferPlacements = false
-            didPreparePaywalls = false
-            refreshCurrentUser {
-                self.refreshStoreKitProductsOnly(maxAttempts: maxAttempts) { _, error in
-                    callback(error != nil ? ApphudError(error: error!) : nil)
+            performWhenUserRegistered {
+                self.deferPlacements = false
+                self.didPreparePaywalls = false
+                self.refreshCurrentUser {
+                    self.refreshStoreKitProductsOnly(maxAttempts: maxAttempts) { _, error in
+                        callback(error != nil ? ApphudError(error: error!) : nil)
+                    }
                 }
             }
         } else {
             performWhenUserRegistered(allowFailure: true) {
-                if (self.currentUser == nil) {
+                if self.currentUser == nil {
                     apphudLog("Failed to register user with error: \(self.userRegisterRetries.errorCode)", forceDisplay: true)
                 }
                 self.performWhenStoreKitProductFetched(maxAttempts: preparedAttempts) { error in
@@ -280,8 +290,37 @@ extension ApphudInternal {
             }
         }
     }
-    
-    
+
+    internal func getRenderedProperties(_ paywall: ApphudPaywall, items: [[String: any Sendable]], locale: String, callback: @escaping (Error?) -> Void) {
+
+        httpClient?.startRequest(path: .renderProductProperties, apiVersion: .APIV2, params: ["device_id": currentDeviceID, "items": items, "locale": locale], method: .post, useDecoder: true, retry: true) { _, _, data, error, _, _, _ in
+
+            do {
+                if let data = data {
+
+                    typealias ApphudArrayResponse = ApphudAPIDataResponse<ApphudAPIArrayResponse <ApphudAnyCodable>>
+
+                    let decoder = JSONDecoder()
+                    decoder.keyDecodingStrategy = .convertFromSnakeCase
+                    let response = try decoder.decode(ApphudArrayResponse.self, from: data)
+
+                    for item in response.data.results {
+                        let dict = item.value as? [String: ApphudAnyCodable]
+                        let product = paywall.products.first { $0.itemId == (dict?["paywall_item_id"]?.value as? String) }
+                        product?.properties = [locale: item]
+                    }
+
+                    callback(nil)
+                } else {
+                    callback(error)
+                }
+            } catch {
+                apphudLog("Failed to decode products structure with error: \(error)")
+                callback(error)
+            }
+
+        }
+    }
 
     // MARK: - Product Groups Helper Methods
 

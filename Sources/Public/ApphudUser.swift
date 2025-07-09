@@ -46,20 +46,6 @@ public struct ApphudUser: Codable {
         ApphudInternal.shared.placements
     }
 
-    /**
-    A list of paywalls, potentially altered based on the user's involvement in A/B testing, if any.
-
-    - Important: This function doesn't await until inner `SKProduct`s are loaded from the App Store. That means paywalls may or may not have inner StoreKit products at the time you call this function.
-
-    To get paywalls with awaiting for StoreKit products, use await Apphud.paywalls() or
-     Apphud.paywallsDidLoadCallback(...) functions.
-
-    - Returns: An array of `ApphudPaywall` objects, representing the configured paywalls.
-    */
-    @MainActor public func rawPaywalls() -> [ApphudPaywall] {
-        ApphudInternal.shared.paywalls
-    }
-
     internal let paywalls: [ApphudPaywall]?
     internal let placements: [ApphudPlacement]?
     internal let currency: ApphudCurrency?
@@ -169,6 +155,21 @@ public struct ApphudUser: Codable {
     }
 
     private static let ApphudMigrateCachesKey = "ApphudMigrateCachesKey"
+
+    func updateProductTypes() async {
+        guard #available(iOS 15.0, *) else { return }
+
+        for purchase in purchases {
+            guard purchase.isConsumable == nil else { continue }
+
+            if let knownType = await ApphudDataActor.shared.knownProductType(for: purchase.productId) {
+                purchase.isConsumable = knownType == .consumable
+            } else if let type = await purchase.productType() {
+                await ApphudDataActor.shared.setProductType(type, for: purchase.productId)
+                purchase.isConsumable = type == .consumable
+            }
+        }
+    }
 
     func toCacheV2() async {
         let encoder = JSONEncoder()

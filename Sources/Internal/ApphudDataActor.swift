@@ -6,9 +6,54 @@
 //
 
 import Foundation
+import StoreKit
 
 @globalActor actor ApphudDataActor {
     static let shared = ApphudDataActor()
+
+    // MARK: - Known Product Types (UserDefaults-backed)
+
+    private let knownProductTypesKey = "ApphudKnownProductTypes"
+    private let defaults = UserDefaults.standard
+    private var _knownProductTypes: [String: String]
+
+    private init() {
+        if let saved = defaults.dictionary(forKey: knownProductTypesKey) as? [String: String] {
+            _knownProductTypes = saved
+        } else {
+            _knownProductTypes = [:]
+        }
+    }
+
+    /// Returns the type string for a product ID, or nil if unknown.
+    @available(iOS 15.0, *)
+    internal func knownProductType(for productId: String) -> ApphudProductType? {
+        guard let string = _knownProductTypes[productId] else {
+            return nil
+        }
+
+        switch string {
+        case ApphudProductType.consumable.rawValue:
+            return .consumable
+        case ApphudProductType.nonConsumable.rawValue:
+            return .nonConsumable
+        case ApphudProductType.autoRenewable.rawValue:
+            return .autoRenewable
+        case ApphudProductType.nonRenewable.rawValue:
+            return .nonRenewable
+        default:
+            return nil
+        }
+    }
+
+    /// Sets or updates the product type for a given product ID.
+    @available(iOS 15.0, *)
+    internal func setProductType(_ type: Product.ProductType, for productId: String) {
+        if let stringType = ApphudProductType.from(type) {
+            _knownProductTypes[productId] = stringType.rawValue
+            defaults.set(_knownProductTypes, forKey: knownProductTypesKey)
+        }
+    }
 
     internal func clear() {
         submittedAFData = nil
@@ -27,14 +72,14 @@ import Foundation
     internal func setUserPropertiesCache(_ newValue: [[String: Any?]]?) {
         userPropertiesCache = newValue
     }
-    
+
     private(set) var pendingUserProps = [ApphudUserProperty]()
-    
+
     internal func addPendingUserProperty(_ newValue: ApphudUserProperty) {
         self.pendingUserProps.removeAll { prop -> Bool in newValue.key == prop.key }
         self.pendingUserProps.append(newValue)
     }
-    
+
     internal func setPendingUserProperties(_ newValue: [ApphudUserProperty]) {
         self.pendingUserProps = newValue
     }

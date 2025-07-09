@@ -25,25 +25,27 @@ class AppDelegate: UIResponder, UIApplicationDelegate, @preconcurrency UNUserNot
         Apphud.start(apiKey: "YOUR_API_KEY")
         Apphud.setDeviceIdentifiers(idfa: nil, idfv: UIDevice.current.identifierForVendor?.uuidString)
         fetchIDFA()
-        
+
+        Apphud.preloadPaywallScreens(placementIdentifiers: ["MY_PLAYWALL_PLACEMENT_ID", "ANOTHER_PLACEMENT_ID"])
+
         /** Custom User Properties Examples */
         Apphud.setUserProperty(key: .email, value: "user@example.com", setOnce: true)
         Apphud.setUserProperty(key: .init("custom_prop_1"), value: 0.5)
         Apphud.setUserProperty(key: .init("custom_prop_2"), value: true)
         Apphud.incrementUserProperty(key: .init("coins_count"), by: 2)
 //        Apphud.setDelegate(self)
-        Apphud.setUIDelegate(self)        
+        Apphud.setUIDelegate(self)
         registerForNotifications()
 
         return true
     }
-    
+
     func registerForNotifications() {
         UNUserNotificationCenter.current().delegate = self
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { (_, _) in }
         UIApplication.shared.registerForRemoteNotifications()
     }
-    
+
     func fetchIDFA() {
         if #available(iOS 14.5, *) {
             DispatchQueue.main.asyncAfter(deadline: .now()+2.0) {

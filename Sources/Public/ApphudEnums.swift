@@ -20,7 +20,7 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
 /// List of available attribution providers
 /// has to make Int in order to support Objective-C
 @objc public enum ApphudAttributionProvider: Int {
-    
+
     // supported values
     case appsFlyer
     case adjust
@@ -68,7 +68,7 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
 }
 
 internal enum ApphudIAPCodingKeys: String, CodingKey {
-    case id, expiresAt, productId, cancelledAt, startedAt, inRetryBilling, autorenewEnabled, introductoryActivated, environment, local, groupId, status, kind, originalTransactionId, transactionId
+    case id, expiresAt, productId, cancelledAt, startedAt, inRetryBilling, autorenewEnabled, introductoryActivated, environment, local, groupId, status, kind, originalTransactionId, transactionId, isConsumable
 }
 
 internal enum ApphudIAPKind: String {

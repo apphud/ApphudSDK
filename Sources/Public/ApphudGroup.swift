@@ -38,7 +38,7 @@ public class ApphudGroup: NSObject, Codable {
                 return true
             }
         }
-         
+
         let purchases = ApphudInternal.shared.currentUser?.purchases.filter { productIds.contains($0.productId) }
         if purchases?.count ?? 0 > 0 {
             return true

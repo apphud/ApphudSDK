@@ -13,21 +13,26 @@ import Foundation
  */
 public let APPHUD_ERROR_NO_INTERNET = -999
 public let APPHUD_NO_PRODUCTS = -998
+public let APPHUD_INVALID_IDENTIFIER = -992
 public let APPHUD_DEFAULT_RETRIES: Int = 3
 public let APPHUD_MAX_INITIAL_LOAD_TIME: TimeInterval = 10.0
+public let APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT: TimeInterval = 10.0
 public let APPHUD_INFINITE_RETRIES: Int = 999_999
+public let APPHUD_PAYWALL_SCREEN_NOT_FOUND: Int = -995
+public let APPHUD_PAYWALL_SCREEN_INVALID: Int = -992
+public let APPHUD_PAYWALL_LOAD_TIMEOUT: Int = -994
 
 public class ApphudError: NSError, @unchecked Sendable {
 
     private let codeDomain = "com.apphud.error"
 
     var attempts: Int?
-    
+
     public func networkIssue() -> Bool {
         let noInternetErrors = [NSURLErrorNotConnectedToInternet, NSURLErrorCannotConnectToHost, NSURLErrorCannotFindHost, APPHUD_ERROR_NO_INTERNET]
         return noInternetErrors.contains(code)
     }
-    
+
     init(message: String, code: Int = 0) {
         super.init(domain: codeDomain, code: code, userInfo: [NSLocalizedDescriptionKey: message])
     }
@@ -35,7 +40,7 @@ public class ApphudError: NSError, @unchecked Sendable {
     init(error: Error) {
         super.init(domain: (error as NSError).domain, code: (error as NSError).code, userInfo: [NSLocalizedDescriptionKey: (error as NSError).localizedDescription])
     }
-    
+
     init(httpErrorCode: Int, attempts: Int) {
         super.init(domain: codeDomain, code: httpErrorCode, userInfo: [NSLocalizedDescriptionKey: "HTTP Request Failed"])
         self.attempts = attempts

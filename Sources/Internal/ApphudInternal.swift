@@ -43,7 +43,7 @@ final class ApphudInternal: NSObject {
     // MARK: - Receipt and products properties
 
     @MainActor internal var storeKitProductsFetchedCallbacks = [ApphudErrorCallback]()
-    internal var customRegistrationAttemptsCount: Int? = nil
+    internal var customRegistrationAttemptsCount: Int?
     internal var submitReceiptRetries: ApphudRetryLog = (0, 0)
     @MainActor internal var submitReceiptCallbacks = [ApphudNSErrorCallback?]()
     internal var restorePurchasesCallback: (([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void)?
@@ -69,7 +69,7 @@ final class ApphudInternal: NSObject {
 
     internal var isPremium: Bool = false
     internal var hasActiveSubscription: Bool = false
-    
+
     @MainActor internal var currentUser: ApphudUser? {
         didSet {
             self.updatePremiumStatus(user: currentUser)
@@ -132,8 +132,8 @@ final class ApphudInternal: NSObject {
             if deviceIdentifiers.0 != nil || deviceIdentifiers.1 != nil {
                 let delimiter = "-"
                 let separator = ","
-                var cachedIDFA: String? = nil
-                var cachedIDFV: String? = nil
+                var cachedIDFA: String?
+                var cachedIDFV: String?
                 if let cachedDeviceIds = submittedDeviceIdentifiers?.components(separatedBy: separator) {
                     cachedIDFA = cachedDeviceIds.first
                     cachedIDFV = cachedDeviceIds.last
@@ -144,7 +144,7 @@ final class ApphudInternal: NSObject {
                         cachedIDFV = nil
                     }
                 }
-                
+
                 if deviceIdentifiers.0 == cachedIDFA && deviceIdentifiers.1 == cachedIDFV {
                     apphudLog("Device Identifiers not changed, skipping. \(String(describing: cachedIDFA)), \(String(describing: cachedIDFV))")
                 } else {
@@ -154,7 +154,7 @@ final class ApphudInternal: NSObject {
                     let idfvToCache = deviceIdentifiers.1 ?? delimiter
                     submittedDeviceIdentifiers = idfaToCache + separator + idfvToCache
                 }
-                
+
             }
         }
     }
@@ -190,7 +190,7 @@ final class ApphudInternal: NSObject {
     internal var registrationStartedAt: Date?
     @MainActor internal var currencyTaskFinished = false
     internal var initialRequestID = UUID().uuidString
-    
+
     internal var isInitialized: Bool {
         httpClient != nil
     }
@@ -330,8 +330,14 @@ final class ApphudInternal: NSObject {
         }
 
         self.currentUser = cachedUser
+
+        Task.detached {
+            await self.currentUser?.updateProductTypes()
+            await self.updatePremiumStatus(user: self.currentUser)
+        }
+
         self.initDate = Date()
-        
+
         Task(priority: .userInitiated) {
 
             var isIdenticalUserIds = true
@@ -367,9 +373,9 @@ final class ApphudInternal: NSObject {
        return self.currentUser?.subscriptions.count ?? 0 > 0 || self.currentUser?.purchases.count ?? 0 > 0
     }
 
-    internal var cacheTimeout: TimeInterval = apphudIsSandbox() ? 60 : 90000
+    internal var cacheTimeout: TimeInterval = apphudIsSandbox() ? 5 : 90000
     internal func setCacheTimeout(_ value: TimeInterval) {
-        if (value >= 0 && value < 86_400*2) {
+        if value >= 0 && value < 86_400*2 {
             self.cacheTimeout = value
         }
     }
@@ -442,20 +448,20 @@ final class ApphudInternal: NSObject {
         var delay: TimeInterval = 0
 
         let serverIsUnreachable = [NSURLErrorCannotConnectToHost, NSURLErrorTimedOut, 500, 502, 503].contains(errorCode)
-        
+
         userRegisterRetries.count += 1
         userRegisterRetries.errorCode = errorCode
-        
+
         let maxAttempts = min(self.customRegistrationAttemptsCount ?? APPHUD_DEFAULT_RETRIES, APPHUD_DEFAULT_RETRIES)
-        
+
         if serverIsUnreachable && (userRegisterRetries.count >= maxAttempts || Date().timeIntervalSince(initDate) > APPHUD_MAX_INITIAL_LOAD_TIME) {
             executeFallback(callback: nil)
         }
-        
-        if (userRegisterRetries.count >= maxAttempts && currentUser == nil || currentUser != nil) {
+
+        if userRegisterRetries.count >= maxAttempts && currentUser == nil || currentUser != nil {
             performAllUserFailedBlocks()
         }
-        
+
         if retryImmediately.contains(errorCode) {
             delay = 0.5
         } else if noInternetError.contains(errorCode) {
@@ -508,7 +514,7 @@ final class ApphudInternal: NSObject {
     private func checkPendingRules() {
         #if os(iOS)
         performWhenUserRegistered {
-            ApphudRulesManager.shared.handlePendingAPSInfo()
+            ApphudScreensManager.shared.handlePendingAPSInfo()
         }
         #endif
     }
@@ -545,7 +551,7 @@ final class ApphudInternal: NSObject {
     // MARK: - Perform Blocks
 
     /// Returns false if current user is not yet registered, block is added to array and will be performed later.
-    internal func performWhenUserRegistered(allowFailure: Bool = false, callback : @escaping ApphudVoidMainCallback) {
+    internal func performWhenUserRegistered(allowFailure: Bool = false, callback: @escaping ApphudVoidMainCallback) {
         // detach to call in the next run loop
         Task.detached { @MainActor in
             if self.currentUser != nil {
@@ -554,7 +560,7 @@ final class ApphudInternal: NSObject {
                 if self.userRegisterRetries.count >= self.maxNumberOfUserRegisterRetries {
                     self.continueToRegisteringUser()
                 }
-                                
+
                 self.userRegisteredCallbacks.append((callback, allowFailure))
             }
         }
@@ -568,19 +574,18 @@ final class ApphudInternal: NSObject {
             }
         }
     }
-    
+
     internal func performAllUserFailedBlocks() {
         // detach to call in the next run loop
         Task.detached { @MainActor in
             for tuple in self.userRegisteredCallbacks {
-                if (tuple.allowFailure) {
+                if tuple.allowFailure {
                     tuple.block()
                 }
             }
             self.userRegisteredCallbacks.removeAll(where: { $0.allowFailure == true })
         }
     }
-
 
     // MARK: - Push Notifications API
 
@@ -687,7 +692,7 @@ final class ApphudInternal: NSObject {
                     ruleDict = ruleDict.merging(properties ?? [:], uniquingKeysWith: {_, new in new})
                     let rule = ApphudRule(dictionary: ruleDict)
                     Task { @MainActor in
-                        ApphudRulesManager.shared.handleRule(rule: rule)
+                        ApphudScreensManager.shared.handleRule(rule: rule)
                     }
                 }
             })
@@ -746,7 +751,7 @@ final class ApphudInternal: NSObject {
         }
 
         didPreparePaywalls = false
-        
+
         submitReceiptRetries = (0, 0)
         restorePurchasesCallback = nil
         submittingTransaction = nil

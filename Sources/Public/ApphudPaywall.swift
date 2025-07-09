@@ -5,6 +5,12 @@
 //  Created by Renat Kurbanov on 29.04.2021.
 //
 import Foundation
+import WebKit
+
+#if os(iOS)
+import UIKit
+import ObjectiveC
+#endif
 
 /**
  An enumeration for commonly used paywall identifiers in Apphud. Ensure that the identifiers used here match those in the Apphud Product Hub -> Paywalls section. This enum facilitates the retrieval of specific paywall configurations in your code.
@@ -44,27 +50,27 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
      Array of products
      */
     @Published @objc public internal(set) var products: [ApphudProduct]
-    
+
     /**
      Your custom paywall identifier from Apphud Dashboard
      */
     @objc public internal(set) var identifier: String
-    
+
     /**
      It's possible to make a paywall default – it's a special alias name, that can be assigned to only ONE paywall at a time. There can be no default paywalls at all. It's up to you whether you want to have them or not.
      */
     @objc public internal(set) var isDefault: Bool
-    
+
     /**
      A/B test experiment name
      */
     @objc public var experimentName: String?
-    
+
     /**
      A/B Experiment Variation Name
      */
     @objc public var variationName: String?
-    
+
     /**
      Represents the identifier of a parent paywall from which an experiment variation was derived in A/B Experiments. This property is populated only if the 'Use existing paywall' option was selected during the setup of the experiment variation.
     */
@@ -74,7 +80,7 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
      Current paywall's placement identifier, if available.
      */
     @objc public internal(set) var placementIdentifier: String?
-    
+
     /**
      Insert any parameters you need into custom JSON. It could be titles, descriptions, localisations, font, background and color parameters, URLs to media content, etc. Parameters count are not limited.
      */
@@ -94,12 +100,79 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
         return [:]
     }
 
+#if os(iOS)
+    /**
+     Use this function to know whether paywall has a valid visual Screen.
+     */
+    public func hasVisualPaywall() -> Bool {
+        screen?.paywallURL != nil
+    }
+
+    /**
+     Use this function to know whether Screen is ready to be displayed immediately.
+     */
+    @MainActor
+    public func isVisualPaywallPreloaded() -> Bool {
+        let vc = ApphudScreensManager.shared.pendingPaywallControllers[identifier] as? ApphudPaywallScreenController
+
+        return vc?.state == .ready
+    }
+#endif
+
     internal var id: String
     private var jsonString: String?
     internal var name: String
     internal var placementId: String?
     internal var variationIdentifier: String?
     internal var experimentId: String?
+    internal var screen: ApphudPaywallScreen?
+
+    internal var renderedProductProperties: Bool = false
+
+    public func update(json: String) {
+        self.jsonString = json
+    }
+
+    internal func itemsToRender() -> [[String: any Sendable]] {
+        var items = [[String: any Sendable]]()
+        for product in products {
+            if product.hasMacros() == false {
+                apphudLog("Product \(product.productId) has no macros, skipping")
+                continue
+            }
+            var info: [String: Any] = [:]
+            info["item_id"] = product.itemId
+            let productInfo = product.skProduct?.screenProperties() ?? [:]
+            info["product_info"] = productInfo
+            items.append(info)
+        }
+
+        return items
+    }
+
+    internal func renderPropertiesIfNeeded() async {
+        if self.renderedProductProperties { return }
+
+        self.renderedProductProperties = true
+
+        let items = itemsToRender()
+        if items.isEmpty {
+            apphudLog("No products macros to render, skipping")
+            return
+        }
+
+        return await withUnsafeContinuation { continuation in
+
+            ApphudInternal.shared.getRenderedProperties(self, items: items, locale: Locale.current.apphudLanguageCode()) { error in
+
+                if error != nil {
+                    self.renderedProductProperties = false
+                }
+
+                continuation.resume()
+            }
+        }
+    }
 
     @MainActor
     internal func update(placementId: String?, placementIdentifier: String?) {
@@ -108,6 +181,7 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
         self.placementIdentifier = placementIdentifier
         products.forEach({ product in
             product.paywallId = id
+            product.paywall = self
             product.paywallIdentifier = identifier
             product.placementId = placementId
             product.placementIdentifier = placementIdentifier
@@ -125,6 +199,7 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
         case experimentId
         case variationIdentifier
         case variationName
+        case screen
         case isDefault = "default"
         case jsonString = "json"
         case products = "items"
@@ -144,6 +219,7 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
         jsonString = try? values.decode(String.self, forKey: .jsonString)
         isDefault = try values.decode(Bool.self, forKey: .isDefault)
         products = try values.decode([ApphudProduct].self, forKey: .products)
+        screen = try? values.decode(ApphudPaywallScreen.self, forKey: .screen)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -159,5 +235,6 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
         try? container.encode(jsonString, forKey: .jsonString)
         try container.encode(isDefault, forKey: .isDefault)
         try container.encode(products, forKey: .products)
+        try? container.encode(screen, forKey: .screen)
     }
 }

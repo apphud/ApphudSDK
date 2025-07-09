@@ -14,7 +14,7 @@ import Foundation
 import UserNotifications
 import SwiftUI
 
-internal let apphud_sdk_version = "3.6.2"
+internal let apphud_sdk_version = "4.0.0-beta"
 
 // MARK: - Initialization
 
@@ -63,12 +63,14 @@ final public class Apphud: NSObject {
 
     /**
      Updates the user ID. Use this when you need to change the user identifier during the app's runtime.
-
+s
      - parameter userID: Required. The new user ID value.
+     - parameter callback: A closure that gets called with the updated `ApphudUser` object. The user object may be nil
+                          if user registering fails.
      */
     @MainActor
-    @objc public static func updateUserID(_ userID: String) {
-        ApphudInternal.shared.updateUserID(userID: userID)
+    public static func updateUserID(_ userID: String, callback: ((ApphudUser?) -> Void)? = nil) {
+        ApphudInternal.shared.updateUserID(userID: userID, callback: callback)
     }
 
     /**
@@ -98,6 +100,35 @@ final public class Apphud: NSObject {
      */
     @objc public static func logout() async {
         await ApphudInternal.shared.logout()
+    }
+
+    /**
+     Refreshes current user data including paywalls, placements, subscriptions, non-renewing purchases, and promotionals.
+     
+     This method triggers a refresh of all user-related data from Apphud servers. You can use this method to manually
+     update the user's data when needed, such as when the app returns from background.
+     
+     To receive notifications about data updates, implement the following `ApphudListener` methods:
+     - `apphudSubscriptionsUpdated`
+     - `apphudNonRenewingPurchasesUpdated`
+     
+     - Important: Do not call this method on app launch as Apphud SDK automatically refreshes user data during initialization.
+     
+     - Parameter callback: A closure that gets called with the updated `ApphudUser` object. The user object may be nil
+                          if the refresh operation fails.
+     
+     Example usage:
+     ```swift
+     Apphud.refreshUserData { user in
+         if let user = user {
+             // Handle updated user data
+         }
+     }
+     ```
+     */
+    @MainActor
+    public static func refreshUserData(callback: @escaping ((ApphudUser?) -> Void)) {
+        ApphudInternal.shared.refreshUserData(callback: callback)
     }
 
     /**
@@ -134,7 +165,7 @@ final public class Apphud: NSObject {
     @MainActor
     public static func placements(maxAttempts: Int = APPHUD_DEFAULT_RETRIES) async -> [ApphudPlacement] {
         await withUnsafeContinuation { continuation in
-            ApphudInternal.shared.fetchOfferingsFull(maxAttempts: maxAttempts) { error in
+            ApphudInternal.shared.fetchOfferingsFull(maxAttempts: maxAttempts) { _ in
                 continuation.resume(returning: ApphudInternal.shared.placements)
             }
         }
@@ -189,7 +220,7 @@ final public class Apphud: NSObject {
             callback(ApphudInternal.shared.placements, error)
         }
     }
-    
+
     /**
      Disables automatic paywall and placement requests during the SDK's initial setup. Developers must explicitly call `fetchPlacements` or `await placements()` methods at a later point in the app's lifecycle to fetch placements with inner paywalls.
      
@@ -211,25 +242,6 @@ final public class Apphud: NSObject {
     }
 
     /**
-     Retrieves the paywalls configured in Product Hub > Paywalls, potentially altered based on the user's involvement in A/B testing, if any. Awaits until the inner `SKProduct`s are loaded from the App Store.
-
-     For immediate access without awaiting `SKProduct`s, use `ApphudDelegate`'s `userDidLoad` method or the callback in `Apphud.start(...)`.
-
-     - Important: This is deprecated method. Retrieve paywalls from within placements instead. See documentation for details: https://docs.apphud.com/docs/placements
-
-     - parameter maxAttempts: Number of request attempts before throwing an error. Must be between 1 and 10. Default value is 3.
-     - parameter callback: A closure that takes an array of `ApphudPaywall` objects and returns void.
-     - parameter error: Optional ApphudError that may occur while fetching products from the App Store. You might want to retry the request if the error comes out.
-     */
-    @available(*, deprecated, message: "Deprecated in favor of fetchPlacements(...)")
-    @MainActor
-    @objc public static func paywallsDidLoadCallback(maxAttempts: Int = APPHUD_DEFAULT_RETRIES, _ callback: @escaping ([ApphudPaywall], Error?) -> Void) {
-        ApphudInternal.shared.fetchOfferingsFull(maxAttempts: maxAttempts) { error in
-            callback(ApphudInternal.shared.paywalls, error)
-        }
-    }
-
-    /**
      Notifies Apphud when a purchase process is initiated from a paywall in `Observer Mode`, enabling the use of A/B experiments. This method should be called right before executing your own purchase method, and it's specifically required only when the SDK is in Observer Mode.
 
      - Important: Observer mode only. Call this method immediately before your custom purchase method.
@@ -243,7 +255,7 @@ final public class Apphud: NSObject {
      YourClass.purchase(someProduct)
      ```
      */
-    @objc public static func willPurchaseProductFrom(paywallIdentifier: String, placementIdentifier: String?) {
+    @objc public static func willPurchaseProductFrom(paywallIdentifier: String, placementIdentifier: String) {
         ApphudInternal.shared.willPurchaseProductFrom(paywallId: paywallIdentifier, placementId: placementIdentifier)
     }
 
@@ -254,15 +266,6 @@ final public class Apphud: NSObject {
     */
     @objc public static func paywallShown(_ paywall: ApphudPaywall) {
         ApphudLoggerService.shared.paywallShown(paywall: paywall)
-    }
-
-    /**
-    Logs a "Paywall Closed" event which is required for A/B Testing analytics.
-
-    - parameter paywall: The `ApphudPaywall` instance that was shown to the user.
-    */
-    @objc public static func paywallClosed(_ paywall: ApphudPaywall) {
-        ApphudLoggerService.shared.paywallClosed(paywallId: paywall.id, placementId: paywall.placementId)
     }
 
     // MARK: - Products
@@ -403,7 +406,7 @@ final public class Apphud: NSObject {
     #else
     @MainActor
     public static func purchase(_ product: Product, scene: UIScene, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
-        await ApphudAsyncStoreKit.shared.purchase(product: product,scene: scene, apphudProduct: apphudProductFor(product), isPurchasing: isPurchasing)
+        await ApphudAsyncStoreKit.shared.purchase(product: product, scene: scene, apphudProduct: apphudProductFor(product), isPurchasing: isPurchasing)
     }
     #endif
     /**
@@ -474,22 +477,20 @@ final public class Apphud: NSObject {
     // MARK: - Check Status
 
     /**
-     Determines if the user has active premium access through a subscription or a non-renewing purchase (lifetime).
-     
-     __If you have consumable purchases, do not use this method in current SDK version.__
+     Determines whether the user currently has premium access, either through an active auto-renewable subscription, non-renewing subscription or a non-consumable (lifetime) purchase.
 
-     - Important: Do not use this method if you offer consumable in-app purchases (like coin packs) as the SDK does not differentiate consumables from non-consumables.
-     - Returns: `true` if the user has an active subscription or an active non-renewing purchase.
+     __Important: On iOS 13 and 14, this method will return `true` for consumable purchases.  If your app has consumable purchases and target iOS 13 and 14, do not use this method. __
+
+     - Returns: `true` if the user has an active auto-renewable subscription, non-renewing subscription or a valid non-consumable purchase.
      */
     @objc public static func hasPremiumAccess() -> Bool {
         ApphudInternal.shared.isPremium
     }
 
     /**
-     Checks if the user has an active premium subscription.
+     Checks if the user has an active premium auto-renewable subscription.
 
-     - Important: If your app includes lifetime (non-consumable) or consumable purchases, you should use the `Apphud.isNonRenewingPurchaseActive(productIdentifier:)` method to check their status.
-     - Returns: `true` if the user currently has an active subscription.
+     - Returns: `true` if the user currently has an active auto-renewable subscription.
      */
     @objc public static func hasActiveSubscription() -> Bool {
         ApphudInternal.shared.hasActiveSubscription
@@ -505,9 +506,9 @@ final public class Apphud: NSObject {
     }
 
     /**
-     Retrieves the most recently purchased subscription object for the current user. Subscriptions are cached on the device.
+     Retrieves the most recently purchased auto-renewable subscription object for the current user. Subscriptions are cached on the device.
 
-     - Note: A non-nil return value does not guarantee that the subscription is active. Use the `Apphud.hasActiveSubscription()` method or check the `isActive` property of the subscription to determine if premium functionality should be unlocked for the user.
+     - Note: A non-nil return value does not guarantee that the auto-renewable subscription is active. Use the `Apphud.hasActiveSubscription()` method or check the `isActive` property of the auto-renewable subscription to determine if premium functionality should be unlocked for the user.
      - Returns: The most recent `ApphudSubscription` object if available, otherwise `nil`.
      */
     @MainActor public static func subscription() -> ApphudSubscription? {
@@ -515,7 +516,7 @@ final public class Apphud: NSObject {
     }
 
     /**
-     Retrieves all subscriptions that the user has ever purchased. This method is useful if your app has more than one subscription group.
+     Retrieves all auto-renewable subscriptions that the user has ever purchased. This method is useful if your app has more than one subscription group.
 
      - Returns: An array of `ApphudSubscription` objects representing all subscriptions ever purchased by the user, or `nil` if the SDK is not initialized.
      */
@@ -528,7 +529,7 @@ final public class Apphud: NSObject {
     }
 
     /**
-     Retrieves all non-renewing purchases (consumables, non-consumables, or non-renewing subscriptions) made by the user. Purchases are cached on the device and sorted by purchase date. Note that Apphud only tracks consumables if they were purchased after integrating the Apphud SDK.
+     Retrieves all non-renewing purchases (consumables, non-consumables, or non-renewing subscriptions) made by the user. Purchases are cached on the device and sorted by purchase date.
 
      - Returns: An array of `ApphudNonRenewingPurchase` objects representing all standard in-app purchases made by the user, or `nil` if the SDK is not initialized.
      */
@@ -541,11 +542,12 @@ final public class Apphud: NSObject {
     }
 
     /**
-     Checks if the user has an active non-renewing purchase with a specific product identifier. This includes consumables, non-consumables, or non-renewing subscriptions. Note that Apphud only tracks consumables if they were purchased after integrating the Apphud SDK.
+     Checks if the user has an active non-renewing purchase with a specific product identifier. This includes consumables, non-consumables, or non-renewing subscriptions.
 
      - parameter productIdentifier: The product identifier for the in-app purchase to check.
      - Returns: `true` if the user has an active purchase with the given product identifier; `false` if the product is refunded, never purchased, or inactive.
      */
+
     @MainActor public static func isNonRenewingPurchaseActive(productIdentifier: String) -> Bool {
         nonRenewingPurchases()?.first(where: {$0.productId == productIdentifier})?.isActive() ?? false
     }
@@ -557,23 +559,23 @@ final public class Apphud: NSObject {
 
      - Returns: An optional `Error`. If the error is `nil`, you can check the user's premium status using the `Apphud.hasActiveSubscription()` or `Apphud.hasPremiumAccess()` methods.
      */
-    @MainActor @objc @discardableResult public static func restorePurchases() async -> Error? {
+    @MainActor @discardableResult public static func restorePurchases() async -> ApphudPurchaseResult? {
         return await withUnsafeContinuation({ continunation in
             Task { @MainActor in
-                ApphudInternal.shared.restorePurchases { _, _, error in
-                    continunation.resume(returning: error)
+                ApphudInternal.shared.restorePurchases { result in
+                    continunation.resume(returning: result)
                 }
             }
         })
     }
 
     /**
-     Implements the `Restore Purchases` mechanism. This method sends the current App Store Receipt to Apphud and returns information about the user's subscriptions and in-app purchases.
 
+     Implements the `Restore Purchases` mechanism. This method sends the current App Store Receipt to Apphud and returns information about the user's subscriptions and in-app purchases.
      - parameter callback: Required. A closure that returns an array of `ApphudSubscription` objects, an array of `ApphudNonRenewingPurchase` objects, and an optional `Error`.
      - Note: The presence of a subscription in the callback does not guarantee that it is active. You should check the `isActive()` property on each subscription.
      */
-    @MainActor public static func restorePurchases(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {
+    @MainActor public static func restorePurchases(callback: @escaping (ApphudPurchaseResult) -> Void) {
         ApphudInternal.shared.restorePurchases(callback: callback)
     }
 
@@ -641,7 +643,7 @@ final public class Apphud: NSObject {
     @objc public static func setUserProperty(key: ApphudUserPropertyKey, value: Any?, setOnce: Bool = false) {
         ApphudInternal.shared.setUserProperty(key: key, value: value, setOnce: setOnce, increment: false)
     }
-    
+
     /**
      This method sends all user properties immediately to Apphud. Should be used for audience segmentation in placements based on user properties.
     
@@ -659,7 +661,7 @@ final public class Apphud: NSObject {
      }
      ```
      */
-    
+
     public static func forceFlushUserProperties(completion: @escaping (Bool) -> Void) {
         ApphudInternal.shared.performWhenUserRegistered {
             ApphudInternal.shared.flushUserProperties(force: true, completion: completion)
@@ -683,16 +685,68 @@ final public class Apphud: NSObject {
         ApphudInternal.shared.setUserProperty(key: key, value: by, setOnce: false, increment: true)
     }
 
+    // MARK: - Paywalls Presentation
+#if os(iOS)
+    /**
+     Preloads and caches one or more paywall screens to enable faster presentation.
+
+     Call this immediately after `Apphud.start()`— to warm up the paywall Screen you plan to show later.
+
+     If a paywall identifier does not have a Screen, it will be ignored.
+
+     - Parameters:
+       - placementIdentifiers: An array of placement identifiers to preload.
+     */
+    @MainActor
+    public static func preloadPaywallScreens(placementIdentifiers: [String]) {
+        ApphudScreensManager.shared.preloadPlacements(identifiers: placementIdentifiers)
+    }
+
+    /**
+     Asynchronously fetches a paywall Screen for the given paywall.
+
+     You must manually add returned controller to your view hierarchy.
+     If the paywall does not have a Screen, this method returns nil.
+     If you did not call `preloadPaywallScreens(placementIdentifiers:)` beforehand, loading will start when this method is called.
+     If paywall Screen already pre-loaded, it will present immediately. You can use ApphudPaywall's `isScreenPreloaded` function.
+
+     - Parameters:
+       - paywall: The `ApphudPaywall` instance whose Screen you want to display.
+       - maxTimeout: Maximum time (in seconds) to wait for the Screen to load. If this interval elapses without success, the completion handler is called with an error. Defaults to `APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT`.
+       - completion: A closure receiving an `ApphudPaywallScreenFetchResult`, which contains either a ready-to-use `ApphudPaywallScreenController` or an error.
+     */
+    @MainActor
+    public static func fetchPaywallScreen(_ paywall: ApphudPaywall, maxTimeout: TimeInterval = APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT, completion: @escaping (ApphudPaywallScreenFetchResult) -> Void) {
+        ApphudScreensManager.shared.requestPaywallcontroller(paywall, maxTimeout: maxTimeout, completion: completion)
+    }
+
+    /**
+     Removes the preloaded paywall Screen from memory cache.
+
+     Call this method when the specified paywall is no longer needed.
+     For example, after a user completes onboarding and the onboarding paywall will never be shown again.
+
+     The SDK automatically removes all preloaded paywalls after a successful purchase.
+
+     If the provided paywall does not contain a valid Screen, this method does nothing.
+
+     - Parameter paywall: The `ApphudPaywall` object to unload.
+     */
+    @MainActor
+    public static func unloadPaywallScreen(_ paywall: ApphudPaywall) {
+        ApphudScreensManager.shared.unloadPaywalls(paywall.identifier)
+    }
+
     // MARK: - Rules & Screens Methods
-    #if os(iOS)
+
     /**
      Presents an Apphud Screen that was previously delayed for presentation. This is typically used in conjunction with the `apphudShouldShowScreen` delegate method, where returning `false` would delay the Screen's presentation.
 
      - Note: Call this method to show a Screen that was delayed due to specific conditions or user actions in your app. This helps in managing the user experience more effectively, ensuring Screens are presented at the most appropriate time.
      */
     @MainActor
-    @objc public static func showPendingScreen() {
-        return ApphudRulesManager.shared.showPendingScreen()
+    @objc public static func showPendingRuleScreen() {
+        return ApphudScreensManager.shared.showPendingScreen()
     }
 
     /**
@@ -702,8 +756,8 @@ final public class Apphud: NSObject {
      - Note: Use this method to retrieve the view controller for a delayed Screen if you need to present it manually or modify it before presentation.
      */
     @MainActor
-    @objc public static func pendingScreenController() -> UIViewController? {
-        return ApphudRulesManager.shared.pendingController
+    @objc public static func pendingRuleScreenController() -> UIViewController? {
+        return ApphudScreensManager.shared.pendingController
     }
 
     /**
@@ -714,9 +768,10 @@ final public class Apphud: NSObject {
      */
     @MainActor
     @objc public static func pendingRule() -> ApphudRule? {
-        return ApphudRulesManager.shared.pendingRule()
+        return ApphudScreensManager.shared.pendingRule()
     }
     #endif
+
     // MARK: - Push Notifications
 
     /**
@@ -754,7 +809,7 @@ final public class Apphud: NSObject {
      */
     @MainActor
     @discardableResult @objc public static func handlePushNotification(apsInfo: [AnyHashable: Any]) -> Bool {
-        return ApphudRulesManager.shared.handleNotification(apsInfo)
+        return ApphudScreensManager.shared.handleNotification(apsInfo)
     }
     #endif
     // MARK: - Attribution
@@ -788,7 +843,7 @@ final public class Apphud: NSObject {
     public static func setAttribution(data: ApphudAttributionData?, from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ApphudBoolCallback?) {
         ApphudInternal.shared.setAttribution(data: data, from: provider, identifer: identifer, callback: callback)
     }
-    
+
     /**
         Web-to-Web flow only. Attempts to attribute the user with the provided attribution data.
         If the `data` parameter contains either `aph_user_id`, `apphud_user_id`,  `email` or `apphud_user_email`, the SDK will submit this information to the Apphud server.
@@ -906,10 +961,10 @@ final public class Apphud: NSObject {
     @objc public static func isSandbox() -> Bool {
         return apphudIsSandbox()
     }
-    
+
     @available(*, unavailable, message: "No longer needed. Purchases migrate automatically. Just remove this code.")
     @MainActor public static func migratePurchasesIfNeeded(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {}
-    
+
     /**
      Override default paywalls and placements cache timeout value. Default cache value is 9000 seconds (25 hours).
      If expired, will make SDK to disregard cache and force refresh paywalls and placements.
@@ -922,14 +977,14 @@ final public class Apphud: NSObject {
     @objc public static func setPaywallsCacheTimeout(_ value: TimeInterval) {
         ApphudInternal.shared.setCacheTimeout(value)
     }
-    
+
     /**
      Explicitly loads fallback paywalls from the json file, if it was added to the project resources.
      By default, SDK automatically tries to load paywalls from the JSON file, if possible.
      However, developer can also call this method directly for more control.
      For more details, visit https://docs.apphud.com/docs/paywalls#set-up-fallback-mode
     */
-    @MainActor 
+    @MainActor
     public static func loadFallbackPaywalls(callback: @escaping ([ApphudPaywall]?, ApphudError?) -> Void) {
         ApphudInternal.shared.executeFallback(callback: callback)
     }

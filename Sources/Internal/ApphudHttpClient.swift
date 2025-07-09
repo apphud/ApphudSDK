@@ -47,7 +47,7 @@ public class ApphudHttpClient {
 
     enum ApphudEndpoint: Equatable {
 
-        case customers, push, logs, events, screens, attribution, products, paywalls, subscriptions, signOffer, promotions, properties, receipt, notifications, readNotifications, rule(String)
+        case customers, push, logs, events, screens, attribution, products, paywalls, subscriptions, signOffer, promotions, properties, receipt, notifications, readNotifications, rule(String), renderProductProperties
 
         var value: String {
             switch self {
@@ -83,6 +83,8 @@ public class ApphudHttpClient {
                 return "notifications/read"
             case .rule(let ruleID):
                 return "rules/\(ruleID)"
+            case .renderProductProperties:
+                return "paywall_configs/items/render_properties"
             }
         }
     }
@@ -158,23 +160,37 @@ public class ApphudHttpClient {
         }
     }
 
-    internal func loadScreenHtmlData(screenID: String, callback: @escaping (String?, Error?) -> Void) {
-
-        if let data = cachedScreenData(id: screenID), let string = String(data: data, encoding: .utf8) {
-            callback(string, nil)
-            apphudLog("using cached html data for screen id = \(screenID)", logLevel: .all)
+    internal func loadScreenHtmlData(screenID: String? = nil, url: URL? = nil, callback: @escaping (String?, Error?) -> Void) {
+        guard screenID != nil || url != nil else {
+            callback(nil, nil)
             return
         }
 
-        if let request = makeScreenRequest(screenID: screenID) {
+        let cacheId = screenID ?? url?.absoluteString ?? ""
 
+        if let data = cachedScreenData(id: cacheId), let string = String(data: data, encoding: .utf8) {
+            callback(string, nil)
+            apphudLog("using cached html data for \(screenID != nil ? "screen id = \(screenID!)" : "url = \(url!)")", logLevel: .all)
+            return
+        }
+
+        let request: URLRequest?
+        if let screenID = screenID {
+            request = makeScreenRequest(screenID: screenID)
+        } else if let url = url {
+            request = requestInstance(url: url)
+        } else {
+            request = nil
+        }
+
+        if let request = request {
             apphudLog("started loading screen html data:\(request)", logLevel: .all)
 
             let task = session.dataTask(with: request) { (data, response, error) in
                 var string: String?
                 if let data = data, let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode < 299,
                    let stringData = String(data: data, encoding: .utf8) {
-                    self.cacheScreenData(id: screenID, html: data)
+                    self.cacheScreenData(id: cacheId, html: data)
                     string = stringData
                 }
                 DispatchQueue.main.async {
@@ -359,6 +375,12 @@ public class ApphudHttpClient {
             dictionary = nil
         }
 
+        if let requestID = request.allHTTPHeaderFields?["Idempotency-Key"] as? String, let responseID = httpResponse.allHeaderFields["idempotency-key"] as? String ?? httpResponse.allHeaderFields["Idempotency-Key"] as? String, !requestID.isEmpty, !responseID.isEmpty, requestID != responseID {
+            apphudLog("Invalid Response for \(String(describing: request.url))", logLevel: .all)
+            let error = ApphudError(message: "Invalid HTTP Response")
+            return (false, nil, data, error, 400)
+        }
+
         if code >= 200 && code < 300 {
             if let dictionary = dictionary {
                 if ApphudUtils.shared.logLevel == .all,
@@ -390,10 +412,36 @@ public class ApphudHttpClient {
     private func parseError(_ dictionary: [String: Any]) -> Error? {
         if let errors = dictionary["errors"] as? [[String: Any]], let errorDict = errors.first, let errorMessage = errorDict["title"] as? String {
             let idString = errorDict["id"] as? String
-            
+
             return ApphudError(message: (idString ?? "") + " " + errorMessage)
         } else {
             return nil
         }
+    }
+}
+
+extension URLRequest {
+    public func cURL(pretty: Bool = false) -> String {
+        let newLine = pretty ? "\\\n" : ""
+        let method = (pretty ? "--request " : "-X ") + "\(self.httpMethod ?? "GET") \(newLine)"
+        let url: String = (pretty ? "--url " : "") + "\'\(self.url?.absoluteString ?? "")\' \(newLine)"
+
+        var cURL = "curl "
+        var header = ""
+        var data: String = ""
+
+        if let httpHeaders = self.allHTTPHeaderFields, httpHeaders.keys.count > 0 {
+            for (key, value) in httpHeaders {
+                header += (pretty ? "--header " : "-H ") + "\'\(key): \(value)\' \(newLine)"
+            }
+        }
+
+        if let bodyData = self.httpBody, let bodyString = String(data: bodyData, encoding: .utf8), !bodyString.isEmpty {
+            data = "--data '\(bodyString)'"
+        }
+
+        cURL += method + url + header + data
+
+        return cURL
     }
 }

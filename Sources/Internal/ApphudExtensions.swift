@@ -37,6 +37,20 @@ extension Date {
     }
 }
 
+extension Locale {
+
+    public func apphudLanguageCode() -> String {
+        let langCode: String?
+        if #available(iOS 16, *) {
+            langCode = Locale.current.language.languageCode?.identifier
+        } else {
+            langCode = Locale.current.languageCode
+        }
+
+        return langCode ?? "en"
+    }
+}
+
 extension String {
     /// Helper method to parse date string into Date object
     internal var apphudIsoDate: Date? {
@@ -307,6 +321,30 @@ extension Product {
 
 extension SKProduct {
 
+    func screenProperties() -> [String: any Sendable] {
+        var props = [String: any Sendable]()
+        if let symbol = priceLocale.currencySymbol {
+            props["currency_symbol"] = symbol
+        }
+
+        if let code = priceLocale.currencyCode {
+            props["currency_code"] = code
+        }
+
+        props["price"] = price
+        props["formatted_price"] = apphudLocalizedPrice()
+
+        if let intro = introductoryPrice {
+            props["intro_price"] = intro.price.floatValue
+            props["formatted_intro_price"] = apphudLocalizedDiscountPrice(discount: intro)
+            props["intro_units_count"] = intro.subscriptionPeriod.numberOfUnits
+            props["intro_periods_count"] = intro.numberOfPeriods
+            props["intro_payment_mode"] = paymentModeString(intro.paymentMode)
+        }
+
+        return props
+    }
+
     var apphudIsPaidIntro: Bool {
         introductoryPrice != nil && introductoryPrice!.price.doubleValue > 0
     }
@@ -338,7 +376,7 @@ extension SKProduct {
             params["currency_code"] = currencyCode
         }
         #endif
-        
+
         if let introData = apphudIntroParameters() {
             params.merge(introData, uniquingKeysWith: {$1})
         }
@@ -382,27 +420,26 @@ extension SKProduct {
         return unit
     }
 
-    private func apphudPromoParameters(discount: SKProductDiscount) -> [String: Any] {
-
-        let periods_count = discount.numberOfPeriods
-
-        let unit_count = discount.subscriptionPeriod.numberOfUnits
-
-        var mode: String = ""
-        switch discount.paymentMode {
+    private func paymentModeString(_ paymentMode: SKProductDiscount.PaymentMode) -> String {
+        switch paymentMode {
         case .payUpFront:
-            mode = "pay_up_front"
+            return "pay_up_front"
         case .payAsYouGo:
-            mode = "pay_as_you_go"
+            return "pay_as_you_go"
         case .freeTrial:
-            mode = "trial"
-        default:
-            break
+            return "trial"
+        @unknown default:
+            return ""
         }
+    }
+
+    private func apphudPromoParameters(discount: SKProductDiscount) -> [String: Any] {
+        let periods_count = discount.numberOfPeriods
+        let unit_count = discount.subscriptionPeriod.numberOfUnits
 
         let unit = apphudUnitStringFrom(periodUnit: discount.subscriptionPeriod.unit)
 
-        return ["unit": unit, "units_count": unit_count, "periods_count": periods_count, "mode": mode, "price": discount.price.floatValue, "offer_id": discount.identifier ?? ""]
+        return ["unit": unit, "units_count": unit_count, "periods_count": periods_count, "mode": paymentModeString(discount.paymentMode), "price": discount.price.floatValue, "offer_id": discount.identifier ?? ""]
     }
 
     func apphudPromoIdentifiers() -> [String] {
@@ -594,6 +631,61 @@ extension Error {
         } else {
             let nsError = self as NSError
             return "NSError: " + String(nsError.code)
+        }
+    }
+}
+
+public struct ApphudAnyCodable: Codable {
+    let value: Any
+
+    init(_ value: Any?) {
+        self.value = value ?? ()
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let intVal = try? container.decode(Int.self) {
+            value = intVal
+        } else if let doubleVal = try? container.decode(Double.self) {
+            value = doubleVal
+        } else if let stringVal = try? container.decode(String.self) {
+            value = stringVal
+        } else if let dictVal = try? container.decode([String: ApphudAnyCodable].self) {
+            value = dictVal
+        } else if container.decodeNil() {
+            value = ()
+        } else {
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Unsupported type")
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch value {
+        case let intVal as Int:
+            try container.encode(intVal)
+        case let doubleVal as Double:
+            try container.encode(doubleVal)
+        case let stringVal as String:
+            try container.encode(stringVal)
+        case let dictVal as [String: ApphudAnyCodable]:
+            try container.encode(dictVal)
+        default:
+            try container.encodeNil()
+        }
+    }
+
+    internal func toJSONValue() -> Any {
+        switch value {
+        case let v as String: return v
+        case let v as Int: return v
+        case let v as Double: return v
+        case let v as [String: ApphudAnyCodable]:
+            return Dictionary(uniqueKeysWithValues: v.map { ($0, $1.toJSONValue()) })
+        case let v as [ApphudAnyCodable]:
+            return v.map { $0.toJSONValue() }
+        case is Void: return NSNull()
+        default: return "\(value)" // or NSNull()
         }
     }
 }

@@ -52,7 +52,7 @@ class ApphudScreenController: UIViewController {
     private(set) var rule: ApphudRule
     private(set) var screenID: String
 
-    private(set) var screen: ApphudScreen?
+    private(set) var screen: ApphudRuleScreen?
     private var addedObserver = false
     private var start = Date()
     private var loadedCallback: ((Bool) -> Void)?
@@ -173,7 +173,7 @@ class ApphudScreenController: UIViewController {
         self.webView.evaluateJavaScript(js) { (result, _) in
             DispatchQueue.main.async {
                 if let dict = result as? [String: Any] {
-                    let screen = ApphudScreen(dictionary: dict)
+                    let screen = ApphudRuleScreen(dictionary: dict)
                     self.screen = screen
                     self.navigationController?.setNeedsStatusBarAppearanceUpdate()
                     self.updateBackgroundColor()
@@ -322,9 +322,9 @@ class ApphudScreenController: UIViewController {
 
     internal func restoreTapped() {
         self.startLoading()
-        Apphud.restorePurchases { subscriptions, _, _ in
+        Apphud.restorePurchases { _ in
             self.stopLoading()
-            if subscriptions?.first?.isActive() ?? false {
+            if Apphud.hasPremiumAccess() {
                 self.dismiss()
             }
         }
