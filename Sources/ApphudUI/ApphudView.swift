@@ -71,26 +71,17 @@ internal class ApphudView: WKWebView {
             return
         }
 
-        apphudLog("[ApphudView] Will execute JS:\n\n\(jsonString)")
-
         evaluateJavaScript("PaywallSDK.shared().processDomMacros(\(jsonString));") { [weak self] result, error in
 
             guard let self = self else {return}
 
             if let error {
-                apphudLog("[Apphud] Failed to execute JS: \(error.localizedDescription)")
                 self.viewDelegate?.apphudViewDidExecuteJS(error: error)
 
             } else {
-                apphudLog("[Apphud] Executed JS successfully: \(String(describing: result))")
-
                 let insets = getSafeAreaInsets()
                 self.evaluateJavaScript("PaywallSDK.shared().applyCustomInsets(\(insets.top), \(insets.bottom));") { [weak self] _, error in
                     guard let self = self else {return}
-
-                    if let error {
-                        apphudLog("[Apphud] Failed to apply safe area insets: \(String(describing: error))")
-                    }
 
                     self.viewDelegate?.apphudViewDidExecuteJS(error: nil)
                 }

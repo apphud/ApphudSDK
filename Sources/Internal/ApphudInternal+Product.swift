@@ -298,11 +298,6 @@ extension ApphudInternal {
             do {
                 if let data = data {
 
-//                    struct RenderedPropertiesItem: Decodable {
-//                        let itemId: String
-//                        let properties: [String: ApphudAnyCodable]?
-//                    }
-
                     typealias ApphudArrayResponse = ApphudAPIDataResponse<ApphudAPIArrayResponse <ApphudAnyCodable>>
 
                     let decoder = JSONDecoder()
