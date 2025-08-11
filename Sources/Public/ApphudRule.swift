@@ -22,6 +22,16 @@ public class ApphudRule: NSObject {
      */
     @objc public let screen_name: String
 
+    /**
+     Identifier of the paywall, if the paywall was configured for this rule.
+     */
+    public let paywallIdentifier: String?
+    
+    /**
+     Custom push payload data configured in Rule editor.
+     */
+    public let customData: [String: any Sendable]?
+    
     // Private
     internal let id: String
     internal let screen_id: String
@@ -34,5 +44,7 @@ public class ApphudRule: NSObject {
         screen_id = dictionary["screen_id"] as? String ?? ""
         rule_name = dictionary["rule_name"] as? String ?? ""
         screen_name = dictionary["screen_name"] as? String ?? ""
+        paywallIdentifier = dictionary["paywall_identifier"] as? String
+        customData = dictionary["custom_data"] as? [String: any Sendable]
     }
 }

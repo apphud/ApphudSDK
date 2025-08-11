@@ -22,12 +22,48 @@ class AppDelegate: UIResponder, UIApplicationDelegate, @preconcurrency UNUserNot
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
 
-        Apphud.start(apiKey: "YOUR_API_KEY")
+        Task {
+            await Apphud.logout()
+            Task { @MainActor in
+                self.startApphud()
+            }
+        }
+        
+        return true
+    }
+    
+    func startApphud() {
+        ApphudUtils.enableAllLogs()
+        ApphudHttpClient.shared.domainUrlString = "https://gateway.apphudstage.com"
+        Apphud.start(apiKey: "app_oBcXz2z9j8spKPL2T7sZwQaQN5Jzme")
         Apphud.setDeviceIdentifiers(idfa: nil, idfv: UIDevice.current.identifierForVendor?.uuidString)
-        fetchIDFA()
 
-        Apphud.preloadPaywallScreens(placementIdentifiers: ["MY_PLAYWALL_PLACEMENT_ID", "ANOTHER_PLACEMENT_ID"])
+        
+        let data: [String: Any] = [
+            "~feature": "paid advertising",
+            "~advertising_partner_name": "Binom",
+            "+clicked_branch_link": true,
+            "~referring_browser": "Twitter",
+            "~referring_link": "https://v35fv.app.link/Gq1FRVN4sLb?%243p=a_custom_1344019000161590306&%7Ead_id=d28rsn1nmdlc73f25olg&%7Esecondary_publisher=3&%7Ecampaign=HillTop_crash481+SafeConnect%28CPT%29+30may25&%7Echannel=5AI24G5808&%7Ead_set_id=10&%7Ead_group=test&%7Ead_set_name=AppleSecurity%28fixButton+noTouchCheck%29",
+            "~ad_id": "d28rsn1nmdlc73f25olg",
+            "~ad_set_id": "10",
+            "+match_guaranteed": false,
+            "~campaign": "HillTop_crash481 SafeConnect(CPT) 30may25",
+            "+click_timestamp": 1754381977,
+            "~ad_set_name": "AppleSecurity(fixButton noTouchCheck)",
+            "~secondary_publisher": "3",
+            "~branch_ad_format": "App Only",
+            "$3p": "a_custom_1344019000161590306",
+            "$link_title": "Binom link",
+            "~channel": "5AI24G5808",
+            "~ad_group": "test",
+            "+is_first_session": true,
+            "~id": "1344301159308973676"
+        ]
 
+        Apphud.setAttribution(data: ApphudAttributionData(rawData: ["branch_data": data]), from: .branch, callback: nil)
+
+        
         /** Custom User Properties Examples */
         Apphud.setUserProperty(key: .email, value: "user@example.com", setOnce: true)
         Apphud.setUserProperty(key: .init("custom_prop_1"), value: 0.5)
@@ -35,9 +71,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate, @preconcurrency UNUserNot
         Apphud.incrementUserProperty(key: .init("coins_count"), by: 2)
 //        Apphud.setDelegate(self)
         Apphud.setUIDelegate(self)
-        registerForNotifications()
-
-        return true
     }
 
     func registerForNotifications() {

@@ -321,6 +321,32 @@ extension ApphudInternal {
 
         }
     }
+    
+    internal func fetchPaywall(identifier: String, callback: @escaping (ApphudPaywall?) -> Void) {
+        performWhenUserRegistered {
+            self.httpClient?.startRequest(path: .paywalls, params: ["device_id": self.currentDeviceID], method: .get, callback: { result, response, data, error, _, _, _ in
+                do {
+                    if let data = data {
+                        typealias ApphudArrayResponse = ApphudAPIDataResponse<ApphudAPIArrayResponse <ApphudPaywall>>
+
+                        let decoder = JSONDecoder()
+                        decoder.keyDecodingStrategy = .convertFromSnakeCase
+                        let response = try decoder.decode(ApphudArrayResponse.self, from: data)
+                        let array = response.data.results
+                        let paywall = array.first(where: { $0.identifier == identifier })
+                        callback(paywall)
+                    } else {
+                        apphudLog("Data is nil for paywalls request: \(String(describing: error))")
+                        callback(nil)
+                    }
+                } catch {
+                    apphudLog("Failed to decode products structure with error: \(error)")
+                    callback(nil)
+                }
+                
+            })
+        }
+    }
 
     // MARK: - Product Groups Helper Methods
 

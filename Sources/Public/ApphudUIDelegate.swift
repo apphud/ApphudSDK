@@ -48,6 +48,9 @@ import UIKit
         Return `UIViewController` instance from which you want to present given Apphud controller. If you don't implement this method, then top visible viewcontroller from key window will be used.
      
         __Note__: This delegate method is recommended for implementation when you have multiple windows in your app, because Apphud SDK may have issues while presenting screens in this case.
+     
+        __Note: This delegate method will be also called for new Paywall screens.__
+     
      */
     @objc optional func apphudParentViewController(controller: UIViewController) -> UIViewController
 
@@ -55,17 +58,23 @@ import UIKit
      Pass your own modal presentation style to Apphud Screens. This is useful since iOS 13 presents in page sheet style by default.
      
      To get full screen style you should pass `.fullScreen` or `.overFullScreen`.
+     
+     Note: This delegate method __will not__ be called for new Paywall screens. Use controller variable of "apphudPaywallScreenControllerWillAppear" method.
      */
     @objc optional func apphudScreenPresentationStyle(controller: UIViewController) -> UIModalPresentationStyle
 
     #endif
     /**
      Called when user tapped on purchase button in Apphud purchase screen.
+     
+     Note: This delegate method __will not__ be called for new Paywall screens. Use controller variable of "apphudPaywallScreenControllerWillAppear" method.
     */
     @objc optional func apphudWillPurchase(product: SKProduct, offerID: String?, screenName: String)
 
     /**
      Called when user successfully purchased product in Apphud purchase screen.
+     
+     Note: This delegate method __will not__ be called for new Paywall screens. Use controller variable of "apphudPaywallScreenControllerWillAppear" method.
     */
     @objc optional func apphudDidPurchase(product: SKProduct, offerID: String?, screenName: String)
 
@@ -73,27 +82,35 @@ import UIKit
      Called when purchase failed in Apphud purchase screen.
      
      See error code for details. For example, `.paymentCancelled` error code is when user canceled the purchase by himself.
+     
+     Note: This delegate method __will not__ be called for new Paywall screens. Use controller variable of "apphudPaywallScreenControllerWillAppear" method.
     */
     @objc optional func apphudDidFailPurchase(product: SKProduct, offerID: String?, errorCode: SKError.Code, screenName: String)
 
     /**
      Called when screen succesfully loaded and is visible to user.
+     
+     Note: This delegate method __will not__ be called for new Paywall screens. Use controller variable of "apphudPaywallScreenControllerWillAppear" method.
      */
     @objc optional func apphudScreenDidAppear(screenName: String)
 
     /**
      Called when screen is about to dismiss.
+     
+     Note: This delegate method __will not__ be called for new Paywall screens. Use controller variable of "apphudPaywallScreenControllerWillAppear" method.
      */
     @objc optional func apphudScreenWillDismiss(screenName: String, error: Error?)
 
     #if os(iOS)
     /**
-     Notifies that Apphud Screen did dismiss
+     Notifies that Apphud Screen did dismiss.
+     
+     Note: This delegate method __will not__ be called for new Paywall screens. Use controller variable of "apphudPaywallScreenControllerWillAppear" method.
     */
     @objc optional func apphudDidDismissScreen(controller: UIViewController)
 
     /**
-     (New) Overrides action after survey option is selected or feeback sent is tapped. Default is "thankAndClose".
+     Overrides action after survey option is selected or feeback sent is tapped. Default is "thankAndClose".
      This delegate method is only called if no other screen is selected as button action in Apphud Screens editor.
      You can return `noAction` value and use `navigationController` property of `controller` variable to push your own view controller into hierarchy.
      */
@@ -101,7 +118,12 @@ import UIKit
     #endif
 
     /**
-     (New) Called after survey answer is selected.
+     Called after survey answer is selected.
      */
     @objc optional func apphudDidSelectSurveyAnswer(question: String, answer: String, screenName: String)
+    
+    /**
+     (New) Called when Paywall screen attached to a Paywall successfully displayed.
+     */
+    @objc optional func apphudPaywallScreenControllerDidAppear(controller: ApphudPaywallScreenController)
 }

@@ -207,6 +207,7 @@ extension ApphudPaywallScreenController: WKUIDelegate {
         if !didTrackPaywallShown {
             didTrackPaywallShown = true
             Apphud.paywallShown(paywall)
+            handleRuleScreenPresented()
         }
 
         ApphudScreensManager.shared.unloadPaywalls(paywall.identifier)
@@ -220,6 +221,12 @@ extension ApphudPaywallScreenController: WKUIDelegate {
         }
     }
 
+    private func handleRuleScreenPresented() {
+        guard let rule = rule else { return }
+        ApphudInternal.shared.trackEvent(params: ["rule_id": rule.id, "paywall_uid": self.paywall.id, "name": "$screen_presented"]) {}
+        ApphudInternal.shared.uiDelegate?.apphudPaywallScreenControllerDidAppear?(controller: self)
+    }
+    
     @MainActor
     internal func apphudViewHandleRestore() {
 

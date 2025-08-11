@@ -146,13 +146,53 @@ internal class ApphudScreensManager {
     internal func handleRule(rule: ApphudRule) {
 
         guard self.pendingController == nil else { return }
-        guard rule.screen_id.count > 0 else { return }
+        guard rule.screen_id.count > 0 || rule.paywallIdentifier != nil else { return }
         guard ApphudInternal.shared.uiDelegate?.apphudShouldPerformRule?(rule: rule) ?? true else {
             ApphudInternal.shared.readAllNotifications(for: rule.id)
             apphudLog("apphudShouldPerformRule returned false for rule \(rule.rule_name), exiting", forceDisplay: true)
             return
         }
 
+        if let pId = rule.paywallIdentifier {
+            presentRulePaywall(rule: rule, id: pId)
+        } else {
+            presentRuleScreen(rule: rule)
+        }
+    }
+    
+    internal func presentRulePaywall(rule: ApphudRule, id: String) {
+        ApphudInternal.shared.fetchPaywall(identifier: id) { paywall in
+            if let paywall {
+                self.requestPaywallcontroller(paywall) { result in
+                    switch result {
+                        case .error(let error):
+                            // Might be a timeout issue, invalid or missing paywall URL, or another error
+                            // Show your default paywall
+                            apphudLog("error during paywall fetch: \(error)")
+                        case .success(let controller):
+                            let parent = ApphudInternal.shared.uiDelegate?.apphudParentViewController?(controller: controller) ?? apphudVisibleViewController()
+                            parent?.present(controller, animated: true)
+                            controller.rule = rule
+                            controller.onFinished = { result in
+                                switch result {
+                                case .success(let purchase):
+                                    // User made a purchase or restored, allow to dismiss
+                                    return .allow
+                                case .failure(let error):
+                                    // User canceled a payment or an error occurred. do not dismiss
+                                    return .cancel
+                                case .userClosed:
+                                    // User closed a paywall, allow to dismiss
+                                    return .allow
+                                }
+                            }
+                        }
+                }
+            }
+        }
+    }
+    
+    internal func presentRuleScreen(rule: ApphudRule) {
         let controller = ApphudScreenController(rule: rule, screenID: rule.screen_id) {_ in}
         controller.loadScreenPage()
 
