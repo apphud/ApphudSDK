@@ -5,6 +5,8 @@
 //  Created by Renat Kurbanov on 19.06.2025.
 //
 
+import UIKit
+
 internal struct ApphudPaywallScreen: Codable {
 
     public var id: String
