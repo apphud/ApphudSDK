@@ -4,6 +4,7 @@
 //
 //  Created by Renat Kurbanov on 19.06.2025.
 //
+import Foundation
 
 internal struct ApphudPaywallScreen: Codable {
 
