@@ -5,6 +5,7 @@
 //  Created by Renat Kurbanov on 26.05.2025.
 //
 
+#if canImport(UIKit) && !os(watchOS)
 import UIKit
 
 class ApphudLoadingView: UIView {
@@ -80,3 +81,4 @@ class ApphudLoadingView: UIView {
         self.removeFromSuperview()
     }
 }
+#endif

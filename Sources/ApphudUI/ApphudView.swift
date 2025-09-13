@@ -65,6 +65,12 @@ internal class ApphudView: WKWebView {
     }
 
     public func replaceProductsInfo(infos: [[String: any Sendable]]) {
+        
+        if ((self.url?.absoluteString.contains("demo=true")) != nil && (self.url?.absoluteString.contains("preview=true")) != nil) {
+            self.viewDelegate?.apphudViewDidExecuteJS(error: nil)
+            return
+        }
+        
         guard let jsonData = try? JSONSerialization.data(withJSONObject: infos, options: []),
               let jsonString = String(data: jsonData, encoding: .utf8) else {
             print("Failed to serialize infos to JSON")

@@ -5,7 +5,9 @@
 //  Created by Renat Kurbanov on 29.04.2021.
 //
 import Foundation
+#if canImport(WebKit)
 import WebKit
+#endif
 
 #if os(iOS)
 import UIKit
@@ -125,7 +127,7 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
     internal var placementId: String?
     internal var variationIdentifier: String?
     internal var experimentId: String?
-    internal var screen: ApphudPaywallScreen?
+    public var screen: ApphudPaywallScreen?
 
     internal var renderedProductProperties: Bool = false
 
@@ -236,5 +238,22 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
         try container.encode(isDefault, forKey: .isDefault)
         try container.encode(products, forKey: .products)
         try? container.encode(screen, forKey: .screen)
+    }
+    
+    init(products: [ApphudProduct], identifier: String, screen: ApphudPaywallScreen) {
+        self.identifier = identifier
+        self.id = UUID().uuidString
+        self.name = identifier
+        self.isDefault = false
+        self.products = products
+        self.screen = screen
+    }
+    
+    static public func createWithCustomData(products: [ApphudProduct], identifier: String, screenURL: String) -> ApphudPaywall {
+        let s = ApphudPaywallScreen(id: UUID().uuidString)
+        s.defaultURL = screenURL
+        s.urls = [:]
+        let p = ApphudPaywall.init(products: products, identifier: identifier, screen: s)
+        return p
     }
 }

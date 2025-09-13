@@ -47,9 +47,9 @@ internal class ApphudScreensManager {
         }
     }
 
-    internal func requestPaywallcontroller(_ paywall: ApphudPaywall, maxTimeout: TimeInterval = APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT, completion: @escaping (ApphudPaywallScreenFetchResult) -> Void) {
+    internal func requestPaywallcontroller(_ paywall: ApphudPaywall, cachePolicy: ApphudPaywallCachePolicy? = nil, maxTimeout: TimeInterval = APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT, completion: @escaping (ApphudPaywallScreenFetchResult) -> Void) {
         do {
-            let controller = try requestPaywallController(paywall: paywall)
+            let controller = try requestPaywallController(paywall: paywall, cachePolicy: cachePolicy)
             switch controller.state {
             case .error(let error):
                 completion(.error(error: error))
@@ -66,7 +66,7 @@ internal class ApphudScreensManager {
     }
 
     @MainActor
-    internal func requestPaywallController(paywall: ApphudPaywall) throws -> ApphudPaywallScreenController {
+    internal func requestPaywallController(paywall: ApphudPaywall, cachePolicy: ApphudPaywallCachePolicy? = nil) throws -> ApphudPaywallScreenController {
 
         if let vc = ApphudScreensManager.shared.pendingPaywallControllers[paywall.identifier] as? ApphudPaywallScreenController {
 
@@ -87,6 +87,10 @@ internal class ApphudScreensManager {
         }
 
         let vc = ApphudPaywallScreenController(paywall: paywall)
+        if let cachePolicy {
+            vc.cachePolicy = cachePolicy == .sandboxAndProduction ? .returnCacheDataElseLoad : Apphud.isSandbox() ? .reloadIgnoringCacheData : .returnCacheDataElseLoad
+        }
+        
         ApphudScreensManager.shared.pendingPaywallControllers[paywall.identifier] = vc
         vc.load()
 

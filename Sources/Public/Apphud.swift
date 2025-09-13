@@ -713,11 +713,12 @@ s
      - Parameters:
        - paywall: The `ApphudPaywall` instance whose Screen you want to display.
        - maxTimeout: Maximum time (in seconds) to wait for the Screen to load. If this interval elapses without success, the completion handler is called with an error. Defaults to `APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT`.
+       - cachePolicy: Defines paywall caching behavior.
        - completion: A closure receiving an `ApphudPaywallScreenFetchResult`, which contains either a ready-to-use `ApphudPaywallScreenController` or an error.
      */
     @MainActor
-    public static func fetchPaywallScreen(_ paywall: ApphudPaywall, maxTimeout: TimeInterval = APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT, completion: @escaping (ApphudPaywallScreenFetchResult) -> Void) {
-        ApphudScreensManager.shared.requestPaywallcontroller(paywall, maxTimeout: maxTimeout, completion: completion)
+    public static func fetchPaywallScreen(_ paywall: ApphudPaywall, maxTimeout: TimeInterval = APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT, cachePolicy: ApphudPaywallCachePolicy = .sandboxAndProduction, completion: @escaping (ApphudPaywallScreenFetchResult) -> Void) {
+        ApphudScreensManager.shared.requestPaywallcontroller(paywall, cachePolicy: cachePolicy, maxTimeout: maxTimeout, completion: completion)
     }
 
     /**

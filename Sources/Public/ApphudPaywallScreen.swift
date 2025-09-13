@@ -6,7 +6,7 @@
 //
 import Foundation
 
-internal struct ApphudPaywallScreen: Codable {
+public class ApphudPaywallScreen: Codable {
 
     public var id: String
     public var defaultURL: String?
@@ -45,5 +45,10 @@ internal struct ApphudPaywallScreen: Codable {
         }
 
         return url
+    }
+    
+    init(id: String) {
+        self.id = id
+        self.urls = [:]
     }
 }

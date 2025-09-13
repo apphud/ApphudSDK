@@ -8,6 +8,14 @@ import UIKit
 import WebKit
 import StoreKit
 
+/// Specifies how paywalls are cached.
+/// - `sandboxAndProduction`: Use cached paywalls in both sandbox and production environments.
+/// - `productionOnly`: Always reload paywalls in sandbox, but cache them in production. Useful for testing, as remote changes will become visible immediately in sandbox.
+public enum ApphudPaywallCachePolicy {
+    case sandboxAndProduction
+    case productionOnly
+}
+
 /// Represents the current loading state of a paywall screen.
 public enum ApphudPaywallScreenState {
 
