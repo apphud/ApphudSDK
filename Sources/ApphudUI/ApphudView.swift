@@ -15,6 +15,7 @@ internal protocol ApphudViewDelegate {
     func apphudViewHandleRestore()
     func apphudViewDidLoad()
     func apphudViewShouldLoad(url: URL) -> Bool
+    func apphudViewOnFinish()
     func apphudViewDidExecuteJS(error: Error?)
 }
 

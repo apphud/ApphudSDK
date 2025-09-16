@@ -52,6 +52,9 @@ public enum ApphudPaywallResult {
     /// The user successfully completed a purchase or restored a previous active subscription or non-renewing purchase.
     /// - Parameter result: The result of the purchase, including transaction details.
     case success(ApphudPurchaseResult)
+    
+    /// The user has finished interacting with screen, i.e. onboarding flow
+    case finishAction
 
     /// Indicates that the purchase was either canceled by the user, failed due to an error,
     /// or no active subscription or non-renewing purchase was found during a restore attempt.

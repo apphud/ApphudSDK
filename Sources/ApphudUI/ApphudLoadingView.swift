@@ -8,6 +8,7 @@
 #if canImport(UIKit) && !os(watchOS)
 import UIKit
 
+@MainActor
 class ApphudLoadingView: UIView {
 
     private let blurView: UIVisualEffectView = {
@@ -58,27 +59,31 @@ class ApphudLoadingView: UIView {
     ///   - parentView: The view in which to display the loading indicator.
     ///   - timeout: Duration in seconds after which the loading view will automatically disappear. Default is 30 seconds.
     func startLoading(in parentView: UIView, timeout: TimeInterval = 30.0) {
-        parentView.addSubview(self)
-        NSLayoutConstraint.activate([
-            self.topAnchor.constraint(equalTo: parentView.topAnchor),
-            self.bottomAnchor.constraint(equalTo: parentView.bottomAnchor),
-            self.leadingAnchor.constraint(equalTo: parentView.leadingAnchor),
-            self.trailingAnchor.constraint(equalTo: parentView.trailingAnchor)
-        ])
-        activityIndicator.startAnimating()
-
-        autoDismissTimer?.invalidate()
-        autoDismissTimer = Timer.scheduledTimer(withTimeInterval: timeout, repeats: false) { [weak self] _ in
-            self?.finishLoading()
+        Task { @MainActor in
+            parentView.addSubview(self)
+            NSLayoutConstraint.activate([
+                self.topAnchor.constraint(equalTo: parentView.topAnchor),
+                self.bottomAnchor.constraint(equalTo: parentView.bottomAnchor),
+                self.leadingAnchor.constraint(equalTo: parentView.leadingAnchor),
+                self.trailingAnchor.constraint(equalTo: parentView.trailingAnchor)
+            ])
+            activityIndicator.startAnimating()
+            
+            autoDismissTimer?.invalidate()
+            autoDismissTimer = Timer.scheduledTimer(withTimeInterval: timeout, repeats: false) { [weak self] _ in
+                self?.finishLoading()
+            }
         }
     }
 
     /// Stops the animation, removes the loading view from its superview, and invalidates the timer.
     func finishLoading() {
-        autoDismissTimer?.invalidate()
-        autoDismissTimer = nil
-        activityIndicator.stopAnimating()
-        self.removeFromSuperview()
+        Task { @MainActor in
+            autoDismissTimer?.invalidate()
+            autoDismissTimer = nil
+            activityIndicator.stopAnimating()
+            self.removeFromSuperview()
+        }
     }
 }
 #endif

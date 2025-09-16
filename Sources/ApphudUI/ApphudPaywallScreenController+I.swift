@@ -187,10 +187,12 @@ extension ApphudPaywallScreenController: WKUIDelegate {
         }
     }
 
+    @MainActor
     func showLoadingIndicator() {
         loadingView.startLoading(in: self.view) // auto-dismisses in 30 seconds
     }
 
+    @MainActor
     func hideLoadingIndicator() {
         // Manually dismiss if needed
         loadingView.finishLoading()
@@ -261,6 +263,13 @@ extension ApphudPaywallScreenController: WKUIDelegate {
             return false
         }
     }
+    
+    func apphudViewOnFinish() {
+        let shouldClose = onFinished?(.finishAction) ?? .allow
+        if shouldClose == .allow {
+            dismissNow(userAction: true)
+        }
+    }
 
     public func webView(_ webView: WKWebView,
                      createWebViewWith configuration: WKWebViewConfiguration,
@@ -309,6 +318,9 @@ extension ApphudPaywallScreenController: WKUIDelegate {
                     }
                 }
 
+                return .cancel
+            } else if url.lastPathComponent == "finish" {
+                aphView.viewDelegate?.apphudViewOnFinish()
                 return .cancel
             } else if aphView.viewDelegate?.apphudViewShouldLoad(url: url) ?? true {
                 return .allow
