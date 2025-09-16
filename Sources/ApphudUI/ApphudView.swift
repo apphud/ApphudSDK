@@ -66,7 +66,9 @@ internal class ApphudView: WKWebView {
 
     public func replaceProductsInfo(infos: [[String: any Sendable]]) {
         
-        if ((self.url?.absoluteString.contains("demo=true")) != nil && (self.url?.absoluteString.contains("preview=true")) != nil) {
+        let urlString = self.url?.absoluteString ?? ""
+        
+        if (urlString.contains("demo=true") && urlString.contains("preview=true")) {
             self.viewDelegate?.apphudViewDidExecuteJS(error: nil)
             return
         }
