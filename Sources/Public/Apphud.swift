@@ -696,10 +696,15 @@ s
 
      - Parameters:
        - placementIdentifiers: An array of placement identifiers to preload.
+       - cachePolicy: Defines paywall caching behavior.
      */
     @MainActor
-    public static func preloadPaywallScreens(placementIdentifiers: [String]) {
-        ApphudScreensManager.shared.preloadPlacements(identifiers: placementIdentifiers)
+    public static func preloadPaywallScreens(placementIdentifiers: [String], cachePolicy: ApphudPaywallCachePolicy) {
+        ApphudScreensManager.shared.preloadPlacements(identifiers: placementIdentifiers, cachePolicy: cachePolicy)
+    }
+    @MainActor
+    public static func preloadPaywall(_ paywall: ApphudPaywall, cachePolicy: ApphudPaywallCachePolicy) {
+        ApphudScreensManager.shared.preloadPaywall(paywall, cachePolicy: cachePolicy)
     }
 
     /**

@@ -66,7 +66,9 @@ internal class ApphudView: WKWebView {
 
     public func replaceProductsInfo(infos: [[String: any Sendable]]) {
         
-        if ((self.url?.absoluteString.contains("demo=true")) != nil && (self.url?.absoluteString.contains("preview=true")) != nil) {
+        let urlString = self.url?.absoluteString ?? ""
+        
+        if (urlString.contains("demo=true") && urlString.contains("preview=true")) {
             self.viewDelegate?.apphudViewDidExecuteJS(error: nil)
             return
         }
@@ -81,17 +83,19 @@ internal class ApphudView: WKWebView {
 
             guard let self = self else {return}
 
-            if let error {
-                self.viewDelegate?.apphudViewDidExecuteJS(error: error)
+            let insets = getSafeAreaInsets()
+            self.evaluateJavaScript("PaywallSDK.shared().applyCustomInsets(\(insets.top), \(insets.bottom));") { [weak self] _, error in
+                guard let self = self else {return}
 
-            } else {
-                let insets = getSafeAreaInsets()
-                self.evaluateJavaScript("PaywallSDK.shared().applyCustomInsets(\(insets.top), \(insets.bottom));") { [weak self] _, error in
-                    guard let self = self else {return}
-
-                    self.viewDelegate?.apphudViewDidExecuteJS(error: nil)
-                }
+                self.viewDelegate?.apphudViewDidExecuteJS(error: nil)
             }
+            
+//            if let error {
+//                self.viewDelegate?.apphudViewDidExecuteJS(error: error)
+//
+//            } else {
+//
+//            }
         }
     }
 

@@ -216,7 +216,7 @@ extension ApphudPaywallScreenController: WKUIDelegate {
         super.viewWillDisappear(animated)
         if !Apphud.hasPremiumAccess() {
             // preload the same paywall again for the next call
-            ApphudScreensManager.shared.preloadPaywall(paywall)
+            ApphudScreensManager.shared.preloadPaywall(paywall, cachePolicy: .productionOnly)
         }
     }
 

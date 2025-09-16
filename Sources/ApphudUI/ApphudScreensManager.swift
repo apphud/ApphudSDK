@@ -24,19 +24,19 @@ internal class ApphudScreensManager {
 
     private var apsInfo: [AnyHashable: Any]?
 
-    internal func preloadPlacements(identifiers: [String]) {
+    internal func preloadPlacements(identifiers: [String], cachePolicy: ApphudPaywallCachePolicy) {
         ApphudInternal.shared.fetchOfferingsFull(maxAttempts: APPHUD_DEFAULT_RETRIES) { _ in
             for placement in ApphudInternal.shared.placements {
                 if identifiers.contains(placement.identifier), let p = placement.paywall {
-                    self.preloadPaywall(p)
+                    self.preloadPaywall(p, cachePolicy: cachePolicy)
                 }
             }
         }
     }
 
     @MainActor
-    internal func preloadPaywall(_ paywall: ApphudPaywall) {
-        _ = try? requestPaywallController(paywall: paywall)
+    public func preloadPaywall(_ paywall: ApphudPaywall, cachePolicy: ApphudPaywallCachePolicy) {
+        _ = try? requestPaywallController(paywall: paywall, cachePolicy: cachePolicy)
     }
 
     internal func unloadPaywalls(_ identifier: String? = nil) {
