@@ -54,9 +54,13 @@ extension ApphudPaywallScreenController: WKUIDelegate {
 
         await paywall.renderPropertiesIfNeeded()
 
-        var infos = [[String: any Sendable]]()
+        var infos = [String: any Sendable]()
+        
+        if let macros = await paywall.requestFlowlessMacroValues() {
+            infos.merge(macros, uniquingKeysWith: { _, new in new })
+        }
 
-        for p in paywall.products {
+        for (index, p) in paywall.products.enumerated() {
             if let skProduct = p.skProduct {
 
                 var finalInfo = skProduct.apphudSubmittableParameters()
@@ -65,14 +69,24 @@ extension ApphudPaywallScreenController: WKUIDelegate {
                     finalInfo.merge(props, uniquingKeysWith: { _, new in new })
                 }
                 finalInfo.removeValue(forKey: "promo_offers")
-
-                infos.append(finalInfo)
+                // Rename all keys with product index suffix
+                var suffixedInfo = [String: any Sendable]()
+                for (key, value) in finalInfo {
+                    let suffixedKey = "\(key)_\(index)"
+                    suffixedInfo[suffixedKey] = value
+                }
+                finalInfo = suffixedInfo
+                
+                infos.merge(finalInfo, uniquingKeysWith: { _, new in new })
             } else {
-                infos.append([:])
+                infos.merge([:], uniquingKeysWith: { _, new in new })
             }
         }
 
-        return infos
+        infos["flowless"] = "1"
+        var array = [[String: any Sendable]]()
+        array.append(infos)
+        return array
     }
 
     private func startLoading() {

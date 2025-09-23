@@ -151,6 +151,43 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
 
         return items
     }
+    
+    internal func requestFlowlessMacroValues() async -> [String: Any]? {
+        return await withUnsafeContinuation { continuation in
+            FlowlessHttpClient.shared.startRequest(path: .macros, params: nil, method: .get) { result, dict, data, error, _, _, _ in
+                
+                if let dict, let dataDict = dict["data"] as? [String: Any], let results = dataDict["results"] as? [[String: Any]] {
+                    
+                    var langCode: String?
+                    if #available(iOS 16, *) {
+                        langCode = Locale.current.language.languageCode?.identifier
+                    } else {
+                        langCode = Locale.current.languageCode
+                    }
+                    if langCode == nil {
+                        langCode = "en"
+                    }
+                    
+                    var finalDict: [String: Any] = [:]
+                    results.forEach { map in
+                        let key = map["key"] as? String
+                        let values = map["values"] as? [String: any Sendable]
+                        if key != nil && values != nil {
+                            let firstKey = values!.keys.first as? String
+                            let preferredValue = values![langCode!] ?? values!["en"] ?? (firstKey != nil ? values![firstKey!] : nil)
+                            
+                            if preferredValue != nil && key != nil {
+                                finalDict[key!] = preferredValue
+                            }
+                        }
+                    }
+                    continuation.resume(returning: finalDict)
+                } else {
+                    continuation.resume(returning: dict)
+                }
+            }
+        }
+    }
 
     internal func renderPropertiesIfNeeded() async {
         if self.renderedProductProperties { return }

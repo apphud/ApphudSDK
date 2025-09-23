@@ -79,6 +79,8 @@ internal class ApphudView: WKWebView {
             print("Failed to serialize infos to JSON")
             return
         }
+        
+        apphudLog("Prepared JSON For Paywall: \n\(jsonString)")
 
         evaluateJavaScript("PaywallSDK.shared().processDomMacros(\(jsonString));") { [weak self] result, error in
 
