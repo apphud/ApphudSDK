@@ -207,6 +207,7 @@ extension ApphudPaywallScreenController: WKUIDelegate {
     public func apphudViewDidLoad() {
         isApphudViewLoaded = true
         handleInfosAndViewLoaded()
+        apphudLog("Paywall View did load")
     }
 
     public override func viewDidAppear(_ animated: Bool) {
@@ -218,6 +219,7 @@ extension ApphudPaywallScreenController: WKUIDelegate {
         }
 
         ApphudScreensManager.shared.unloadPaywalls(paywall.identifier)
+        apphudLog("Paywall View did appear")
     }
 
     public override func viewWillDisappear(_ animated: Bool) {

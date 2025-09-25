@@ -14,7 +14,7 @@ import Foundation
 import UserNotifications
 import SwiftUI
 
-internal let apphud_sdk_version = "4.0.0-beta"
+internal let apphud_sdk_version = "4.0.0-beta5"
 
 // MARK: - Initialization
 
@@ -720,7 +720,60 @@ s
     public static func fetchPaywallScreen(_ paywall: ApphudPaywall, maxTimeout: TimeInterval = APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT, cachePolicy: ApphudPaywallCachePolicy = .sandboxAndProduction, completion: @escaping (ApphudPaywallScreenFetchResult) -> Void) {
         ApphudScreensManager.shared.requestPaywallcontroller(paywall, cachePolicy: cachePolicy, maxTimeout: maxTimeout, completion: completion)
     }
-
+    
+    /**
+     Fetches a paywall screen and returns it as a SwiftUI view ready for presentation.
+     
+     This method is the SwiftUI equivalent of `fetchPaywallScreen` and provides a seamless way
+     to integrate Apphud paywalls into SwiftUI applications.
+     
+     - Parameters:
+       - paywall: The `ApphudPaywall` object to fetch the screen for
+       - maxTimeout: Maximum time to wait for the screen to load (default: 10 seconds)
+       - cachePolicy: Cache policy for the paywall screen (default: .sandboxAndProduction)
+       - onDismiss: Optional callback invoked when the paywall should be dismissed. 
+                   If nil, uses SwiftUI's environment dismiss (iOS 15+) or attempts UIKit dismissal
+     
+     - Returns: A SwiftUI view containing the paywall screen
+     - Throws: `ApphudError` if the screen fails to load
+     
+     ## Usage Examples:
+     
+     Pre-fetch and present:
+     ```swift
+     @State private var paywallView: ApphudPaywallView?
+     
+     Button("Show Paywall") {
+         Task {
+             do {
+                 paywallView = try await Apphud.fetchPaywallView(paywall) {
+                    paywallView = nil
+                 }
+             } catch {
+                 print("Failed to load paywall: \(error)")
+             }
+         }
+     }
+     .fullScreenCover(isPresented: .constant(paywallView != nil)) {
+         paywallView?.fullscreen()
+     }
+     ```
+     */
+    @MainActor
+    public static func fetchPaywallView(_ paywall: ApphudPaywall, maxTimeout: TimeInterval = APPHUD_PAYWALL_SCREEN_LOAD_TIMEOUT, cachePolicy: ApphudPaywallCachePolicy = .sandboxAndProduction, onDismiss: (() -> Void)? = nil) async throws -> ApphudPaywallView {
+        let result = await withCheckedContinuation { continuation in
+            fetchPaywallScreen(paywall, maxTimeout: maxTimeout, cachePolicy: cachePolicy) { result in
+                continuation.resume(returning: result)
+            }
+        }
+        switch result {
+        case .success(let controller):
+            return ApphudPaywallView(controller: controller, onDismiss: onDismiss)
+        case .error(let error):
+            throw error
+        }
+    }
+    
     /**
      Removes the preloaded paywall Screen from memory cache.
 
