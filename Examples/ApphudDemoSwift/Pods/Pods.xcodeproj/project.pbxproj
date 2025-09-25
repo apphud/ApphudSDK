@@ -19,7 +19,8 @@
 		1E0BA94EF4CF4FE28AB3E93D196CEEAE /* ApphudInternal+Currency.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB05F64510D67EFA34BCB148441A48AE /* ApphudInternal+Currency.swift */; };
 		1EEBA3CC1D2070065CD66D4ECE24BFC8 /* ApphudHttpClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10785DC8296CC6DA1EC27BC66C8F1E07 /* ApphudHttpClient.swift */; };
 		2498C46C00E6F1411C302625444513BE /* ApphudInternal+Fallback.swift in Sources */ = {isa = PBXBuildFile; fileRef = 863C244AC952DD113DE8E5CCDD15B9E7 /* ApphudInternal+Fallback.swift */; };
-		280DF08D2E85484D000F8AE2 /* Documentation.docc in Sources */ = {isa = PBXBuildFile; fileRef = 280DF08C2E85484D000F8AE2 /* Documentation.docc */; };
+		280DF08F2E854AE2000F8AE2 /* Documentation.docc in Sources */ = {isa = PBXBuildFile; fileRef = 280DF08E2E854AE2000F8AE2 /* Documentation.docc */; };
+		280DF0902E854AE2000F8AE2 /* Documentation.docc in Sources */ = {isa = PBXBuildFile; fileRef = 280DF08E2E854AE2000F8AE2 /* Documentation.docc */; };
 		29143532A07DE6EA8115A40084827D80 /* ApphudAttributionData.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF0738DE9AA0980E4E7BC308336EB40E /* ApphudAttributionData.swift */; };
 		29BA31E95A163FFA27E4F1BE89BF7EA9 /* ApphudSDK-dummy.m in Sources */ = {isa = PBXBuildFile; fileRef = CA60BD21E273A273D75C90D85F63D368 /* ApphudSDK-dummy.m */; };
 		31394C80E9E4A5E33455FB6786FB4F1F /* ApphudSDK.bundle in Resources */ = {isa = PBXBuildFile; fileRef = FDC773E39B7E921785F22CF4DB1C31F5 /* ApphudSDK.bundle */; };
@@ -223,7 +224,7 @@
 		26A1C0216B057730FEEEBAF42E7431C2 /* availability.index */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = file.bplist; name = availability.index; path = docs/index/availability.index; sourceTree = "<group>"; };
 		26DE5E1BD3610CD4025C1F8C3EF2AA87 /* index.html */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.html.documentation; name = index.html; path = docs/documentation/apphudsdk/apphudreceipt/rawjson/index.html; sourceTree = "<group>"; };
 		280C1116F611EFFC38BAE82E1AEBA2E8 /* index.html */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.html.documentation; name = index.html; path = docs/documentation/apphudsdk/apphudasyncpurchaseresult/nonrenewingpurchase/index.html; sourceTree = "<group>"; };
-		280DF08C2E85484D000F8AE2 /* Documentation.docc */ = {isa = PBXFileReference; lastKnownFileType = folder.documentationcatalog; path = Documentation.docc; sourceTree = "<group>"; };
+		280DF08E2E854AE2000F8AE2 /* Documentation.docc */ = {isa = PBXFileReference; lastKnownFileType = folder.documentationcatalog; name = Documentation.docc; path = "/Users/ren6/projects/ApphudSDK-iOS/Documentation.docc"; sourceTree = "<absolute>"; };
 		287E9997512D1F039F4F5129E657B21A /* ApphudInternal+Purchase.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "ApphudInternal+Purchase.swift"; sourceTree = "<group>"; };
 		289A3F8F3AE9A503398629DE8608FD6B /* adjust.json */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.json; name = adjust.json; path = docs/data/documentation/apphudsdk/apphudattributionprovider/adjust.json; sourceTree = "<group>"; };
 		290EC95C7DECD0846FA10F4A59C41148 /* fetchrawreceiptinfo(_:).json */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.json; name = "fetchrawreceiptinfo(_:).json"; path = "docs/data/documentation/apphudsdk/apphud/fetchrawreceiptinfo(_:).json"; sourceTree = "<group>"; };
@@ -1612,6 +1613,7 @@
 		47C1E03EC7D25B6E614F0DF8AD248B2A /* Public */ = {
 			isa = PBXGroup;
 			children = (
+				280DF08E2E854AE2000F8AE2 /* Documentation.docc */,
 				91A8DC5666AA0F6FEF653417D7749F86 /* Apphud.swift */,
 				95B95B65646C8B40D4B744ED99300A16 /* ApphudAsyncPurchaseResult.swift */,
 				CF0738DE9AA0980E4E7BC308336EB40E /* ApphudAttributionData.swift */,
@@ -1659,7 +1661,6 @@
 		7CFFA953AF0658B3D0C4455E21D916FE /* ApphudSDK */ = {
 			isa = PBXGroup;
 			children = (
-				280DF08C2E85484D000F8AE2 /* Documentation.docc */,
 				4877FF90C2C8E7DFC8C742C7EB024A88 /* PrivacyInfo.xcprivacy */,
 				521FFDB4EC13BDB0C9829FAD26547171 /* ApphudUI */,
 				0082D23840001A7C36ABFB316A99526A /* Internal */,
@@ -1931,6 +1932,7 @@
 				D5F8246A5F39B5E6370C792A09EB8897 /* ApphudLoadingView.swift in Sources */,
 				4ED44B8431F1FFEFAAB00FC45D14BCB2 /* ApphudLoggerService.swift in Sources */,
 				9D13B9115A87BF77D7F1AA988727782A /* ApphudNavigationController.swift in Sources */,
+				280DF0902E854AE2000F8AE2 /* Documentation.docc in Sources */,
 				A69B8F331F47297B88784DCDA3D3F67E /* ApphudNonRenewingPurchase.swift in Sources */,
 				C6C4D19E566F11FFCF9B259CD48B1DB3 /* ApphudPaywall.swift in Sources */,
 				09F1C632100241564790B16F990704A1 /* ApphudPaywallScreen.swift in Sources */,
@@ -1966,7 +1968,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				280DF08D2E85484D000F8AE2 /* Documentation.docc in Sources */,
+				280DF08F2E854AE2000F8AE2 /* Documentation.docc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
