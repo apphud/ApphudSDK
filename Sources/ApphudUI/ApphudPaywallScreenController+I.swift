@@ -132,8 +132,8 @@ extension ApphudPaywallScreenController: WKUIDelegate {
     }
 
     internal func apphudViewHandleClose() {
-        let shouldClose = onFinished?(.userClosed) ?? .allow
-        if shouldClose == .allow {
+        onCloseButtonTapped?()
+        if shouldAutoDismiss {
             dismissNow(userAction: true)
         }
     }
@@ -160,27 +160,35 @@ extension ApphudPaywallScreenController: WKUIDelegate {
         }
 
         let product = paywall.products[index]
-
         self.onTransactionStarted?(product)
-
         if self.useSystemLoadingIndicator {
             showLoadingIndicator()
         }
 
         Apphud.purchase(product) { [weak self] result in
             if let self {
-
                 self.hideLoadingIndicator()
-
-                var shouldClose: ApphudPaywallDismissPolicy = .allow
-
-                if result.success {
-                    shouldClose = self.onFinished?(.success(result)) ?? .allow
-                } else {
-                    shouldClose = self.onFinished?(.failure(result.error ?? ApphudError(message: "Purchase failed", code: 0))) ?? .cancel
+                self.onTransactionCompleted?(result)
+                if result.success && self.shouldAutoDismiss {
+                    self.dismissNow(userAction: false)
                 }
+            }
+        }
+    }
+    
+    @MainActor
+    internal func apphudViewHandleRestore() {
 
-                if shouldClose == .allow {
+        self.onTransactionStarted?(nil)
+        if self.useSystemLoadingIndicator {
+            self.showLoadingIndicator()
+        }
+
+        Apphud.restorePurchases { [weak self] result in
+            if let self {
+                self.hideLoadingIndicator()
+                self.onTransactionCompleted?(result)
+                if result.success && self.shouldAutoDismiss {
                     self.dismissNow(userAction: false)
                 }
             }
@@ -217,36 +225,6 @@ extension ApphudPaywallScreenController: WKUIDelegate {
         if !Apphud.hasPremiumAccess() {
             // preload the same paywall again for the next call
             ApphudScreensManager.shared.preloadPaywall(paywall)
-        }
-    }
-
-    @MainActor
-    internal func apphudViewHandleRestore() {
-
-        self.onTransactionStarted?(nil)
-
-        if self.useSystemLoadingIndicator {
-            self.showLoadingIndicator()
-        }
-
-        Apphud.restorePurchases { [weak self] result in
-
-            if let self {
-
-                self.hideLoadingIndicator()
-
-                var shouldClose: ApphudPaywallDismissPolicy = .allow
-
-                if Apphud.hasPremiumAccess() {
-                    shouldClose = self.onFinished?(.success(result)) ?? .allow
-                } else {
-                    shouldClose = self.onFinished?(.failure(result.error ?? ApphudError(message: "No active purchases", code: 0))) ?? .cancel
-                }
-
-                if shouldClose == .allow {
-                    self.dismissNow(userAction: false)
-                }
-            }
         }
     }
 

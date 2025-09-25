@@ -47,6 +47,13 @@ public class ApphudPurchaseResult: NSObject {
     public var success: Bool {
         error == nil && (subscription?.isActive() ?? false || nonRenewingPurchase?.isActive() ?? false)
     }
+    
+    /**
+     Indicates whether the payment was cancelled by user.
+    */
+    public var userCanceled: Bool {
+        (error as? SKError)?.code == .paymentCancelled
+    }
 
     // MARK: - Private methods
 
@@ -65,6 +72,7 @@ public class ApphudPurchaseResult: NSObject {
         \nsubscription status = \( subscription != nil ? subscription!.isActive().description : "nil")
         \nnon renewing purchase status = \( nonRenewingPurchase != nil ? nonRenewingPurchase!.isActive().description : "nil")
         \nerror = \(error?.localizedDescription ?? "nil")
+        \nuserCanceled = \(userCanceled)
         """
     }
 }

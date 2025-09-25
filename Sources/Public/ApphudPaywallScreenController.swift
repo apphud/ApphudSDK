@@ -46,32 +46,6 @@ public enum ApphudPaywallScreenFetchResult {
     case error(error: ApphudError)
 }
 
-/// Represents the result of a user's interaction with the paywall screen.
-public enum ApphudPaywallResult {
-
-    /// The user successfully completed a purchase or restored a previous active subscription or non-renewing purchase.
-    /// - Parameter result: The result of the purchase, including transaction details.
-    case success(ApphudPurchaseResult)
-
-    /// Indicates that the purchase was either canceled by the user, failed due to an error,
-    /// or no active subscription or non-renewing purchase was found during a restore attempt.
-    /// - Parameter error: The error describing the reason for failure.
-    case failure(Error)
-
-    /// The user tapped on a close button.
-    case userClosed
-}
-
-/// Defines whether the paywall screen should be dismissed after user interaction.
-public enum ApphudPaywallDismissPolicy {
-
-    /// The paywall screen should be dismissed.
-    case allow
-
-    /// The paywall screen should remain visible.
-    case cancel
-}
-
 public class ApphudPaywallScreenController: UIViewController, @preconcurrency ApphudViewDelegate {
 
     /// Apphud paywall object.
@@ -80,6 +54,11 @@ public class ApphudPaywallScreenController: UIViewController, @preconcurrency Ap
     /// Indicates whether the paywall controller has finished loading its content.
     public internal(set) var state: ApphudPaywallScreenState = .loading
 
+    /**
+     Indicated whether controller should dismiss automatically on close button tap or on successful purchase or restoration. Default is `true`.
+     */
+    public var shouldAutoDismiss = true
+    
     /**
      Indicates whether controller should pop the navigation stack instead of being dismissed modally.
      */
@@ -93,22 +72,28 @@ public class ApphudPaywallScreenController: UIViewController, @preconcurrency Ap
     /// Set this to `false` if you want to show a custom loading indicator using the `onTransactionStarted` callback.
     public var useSystemLoadingIndicator: Bool = true
 
-    /// Called when the user finishes interacting with the paywall.
-    ///
-    /// Use this to handle purchases, failures, or user cancellations.
-    /// Return a `ApphudPaywallDismissPolicy` to determine whether the paywall should be dismissed.
-    ///
-    /// - Parameter result: The result of the user's interaction.
-    /// - Returns: A dismiss policy indicating whether the paywall should be closed.
-    public var onFinished: ((ApphudPaywallResult) -> ApphudPaywallDismissPolicy)?
-
     /// Called when the user initiates a purchase or starts restoring purchases.
     ///
-    /// By default, if `useSystemLoadingIndicator` is `true`, the SDK will display a system loading indicator automatically.
-    /// If you want to show your own custom loading indicator, set `useSystemLoadingIndicator = false` and handle the UI in this callback.
+    /// By default, if `useSystemLoadingIndicator` is `true`, the SDK will automatically display a system loading indicator.
+    /// To use your own custom loading indicator, set `useSystemLoadingIndicator = false` and handle the UI in this callback.
     ///
     /// - Parameter product: The `ApphudProduct` being purchased, or `nil` if the user initiated a restore action.
     public var onTransactionStarted: ((ApphudProduct?) -> Void)?
+
+    /// Called when a purchase or restoration completes, either successfully or with a failure due to user cancellation or another error.
+    ///
+    /// By default, if `useSystemLoadingIndicator` is `true`, the SDK will automatically hide the system loading indicator.
+    /// To use your own custom loading indicator, set `useSystemLoadingIndicator = false` and handle the UI in this callback.
+    /// If the purchase or restoration succeeds, the controller will be automatically dismissed if `shouldAutoDismiss` is set to `true`.
+    ///
+    /// - Parameter result: An `ApphudPurchaseResult` containing details of the purchase, including the product, the error (if any),
+    ///   the underlying `SKPaymentTransaction`, and the `userCanceled` flag.
+    public var onTransactionCompleted: ((ApphudPurchaseResult) -> Void)?
+
+    /// Called when the user finishes interacting with the paywall—either by completing a purchase successfully or by closing the paywall manually.
+    ///
+    /// If `shouldAutoDismiss` is set to `false`, you must manually close the paywall controller in this callback.
+    public var onCloseButtonTapped: (() -> Void)?
 
     /// A callback that is triggered when the user taps a link that would open an external URL from the paywall.
     ///
