@@ -164,8 +164,8 @@ extension ApphudPaywallScreenController: WKUIDelegate {
         if self.useSystemLoadingIndicator {
             showLoadingIndicator()
         }
-
-        Apphud.purchase(product) { [weak self] result in
+        
+        ApphudInternal.shared.purchase(productId: product.productId, product: product, validate: true, purchasingFromScreen: true) { [weak self] result in
             if let self {
                 self.hideLoadingIndicator()
                 self.onTransactionCompleted?(result)

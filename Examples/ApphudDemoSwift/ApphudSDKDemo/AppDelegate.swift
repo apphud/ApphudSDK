@@ -24,7 +24,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, @preconcurrency UNUserNot
 
         Apphud.start(apiKey: "YOUR_API_KEY")
         Apphud.setDeviceIdentifiers(idfa: nil, idfv: UIDevice.current.identifierForVendor?.uuidString)
-        fetchIDFA()
+//        fetchIDFA()
 
         Apphud.preloadPaywallScreens(placementIdentifiers: ["MY_PLAYWALL_PLACEMENT_ID", "ANOTHER_PLACEMENT_ID"])
 
@@ -35,7 +35,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, @preconcurrency UNUserNot
         Apphud.incrementUserProperty(key: .init("coins_count"), by: 2)
 //        Apphud.setDelegate(self)
         Apphud.setUIDelegate(self)
-        registerForNotifications()
+//        registerForNotifications()
 
         return true
     }

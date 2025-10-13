@@ -273,7 +273,7 @@ class ApphudScreenController: UIViewController {
 
                     ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(product: product, offerID: offerID!, screenName: self.rule.screen_name)
 
-                    ApphudInternal.shared.purchasePromo(skProduct: product, apphudProduct: nil, discountID: offerID!) { (result) in
+                    ApphudInternal.shared.purchasePromo(skProduct: product, apphudProduct: nil, discountID: offerID!, fromScreen: true) { (result) in
                         self.handlePurchaseResult(product: product, offerID: offerID!, result: result)
                     }
                 } else {
@@ -287,7 +287,7 @@ class ApphudScreenController: UIViewController {
 
             ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(product: product, offerID: nil, screenName: self.rule.screen_name)
 
-            ApphudInternal.shared.purchase(productId: product.productIdentifier, product: nil, validate: true) { result in
+            ApphudInternal.shared.purchase(productId: product.productIdentifier, product: nil, validate: true, purchasingFromScreen: true) { result in
                 self.handlePurchaseResult(product: product, result: result)
             }
         }

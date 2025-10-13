@@ -31,7 +31,7 @@ extension ApphudInternal {
             } else if self.currentUser?.subscriptions.count ?? 0 == 0 && !UserDefaults.standard.bool(forKey: didSendReceiptForPromoEligibility) {
                 if let receiptString = apphudReceiptDataString() {
                     apphudLog("Restoring subscriptions for promo eligibility check")
-                    self.submitReceipt(product: nil, apphudProduct: nil, transaction: nil, receiptString: receiptString, notifyDelegate: true, eligibilityCheck: true, callback: { _ in
+                    self.submitReceipt(product: nil, apphudProduct: nil, transaction: nil, receiptString: receiptString, notifyDelegate: true, eligibilityCheck: true, fromScreen: false, callback: { _ in
                         UserDefaults.standard.set(true, forKey: didSendReceiptForPromoEligibility)
                         Task {
                             let response = await self._checkPromoEligibilitiesForRegisteredUser(products: products)
@@ -106,7 +106,7 @@ extension ApphudInternal {
             } else if self.currentUser?.subscriptions.count ?? 0 == 0 && !UserDefaults.standard.bool(forKey: didSendReceiptForIntroEligibility) {
                 if let receiptString = apphudReceiptDataString() {
                     apphudLog("Restoring subscriptions for intro eligibility check")
-                    self.submitReceipt(product: nil, apphudProduct: nil, transaction: nil, receiptString: receiptString, notifyDelegate: true, eligibilityCheck: true, callback: { _ in
+                    self.submitReceipt(product: nil, apphudProduct: nil, transaction: nil, receiptString: receiptString, notifyDelegate: true, eligibilityCheck: true, fromScreen: false, callback: { _ in
                         UserDefaults.standard.set(true, forKey: didSendReceiptForIntroEligibility)
                         Task {
                             let response = await self._checkIntroEligibilitiesForRegisteredUser(products: products)

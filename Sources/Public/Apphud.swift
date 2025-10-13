@@ -14,7 +14,7 @@ import Foundation
 import UserNotifications
 import SwiftUI
 
-internal let apphud_sdk_version = "4.0.0-beta5"
+internal let apphud_sdk_version = "4.0.0"
 
 // MARK: - Initialization
 
@@ -374,7 +374,7 @@ s
      */
     @MainActor @objc(purchaseApphudProduct:callback:)
     public static func purchase(_ product: ApphudProduct, callback: ((ApphudPurchaseResult) -> Void)?) {
-        ApphudInternal.shared.purchase(productId: product.productId, product: product, validate: true, callback: callback)
+        ApphudInternal.shared.purchase(productId: product.productId, product: product, validate: true, purchasingFromScreen: false, callback: callback)
     }
 
     /**
@@ -387,7 +387,7 @@ s
      */
     @MainActor @objc(purchaseById:callback:)
     public static func purchase(_ productId: String, callback: ((ApphudPurchaseResult) -> Void)?) {
-        ApphudInternal.shared.purchase(productId: productId, product: nil, validate: true, callback: callback)
+        ApphudInternal.shared.purchase(productId: productId, product: nil, validate: true, purchasingFromScreen: false, callback: callback)
     }
 
     /**
@@ -419,7 +419,7 @@ s
     @MainActor
     @available(iOS 13.0.0, macOS 11.0, watchOS 6.0, tvOS 13.0, *)
     public static func purchase(_ product: ApphudProduct, isPurchasing: Binding<Bool>? = nil) async -> ApphudPurchaseResult {
-        await ApphudInternal.shared.purchase(productId: product.productId, product: product, validate: true, isPurchasing: isPurchasing)
+        await ApphudInternal.shared.purchase(productId: product.productId, product: product, validate: true, isPurchasing: isPurchasing, fromScreen: false)
     }
 
     /**
@@ -432,10 +432,10 @@ s
      - Note: This method automatically sends the in-app purchase receipt to Apphud.
      */
     @objc public static func purchasePromo(apphudProduct: ApphudProduct, discountID: String, _ callback: ((ApphudPurchaseResult) -> Void)?) {
-        ApphudInternal.shared.purchasePromo(skProduct: nil, apphudProduct: apphudProduct, discountID: discountID, callback: callback)
+        ApphudInternal.shared.purchasePromo(skProduct: nil, apphudProduct: apphudProduct, discountID: discountID, fromScreen: false, callback: callback)
     }
     @objc public static func purchasePromo(_ skProduct: SKProduct, discountID: String, _ callback: ((ApphudPurchaseResult) -> Void)?) {
-        ApphudInternal.shared.purchasePromo(skProduct: skProduct, apphudProduct: nil, discountID: discountID, callback: callback)
+        ApphudInternal.shared.purchasePromo(skProduct: skProduct, apphudProduct: nil, discountID: discountID, fromScreen: false, callback: callback)
     }
 
     /**
@@ -459,7 +459,7 @@ s
      */
     @MainActor @objc(purchaseApphudProduct:value:callback:)
     public static func purchase(_ product: ApphudProduct, value: Double, callback: ((ApphudPurchaseResult) -> Void)?) {
-        ApphudInternal.shared.purchase(productId: product.productId, product: product, validate: true, value: value, callback: callback)
+        ApphudInternal.shared.purchase(productId: product.productId, product: product, validate: true, purchasingFromScreen: false, value: value, callback: callback)
     }
 
     /**

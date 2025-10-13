@@ -184,6 +184,7 @@ final class ApphudInternal: NSObject {
     internal var didHandleBecomeActive = false
     internal var respondedStoreKitProducts = false
 
+    internal var purchasingFromScreen: Bool = false
     internal var purchasingProduct: ApphudProduct?
     internal var pendingTransactionID: String?
     internal var fallbackMode = false

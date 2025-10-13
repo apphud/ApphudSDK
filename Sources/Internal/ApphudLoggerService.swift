@@ -44,8 +44,8 @@ class ApphudLoggerService {
         ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_closed", "properties": ["paywall_id": paywallId, "placement_id": placementId].compactMapValues { $0 }])
     }
 
-    internal func paywallCheckoutInitiated(apphudProduct: ApphudProduct?, productId: String?) {
-        ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_checkout_initiated", "properties": ["paywall_id": apphudProduct?.paywallId, "placement_id": apphudProduct?.placementId, "product_id": productId, "variation_identifier": apphudProduct?.variationIdentifier, "experiment_id": apphudProduct?.experimentId].compactMapValues { $0 } ])
+    internal func paywallCheckoutInitiated(apphudProduct: ApphudProduct?, productId: String?, screenId: String?) {
+        ApphudInternal.shared.trackPaywallEvent(params: ["name": "paywall_checkout_initiated", "properties": ["paywall_id": apphudProduct?.paywallId, "placement_id": apphudProduct?.placementId, "product_id": productId, "variation_identifier": apphudProduct?.variationIdentifier, "screen_id": screenId , "experiment_id": apphudProduct?.experimentId].compactMapValues { $0 } ])
     }
 
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)

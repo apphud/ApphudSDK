@@ -312,7 +312,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
         DispatchQueue.main.async {
             if let callback = ApphudInternal.shared.delegate?.apphudShouldStartAppStoreDirectPurchase(product) {
-                ApphudInternal.shared.purchase(productId: product.productIdentifier, product: nil, validate: true, callback: callback)
+                ApphudInternal.shared.purchase(productId: product.productIdentifier, product: nil, validate: true, purchasingFromScreen: false, callback: callback)
             }
         }
 
