@@ -14,7 +14,7 @@ import Foundation
 import UserNotifications
 import SwiftUI
 
-internal let apphud_sdk_version = "4.0.0"
+internal let apphud_sdk_version = "4.0.2"
 
 // MARK: - Initialization
 
@@ -128,7 +128,11 @@ s
      */
     @MainActor
     public static func refreshUserData(callback: @escaping ((ApphudUser?) -> Void)) {
-        ApphudInternal.shared.refreshUserData(callback: callback)
+        if ApphudInternal.shared.currentUser == nil {
+            ApphudInternal.shared.performWhenUserRegistered { callback(ApphudInternal.shared.currentUser!) }
+        } else {
+            ApphudInternal.shared.refreshUserData(callback: callback)
+        }
     }
 
     /**
@@ -211,13 +215,22 @@ s
 
      For immediate access without awaiting `SKProduct`s, use `ApphudDelegate`'s `userDidLoad` method or the callback in `Apphud.start(...)`.
      - parameter maxAttempts: Number of request attempts before throwing an error. Must be between 1 and 10. Default value is 3.
+     - parameter forceRefresh: When set to `true`, forces Apphud to refresh user data and reload placements from the server before returning the result. Use this when you need to apply updated audience segmentation or A/B test assignments (for example, after changing user properties that affect placement targeting).
      - parameter callback: A closure that takes an array of `ApphudPlacement` objects and returns void.
      - parameter error: Optional ApphudError that may occur while fetching products from the App Store. You might want to retry the request if the error comes out.
      */
     @MainActor
-    public static func fetchPlacements(maxAttempts: Int = APPHUD_DEFAULT_RETRIES, _ callback: @escaping ([ApphudPlacement], ApphudError?) -> Void) {
-        ApphudInternal.shared.fetchOfferingsFull(maxAttempts: maxAttempts) { error in
-            callback(ApphudInternal.shared.placements, error)
+    public static func fetchPlacements(maxAttempts: Int = APPHUD_DEFAULT_RETRIES, forceRefresh: Bool = false, _ callback: @escaping ([ApphudPlacement], ApphudError?) -> Void) {
+        if (forceRefresh) {
+            Apphud.refreshUserData { _ in
+                ApphudInternal.shared.fetchOfferingsFull(maxAttempts: maxAttempts) { error in
+                    callback(ApphudInternal.shared.placements, error)
+                }
+            }
+        } else {
+            ApphudInternal.shared.fetchOfferingsFull(maxAttempts: maxAttempts) { error in
+                callback(ApphudInternal.shared.placements, error)
+            }
         }
     }
 
@@ -885,16 +898,17 @@ s
     @objc public static func setAdvertisingIdentifier(_ idfa: String) {}
 
     /**
-     Submits attribution data to Apphud
+     Submits attribution data to Apphud.
 
      - parameter data: Optional. The ApphudAttributionData model. Pass nil for some integrations such as Apple Search Ads, Firebase.
      - parameter provider: Required. The name of the attribution provider.
      - parameter identifier: Optional. An identifier that matches between Apphud and the Attribution provider.
-     - parameter callback: Optional. A closure that returns `true` if the data was successfully sent to Apphud.
+     - parameter callback: Optional. A closure called when the attribution request finishes. The first parameter indicates whether the data was successfully sent to Apphud. The second parameter contains the attribution payload returned by Apphud, if available.
+          The payload may include the following keys: `device_id`, `attribution`, `raw_data`, `provider`.
 
      - Note: Properly setting up attribution data is key for tracking and optimizing user acquisition strategies and measuring the ROI of marketing campaigns.
      */
-    public static func setAttribution(data: ApphudAttributionData?, from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ApphudBoolCallback?) {
+    public static func setAttribution(data: ApphudAttributionData?, from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ((Bool, [String: Any]?) -> Void)?) {
         ApphudInternal.shared.setAttribution(data: data, from: provider, identifer: identifer, callback: callback)
     }
 

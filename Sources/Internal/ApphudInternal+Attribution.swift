@@ -11,7 +11,7 @@ import Foundation
 extension ApphudInternal {
 
     // MARK: - Attribution
-    internal func setAttribution(data: ApphudAttributionData?, from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ((Bool) -> Void)?) {
+    internal func setAttribution(data: ApphudAttributionData?, from provider: ApphudAttributionProvider, identifer: String? = nil, callback: ((Bool, [String: Any]?) -> Void)?) {
         performWhenUserRegistered {
             Task {
                 var dict: [String: any Sendable] = data?.rawData as? [String: any Sendable] ?? [:]
@@ -42,7 +42,7 @@ extension ApphudInternal {
                           self.submittedFacebookAnonId != fbIdent
                     else {
                         apphudLog("Facebook Anon ID (identifer field) is nil or didn't change, exiting", forceDisplay: true)
-                        callback?(false)
+                        callback?(false, nil)
                         return
                     }
                     dict["fb_anon_id"] = fbIdent
@@ -52,7 +52,7 @@ extension ApphudInternal {
                     guard let firebaseId = identifer,
                           self.submittedFirebaseId != firebaseId
                     else {
-                        callback?(false)
+                        callback?(false, nil)
                         return
                     }
                     dict["firebase_id"] = firebaseId
@@ -60,12 +60,12 @@ extension ApphudInternal {
                     // ---------- .appsFlyer ----------
                 case .appsFlyer:
                     guard let afIdent = identifer else {
-                        callback?(false)
+                        callback?(false, nil)
                         return
                     }
                     guard !self.isSendingAppsFlyer else {
                         apphudLog("Already submitted AppsFlyer attribution, skipping", forceDisplay: true)
-                        callback?(false)
+                        callback?(false, nil)
                         return
                     }
 
@@ -73,7 +73,7 @@ extension ApphudInternal {
 
                     guard await self.submittedPreviouslyAF(data: dict) else {
                         apphudLog("Already submitted AppsFlyer attribution, skipping", forceDisplay: true)
-                        callback?(false)
+                        callback?(false, nil)
                         return
                     }
                     self.isSendingAppsFlyer = true
@@ -82,7 +82,7 @@ extension ApphudInternal {
                 case .adjust:
                     guard !self.isSendingAdjust else {
                         apphudLog("Already submitted Adjust attribution, skipping", forceDisplay: true)
-                        callback?(false)
+                        callback?(false, nil)
                         return
                     }
                     if let adid = identifer {
@@ -91,7 +91,7 @@ extension ApphudInternal {
 
                     guard await self.submittedPreviouslyAdjust(data: dict) else {
                         apphudLog("Already submitted Adjust attribution, skipping", forceDisplay: true)
-                        callback?(false)
+                        callback?(false, nil)
                         return
                     }
                     self.isSendingAdjust = true
@@ -99,12 +99,12 @@ extension ApphudInternal {
                     // ---------- .appleAdsAttribution ----------
                 case .appleAdsAttribution:
                     guard let token = identifer else {
-                        callback?(false)
+                        callback?(false, nil)
                         return
                     }
                     guard !self.didSubmitAppleAdsAttribution else {
                         apphudLog("Already submitted Apple Ads Attribution, exiting", forceDisplay: true)
-                        callback?(false)
+                        callback?(false, nil)
                         return
                     }
 
@@ -113,7 +113,7 @@ extension ApphudInternal {
                             dict[key] = value
                         }
                     } else {
-                        callback?(false)
+                        callback?(false, nil)
                         return
                     }
 
@@ -142,7 +142,7 @@ extension ApphudInternal {
                 }
                 params["attribution"] = attributionDict
 
-                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
 
                 self.startAttributionRequest(params: params, apiVersion: .APIV2, provider: provider, identifer: identifer) { result in
                     Task {
@@ -163,7 +163,7 @@ extension ApphudInternal {
                             }
                         }
                     }
-                    callback?(result)
+                    callback?(result, params)
                 }
             }
         }

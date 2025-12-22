@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'ApphudSDK'
-  s.version          = '4.0.0'
+  s.version          = '4.0.2'
   s.summary          = 'Build and Measure In-App Subscriptions on iOS.'
   s.description      = 'Apphud covers every aspect when it comes to In-App Subscriptions from integration to analytics on iOS and Android.'
   s.homepage         = 'https://github.com/apphud/ApphudSDK'
