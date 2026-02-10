@@ -81,13 +81,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate, @preconcurrency UNUserNot
 
 extension AppDelegate: ApphudUIDelegate {
 
-    func apphudScreenPresentationStyle(controller: UIViewController) -> UIModalPresentationStyle {
-        if UIDevice.current.userInterfaceIdiom == .pad {
-            return .pageSheet
-        } else {
-            return .overFullScreen
-        }
-    }
+//    func apphudScreenPresentationStyle(controller: UIViewController) -> UIModalPresentationStyle {
+//        if UIDevice.current.userInterfaceIdiom == .pad {
+//            return .pageSheet
+//        } else {
+//            return .overFullScreen
+//        }
+//    }
 }
 
 extension AppDelegate: @preconcurrency ApphudDelegate {
