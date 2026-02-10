@@ -138,7 +138,8 @@ class ApphudScreenController: UIViewController {
         } else {
             htmlToLoad = html + Self.screenReadyScript
         }
-        self.pendingScreenLoadNavigation = self.webView.loadHTMLString(htmlToLoad, baseURL: nil)
+        let url = URL(string: ApphudHttpClient.shared.domainUrlString)
+        self.pendingScreenLoadNavigation = self.webView.loadHTMLString(htmlToLoad, baseURL: url)
         apphudLog("ApphudScreenController: loadHTMLString returned, pendingScreenLoadNavigation set", logLevel: .all)
     }
 
