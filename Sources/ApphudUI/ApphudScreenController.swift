@@ -23,7 +23,6 @@ import StoreKit
 private final class ApphudScreenReadyMessageHandler: NSObject, WKScriptMessageHandler {
     weak var controller: ApphudScreenController?
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        apphudLog("ApphudScreenController: apphudScreenReady script message received", logLevel: .all)
         controller?.handleScreenDidLoad()
     }
 }
@@ -106,7 +105,6 @@ class ApphudScreenController: UIViewController {
     }
 
     internal func loadScreenPage() {
-        apphudLog("ApphudScreenController: loadScreenPage started screenID=\(screenID), 30s timeout scheduled", logLevel: .all)
         // if after 30 seconds webview not appeared, then fail
         self.perform(#selector(failedByTimeOut), with: nil, afterDelay: 30.0)
         self.startLoading()
@@ -115,7 +113,6 @@ class ApphudScreenController: UIViewController {
 
         ApphudHttpClient.shared.loadScreenHtmlData(screenID: self.screenID) { (html, error) in
             if let html = html {
-                apphudLog("ApphudScreenController: HTML received for screenID=\(self.screenID), extracting macros", logLevel: .all)
                 self.originalHTML = html
                 self.extractMacrosesUsingRegexp()
             } else {
@@ -130,7 +127,6 @@ class ApphudScreenController: UIViewController {
     private static let screenReadyScript = "<script>try{window.webkit.messageHandlers.apphudScreenReady.postMessage('ready');}catch(e){}</script>"
 
     @objc internal func editAndReloadPage(html: String) {
-        apphudLog("ApphudScreenController: editAndReloadPage screenID=\(screenID), loading HTML into webView", logLevel: .all)
         self.webView.tag = 1
         let htmlToLoad: String
         if html.contains("</body>") {
@@ -139,7 +135,6 @@ class ApphudScreenController: UIViewController {
             htmlToLoad = html + Self.screenReadyScript
         }
         self.pendingScreenLoadNavigation = self.webView.loadHTMLString(htmlToLoad, baseURL: nil)
-        apphudLog("ApphudScreenController: loadHTMLString returned, pendingScreenLoadNavigation set", logLevel: .all)
     }
 
     // MARK: - Private
@@ -184,7 +179,6 @@ class ApphudScreenController: UIViewController {
     }
 
     @objc private func failedByTimeOut() {
-        apphudLog("ApphudScreenController: Timeout (30s) — screenID=\(screenID), handleScreenDidLoad was not called (didFinish or apphudScreenReady did not fire)", forceDisplay: true)
         failed(ApphudError(message: "Timeout error"))
     }
 
@@ -273,10 +267,8 @@ class ApphudScreenController: UIViewController {
 
     func handleScreenDidLoad() {
         guard !didLoadScreen else {
-            apphudLog("ApphudScreenController: handleScreenDidLoad ignored (already didLoadScreen) screenID=\(screenID)", logLevel: .all)
             return
         }
-        apphudLog("ApphudScreenController: handleScreenDidLoad screenID=\(screenID), showing webView", logLevel: .all)
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(failedByTimeOut), object: nil)
 
         didLoadScreen = true

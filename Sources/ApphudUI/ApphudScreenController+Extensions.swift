@@ -43,7 +43,6 @@ extension ApphudScreenController: WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         let isOurLoad = pendingScreenLoadNavigation.map { navigation === $0 } ?? false
-        apphudLog("ApphudScreenController: didFinish navigation=\(isOurLoad ? "OUR_LOAD" : "other"), webView.tag=\(webView.tag)", logLevel: .all)
         if let pending = pendingScreenLoadNavigation, navigation === pending {
             handleScreenDidLoad()
         }
@@ -51,7 +50,6 @@ extension ApphudScreenController: WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
         let isOurLoad = pendingScreenLoadNavigation.map { navigation === $0 } ?? false
-        apphudLog("ApphudScreenController: didFail navigation=\(isOurLoad ? "OUR_LOAD" : "other") error=\(error.localizedDescription)", logLevel: .all)
         if let pending = pendingScreenLoadNavigation, navigation === pending {
             pendingScreenLoadNavigation = nil
             failed(error)
