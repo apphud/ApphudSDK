@@ -42,13 +42,16 @@ extension ApphudScreenController: WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        if webView.tag == 1 {
+        let isOurLoad = pendingScreenLoadNavigation.map { navigation === $0 } ?? false
+        if let pending = pendingScreenLoadNavigation, navigation === pending {
             handleScreenDidLoad()
         }
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        if webView.tag != 1 {
+        let isOurLoad = pendingScreenLoadNavigation.map { navigation === $0 } ?? false
+        if let pending = pendingScreenLoadNavigation, navigation === pending {
+            pendingScreenLoadNavigation = nil
             failed(error)
         }
     }
@@ -72,8 +75,8 @@ extension ApphudScreenController {
     }
 
     private func handleAction(url: URL) {
-
-        guard let urlComps = URLComponents(url: url, resolvingAgainstBaseURL: true) else {return}
+        // Parse as-is; url is already resolved by WebView (works with baseURL: nil)
+        guard let urlComps = URLComponents(url: url, resolvingAgainstBaseURL: false) else {return}
         guard let action = urlComps.queryItems?.first(where: { $0.name == "type" })?.value else {return}
 
         switch action {
@@ -99,8 +102,8 @@ extension ApphudScreenController {
     }
 
     private func handleNavigation(url: URL) {
-
-        guard let urlComps = URLComponents(url: url, resolvingAgainstBaseURL: true) else {return}
+        // Parse as-is; url is already resolved by WebView (works with baseURL: nil)
+        guard let urlComps = URLComponents(url: url, resolvingAgainstBaseURL: false) else {return}
         guard let screen_id = urlComps.queryItems?.first(where: { $0.name == "id" })?.value else {return}
 
         if isSurveyAnswer(urlComps: urlComps) {
@@ -113,8 +116,8 @@ extension ApphudScreenController {
     }
 
     private func handleLink(url: URL) {
-
-        let urlComps = URLComponents(url: url, resolvingAgainstBaseURL: true)
+        // Parse as-is; url is already resolved by WebView (works with baseURL: nil)
+        let urlComps = URLComponents(url: url, resolvingAgainstBaseURL: false)
 
         guard let urlString = urlComps?.queryItems?.first(where: { $0.name == "url" })?.value else {
             return

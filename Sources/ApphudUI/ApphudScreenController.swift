@@ -18,10 +18,28 @@ import SafariServices
 import StoreKit
 
 #if os(iOS)
+
+/// Forwarder to avoid retain cycle: WKUserContentController strongly retains the script message handler.
+private final class ApphudScreenReadyMessageHandler: NSObject, WKScriptMessageHandler {
+    weak var controller: ApphudScreenController?
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        controller?.handleScreenDidLoad()
+    }
+}
+
 class ApphudScreenController: UIViewController {
+
+    /// Navigation from our main loadHTMLString; used so didFinish/didFail are tied to our load, not webView.tag (which client app may overwrite).
+    var pendingScreenLoadNavigation: WKNavigation?
+
+    private var screenReadyMessageHandler: ApphudScreenReadyMessageHandler?
 
     internal lazy var webView: WKWebView = {
         let config = WKWebViewConfiguration()
+        let handler = ApphudScreenReadyMessageHandler()
+        config.userContentController.add(handler, name: "apphudScreenReady")
+        self.screenReadyMessageHandler = handler
+        handler.controller = self
         let wv = WKWebView(frame: self.view.bounds, configuration: config)
         wv.navigationDelegate = self
         self.view.addSubview(wv)
@@ -87,7 +105,6 @@ class ApphudScreenController: UIViewController {
     }
 
     internal func loadScreenPage() {
-
         // if after 30 seconds webview not appeared, then fail
         self.perform(#selector(failedByTimeOut), with: nil, afterDelay: 30.0)
         self.startLoading()
@@ -107,10 +124,17 @@ class ApphudScreenController: UIViewController {
         }
     }
 
+    private static let screenReadyScript = "<script>try{window.webkit.messageHandlers.apphudScreenReady.postMessage('ready');}catch(e){}</script>"
+
     @objc internal func editAndReloadPage(html: String) {
-        let url = URL(string: ApphudHttpClient.shared.domainUrlString)
         self.webView.tag = 1
-        self.webView.loadHTMLString(html as String, baseURL: url)
+        let htmlToLoad: String
+        if html.contains("</body>") {
+            htmlToLoad = html.replacingOccurrences(of: "</body>", with: Self.screenReadyScript + "</body>")
+        } else {
+            htmlToLoad = html + Self.screenReadyScript
+        }
+        self.pendingScreenLoadNavigation = self.webView.loadHTMLString(htmlToLoad, baseURL: nil)
     }
 
     // MARK: - Private
@@ -242,9 +266,13 @@ class ApphudScreenController: UIViewController {
     // MARK: - Actions
 
     func handleScreenDidLoad() {
+        guard !didLoadScreen else {
+            return
+        }
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(failedByTimeOut), object: nil)
 
         didLoadScreen = true
+        pendingScreenLoadNavigation = nil
 
         webView.alpha = 1
 
