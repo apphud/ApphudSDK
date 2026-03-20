@@ -21,7 +21,55 @@ public struct ApphudUser: Codable {
      Unique user identifier. This can be updated later.
      */
     public let userId: String
-
+    
+    /**
+     Number of devices associated with the same `userId`.
+     
+     You can use this value to detect suspicious account sharing and decide whether to limit premium access.
+     Falls back to `0` if the backend value is unavailable.
+     */
+    public let totalDevicesCount: Int
+    
+    /**
+     Name of the active A/B test experiment assigned to this user.
+     
+     `nil` when no experiment is assigned.
+     */
+    public let experimentName: String?
+    
+    /**
+     Name of the active variation assigned to this user.
+     
+     `nil` when no variation is assigned.
+     */
+    public let variationName: String?
+    
+    /**
+     Global app-level remote configuration payload for the active user variation.
+     
+     The value is parsed from backend JSON and returned as a dictionary.
+     Returns an empty dictionary when config is missing or invalid.
+     */
+    public func remoteConfig() -> [String: Any] {
+        guard let string = remoteConfigString, let data = string.data(using: .utf8) else {
+            return [:]
+        }
+        do {
+            let dict = try JSONSerialization.jsonObject(with: data, options: .allowFragments) as? [String: Any]
+            return dict ?? [:]
+        } catch {
+            apphudLog("Failed to decode Remote Config for json string: \(remoteConfigString ?? "")")
+            return [:]
+        }
+    }
+    /**
+     The raw JSON string for the app-level remote configuration assigned to this user.
+     
+     This value is the unmodified payload received from the backend. Use it when you need
+     the exact server response, or call `remoteConfig()` to get a parsed `[String: Any]` representation.
+     */
+    public let remoteConfigString: String?
+    
     /**
      An array of subscriptions of any statuses that user has ever purchased.
      */
@@ -49,7 +97,7 @@ public struct ApphudUser: Codable {
     internal let paywalls: [ApphudPaywall]?
     internal let placements: [ApphudPlacement]?
     internal let currency: ApphudCurrency?
-
+    
     // MARK: - Initializer Methods
 
     enum CodingKeys: CodingKey {
@@ -62,10 +110,23 @@ public struct ApphudUser: Codable {
         case autorenewables
         case nonrenewables
         case swizzleDisabled
+        case totalDevicesCount
+        case scheme
+    }
+    
+    private struct ApphudScheme: Codable {
+        let experiment: Experiment?
+        let name: String?
+        let remoteConfig: String?
+        
+        struct Experiment: Codable {
+            let name: String?
+        }
     }
 
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
+        
         self.paywalls = try? values.decode([ApphudPaywall].self, forKey: .paywalls)
         self.placements = try? values.decode([ApphudPlacement].self, forKey: .placements)
         self.userId = try values.decode(String.self, forKey: .userId)
@@ -120,6 +181,13 @@ public struct ApphudUser: Codable {
 
         self.subscriptions = subs
         self.purchases = purchs
+        self.totalDevicesCount = (try? values.decode(Int.self, forKey: .totalDevicesCount)) ?? 0
+        
+        let scheme = try? values.decodeIfPresent(ApphudScheme.self, forKey: .scheme)
+        
+        self.experimentName = scheme?.experiment?.name
+        self.variationName = scheme?.name
+        self.remoteConfigString = scheme?.remoteConfig
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -131,6 +199,14 @@ public struct ApphudUser: Codable {
         try container.encode(subscriptions, forKey: .autorenewables)
         try container.encode(purchases, forKey: .nonrenewables)
         try? container.encode(currency, forKey: .currency)
+        try container.encode(totalDevicesCount, forKey: .totalDevicesCount)
+        
+        let scheme = ApphudScheme(
+            experiment: ApphudScheme.Experiment(name: experimentName),
+            name: variationName,
+            remoteConfig: remoteConfigString
+        )
+        try? container.encode(scheme, forKey: .scheme)
     }
 
     init?(userID: String, subscriptions: [ApphudSubscription] = [], purchases: [ApphudNonRenewingPurchase] = [], paywalls: [ApphudPaywall] = [], placements: [ApphudPlacement] = []) {
@@ -140,6 +216,10 @@ public struct ApphudUser: Codable {
         self.paywalls = paywalls
         self.placements = placements
         self.currency = nil
+        self.totalDevicesCount = 0
+        self.experimentName = nil
+        self.variationName = nil
+        self.remoteConfigString = nil
     }
 
     // MARK: - INTERNAL AND LEGACY METHODS
@@ -289,3 +369,4 @@ public struct ApphudUser: Codable {
         }
     }
 }
+

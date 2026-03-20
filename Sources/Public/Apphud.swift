@@ -14,7 +14,7 @@ import Foundation
 import UserNotifications
 import SwiftUI
 
-internal let apphud_sdk_version = "4.0.4"
+internal let apphud_sdk_version = "4.1.0"
 
 // MARK: - Initialization
 
@@ -89,6 +89,15 @@ s
      */
     @MainActor @objc public static func deviceID() -> String {
         return ApphudInternal.shared.currentDeviceID
+    }
+    
+    /**
+     Returns an instance of the current user.
+
+     - Returns: An object representing the current user. Returns `nil` if the user is not yet registered.
+     */
+    @MainActor public static func currentUser() -> ApphudUser? {
+        return ApphudInternal.shared.currentUser
     }
 
     /**
