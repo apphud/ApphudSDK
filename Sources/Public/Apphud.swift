@@ -14,7 +14,7 @@ import Foundation
 import UserNotifications
 import SwiftUI
 
-internal let apphud_sdk_version = "4.1.0"
+internal let apphud_sdk_version = "4.1.1"
 
 // MARK: - Initialization
 
@@ -940,6 +940,11 @@ s
     @MainActor
     public static func attributeFromWeb(data: [AnyHashable: Any], callback: @escaping (Bool, ApphudUser?) -> Void) {
         ApphudInternal.shared.tryWebAttribution(attributionData: data, completion: callback)
+    }
+    
+    @MainActor
+    public static func attributeFromDeeplink(callback: @escaping (([String: Any]?) -> Void)) {
+        ApphudInternal.shared.tryDeeplinkAttribution(completion: callback)
     }
 
     // MARK: - Eligibility Checks

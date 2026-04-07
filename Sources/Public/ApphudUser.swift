@@ -93,6 +93,11 @@ public struct ApphudUser: Codable {
     @MainActor public func rawPlacements() -> [ApphudPlacement] {
         ApphudInternal.shared.placements
     }
+    
+    /**
+    Internal database id of the user. Should not be used in analytics.
+     */
+    public let internalId: String
 
     internal let paywalls: [ApphudPaywall]?
     internal let placements: [ApphudPlacement]?
@@ -100,7 +105,7 @@ public struct ApphudUser: Codable {
     
     // MARK: - Initializer Methods
 
-    enum CodingKeys: CodingKey {
+    enum CodingKeys: String, CodingKey {
         case userId
         case subscriptions
         case purchases
@@ -112,6 +117,7 @@ public struct ApphudUser: Codable {
         case swizzleDisabled
         case totalDevicesCount
         case scheme
+        case internalId = "id"
     }
     
     private struct ApphudScheme: Codable {
@@ -130,6 +136,7 @@ public struct ApphudUser: Codable {
         self.paywalls = try? values.decode([ApphudPaywall].self, forKey: .paywalls)
         self.placements = try? values.decode([ApphudPlacement].self, forKey: .placements)
         self.userId = try values.decode(String.self, forKey: .userId)
+        self.internalId = (try? values.decodeIfPresent(String.self, forKey: .internalId)) ?? ""
 
         self.currency = try? values.decode(ApphudCurrency.self, forKey: .currency)
 
@@ -193,6 +200,7 @@ public struct ApphudUser: Codable {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(userId, forKey: .userId)
+        try container.encode(internalId, forKey: .internalId)
         try? container.encode(paywalls, forKey: .paywalls)
         try? container.encode(placements, forKey: .placements)
 
@@ -211,6 +219,7 @@ public struct ApphudUser: Codable {
 
     init?(userID: String, subscriptions: [ApphudSubscription] = [], purchases: [ApphudNonRenewingPurchase] = [], paywalls: [ApphudPaywall] = [], placements: [ApphudPlacement] = []) {
         self.userId = userID
+        self.internalId = userID
         self.subscriptions = subscriptions
         self.purchases = purchases
         self.paywalls = paywalls
