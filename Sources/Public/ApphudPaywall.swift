@@ -64,14 +64,29 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
     @objc public internal(set) var isDefault: Bool
 
     /**
-     A/B test experiment name
+     A/B test experiment name.
+
+     Returns the value sent at the paywall level by the legacy backend response.
+     If absent, falls back to the experiment name on the current `ApphudUser`.
      */
-    @objc public var experimentName: String?
+    @MainActor
+    @objc public var experimentName: String? {
+        paywallExperimentName ?? ApphudInternal.shared.currentUser?.experimentName
+    }
 
     /**
-     A/B Experiment Variation Name
+     A/B Experiment Variation Name.
+
+     Returns the value sent at the paywall level by the legacy backend response.
+     If absent, falls back to the variation name on the current `ApphudUser`.
      */
-    @objc public var variationName: String?
+    @MainActor
+    @objc public var variationName: String? {
+        paywallVariationName ?? ApphudInternal.shared.currentUser?.variationName
+    }
+
+    private var paywallExperimentName: String?
+    private var paywallVariationName: String?
 
     /**
      Represents the identifier of a parent paywall from which an experiment variation was derived in A/B Experiments. This property is populated only if the 'Use existing paywall' option was selected during the setup of the experiment variation.
@@ -212,8 +227,8 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         id = try values.decode(String.self, forKey: .id)
         name = try values.decode(String.self, forKey: .name)
-        experimentName = try? values.decode(String.self, forKey: .experimentName)
-        variationName = try? values.decode(String.self, forKey: .variationName)
+        paywallExperimentName = try? values.decode(String.self, forKey: .experimentName)
+        paywallVariationName = try? values.decode(String.self, forKey: .variationName)
         variationIdentifier = try? values.decode(String.self, forKey: .variationIdentifier)
         experimentId = try? values.decode(String.self, forKey: .experimentId)
         parentPaywallIdentifier = try? values.decode(String.self, forKey: .parentPaywallIdentifier)
@@ -227,8 +242,8 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
-        try? container.encode(experimentName, forKey: .experimentName)
-        try? container.encode(variationName, forKey: .variationName)
+        try? container.encode(paywallExperimentName, forKey: .experimentName)
+        try? container.encode(paywallVariationName, forKey: .variationName)
         try? container.encode(variationIdentifier, forKey: .variationIdentifier)
         try? container.encode(experimentId, forKey: .experimentId)
         try? container.encode(parentPaywallIdentifier, forKey: .parentPaywallIdentifier)

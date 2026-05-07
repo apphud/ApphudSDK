@@ -19,8 +19,13 @@ extension ApphudInternal {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
 
-        let oldStates = await currentUser?.subscriptionsStates()
-        let oldPurchasesStates = await currentUser?.purchasesStates()
+        let previousUser = await currentUser
+        let oldStates = previousUser?.subscriptionsStates()
+        let oldPurchasesStates = previousUser?.purchasesStates()
+
+        if let fallback = previousUser?.cachedSchemeFallback {
+            decoder.userInfo[ApphudUser.cachedSchemeCodingKey] = fallback
+        }
 
         do {
             let response = try decoder.decode(ApphudUserResponse<ApphudUser>.self, from: data)

@@ -130,6 +130,28 @@ public struct ApphudUser: Codable {
         }
     }
 
+    /// Snapshot of fields that may be omitted from the server response and should
+    /// therefore be preserved from the previously cached user instead of being reset
+    /// to `nil`. Sendable so it can safely be stored in `decoder.userInfo`.
+    internal struct CachedSchemeFallback: Sendable {
+        let experimentName: String?
+        let variationName: String?
+        let remoteConfigString: String?
+    }
+
+    /// Pass a `CachedSchemeFallback` via `decoder.userInfo[ApphudUser.cachedSchemeCodingKey]`
+    /// so values that may be omitted from the server response (e.g. `scheme`) can be preserved
+    /// instead of being overwritten with `nil`.
+    internal static let cachedSchemeCodingKey = CodingUserInfoKey(rawValue: "ApphudUser.cachedScheme")!
+
+    internal var cachedSchemeFallback: CachedSchemeFallback {
+        CachedSchemeFallback(
+            experimentName: experimentName,
+            variationName: variationName,
+            remoteConfigString: remoteConfigString
+        )
+    }
+
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         
@@ -191,10 +213,19 @@ public struct ApphudUser: Codable {
         self.totalDevicesCount = (try? values.decode(Int.self, forKey: .totalDevicesCount)) ?? 0
         
         let scheme = try? values.decodeIfPresent(ApphudScheme.self, forKey: .scheme)
-        
-        self.experimentName = scheme?.experiment?.name
-        self.variationName = scheme?.name
-        self.remoteConfigString = scheme?.remoteConfig
+
+        if let scheme {
+            self.experimentName = scheme.experiment?.name
+            self.variationName = scheme.name
+            self.remoteConfigString = scheme.remoteConfig
+        } else {
+            // `scheme` may be omitted from the response. Preserve previously cached
+            // values when available instead of clobbering them with nil.
+            let fallback = decoder.userInfo[ApphudUser.cachedSchemeCodingKey] as? CachedSchemeFallback
+            self.experimentName = fallback?.experimentName
+            self.variationName = fallback?.variationName
+            self.remoteConfigString = fallback?.remoteConfigString
+        }
     }
 
     public func encode(to encoder: Encoder) throws {

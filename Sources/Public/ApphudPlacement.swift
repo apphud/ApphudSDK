@@ -43,6 +43,7 @@ public class ApphudPlacement: Codable {
     /**
      A/B experiment name if it's paywall, if any.
      */
+    @MainActor
     public var experimentName: String? { paywall?.experimentName }
 
     /** For Internal Use
