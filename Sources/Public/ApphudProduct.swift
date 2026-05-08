@@ -29,10 +29,10 @@ public enum ApphudProductType: String {
 /**
  Apphud's wrapper around `SKProduct`.
  
- In-App Purchase must configured in App Store Connect and should be added to Apphud Dashboard > Product Hub > Products.
+ In-App Purchase must configured in App Store Connect and should be added to Apphud Dashboard > Product hub.
  `ApphudProduct` is Apphud's wrapper around StoreKit's `SKProduct`.
  
- - Note: For more information  - [Product Hub Documentation](https://docs.apphud.com/docs/product-hub)
+ - Note: For more information  - [Product hub Documentation](https://docs.apphud.com/docs/product-hub)
  */
 
 public class ApphudProduct: NSObject, Codable, ObservableObject {
@@ -53,7 +53,7 @@ public class ApphudProduct: NSObject, Codable, ObservableObject {
     @objc public internal(set) var store: String
 
     /**
-     Returns product macros defined in the Paywalls section of Product Hub.
+     Returns product macros defined in the Paywalls section of Mission control.
 
      By default, values are extracted based on the device's current locale.
      

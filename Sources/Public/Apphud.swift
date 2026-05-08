@@ -14,7 +14,7 @@ import Foundation
 import UserNotifications
 import SwiftUI
 
-internal let apphud_sdk_version = "4.1.1"
+internal let apphud_sdk_version = "4.2.0"
 
 // MARK: - Initialization
 
@@ -112,7 +112,7 @@ s
     }
 
     /**
-     Refreshes current user data including paywalls, placements, subscriptions, non-renewing purchases, and promotionals.
+     Refreshes current user data including app remote config, paywalls, placements, subscriptions, non-renewing purchases, and promotionals.
      
      This method triggers a refresh of all user-related data from Apphud servers. You can use this method to manually
      update the user's data when needed, such as when the app returns from background.
@@ -165,7 +165,7 @@ s
     // MARK: - Placements & Paywalls
 
     /**
-     Asynchronously retrieves the paywall placements configured in Product Hub > Placements, potentially altered based on the user's involvement in A/B testing, if any. Awaits until the inner `SKProduct`s are loaded from the App Store.
+     Asynchronously retrieves the paywall placements configured in Mission control > Targetings, potentially altered based on the user's involvement in A/B testing, if any. Awaits until the inner `SKProduct`s are loaded from the App Store.
 
      A placement is a specific location within a user's journey (such as onboarding, settings, etc.) where its internal paywall is intended to be displayed. See documentation for details: https://docs.apphud.com/docs/placements.
      
@@ -189,7 +189,7 @@ s
 
      - Important: This function doesn't await until inner `SKProduct`s are loaded from the App Store. That means placements may or may not have inner StoreKit products at the time you call this function.
 
-     - Important: This function will return empty array if user is not yet loaded, or placements are not set up in the Product Hub.
+     - Important: This function will return empty array if user is not yet loaded, or placements are not set up in the Mission control.
 
     To get placements with awaiting for StoreKit products, use await Apphud.placements() or
      Apphud.placementsDidLoadCallback(...) functions.
@@ -201,7 +201,7 @@ s
     }
 
     /**
-     Asynchronously retrieve a specific placement by identifier configured in Product Hub > Placements, potentially altered based on the user's involvement in A/B testing, if any. Awaits until the inner `SKProduct`s are loaded from the App Store.
+     Asynchronously retrieve a specific placement by identifier configured in Mission control > Targetings, potentially altered based on the user's involvement in A/B testing, if any. Awaits until the inner `SKProduct`s are loaded from the App Store.
 
      A placement is a specific location within a user's journey (such as onboarding, settings, etc.) where its internal paywall is intended to be displayed.
 
@@ -218,7 +218,7 @@ s
     }
 
     /**
-     Retrieves the placements configured in Product Hub > Placements, potentially altered based on the user's involvement in A/B testing, if any. Awaits until the inner `SKProduct`s are loaded from the App Store.
+     Retrieves the placements configured in Mission control > Targetings, potentially altered based on the user's involvement in A/B testing, if any. Awaits until the inner `SKProduct`s are loaded from the App Store.
 
      A placement is a specific location within a user's journey (such as onboarding, settings, etc.) where its internal paywall is intended to be displayed.
 
@@ -244,7 +244,7 @@ s
     }
 
     /**
-     Disables automatic paywall and placement requests during the SDK's initial setup. Developers must explicitly call `fetchPlacements` or `await placements()` methods at a later point in the app's lifecycle to fetch placements with inner paywalls.
+     Disables automatic app remote config, paywall and placement requests during the SDK's initial setup. Developers must explicitly call `fetchPlacements` or `await placements()` methods at a later point in the app's lifecycle to fetch placements with inner paywalls.
      
      Example:
      
@@ -268,8 +268,8 @@ s
 
      - Important: Observer mode only. Call this method immediately before your custom purchase method.
 
-     - parameter paywallIdentifier: Required. The Paywall ID from Apphud Product Hub > Paywalls.
-     - parameter placementIdentifier: Optional. The Placement ID from Apphud Product Hub > Placements if using placements; otherwise, pass `nil`.
+     - parameter paywallIdentifier: Required. The Paywall ID from Apphud Mission control> Paywalls.
+     - parameter placementIdentifier: Optional. The Placement ID from Apphud Mission control > Placements if using placements; otherwise, pass `nil`.
 
      Example usage:
      ```swift
@@ -294,7 +294,7 @@ s
     /**
      Fetches product structures (`Product` structs) asynchronously from the App Store. This method throws an error if there is a problem in fetching the products.
 
-     - Returns: An array of `Product` structs. Ensure that you have added the product identifiers in the Apphud dashboard (Apphud > Product Hub > Products) for this method to return valid results.
+     - Returns: An array of `Product` structs. Ensure that you have added the product identifiers in the Apphud dashboard (Apphud > Product hub) for this method to return valid results.
 
      - Throws: An error if the products could not be fetched successfully.
      */
@@ -308,10 +308,10 @@ s
     }
 
     /**
-     Fetches `SKProduct` objects asynchronously from the App Store. This method is used to retrieve the products that you have configured in the Apphud dashboard (Apphud > Product Hub > Products).
+     Fetches `SKProduct` objects asynchronously from the App Store. This method is used to retrieve the products that you have configured in the Apphud dashboard (Apphud > Product hub).
      - parameter maxAttempts: Number of request attempts before throwing an error. Must be between 1 and 10. Default value is 3.
      
-     - Returns: An array of `SKProduct` objects corresponding to the products added in the Apphud > Product Hub > Products section.
+     - Returns: An array of `SKProduct` objects corresponding to the products added in the Apphud > Product hub section.
      */
     @objc public static func fetchSKProducts(maxAttempts: Int = APPHUD_DEFAULT_RETRIES) async -> [SKProduct] {
         await withUnsafeContinuation { continuation in
@@ -320,22 +320,22 @@ s
     }
 
     /**
-     Retrieves an array of existing `SKProduct` objects or fetches products from the App Store that have been added in the Apphud Dashboard under Product Hub > Products.
+     Retrieves an array of existing `SKProduct` objects or fetches products from the App Store that have been added in the Apphud Dashboard under Product hub.
 
      - parameter maxAttempts: Number of request attempts before throwing an error. Must be between 1 and 10. Default value is 3.
      - parameter callback: A closure that is called upon completion. It returns an array of `SKProduct` objects and an optional `Error` if the fetch operation encountered any issues.
      - Returns: The method doesn't return a value directly but instead provides the result through the `callback` parameter.
 
-     - Important: Best practice is to manage products using placements configurations in the Apphud Product Hub > Placements, rather than directly fetching products. Implementing placements logic via the dashboard allows for more organized and scalable management of your app's placements and paywalls.
+     - Important: Best practice is to manage products using placements configurations in the Apphud Mission control > Targetings, rather than directly fetching products. Implementing placements logic via the dashboard allows for more organized and scalable management of your app's placements and paywalls.
      */
     @objc public static func fetchProducts(maxAttempts: Int = APPHUD_DEFAULT_RETRIES, _ callback: @escaping ([SKProduct], Error?) -> Void) {
         ApphudInternal.shared.refreshStoreKitProductsWithCallback(maxAttempts: maxAttempts, callback: callback)
     }
 
     /**
-     Retrieves an array of `SKProduct` objects that were added in the Apphud dashboard (Apphud > Product Hub > Products). This property returns `nil` if the products have not been fetched from the App Store yet.
+     Retrieves an array of `SKProduct` objects that were added in the Apphud dashboard (Apphud > Product hub). This property returns `nil` if the products have not been fetched from the App Store yet.
 
-     - Note: This method returns `nil` if the products have not yet been fetched from the App Store. To ensure functionality, configure Product Hub in Apphud.
+     - Note: This method returns `nil` if the products have not yet been fetched from the App Store. To ensure functionality, configure Product hub in Apphud.
 
      - Important: As a best practice, instead of using this method directly, implement your paywall logic through the Apphud Dashboard for more effective paywall management and to leverage Apphud's functionalities.
      */
@@ -349,13 +349,13 @@ s
     }
 
     /**
-     Retrieves an `SKProduct` object based on its product identifier. This method is used to access product details for items you've added in the Apphud Dashboard under Product Hub > Products.
+     Retrieves an `SKProduct` object based on its product identifier. This method is used to access product details for items you've added in the Apphud Dashboard under Product hub.
 
      - parameter productIdentifier: The unique identifier for the product. Ensure this identifier matches one added in the Apphud Dashboard.
      - Returns: An optional `SKProduct` object corresponding to the provided identifier. Returns `nil` if the product has not been fetched from the App Store yet.
 
      - Note: This method will return `nil` if the product associated with the given identifier has not yet been fetched from the App Store. Ensure that your product identifiers are correctly set up in the App Store Connect and Apphud Dashboard.
-     - Important: Best practice is to manage and retrieve products through placements configurations added in the Apphud Dashboard under Product Hub > Placements. Direct use of this method is discouraged in favor of a more structured approach to managing your app's placements and paywalls.
+     - Important: Best practice is to manage and retrieve products through placements configurations added in the Apphud Dashboard under Mission control > Targetings. Direct use of this method is discouraged in favor of a more structured approach to managing your app's placements and paywalls.
      */
     @objc public static func product(productIdentifier: String) -> SKProduct? {
         ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == productIdentifier})
@@ -373,7 +373,7 @@ s
     }
 
     /**
-     Asynchronously fetches permission groups configured in the Apphud > Product Hub. Note that this method may return an empty array at the first app launch until products are loaded. Groups are cached on the device.
+     Asynchronously fetches permission groups configured in the Apphud > Product hub. Note that this method may return an empty array at the first app launch until products are loaded. Groups are cached on the device.
 
      - Returns: An optional array of `ApphudGroup` objects, representing the permission groups.
      */
@@ -390,7 +390,7 @@ s
     /**
      Initiates the purchase of an `ApphudProduct` object from an `ApphudPaywall` and optionally from `ApphudPlacement` and automatically submits the App Store Receipt to Apphud.
 
-     - parameter product: Required. An `ApphudProduct` object from your `ApphudPaywall`. Configure placements and paywalls in Apphud Dashboard > Product Hub before using.
+     - parameter product: Required. An `ApphudProduct` object from your `ApphudPaywall`. Configure placements and paywalls in Apphud Dashboard > Product hub before using.
      - parameter callback: Optional. Returns an `ApphudPurchaseResult` object.
      - Note: You can purchase products using your own code; Apphud will still receive the App Store receipt.
      */
@@ -405,7 +405,7 @@ s
      - parameter productId: Required. The identifier of the product to purchase.
      - parameter callback: Optional. Returns an `ApphudPurchaseResult` object.
      - Note: A/B Experiments will not work with this method. Use `ApphudProduct` objects with Placements for A/B experiments.
-     - Important: Best practice is to use Apphud Placements configured in Apphud Dashboard > Product Hub > Placements.
+     - Important: Best practice is to use Apphud Placements configured in Apphud Dashboard > Mission control > Targetings.
      */
     @MainActor @objc(purchaseById:callback:)
     public static func purchase(_ productId: String, callback: ((ApphudPurchaseResult) -> Void)?) {
@@ -434,7 +434,7 @@ s
     /**
      Initiates an asynchronous purchase of an `ApphudProduct` object from an `ApphudPaywall` and automatically submits the App Store Receipt to Apphud.
 
-     - parameter product: Required. An `ApphudProduct` object from your `ApphudPaywall`. Configure placements and paywalls in Apphud Dashboard > Product Hub before using.
+     - parameter product: Required. An `ApphudProduct` object from your `ApphudPaywall`. Configure placements and paywalls in Apphud Dashboard > Mission control before using.
      - parameter isPurchasing: Optional. A binding to a Boolean value indicating the purchase process status. Useful in SwiftUI.
      - Returns: An `ApphudPurchaseResult` object.
      */
@@ -942,6 +942,12 @@ s
         ApphudInternal.shared.tryWebAttribution(attributionData: data, completion: callback)
     }
     
+    /**
+     Attempts to attribute the user using a recently opened deep link, if available.
+
+     If a matching deep link click is found, the callback returns the associated attribution data.
+     Otherwise, the callback returns `nil`.
+     */
     @MainActor
     public static func attributeFromDeeplink(callback: @escaping (([String: Any]?) -> Void)) {
         ApphudInternal.shared.tryDeeplinkAttribution(completion: callback)
@@ -1043,9 +1049,6 @@ s
     @objc public static func isSandbox() -> Bool {
         return apphudIsSandbox()
     }
-
-    @available(*, unavailable, message: "No longer needed. Purchases migrate automatically. Just remove this code.")
-    @MainActor public static func migratePurchasesIfNeeded(callback: @escaping ([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void) {}
 
     /**
      Override default paywalls and placements cache timeout value. Default cache value is 9000 seconds (25 hours).

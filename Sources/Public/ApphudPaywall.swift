@@ -15,7 +15,7 @@ import ObjectiveC
 #endif
 
 /**
- An enumeration for commonly used paywall identifiers in Apphud. Ensure that the identifiers used here match those in the Apphud Product Hub -> Paywalls section. This enum facilitates the retrieval of specific paywall configurations in your code.
+ An enumeration for commonly used paywall identifiers in Apphud. Ensure that the identifiers used here match those in the Apphud Mission control -> Paywalls section. This enum facilitates the retrieval of specific paywall configurations in your code.
  ```swift
  let paywall = await Apphud.paywall(ApphudPaywallID.onboarding.rawValue)
  ```
@@ -33,7 +33,7 @@ public enum ApphudPaywallID: String {
 /**
  An object associated with purchases container (Paywall).
  
- Paywalls configured in Apphud Dashboard > Product Hub > Paywalls. Each paywall contains an array of `ApphudProduct` objects that you use for purchase. A paywall is a product array with custom JSON. The array is ordered and may be used to display products on your in-app purchase screen.
+ Paywalls configured in Apphud Dashboard > Mission control > Paywalls. Each paywall contains an array of `ApphudProduct` objects that you use for purchase. A paywall is a product array with custom JSON. The array is ordered and may be used to display products on your in-app purchase screen.
  
  #### Related Articles:
  To get paywall by identifier :

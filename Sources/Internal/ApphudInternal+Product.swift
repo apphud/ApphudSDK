@@ -41,7 +41,7 @@ extension ApphudInternal {
                     await self.continueToFetchStoreKitProducts(maxAttempts: maxAttempts)
                 }
             } else {
-                // no paywalls added in Product Hub, or they don't contain any products. Do nothing.
+                // no paywalls added in Product hub, or they don't contain any products. Do nothing.
                 callback(error)
             }
         }
