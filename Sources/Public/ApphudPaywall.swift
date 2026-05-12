@@ -64,25 +64,19 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
     @objc public internal(set) var isDefault: Bool
 
     /**
-     A/B test experiment name.
-
-     Returns the value sent at the paywall level by the legacy backend response.
-     If absent, falls back to the experiment name on the current `ApphudUser`.
+     A/B test name, if this paywall and its parent placement are part of an A/B test.
      */
     @MainActor
     @objc public var experimentName: String? {
-        paywallExperimentName ?? ApphudInternal.shared.currentUser?.experimentName
+        paywallExperimentName
     }
 
     /**
-     A/B Experiment Variation Name.
-
-     Returns the value sent at the paywall level by the legacy backend response.
-     If absent, falls back to the variation name on the current `ApphudUser`.
+     A/B test variation name, if this paywall and its parent placement are part of an A/B test.
      */
     @MainActor
     @objc public var variationName: String? {
-        paywallVariationName ?? ApphudInternal.shared.currentUser?.variationName
+        paywallVariationName
     }
 
     private var paywallExperimentName: String?
