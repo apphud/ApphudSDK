@@ -422,8 +422,8 @@ s
     #if os(iOS) || os(tvOS) || os(macOS) || os(watchOS)
     @MainActor
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
-    public static func purchase(_ product: Product, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
-        await ApphudAsyncStoreKit.shared.purchase(product: product, apphudProduct: apphudProductFor(product), isPurchasing: isPurchasing)
+    public static func purchase(_ product: Product, prefersCommitmentPlan: Bool = false,  isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
+        await ApphudAsyncStoreKit.shared.purchase(product: product, commitmentPlan: prefersCommitmentPlan, apphudProduct: apphudProductFor(product), isPurchasing: isPurchasing)
     }
     #else
     @MainActor

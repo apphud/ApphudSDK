@@ -30,6 +30,11 @@ public class ApphudPurchaseResult: NSObject {
      Transaction from StoreKit. May be nil, if no transaction made. For example, if couldn't sign promo offer or couldn't get App Store receipt.
      */
     @objc public let transaction: SKPaymentTransaction?
+    
+    /**
+     Transaction from StoreKit2. May be nil, if no transaction made.
+     */
+    public let transactionV2: Transaction?
 
     /**
      This error can be of three types. Check for error class.
@@ -57,18 +62,19 @@ public class ApphudPurchaseResult: NSObject {
 
     // MARK: - Private methods
 
-    init(_ subscription: ApphudSubscription?, _ purchase: ApphudNonRenewingPurchase?, _ transaction: SKPaymentTransaction?, _ error: Error?) {
+    init(_ subscription: ApphudSubscription?, _ purchase: ApphudNonRenewingPurchase?, _ transaction: SKPaymentTransaction?, _ error: Error?, _ transactionV2: Transaction? = nil) {
         self.subscription = subscription
         self.nonRenewingPurchase = purchase
         self.transaction = transaction
         self.error = error
+        self.transactionV2 = transactionV2
     }
 
     public override var description: String {
         """
             ApphudPurchaseResult:
-        \ntransaction_id = \(transaction?.transactionIdentifier ?? "")
-        \nproduct_id = \(transaction?.payment.productIdentifier ?? "")
+        \ntransaction_id = \(transaction?.transactionIdentifier ?? transactionV2?.appTransactionID ?? "")
+        \nproduct_id = \(transaction?.payment.productIdentifier ?? transactionV2?.productID ?? "")
         \nsubscription status = \( subscription != nil ? subscription!.isActive().description : "nil")
         \nnon renewing purchase status = \( nonRenewingPurchase != nil ? nonRenewingPurchase!.isActive().description : "nil")
         \nerror = \(error?.localizedDescription ?? "nil")

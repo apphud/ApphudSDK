@@ -156,7 +156,7 @@ public struct ApphudUser: Codable {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         
         self.paywalls = try? values.decode([ApphudPaywall].self, forKey: .paywalls)
-        self.placements = try? values.decode([ApphudPlacement].self, forKey: .placements)
+        self.placements = try values.decodeIfPresent([ApphudPlacement].self, forKey: .placements)
         self.userId = try values.decode(String.self, forKey: .userId)
         self.internalId = (try? values.decodeIfPresent(String.self, forKey: .internalId)) ?? ""
 

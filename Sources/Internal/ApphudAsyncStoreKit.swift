@@ -79,11 +79,20 @@ internal class ApphudAsyncStoreKit {
     }
 
     @MainActor
-    internal func purchaseResult(product: Product, _ scene: Any? = nil, apphudProduct: ApphudProduct?, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
+    internal func purchaseResult(product: Product, _ scene: Any? = nil, commitmentPlan: Bool, apphudProduct: ApphudProduct?, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
         self.isPurchasing = true
         await productsStorage.append(product)
         isPurchasing?.wrappedValue = true
+                
         var options = Set<Product.PurchaseOption>()
+        
+        if #available(iOS 26.4, *) {
+            let isSupported = await product.isCommitmentPlanSupported()
+            if commitmentPlan && isSupported {
+                options.insert(.billingPlanType(.monthly))
+            }
+        }
+        
         if let uuidString = ApphudStoreKitWrapper.shared.appropriateApplicationUsername(), let uuid = UUID(uuidString: uuidString) {
             options.insert(.appAccountToken(uuid))
         }
@@ -156,8 +165,8 @@ internal class ApphudAsyncStoreKit {
 
     #if os(iOS) || os(tvOS) || os(macOS) || os(watchOS)
     @MainActor
-    func purchase(product: Product, apphudProduct: ApphudProduct?, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
-        return await purchaseResult(product: product, apphudProduct: apphudProduct, isPurchasing: isPurchasing)
+    func purchase(product: Product, commitmentPlan: Bool = false, apphudProduct: ApphudProduct?, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
+        return await purchaseResult(product: product, commitmentPlan: commitmentPlan, apphudProduct: apphudProduct, isPurchasing: isPurchasing)
     }
     #else
     @MainActor

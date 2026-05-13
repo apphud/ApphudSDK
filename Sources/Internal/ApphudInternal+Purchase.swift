@@ -519,6 +519,15 @@ extension ApphudInternal {
         ApphudLoggerService.shared.paywallCheckoutInitiated(apphudProduct: apphudProduct, productId: product.productIdentifier, screenId: screenId)
 
         purchasingProduct = apphudProduct
+        
+        let commitmentPlanPreferred = apphudProduct?.isCommitmentPlanPreferred() ?? false
+        
+        if commitmentPlanPreferred && apphudProduct != nil {
+            Task { @MainActor in
+                await self.purchaseAsync(apphudProduct: apphudProduct!, commitmentPlan: true, fromScreen: fromScreen, callback: callback)
+            }
+            return
+        }
 
         ApphudStoreKitWrapper.shared.purchase(product: product, value: value) { transaction, error in
 
@@ -534,6 +543,16 @@ extension ApphudInternal {
                     callback?(ApphudPurchaseResult(nil, nil, transaction, error))
                 }
             }
+        }
+    }
+    
+    private func purchaseAsync(apphudProduct: ApphudProduct, commitmentPlan: Bool, fromScreen: Bool, value: Double? = nil, callback: ((ApphudPurchaseResult) -> Void)?) async {
+        if let product = try? await apphudProduct.product() {
+            let result: ApphudAsyncPurchaseResult = await ApphudAsyncStoreKit.shared.purchase(product: product, commitmentPlan: commitmentPlan, apphudProduct: apphudProduct)
+            let resultV2 = ApphudPurchaseResult(result.subscription, result.nonRenewingPurchase, nil, result.error, result.transaction)
+            callback?(resultV2)
+        } else {
+            callback?(ApphudPurchaseResult(nil, nil, nil, ApphudError(message: "Failed to retrieve product information")))
         }
     }
 
