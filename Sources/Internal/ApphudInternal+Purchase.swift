@@ -103,7 +103,7 @@ extension ApphudInternal {
             let isRecentlyPurchased: Bool = purchaseDate > Date().addingTimeInterval(-600)
             return await withUnsafeContinuation { continuation in
                 performWhenUserRegistered {
-                    apphudLog("Submitting transaction \(transactionId), \(productID) from StoreKit2..")
+                    apphudLog("Submitting transaction \(transactionId), \(productID) from StoreKit2.. Is recently purchased: \(isRecentlyPurchased)")
 
                     var trx = self.lastUploadedTransactions
                     trx.append(transactionId)
@@ -522,9 +522,9 @@ extension ApphudInternal {
         
         let commitmentPlanPreferred = apphudProduct?.isCommitmentPlanPreferred() ?? false
         
-        if commitmentPlanPreferred && apphudProduct != nil {
+        if commitmentPlanPreferred && apphudProduct != nil || ApphudUtils.shared.useStoreKitV2 {
             Task { @MainActor in
-                await self.purchaseAsync(apphudProduct: apphudProduct!, commitmentPlan: true, fromScreen: fromScreen, callback: callback)
+                await self.purchaseAsync(apphudProduct: apphudProduct, productId: product.productIdentifier, commitmentPlan: true, fromScreen: fromScreen, callback: callback)
             }
             return
         }
@@ -546,8 +546,13 @@ extension ApphudInternal {
         }
     }
     
-    private func purchaseAsync(apphudProduct: ApphudProduct, commitmentPlan: Bool, fromScreen: Bool, value: Double? = nil, callback: ((ApphudPurchaseResult) -> Void)?) async {
-        if let product = try? await apphudProduct.product() {
+    private func purchaseAsync(apphudProduct: ApphudProduct?, productId: String?, commitmentPlan: Bool, fromScreen: Bool, value: Double? = nil, callback: ((ApphudPurchaseResult) -> Void)?) async {
+        var product = try? await apphudProduct?.product()
+        if product == nil && productId != nil {
+            product = try? await Product.products(for: [productId!]).first
+        }
+        
+        if let product {
             let result: ApphudAsyncPurchaseResult = await ApphudAsyncStoreKit.shared.purchase(product: product, commitmentPlan: commitmentPlan, apphudProduct: apphudProduct)
             let resultV2 = ApphudPurchaseResult(result.subscription, result.nonRenewingPurchase, nil, result.error, result.transaction)
             callback?(resultV2)
