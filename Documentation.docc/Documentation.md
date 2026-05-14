@@ -1,37 +1,35 @@
 # ``ApphudSDK``
 
-Apphud is an all-in-one infrastructure for your app growth. Apphud helps marketing and product management teams make the right decisions based on data and tools. 
+Apphud is an all-in-one growth infrastructure for subscription apps, giving marketing and product teams the data and tools they need to make better decisions.
 
-  * [Subscriptions Infrastructure](https://docs.apphud.com/docs/ios) - Integrate in-app purchases and subscriptions in your mobile app in 2 lines of code. No server code required. Apphud works with all apps on iOS, iPadOS, macOS, tvOS, watchOS and Android. Cross-platform support out of the box.
-  * [Real-time Revenue Analytics](https://docs.apphud.com/docs/dashboard) - View key subscription metrics in our dashboard and charts, like MRR, Subscriber Retention (Cohorts), Churn rate, ARPU, Trial Conversions, Proceeds, Refunds, etc.
-  * [Integrations](https://docs.apphud.com/docs/appsflyer) - Send subscription events to your favorite third party platforms with automatic currency conversion. Choose from 18 integrations, including: AppsFlyer, Adjust, Branch, Firebase, Amplitude, Mixpanel, OneSignal, Facebook, TikTok, and more. Custom Server-to-Server webhooks and APIs are also available.
-  * [A/B Experiments](https://docs.apphud.com/docs/experiments) - Test different in-app purchases and paywalls. Run experiments to find the best combination of prices and purchase screen parameters that maximize ROI.
-  * [Paywall Screens (Beta)](https://docs.apphud.com/docs/paywall-screens) - Design fully customizable paywalls in Figma and display them in your app using our SDK — all without writing a single line of HTML or native UI code. Create beautiful paywall designs with the flexibility of design tools like Figma, combined with the performance and user experience of native paywalls.
-  * [Web-to-App](https://docs.apphud.com/docs/web-to-app-solution) - This solution overcomes IDFA limitations in the post iOS 14.5 era. Using this solution, you can run paid campaigns on Facebook or TikTok and get real-time attribution with nearly 100% accuracy.
-  * [Rules](https://docs.apphud.com/docs/rules) - Apphud can win back lapsed subscribers, reduce churn rate, get cancellation insights, send push notifications and much more using the mechanics below. These mechanics are called Rules. Choose between manual, scheduled and automated rules. Use our visual web editor to create your custom screen or screen sequence for Rules, and analyze user stats from every created screen.
-
-
+  * [Subscriptions Infrastructure](https://docs.apphud.com/docs/ios) — Integrate in-app purchases and subscriptions with just two lines of code. No server-side code required. Cross-platform support for iOS, iPadOS, macOS, tvOS, watchOS, visionOS and Android out of the box.
+  * [Real-time Revenue Analytics](https://docs.apphud.com/docs/dashboard) — Track every key subscription metric in one place: MRR, subscriber retention (cohorts), churn rate, ARPU, trial conversions, proceeds, refunds, and more.
+  * [Integrations](https://docs.apphud.com/docs/appsflyer) — Forward subscription events to your favorite third-party platforms with automatic currency conversion. Choose from 18 integrations including AppsFlyer, Adjust, Branch, Firebase, Amplitude, Mixpanel, OneSignal, Facebook, and TikTok. Custom server-to-server webhooks and APIs are also supported.
+  * [A/B Experiments](https://docs.apphud.com/docs/experiments) — Test different in-app purchases and paywalls. Run experiments to find the combination of prices and paywall parameters that maximizes ROI.
+  * [Paywall Screens](https://docs.apphud.com/docs/paywall-screens) — Design fully customizable paywalls in Figma and render them natively in your app — no HTML or hand-written UI code required. You get the flexibility of a design tool with the performance and feel of a native paywall.
+  * [Web-to-App](https://docs.apphud.com/docs/web-to-app-solution) — Overcome post-iOS 14.5 IDFA limitations. Run paid campaigns on Facebook or TikTok and attribute installs in real time with near 100% accuracy.
+  * [Rules](https://docs.apphud.com/docs/rules) — Win back lapsed subscribers, reduce churn, capture cancellation insights, and send push notifications using Rules. Choose between manual, scheduled and automated rules, build the screens with our visual web editor, and analyze user stats for every screen you ship.
 
 Sign up [for free](https://app.apphud.com).
 
 ### The easiest way to integrate in-app subscriptions
 
-Apphud provides ready-to-use infrastructure for all kinds of in-app purchases: subscriptions, consumables and non-consumables. Integrate Apphud SDK and implement 3 lines of code:
+Apphud provides ready-to-use infrastructure for every kind of in-app purchase — subscriptions, consumables and non-consumables. Three lines of code is all you need to get started:
 
 ```swift
 // Init SDK
 Apphud.start(apiKey: "api_key")
 
-// Get Placement by Identifier, and then get it's paywall
+// Get a placement by identifier, then access its paywall
 let placement = await Apphud.placement("onboarding")
 
-// Purchase product from the paywall
+// Purchase a product from the paywall
 let result = await Apphud.purchase(product)
 ```
 
 ### Pre-designed Paywall Screens
 
-Apphud SDK provides a powerful feature that allows you to show beautifully designed paywall screens directly in your app without any additional UI development. These screens are created and configured in the Apphud dashboard and can be fetched and displayed with just a few lines of code:
+Apphud SDK can render fully designed paywall screens straight from the Apphud dashboard, with no additional UI work in your app. Fetch and present them in just a few lines of code:
 
 ```swift
 // Preload paywall screens for faster presentation
@@ -61,11 +59,42 @@ do {
 }
 ```
 
-This feature enables you to:
-- Create beautiful paywall designs without coding
-- A/B test different paywall layouts and content
-- Update paywall designs remotely without app updates
-- Support multiple paywall variations for different user segments
+With paywall screens you can:
+- Build beautiful paywalls without writing UI code
+- A/B test different layouts and copy
+- Update designs over the air, with no app release
+- Tailor paywall variations to different user segments
+
+### Remote Config & Experiments
+
+Apphud lets you ship app-level remote configuration and A/B-test variations from the dashboard. The current user exposes the assigned experiment, variation and config payload, so you can branch your UI or business logic without shipping a new build.
+
+```swift
+guard let user = Apphud.currentUser() else { return }
+
+// App-level remote config, parsed as a JSON dictionary
+let config = user.remoteConfig()
+if let theme = config["onboarding_theme"] as? String {
+    applyTheme(theme)
+}
+
+// Or read the raw JSON string directly
+let raw = user.remoteConfigString
+
+// Active A/B experiment and variation, if any
+if let experiment = user.experimentName,
+   let variation = user.variationName {
+    Analytics.track("ab_assignment", [
+        "experiment": experiment,
+        "variation": variation
+    ])
+}
+
+// Number of devices associated with the same userId — handy for spotting account sharing
+if user.totalDevicesCount > 5 {
+    // limit premium features, prompt re-authentication, etc.
+}
+```
 
 ## Topics
 
@@ -81,6 +110,7 @@ Here are some primary methods:
 - ``Apphud/updateUserID(_:callback:)``
 - ``Apphud/userID()``
 - ``Apphud/deviceID()``
+- ``Apphud/currentUser()``
 - ``Apphud/logout()``
 - ``Apphud/refreshUserData(callback:)``
 
@@ -127,6 +157,7 @@ Here are some primary methods:
 - ``Apphud/forceFlushUserProperties(completion:)``
 - ``Apphud/setAttribution(data:from:identifer:callback:)``
 - ``Apphud/attributeFromWeb(data:callback:)``
+- ``Apphud/attributeFromDeeplink(callback:)``
 - ``Apphud/setDeviceIdentifiers(idfa:idfv:)``
 
 #### Eligibility & Offers
