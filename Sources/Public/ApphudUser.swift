@@ -43,6 +43,13 @@ public struct ApphudUser: Codable {
      `nil` when no variation is assigned.
      */
     public let variationName: String?
+
+    /**
+     Name of the targeting (audience) that this user is assigned to.
+
+     `nil` when no targeting is assigned.
+     */
+    public let targetingName: String?
     
     /**
      Global app-level remote configuration payload for the active user variation.
@@ -123,8 +130,9 @@ public struct ApphudUser: Codable {
     private struct ApphudScheme: Codable {
         let experiment: Experiment?
         let name: String?
+        let variationName: String?
         let remoteConfig: String?
-        
+
         struct Experiment: Codable {
             let name: String?
         }
@@ -136,6 +144,7 @@ public struct ApphudUser: Codable {
     internal struct CachedSchemeFallback: Sendable {
         let experimentName: String?
         let variationName: String?
+        let targetingName: String?
         let remoteConfigString: String?
     }
 
@@ -148,6 +157,7 @@ public struct ApphudUser: Codable {
         CachedSchemeFallback(
             experimentName: experimentName,
             variationName: variationName,
+            targetingName: targetingName,
             remoteConfigString: remoteConfigString
         )
     }
@@ -216,7 +226,8 @@ public struct ApphudUser: Codable {
 
         if let scheme {
             self.experimentName = scheme.experiment?.name
-            self.variationName = scheme.name
+            self.variationName = scheme.variationName
+            self.targetingName = scheme.name
             self.remoteConfigString = scheme.remoteConfig
         } else {
             // `scheme` may be omitted from the response. Preserve previously cached
@@ -224,6 +235,7 @@ public struct ApphudUser: Codable {
             let fallback = decoder.userInfo[ApphudUser.cachedSchemeCodingKey] as? CachedSchemeFallback
             self.experimentName = fallback?.experimentName
             self.variationName = fallback?.variationName
+            self.targetingName = fallback?.targetingName
             self.remoteConfigString = fallback?.remoteConfigString
         }
     }
@@ -244,7 +256,8 @@ public struct ApphudUser: Codable {
         
         let scheme = ApphudScheme(
             experiment: ApphudScheme.Experiment(name: experimentName),
-            name: variationName,
+            name: targetingName,
+            variationName: variationName,
             remoteConfig: remoteConfigString
         )
         try? container.encode(scheme, forKey: .scheme)
@@ -261,6 +274,7 @@ public struct ApphudUser: Codable {
         self.totalDevicesCount = 0
         self.experimentName = nil
         self.variationName = nil
+        self.targetingName = nil
         self.remoteConfigString = nil
     }
 
