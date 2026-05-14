@@ -519,15 +519,17 @@ extension ApphudInternal {
         ApphudLoggerService.shared.paywallCheckoutInitiated(apphudProduct: apphudProduct, productId: product.productIdentifier, screenId: screenId)
 
         purchasingProduct = apphudProduct
-        
+
+        #if os(iOS) || os(tvOS) || os(macOS) || os(watchOS)
         let commitmentPlanPreferred = apphudProduct?.isCommitmentPlanPreferred() ?? false
-        
+
         if (commitmentPlanPreferred && apphudProduct != nil) || ApphudUtils.shared.useStoreKitV2 {
             Task { @MainActor in
                 await self.purchaseAsync(apphudProduct: apphudProduct, productId: product.productIdentifier, commitmentPlan: commitmentPlanPreferred, fromScreen: fromScreen, value: value, callback: callback)
             }
             return
         }
+        #endif
 
         ApphudStoreKitWrapper.shared.purchase(product: product, value: value) { transaction, error in
 
@@ -546,6 +548,7 @@ extension ApphudInternal {
         }
     }
     
+    #if os(iOS) || os(tvOS) || os(macOS) || os(watchOS)
     private func purchaseAsync(apphudProduct: ApphudProduct?, productId: String?, commitmentPlan: Bool, fromScreen: Bool, value: Double? = nil, callback: ((ApphudPurchaseResult) -> Void)?) async {
         var product = try? await apphudProduct?.product()
         if product == nil, let productId {
@@ -567,6 +570,7 @@ extension ApphudInternal {
         let resultV2 = ApphudPurchaseResult(result.subscription, result.nonRenewingPurchase, nil, result.error, transactionV2: result.transaction)
         callback?(resultV2)
     }
+    #endif
 
     private func purchasePromo(skProduct: SKProduct, product: ApphudProduct?, discount: SKPaymentDiscount, fromScreen: Bool, callback: ((ApphudPurchaseResult) -> Void)?) {
 
