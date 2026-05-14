@@ -261,6 +261,14 @@ extension ApphudInternal {
     }
 
     @MainActor
+    internal func tryDeeplinkAttribution(completion: @escaping ([String: Any]?) -> Void) {
+        httpClient?.startRequest(path: .attributionDeeplink, apiVersion: .APIV2, params: ["device_id": currentDeviceID, "bundle_id": Bundle.main.bundleIdentifier ?? ""], method: .post, useDecoder: false, retry: false, requestID: nil) { done, response, data, error, errorCode, duration, attempts in
+            apphudLog("response: \(String(describing: response))")
+            completion(response)
+        }
+    }
+    
+    @MainActor
     internal func tryWebAttribution(attributionData: [AnyHashable: Any], completion: @escaping (Bool, ApphudUser?) -> Void) {
 
         let userId = (attributionData["aph_user_id"] ?? attributionData["apphud_user_id"]) as? String ?? ""

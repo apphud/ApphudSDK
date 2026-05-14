@@ -15,7 +15,7 @@ import ObjectiveC
 #endif
 
 /**
- An enumeration for commonly used paywall identifiers in Apphud. Ensure that the identifiers used here match those in the Apphud Product Hub -> Paywalls section. This enum facilitates the retrieval of specific paywall configurations in your code.
+ An enumeration for commonly used paywall identifiers in Apphud. Ensure that the identifiers used here match those in the Apphud Mission control -> Paywalls section. This enum facilitates the retrieval of specific paywall configurations in your code.
  ```swift
  let paywall = await Apphud.paywall(ApphudPaywallID.onboarding.rawValue)
  ```
@@ -33,7 +33,7 @@ public enum ApphudPaywallID: String {
 /**
  An object associated with purchases container (Paywall).
  
- Paywalls configured in Apphud Dashboard > Product Hub > Paywalls. Each paywall contains an array of `ApphudProduct` objects that you use for purchase. A paywall is a product array with custom JSON. The array is ordered and may be used to display products on your in-app purchase screen.
+ Paywalls configured in Apphud Dashboard > Mission control > Paywalls. Each paywall contains an array of `ApphudProduct` objects that you use for purchase. A paywall is a product array with custom JSON. The array is ordered and may be used to display products on your in-app purchase screen.
  
  #### Related Articles:
  To get paywall by identifier :
@@ -64,14 +64,21 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
     @objc public internal(set) var isDefault: Bool
 
     /**
-     A/B test experiment name
+     A/B test name, if this paywall and its parent placement are part of an A/B test.
      */
-    @objc public var experimentName: String?
+    @objc public var experimentName: String? {
+        paywallExperimentName
+    }
 
     /**
-     A/B Experiment Variation Name
+     A/B test variation name, if this paywall and its parent placement are part of an A/B test.
      */
-    @objc public var variationName: String?
+    @objc public var variationName: String? {
+        paywallVariationName
+    }
+
+    private var paywallExperimentName: String?
+    private var paywallVariationName: String?
 
     /**
      Represents the identifier of a parent paywall from which an experiment variation was derived in A/B Experiments. This property is populated only if the 'Use existing paywall' option was selected during the setup of the experiment variation.
@@ -212,8 +219,8 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         id = try values.decode(String.self, forKey: .id)
         name = try values.decode(String.self, forKey: .name)
-        experimentName = try? values.decode(String.self, forKey: .experimentName)
-        variationName = try? values.decode(String.self, forKey: .variationName)
+        paywallExperimentName = try? values.decode(String.self, forKey: .experimentName)
+        paywallVariationName = try? values.decode(String.self, forKey: .variationName)
         variationIdentifier = try? values.decode(String.self, forKey: .variationIdentifier)
         experimentId = try? values.decode(String.self, forKey: .experimentId)
         parentPaywallIdentifier = try? values.decode(String.self, forKey: .parentPaywallIdentifier)
@@ -227,8 +234,8 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
-        try? container.encode(experimentName, forKey: .experimentName)
-        try? container.encode(variationName, forKey: .variationName)
+        try? container.encode(paywallExperimentName, forKey: .experimentName)
+        try? container.encode(paywallVariationName, forKey: .variationName)
         try? container.encode(variationIdentifier, forKey: .variationIdentifier)
         try? container.encode(experimentId, forKey: .experimentId)
         try? container.encode(parentPaywallIdentifier, forKey: .parentPaywallIdentifier)

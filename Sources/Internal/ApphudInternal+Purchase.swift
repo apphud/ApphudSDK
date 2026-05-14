@@ -64,7 +64,7 @@ extension ApphudInternal {
     }
 
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
-    @discardableResult internal func handleTransaction(_ transaction: StoreKit.Transaction) async -> Bool {
+    @discardableResult internal func handleTransaction(_ transaction: StoreKit.Transaction, fromScreen: Bool = false) async -> Bool {
         let transactionId = transaction.id
         let refundDate = transaction.revocationDate
         let expirationDate = transaction.expirationDate
@@ -100,10 +100,10 @@ extension ApphudInternal {
 
             let product = await ApphudStoreKitWrapper.shared.fetchProduct(productID)
             let receipt = await appStoreReceipt()
-            let isRecentlyPurchased: Bool = purchaseDate > Date().addingTimeInterval(-600)
+            let isRecentlyPurchased: Bool = purchaseDate > Date().addingTimeInterval(-3600)
             return await withUnsafeContinuation { continuation in
                 performWhenUserRegistered {
-                    apphudLog("Submitting transaction \(transactionId), \(productID) from StoreKit2..")
+                    apphudLog("Submitting transaction \(transactionId), \(productID) from StoreKit2.. Is recently purchased: \(isRecentlyPurchased)")
 
                     var trx = self.lastUploadedTransactions
                     trx.append(transactionId)
@@ -117,7 +117,7 @@ extension ApphudInternal {
                                            transactionState: isRecentlyPurchased ? .purchased : nil,
                                            receiptString: receipt,
                                                  notifyDelegate: true,
-                                                 fromScreen: false) { _ in
+                                                 fromScreen: fromScreen) { _ in
                             continuation.resume(returning: true)
                         }
                     }
@@ -519,6 +519,15 @@ extension ApphudInternal {
         ApphudLoggerService.shared.paywallCheckoutInitiated(apphudProduct: apphudProduct, productId: product.productIdentifier, screenId: screenId)
 
         purchasingProduct = apphudProduct
+        
+        let commitmentPlanPreferred = apphudProduct?.isCommitmentPlanPreferred() ?? false
+        
+        if (commitmentPlanPreferred && apphudProduct != nil) || ApphudUtils.shared.useStoreKitV2 {
+            Task { @MainActor in
+                await self.purchaseAsync(apphudProduct: apphudProduct, productId: product.productIdentifier, commitmentPlan: commitmentPlanPreferred, fromScreen: fromScreen, value: value, callback: callback)
+            }
+            return
+        }
 
         ApphudStoreKitWrapper.shared.purchase(product: product, value: value) { transaction, error in
 
@@ -535,6 +544,28 @@ extension ApphudInternal {
                 }
             }
         }
+    }
+    
+    private func purchaseAsync(apphudProduct: ApphudProduct?, productId: String?, commitmentPlan: Bool, fromScreen: Bool, value: Double? = nil, callback: ((ApphudPurchaseResult) -> Void)?) async {
+        var product = try? await apphudProduct?.product()
+        if product == nil, let productId {
+            product = try? await Product.products(for: [productId]).first
+        }
+
+        guard let product else {
+            callback?(ApphudPurchaseResult(nil, nil, nil, ApphudError(message: "Failed to retrieve product information")))
+            return
+        }
+
+        if let v = value {
+            ApphudStoreKitWrapper.shared.purchasingValue = ApphudCustomPurchaseValue(product.id, v)
+        } else {
+            ApphudStoreKitWrapper.shared.purchasingValue = nil
+        }
+
+        let result: ApphudAsyncPurchaseResult = await ApphudAsyncStoreKit.shared.purchase(product: product, commitmentPlan: commitmentPlan, apphudProduct: apphudProduct, fromScreen: fromScreen)
+        let resultV2 = ApphudPurchaseResult(result.subscription, result.nonRenewingPurchase, nil, result.error, transactionV2: result.transaction)
+        callback?(resultV2)
     }
 
     private func purchasePromo(skProduct: SKProduct, product: ApphudProduct?, discount: SKPaymentDiscount, fromScreen: Bool, callback: ((ApphudPurchaseResult) -> Void)?) {

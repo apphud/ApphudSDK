@@ -8,7 +8,7 @@
 import Foundation
 
 /**
- An enumeration for commonly used placement identifiers in Apphud. Ensure that the identifiers used here match those in the Apphud Product Hub -> Placements section. This enum facilitates the retrieval of specific placement configurations in your code.
+ An enumeration for commonly used placement identifiers in Apphud. Ensure that the identifiers used here match those in the Apphud Mission control -> Targetings section. This enum facilitates the retrieval of specific placement configurations in your code.
  ```swift
  let placement = await Apphud.placement(ApphudPlacementID.onboarding.rawValue)
  ```
@@ -29,7 +29,7 @@ public enum ApphudPlacementID: String {
 public class ApphudPlacement: Codable {
 
     /**
-     Placement identifier configured in Apphud Product Hub > Placements.
+     Placement identifier configured in Apphud Mission control > Placements.
      */
     public var identifier: String
 
@@ -41,9 +41,14 @@ public class ApphudPlacement: Codable {
     public var paywall: ApphudPaywall? { paywalls.first }
 
     /**
-     A/B experiment name if it's paywall, if any.
+     A/B experiment name if this placement is part of an A/B test.
      */
     public var experimentName: String? { paywall?.experimentName }
+
+    /**
+     Variation name if this placement is part of an A/B test.
+     */
+    public var variationName: String? { paywall?.variationName }
 
     /** For Internal Use
      */

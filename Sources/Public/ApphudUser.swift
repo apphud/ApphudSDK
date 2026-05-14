@@ -21,7 +21,55 @@ public struct ApphudUser: Codable {
      Unique user identifier. This can be updated later.
      */
     public let userId: String
-
+    
+    /**
+     Number of devices associated with the same `userId`.
+     
+     You can use this value to detect suspicious account sharing and decide whether to limit premium access.
+     Falls back to `0` if the backend value is unavailable.
+     */
+    public let totalDevicesCount: Int
+    
+    /**
+     Name of the active A/B test experiment assigned to this user.
+     
+     `nil` when no experiment is assigned.
+     */
+    public let experimentName: String?
+    
+    /**
+     Name of the active variation assigned to this user.
+     
+     `nil` when no variation is assigned.
+     */
+    public let variationName: String?
+    
+    /**
+     Global app-level remote configuration payload for the active user variation.
+     
+     The value is parsed from backend JSON and returned as a dictionary.
+     Returns an empty dictionary when config is missing or invalid.
+     */
+    public func remoteConfig() -> [String: Any] {
+        guard let string = remoteConfigString, let data = string.data(using: .utf8) else {
+            return [:]
+        }
+        do {
+            let dict = try JSONSerialization.jsonObject(with: data, options: .allowFragments) as? [String: Any]
+            return dict ?? [:]
+        } catch {
+            apphudLog("Failed to decode Remote Config for json string: \(remoteConfigString ?? "")")
+            return [:]
+        }
+    }
+    /**
+     The raw JSON string for the app-level remote configuration assigned to this user.
+     
+     This value is the unmodified payload received from the backend. Use it when you need
+     the exact server response, or call `remoteConfig()` to get a parsed `[String: Any]` representation.
+     */
+    public let remoteConfigString: String?
+    
     /**
      An array of subscriptions of any statuses that user has ever purchased.
      */
@@ -45,14 +93,19 @@ public struct ApphudUser: Codable {
     @MainActor public func rawPlacements() -> [ApphudPlacement] {
         ApphudInternal.shared.placements
     }
+    
+    /**
+    Internal database id of the user. Should not be used in analytics.
+     */
+    public let internalId: String
 
     internal let paywalls: [ApphudPaywall]?
     internal let placements: [ApphudPlacement]?
     internal let currency: ApphudCurrency?
-
+    
     // MARK: - Initializer Methods
 
-    enum CodingKeys: CodingKey {
+    enum CodingKeys: String, CodingKey {
         case userId
         case subscriptions
         case purchases
@@ -62,13 +115,50 @@ public struct ApphudUser: Codable {
         case autorenewables
         case nonrenewables
         case swizzleDisabled
+        case totalDevicesCount
+        case scheme
+        case internalId = "id"
+    }
+    
+    private struct ApphudScheme: Codable {
+        let experiment: Experiment?
+        let name: String?
+        let remoteConfig: String?
+        
+        struct Experiment: Codable {
+            let name: String?
+        }
+    }
+
+    /// Snapshot of fields that may be omitted from the server response and should
+    /// therefore be preserved from the previously cached user instead of being reset
+    /// to `nil`. Sendable so it can safely be stored in `decoder.userInfo`.
+    internal struct CachedSchemeFallback: Sendable {
+        let experimentName: String?
+        let variationName: String?
+        let remoteConfigString: String?
+    }
+
+    /// Pass a `CachedSchemeFallback` via `decoder.userInfo[ApphudUser.cachedSchemeCodingKey]`
+    /// so values that may be omitted from the server response (e.g. `scheme`) can be preserved
+    /// instead of being overwritten with `nil`.
+    internal static let cachedSchemeCodingKey = CodingUserInfoKey(rawValue: "ApphudUser.cachedScheme")!
+
+    internal var cachedSchemeFallback: CachedSchemeFallback {
+        CachedSchemeFallback(
+            experimentName: experimentName,
+            variationName: variationName,
+            remoteConfigString: remoteConfigString
+        )
     }
 
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
+        
         self.paywalls = try? values.decode([ApphudPaywall].self, forKey: .paywalls)
-        self.placements = try? values.decode([ApphudPlacement].self, forKey: .placements)
+        self.placements = try values.decodeIfPresent([ApphudPlacement].self, forKey: .placements)
         self.userId = try values.decode(String.self, forKey: .userId)
+        self.internalId = (try? values.decodeIfPresent(String.self, forKey: .internalId)) ?? ""
 
         self.currency = try? values.decode(ApphudCurrency.self, forKey: .currency)
 
@@ -120,26 +210,58 @@ public struct ApphudUser: Codable {
 
         self.subscriptions = subs
         self.purchases = purchs
+        self.totalDevicesCount = (try? values.decode(Int.self, forKey: .totalDevicesCount)) ?? 0
+        
+        let scheme = try? values.decodeIfPresent(ApphudScheme.self, forKey: .scheme)
+
+        if let scheme {
+            self.experimentName = scheme.experiment?.name
+            self.variationName = scheme.name
+            self.remoteConfigString = scheme.remoteConfig
+        } else {
+            // `scheme` may be omitted from the response. Preserve previously cached
+            // values when available instead of clobbering them with nil.
+            let fallback = decoder.userInfo[ApphudUser.cachedSchemeCodingKey] as? CachedSchemeFallback
+            self.experimentName = fallback?.experimentName
+            self.variationName = fallback?.variationName
+            self.remoteConfigString = fallback?.remoteConfigString
+        }
     }
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(userId, forKey: .userId)
+        if !internalId.isEmpty {
+            try container.encode(internalId, forKey: .internalId)
+        }
         try? container.encode(paywalls, forKey: .paywalls)
         try? container.encode(placements, forKey: .placements)
 
         try container.encode(subscriptions, forKey: .autorenewables)
         try container.encode(purchases, forKey: .nonrenewables)
         try? container.encode(currency, forKey: .currency)
+        try container.encode(totalDevicesCount, forKey: .totalDevicesCount)
+        
+        let scheme = ApphudScheme(
+            experiment: ApphudScheme.Experiment(name: experimentName),
+            name: variationName,
+            remoteConfig: remoteConfigString
+        )
+        try? container.encode(scheme, forKey: .scheme)
     }
 
     init?(userID: String, subscriptions: [ApphudSubscription] = [], purchases: [ApphudNonRenewingPurchase] = [], paywalls: [ApphudPaywall] = [], placements: [ApphudPlacement] = []) {
         self.userId = userID
+        self.internalId = userID
         self.subscriptions = subscriptions
         self.purchases = purchases
         self.paywalls = paywalls
         self.placements = placements
         self.currency = nil
+        self.totalDevicesCount = 0
+        self.experimentName = nil
+        self.variationName = nil
+        self.remoteConfigString = nil
     }
 
     // MARK: - INTERNAL AND LEGACY METHODS
@@ -289,3 +411,4 @@ public struct ApphudUser: Codable {
         }
     }
 }
+

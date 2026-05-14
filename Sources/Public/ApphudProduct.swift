@@ -29,10 +29,10 @@ public enum ApphudProductType: String {
 /**
  Apphud's wrapper around `SKProduct`.
  
- In-App Purchase must configured in App Store Connect and should be added to Apphud Dashboard > Product Hub > Products.
+ In-App Purchase must configured in App Store Connect and should be added to Apphud Dashboard > Product hub.
  `ApphudProduct` is Apphud's wrapper around StoreKit's `SKProduct`.
  
- - Note: For more information  - [Product Hub Documentation](https://docs.apphud.com/docs/product-hub)
+ - Note: For more information  - [Product hub Documentation](https://docs.apphud.com/docs/product-hub)
  */
 
 public class ApphudProduct: NSObject, Codable, ObservableObject {
@@ -51,9 +51,33 @@ public class ApphudProduct: NSObject, Codable, ObservableObject {
      Always `app_store` in iOS SDK.
      */
     @objc public internal(set) var store: String
+    
+    /**
+     Returns true if the product has a commitment plan option configured in the Paywall page of Mission control.
+     */
+    public func isCommitmentPlanPreferred() -> Bool {
+        // Note: JSON keys are converted from snake_case to camelCase by the decoder
+        // (`keyDecodingStrategy = .convertFromSnakeCase`), so `introductory_offer`
+        // becomes `introductoryOffer` and `commitment_offer_enabled` becomes
+        // `commitmentOfferEnabled` in the in-memory dictionary.
+        guard let offers = properties?["introductoryOffer"]?.value as? [String: ApphudAnyCodable] else {
+            return false
+        }
+        return offers["commitmentOfferEnabled"]?.value as? Bool ?? false
+    }
+    
+    /**
+     Returns true if the product has a commitment plan option configured in the Paywall page of Mission control.
+     If true, SDK will try to purchase commitment plan offer instead of regular pricing.
+     */
+    @available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *)
+    public func isCommitmentPlanSupported() async -> Bool {
+        let product = try? await product()
+        return await product?.isCommitmentPlanSupported() ?? false
+    }
 
     /**
-     Returns product macros defined in the Paywalls section of Product Hub.
+     Returns product macros defined in the Paywalls section of Mission control.
 
      By default, values are extracted based on the device's current locale.
      
@@ -98,8 +122,8 @@ public class ApphudProduct: NSObject, Codable, ObservableObject {
 
     // MARK: - Private
     internal var id: String?
-    internal var itemId: String?
-    internal var properties: [String: ApphudAnyCodable]?
+    public internal(set) var itemId: String?
+    public internal(set) var properties: [String: ApphudAnyCodable]?
 
     private enum CodingKeys: String, CodingKey {
         case id
@@ -127,7 +151,7 @@ public class ApphudProduct: NSObject, Codable, ObservableObject {
         name = try? values.decode(String.self, forKey: .name)
         productId = try values.decode(String.self, forKey: .productId)
         store = try values.decode(String.self, forKey: .store)
-        properties = try? values.decode([String: ApphudAnyCodable].self, forKey: .properties)
+        properties = try values.decodeIfPresent([String: ApphudAnyCodable].self, forKey: .properties)
     }
 
     public func encode(to encoder: Encoder) throws {
