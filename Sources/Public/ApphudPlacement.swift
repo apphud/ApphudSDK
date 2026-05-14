@@ -43,13 +43,11 @@ public class ApphudPlacement: Codable {
     /**
      A/B experiment name if this placement is part of an A/B test.
      */
-    @MainActor
     public var experimentName: String? { paywall?.experimentName }
 
     /**
      Variation name if this placement is part of an A/B test.
      */
-    @MainActor
     public var variationName: String? { paywall?.variationName }
 
     /** For Internal Use

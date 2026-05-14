@@ -702,14 +702,14 @@ public struct ApphudAnyCodable: Codable {
 extension Product {
     /**
      Returns true if the product has a commitment plan option configured in the Paywall page of Mission control.
-     If values is true, SDK will try to purchase commitment plan offer instead of regular pricing.
+     If true, SDK will try to purchase commitment plan offer instead of regular pricing.
      */
-    @available(iOS 26.4, *)
+    @available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *)
     public func isCommitmentPlanSupported() async -> Bool {
         if let commitmentTerms = subscription?.pricingTerms.first(where: { $0.billingPlanType == .monthly }) {
             return commitmentTerms.commitmentInfo.price > 0
         }
-        
+
         return false
     }
 }

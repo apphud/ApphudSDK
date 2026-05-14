@@ -68,9 +68,9 @@ public class ApphudProduct: NSObject, Codable, ObservableObject {
     
     /**
      Returns true if the product has a commitment plan option configured in the Paywall page of Mission control.
-     If values is true, SDK will try to purchase commitment plan offer instead of regular pricing.
+     If true, SDK will try to purchase commitment plan offer instead of regular pricing.
      */
-    @available(iOS 26.4, *)
+    @available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *)
     public func isCommitmentPlanSupported() async -> Bool {
         let product = try? await product()
         return await product?.isCommitmentPlanSupported() ?? false
@@ -151,7 +151,7 @@ public class ApphudProduct: NSObject, Codable, ObservableObject {
         name = try? values.decode(String.self, forKey: .name)
         productId = try values.decode(String.self, forKey: .productId)
         store = try values.decode(String.self, forKey: .store)
-        properties = try values.decode([String: ApphudAnyCodable].self, forKey: .properties)
+        properties = try values.decodeIfPresent([String: ApphudAnyCodable].self, forKey: .properties)
     }
 
     public func encode(to encoder: Encoder) throws {

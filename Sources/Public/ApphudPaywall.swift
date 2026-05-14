@@ -66,7 +66,6 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
     /**
      A/B test name, if this paywall and its parent placement are part of an A/B test.
      */
-    @MainActor
     @objc public var experimentName: String? {
         paywallExperimentName
     }
@@ -74,7 +73,6 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
     /**
      A/B test variation name, if this paywall and its parent placement are part of an A/B test.
      */
-    @MainActor
     @objc public var variationName: String? {
         paywallVariationName
     }

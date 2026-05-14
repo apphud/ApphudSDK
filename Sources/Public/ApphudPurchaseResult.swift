@@ -62,7 +62,7 @@ public class ApphudPurchaseResult: NSObject {
 
     // MARK: - Private methods
 
-    init(_ subscription: ApphudSubscription?, _ purchase: ApphudNonRenewingPurchase?, _ transaction: SKPaymentTransaction?, _ error: Error?, _ transactionV2: Transaction? = nil) {
+    init(_ subscription: ApphudSubscription?, _ purchase: ApphudNonRenewingPurchase?, _ transaction: SKPaymentTransaction?, _ error: Error?, transactionV2: Transaction? = nil) {
         self.subscription = subscription
         self.nonRenewingPurchase = purchase
         self.transaction = transaction

@@ -79,14 +79,14 @@ internal class ApphudAsyncStoreKit {
     }
 
     @MainActor
-    internal func purchaseResult(product: Product, _ scene: Any? = nil, commitmentPlan: Bool, apphudProduct: ApphudProduct?, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
+    internal func purchaseResult(product: Product, _ scene: Any? = nil, commitmentPlan: Bool, apphudProduct: ApphudProduct?, fromScreen: Bool = false, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
         self.isPurchasing = true
         await productsStorage.append(product)
         isPurchasing?.wrappedValue = true
                 
         var options = Set<Product.PurchaseOption>()
         
-        if #available(iOS 26.4, *) {
+        if #available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *) {
             let isSupported = await product.isCommitmentPlanSupported()
             if commitmentPlan && isSupported {
                 options.insert(.billingPlanType(.monthly))
@@ -122,7 +122,7 @@ internal class ApphudAsyncStoreKit {
             }
 
             if let transaction {
-                await Self.processTransaction(transaction)
+                await Self.processTransaction(transaction, fromScreen: fromScreen)
             }
 
             self.isPurchasing = false
@@ -139,8 +139,8 @@ internal class ApphudAsyncStoreKit {
         }
     }
 
-    fileprivate static func processTransaction(_ transaction: StoreKit.Transaction) async {
-        _ = await ApphudInternal.shared.handleTransaction(transaction)
+    fileprivate static func processTransaction(_ transaction: StoreKit.Transaction, fromScreen: Bool = false) async {
+        _ = await ApphudInternal.shared.handleTransaction(transaction, fromScreen: fromScreen)
         Task {
             if transaction.productType == .consumable {
                 try? await Task.sleep(nanoseconds: 3_000_000_000)
@@ -165,13 +165,13 @@ internal class ApphudAsyncStoreKit {
 
     #if os(iOS) || os(tvOS) || os(macOS) || os(watchOS)
     @MainActor
-    func purchase(product: Product, commitmentPlan: Bool = false, apphudProduct: ApphudProduct?, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
-        return await purchaseResult(product: product, commitmentPlan: commitmentPlan, apphudProduct: apphudProduct, isPurchasing: isPurchasing)
+    func purchase(product: Product, commitmentPlan: Bool = false, apphudProduct: ApphudProduct?, fromScreen: Bool = false, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
+        return await purchaseResult(product: product, commitmentPlan: commitmentPlan, apphudProduct: apphudProduct, fromScreen: fromScreen, isPurchasing: isPurchasing)
     }
     #else
     @MainActor
-    func purchase(product: Product, scene: UIScene, apphudProduct: ApphudProduct?, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
-        return await purchaseResult(product: product, scene, apphudProduct: apphudProduct, isPurchasing: isPurchasing)
+    func purchase(product: Product, scene: UIScene, apphudProduct: ApphudProduct?, fromScreen: Bool = false, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
+        return await purchaseResult(product: product, scene, commitmentPlan: false, apphudProduct: apphudProduct, fromScreen: fromScreen, isPurchasing: isPurchasing)
     }
     #endif
 }

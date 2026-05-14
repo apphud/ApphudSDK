@@ -231,7 +231,9 @@ public struct ApphudUser: Codable {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(userId, forKey: .userId)
-        try container.encode(internalId, forKey: .internalId)
+        if !internalId.isEmpty {
+            try container.encode(internalId, forKey: .internalId)
+        }
         try? container.encode(paywalls, forKey: .paywalls)
         try? container.encode(placements, forKey: .placements)
 
