@@ -56,14 +56,15 @@ public class ApphudProduct: NSObject, Codable, ObservableObject {
      Returns true if the product has a commitment plan option configured in the Paywall page of Mission control.
      */
     public func isCommitmentPlanPreferred() -> Bool {
-        // Note: JSON keys are converted from snake_case to camelCase by the decoder
-        // (`keyDecodingStrategy = .convertFromSnakeCase`), so `introductory_offer`
-        // becomes `introductoryOffer` and `commitment_offer_enabled` becomes
-        // `commitmentOfferEnabled` in the in-memory dictionary.
-        guard let offers = properties?["introductoryOffer"]?.value as? [String: ApphudAnyCodable] else {
+        // `keyDecodingStrategy = .convertFromSnakeCase` only rewrites keys that are
+        // matched against `CodingKey` enums; keys inside arbitrary `[String: T]`
+        // dictionaries are preserved verbatim. `properties` is decoded as
+        // `[String: ApphudAnyCodable]`, so its keys (and any nested dictionary keys)
+        // stay in their original snake_case form.
+        guard let offers = properties?["introductory_offer"]?.value as? [String: ApphudAnyCodable] else {
             return false
         }
-        return offers["commitmentOfferEnabled"]?.value as? Bool ?? false
+        return offers["commitment_offer_enabled"]?.value as? Bool ?? false
     }
     
     /**
