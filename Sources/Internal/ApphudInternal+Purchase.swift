@@ -549,6 +549,7 @@ extension ApphudInternal {
     }
     
     #if os(iOS) || os(tvOS) || os(macOS) || os(watchOS)
+    @MainActor
     private func purchaseAsync(apphudProduct: ApphudProduct?, productId: String?, commitmentPlan: Bool, fromScreen: Bool, value: Double? = nil, callback: ((ApphudPurchaseResult) -> Void)?) async {
         var product = try? await apphudProduct?.product()
         if product == nil, let productId {
