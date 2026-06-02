@@ -14,7 +14,14 @@ import Foundation
 import UserNotifications
 import SwiftUI
 
-internal let apphud_sdk_version = "4.2.3"
+internal let apphud_sdk_version = "4.3.0"
+
+public enum ApphudDeeplinkAttributionKind {
+    case direct
+    case deferred
+}
+
+public typealias ApphudDeeplinkHandler = (_ attribution: [String: Any], _ kind: ApphudDeeplinkAttributionKind, _ url: URL?) -> Void
 
 // MARK: - Initialization
 
@@ -39,9 +46,11 @@ final public class Apphud: NSObject {
      - parameter userID: Optional. Provide your own unique user identifier, or if `nil`, a UUID will be generated.
      - parameter observerMode: Optional. Sets SDK to Observer (Analytics) mode. Pass `true` if you handle product purchases with your own code, or `false` if you use the `Apphud.purchase(..)` method. The default value is `false`. This mode influences analytics and data collection behaviors.
      - parameter callback: Optional. Called when the user is successfully registered in Apphud [or retrieved from cache]. Use this to fetch raw placements or paywalls.
+     - parameter deeplinkHandler: Optional. A callback that receives deep link attribution updates. It may be called multiple times for both direct and deferred attribution flows.
      */
     @MainActor
-    public static func start(apiKey: String, userID: String? = nil, observerMode: Bool = false, callback: ((ApphudUser) -> Void)? = nil) {
+    public static func start(apiKey: String, userID: String? = nil, observerMode: Bool = false, callback: ((ApphudUser) -> Void)? = nil, deeplinkHandler: ApphudDeeplinkHandler? = nil) {
+        ApphudInternal.shared.setDeeplinkAttributionHandler(deeplinkHandler)
         ApphudInternal.shared.initialize(apiKey: apiKey, inputUserID: userID, observerMode: observerMode)
         ApphudInternal.shared.performWhenUserRegistered { callback?(ApphudInternal.shared.currentUser!) }
     }
@@ -54,9 +63,11 @@ final public class Apphud: NSObject {
     - parameter deviceID: Optional. You can provide your own unique device identifier. If `nil` passed then UUID will be generated instead.
     - parameter observerMode: Optional. Sets SDK to Observer (Analytics) mode. If you purchase products by your own code, then pass `true`. If you purchase products using `Apphud.purchase(product)` method, then pass `false`. Default value is `false`.
     - parameter callback: Optional. Called when user is successfully registered in Apphud [or used from cache]. Use this to fetch raw placements or paywalls.
+    - parameter deeplinkHandler: Optional. A callback that receives deep link attribution updates. It may be called multiple times for both direct and deferred attribution flows.
     */
     @MainActor
-    public static func startManually(apiKey: String, userID: String? = nil, deviceID: String? = nil, observerMode: Bool = false, callback: ((ApphudUser) -> Void)? = nil) {
+    public static func startManually(apiKey: String, userID: String? = nil, deviceID: String? = nil, observerMode: Bool = false, callback: ((ApphudUser) -> Void)? = nil, deeplinkHandler: ApphudDeeplinkHandler? = nil) {
+        ApphudInternal.shared.setDeeplinkAttributionHandler(deeplinkHandler)
         ApphudInternal.shared.initialize(apiKey: apiKey, inputUserID: userID, inputDeviceID: deviceID, observerMode: observerMode)
         ApphudInternal.shared.performWhenUserRegistered { callback?(ApphudInternal.shared.currentUser!) }
     }
@@ -943,14 +954,82 @@ s
     }
     
     /**
-     Attempts to attribute the user using a recently opened deep link, if available.
+     Deferred deep linking backend API.
 
-     If a matching deep link click is found, the callback returns the associated attribution data.
-     Otherwise, the callback returns `nil`.
+     Requests deferred deep link attribution for the current app installation.
+     This method does not have a completion callback and returns attribution through the
+     `deeplinkHandler` callback set in `start(...)`, `startManually(...)`, or `setDeeplinkHandler(_:)`.
      */
     @MainActor
-    public static func attributeFromDeeplink(callback: @escaping (([String: Any]?) -> Void)) {
-        ApphudInternal.shared.tryDeeplinkAttribution(completion: callback)
+    public static func requestDeferredDeeplinkAttribution() {
+        ApphudInternal.shared.requestDeferredDeeplinkAttribution()
+    }
+    
+    /**
+     Updates deep link attribution handler after SDK initialization.
+
+     This callback may be called multiple times and receives both direct and deferred attribution results.
+     When no match is found, handler receives an empty dictionary.
+     */
+    @MainActor
+    public static func setDeeplinkHandler(_ handler: ApphudDeeplinkHandler?) {
+        ApphudInternal.shared.setDeeplinkAttributionHandler(handler)
+    }
+    
+    /**
+     Handles direct deep link URL opens and triggers direct deep link attribution flow.
+
+     Call this from `application(_:open:options:)`.
+     This method may be called multiple times during app lifecycle.
+     Attribution result is delivered via deep link handler callback.
+     */
+    public static func handleOpen(url: URL) {
+        ApphudInternal.shared.handleOpenURL(url)
+    }
+    
+    #if canImport(UIKit)
+    /**
+     Handles app launch options for direct deep links.
+
+     Call this from `application(_:didFinishLaunchingWithOptions:)`.
+     Extracted URLs are forwarded to direct URL handlers.
+     Attribution result is delivered via deep link handler callback.
+     */
+    public static func handleLaunchOptions(launchOptions: [UIApplication.LaunchOptionsKey: Any]?) {
+        guard let launchOptions else { return }
+        
+        if let url = launchOptions[.url] as? URL {
+            handleOpen(url: url)
+            return
+        }
+        
+        if let userActivityDictionary = launchOptions[.userActivityDictionary] as? [AnyHashable: Any] {
+            for value in userActivityDictionary.values {
+                if let userActivity = value as? NSUserActivity {
+                    continueUserActivity(userActivity)
+                    break
+                }
+            }
+        }
+    }
+    #else
+    public static func handleLaunchOptions(launchOptions: [AnyHashable: Any]?) {
+        
+    }
+    #endif
+    
+    /**
+     Handles user activity continuation for universal links.
+
+     Call this from `application(_:continue:restorationHandler:)`.
+     This method may be called multiple times during app lifecycle.
+     Attribution result is delivered via deep link handler callback.
+     */
+    public static func continueUserActivity(_ userActivity: NSUserActivity) {
+        guard userActivity.activityType == NSUserActivityTypeBrowsingWeb,
+              let url = userActivity.webpageURL else { return }
+        
+        handleOpen(url: url)
     }
 
     // MARK: - Eligibility Checks

@@ -192,6 +192,9 @@ final class ApphudInternal: NSObject {
     @MainActor internal var currencyTaskFinished = false
     internal var initialRequestID = UUID().uuidString
 
+    var webController: ApphudWebController? = nil
+    @MainActor internal var deeplinkAttributionHandler: ApphudDeeplinkHandler?
+    
     internal var isInitialized: Bool {
         httpClient != nil
     }

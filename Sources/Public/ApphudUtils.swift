@@ -48,6 +48,61 @@ public class ApphudUtils: NSObject {
     internal var storeKitObserverMode = false
     internal var optOutOfTracking = false
     private(set) var useStoreKitV2 = false
+
+    /**
+     When `true`, duplicates console logs to `Caches/logs.txt`.
+     The file is cleared once per app launch on the first logged message.
+     Read logs at runtime via ``logFileURL`` or ``readLogs()``.
+     */
+    public var saveLogsToFile = false
+    public static func enableWriteLogsToFile() {
+        shared.saveLogsToFile = true
+    }
+
+    /**
+     URL of the log file in the app's Caches directory, or `nil` if unavailable.
+     */
+    public static var logFileURL: URL? {
+        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("logs.txt")
+    }
+
+    /**
+     Returns the current contents of the log file, or an empty string if the file is missing or unreadable.
+     */
+    public static func readLogs() -> String {
+        guard let url = logFileURL,
+              let data = try? Data(contentsOf: url),
+              let contents = String(data: data, encoding: .utf8) else {
+            return ""
+        }
+        return contents
+    }
+
+    fileprivate static let logFileQueue = DispatchQueue(label: "com.apphud.logs")
+    private static var logFileClearedThisSession = false
+
+    fileprivate func appendLogToFile(_ line: String) {
+        guard saveLogsToFile, let url = Self.logFileURL else { return }
+        Self.logFileQueue.async {
+            if !Self.logFileClearedThisSession {
+                Self.logFileClearedThisSession = true
+                if FileManager.default.fileExists(atPath: url.path) {
+                    try? FileManager.default.removeItem(at: url)
+                }
+            }
+            guard let data = (line + "\n").data(using: .utf8) else { return }
+            if FileManager.default.fileExists(atPath: url.path) {
+                guard let handle = try? FileHandle(forWritingTo: url) else { return }
+                defer { try? handle.close() }
+                _ = try? handle.seekToEnd()
+                _ = try? handle.write(contentsOf: data)
+            } else {
+                try? data.write(to: url)
+            }
+        }
+    }
+
     internal var isFlutter: Bool {
         ApphudHttpClient.shared.sdkType.lowercased() == "flutter"
     }
@@ -57,12 +112,18 @@ internal func apphudLog(_ text: String, forceDisplay: Bool = false) {
     apphudLog(text, logLevel: forceDisplay ? .off : .debug)
 }
 
+private func apphudFormattedLogLine(_ text: String) -> String {
+    let formatter = DateFormatter()
+    formatter.dateStyle = .none
+    formatter.timeStyle = .medium
+    let time = formatter.string(from: Date())
+    return "[\(time)] [Apphud] \(text)"
+}
+
 internal func apphudLog(_ text: String, logLevel: ApphudLogLevel) {
-    if  ApphudUtils.shared.logLevel.rawValue >= logLevel.rawValue {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .none
-        formatter.timeStyle = .medium
-        let time = formatter.string(from: Date())
-        print("[\(time)] [Apphud] \(text)")
+    if ApphudUtils.shared.logLevel.rawValue >= logLevel.rawValue {
+        let line = apphudFormattedLogLine(text)
+        print(line)
+        ApphudUtils.shared.appendLogToFile(line)
     }
 }

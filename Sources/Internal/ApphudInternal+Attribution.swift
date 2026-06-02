@@ -261,8 +261,53 @@ extension ApphudInternal {
     }
 
     @MainActor
-    internal func tryDeeplinkAttribution(completion: @escaping ([String: Any]?) -> Void) {
-        httpClient?.startRequest(path: .attributionDeeplink, apiVersion: .APIV2, params: ["device_id": currentDeviceID, "bundle_id": Bundle.main.bundleIdentifier ?? ""], method: .post, useDecoder: false, retry: false, requestID: nil) { done, response, data, error, errorCode, duration, attempts in
+    internal func requestDeferredDeeplinkAttribution() {
+        self.webController = ApphudWebController()
+        self.webController?.present { _ in
+            self.startDeeplinkAttributionRequest(url: nil) { response in
+                Task { @MainActor in
+                    self.notifyDeeplinkAttribution(attribution: response ?? [:], kind: .deferred, url: nil)
+                }
+            }
+        }
+    }
+    
+    @MainActor
+    internal func setDeeplinkAttributionHandler(_ handler: ApphudDeeplinkHandler?) {
+        self.deeplinkAttributionHandler = handler
+    }
+    
+    @MainActor
+    internal func notifyDeeplinkAttribution(attribution: [String: Any], kind: ApphudDeeplinkAttributionKind, url: URL?) {
+        self.deeplinkAttributionHandler?(attribution, kind, url)
+    }
+    
+    internal func handleOpenURL(_ url: URL) {
+        self.forceDirectDeeplinkAttribution(url: url) { result in
+            Task { @MainActor in
+                self.notifyDeeplinkAttribution(attribution: result, kind: .direct, url: url)
+            }
+        }
+    }
+    
+    internal func forceDirectDeeplinkAttribution(url: URL, completion: @escaping ([String: Any]) -> Void) {
+        performWhenUserRegistered {
+            self.startDeeplinkAttributionRequest(url: url) { response in
+                completion(response ?? [:])
+            }
+        }
+    }
+    
+    private func startDeeplinkAttributionRequest(url: URL?, completion: @escaping ([String: Any]?) -> Void) {
+        var params: [String: Any] = [
+            "device_id": self.currentDeviceID,
+            "bundle_id": Bundle.main.bundleIdentifier ?? ""
+        ]
+        if let url {
+            params["url"] = url.absoluteString
+        }
+        
+        self.httpClient?.startRequest(path: .attributionDeeplink, apiVersion: .APIV2, params: params, method: .post, useDecoder: false, retry: false, requestID: nil) { _, response, _, _, _, _, _ in
             apphudLog("response: \(String(describing: response))")
             completion(response)
         }
