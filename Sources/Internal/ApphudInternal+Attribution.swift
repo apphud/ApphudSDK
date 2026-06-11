@@ -263,8 +263,8 @@ extension ApphudInternal {
     @MainActor
     internal func requestDeferredDeeplinkAttribution() {
         self.webController = ApphudWebController()
-        self.webController?.present { _ in
-            self.startDeeplinkAttributionRequest(url: nil) { response in
+        self.webController?.present { visitorId in
+            self.startDeeplinkAttributionRequest(url: nil, visitorId: visitorId) { response in
                 Task { @MainActor in
                     self.notifyDeeplinkAttribution(attribution: response ?? [:], kind: .deferred, url: nil)
                 }
@@ -292,19 +292,22 @@ extension ApphudInternal {
     
     internal func forceDirectDeeplinkAttribution(url: URL, completion: @escaping ([String: Any]) -> Void) {
         performWhenUserRegistered {
-            self.startDeeplinkAttributionRequest(url: url) { response in
+            self.startDeeplinkAttributionRequest(url: url, visitorId: nil) { response in
                 completion(response ?? [:])
             }
         }
     }
     
-    private func startDeeplinkAttributionRequest(url: URL?, completion: @escaping ([String: Any]?) -> Void) {
+    private func startDeeplinkAttributionRequest(url: URL?, visitorId: String?, completion: @escaping ([String: Any]?) -> Void) {
         var params: [String: Any] = [
             "device_id": self.currentDeviceID,
             "bundle_id": Bundle.main.bundleIdentifier ?? ""
         ]
         if let url {
             params["url"] = url.absoluteString
+        }
+        if let visitorId {
+            params["visitor_id"] = visitorId
         }
         
         self.httpClient?.startRequest(path: .attributionDeeplink, apiVersion: .APIV2, params: params, method: .post, useDecoder: false, retry: false, requestID: nil) { _, response, _, _, _, _, _ in

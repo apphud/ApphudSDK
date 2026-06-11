@@ -97,6 +97,10 @@ public class ApphudHttpClient {
 
     public static let shared = ApphudHttpClient()
     public var domainUrlString = productionEndpoint
+    
+    internal var host: String {
+        domainUrlString.replacingOccurrences(of: "https://", with: "").replacingOccurrences(of: "gateway.", with: "").replacingOccurrences(of: "api.", with: "")
+    }
 
     internal var apiKey: String = ""
 

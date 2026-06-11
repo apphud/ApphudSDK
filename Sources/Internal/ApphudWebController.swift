@@ -12,7 +12,7 @@ import WebKit
 @MainActor
 class ApphudWebController: NSObject, WKNavigationDelegate {
 
-    private static let timeoutNanoseconds: UInt64 = 5_000_000_000
+    private static let timeoutNanoseconds: UInt64 = 10_000_000_000
 
     private var callback: ((String?) -> Void)?
     private var webView: WKWebView?
@@ -32,7 +32,7 @@ class ApphudWebController: NSObject, WKNavigationDelegate {
             return
         }
 
-        let urlString = "https://connect.aphd.cc"
+        let urlString = "https://connect.aphd.cc?api_key=\(ApphudHttpClient.shared.apiKey)&device_id=\(ApphudInternal.shared.currentDeviceID)&host=\(ApphudHttpClient.shared.host)"
         guard let url = URL(string: urlString) else {
             complete(with: nil)
             return
@@ -58,17 +58,22 @@ class ApphudWebController: NSObject, WKNavigationDelegate {
         timeoutTask?.cancel()
         timeoutTask = Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: Self.timeoutNanoseconds)
-            guard !Task.isCancelled else { return }
+            guard let self, !Task.isCancelled else { return }
             apphudLog("ApphudWebController timed out")
-            self?.complete(with: nil)
+            self.complete(with: nil)
         }
     }
 
     private func fetchVisitorId() {
         guard !didComplete, let webView else { return }
 
-        webView.callAsyncJavaScript("return await getVisitorId();", in: nil, in: .page) { [weak self] result in
+        
+        apphudLog("ApphudWebController getVisitorId called")
+        webView.callAsyncJavaScript("return await getConnectId();", in: nil, in: .page) { [weak self] result in
             Task { @MainActor in
+                apphudLog("ApphudWebController getVisitorId callback invoked: \(result)")
+                
+                
                 guard let self, !self.didComplete else { return }
 
                 switch result {
