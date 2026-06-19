@@ -12,8 +12,13 @@ internal struct ApphudUserResponse<T: Decodable>: Decodable {
     var data: ApphudUserResultsResponse<T>
 }
 
+internal struct ApphudMeta: Decodable {
+    var connectUrl: String?
+}
+
 internal struct ApphudUserResultsResponse<T: Decodable>: Decodable {
     var results: T
+    var meta: ApphudMeta?
 }
 
 internal struct ApphudAPIDataResponse<T: Decodable>: Decodable {
@@ -92,14 +97,27 @@ public class ApphudHttpClient {
     }
 
     static let productionEndpoint = "https://gateway.apphud.com"
+    private static let connectDomainUrlKey = "ApphudConnectDomainUrl"
+    private static let defaultConnectDomainUrl = "https://connect.aphd.cc"
+
     public var sdkType: String = "swift"
     public var sdkVersion: String = apphud_sdk_version
 
     public static let shared = ApphudHttpClient()
     public var domainUrlString = productionEndpoint
-    
+
     internal var host: String {
         domainUrlString.replacingOccurrences(of: "https://", with: "").replacingOccurrences(of: "gateway.", with: "").replacingOccurrences(of: "api.", with: "")
+    }
+
+    internal var connectDomainUrl: String {
+        UserDefaults.standard.string(forKey: Self.connectDomainUrlKey) ?? Self.defaultConnectDomainUrl
+    }
+
+    internal func updateConnectDomainUrl(from meta: ApphudMeta?) {
+        guard let connectUrl = meta?.connectUrl, !connectUrl.isEmpty else { return }
+        UserDefaults.standard.set(connectUrl, forKey: Self.connectDomainUrlKey)
+        apphudLog("Updated Connect URL to : \(connectUrl)")
     }
 
     internal var apiKey: String = ""

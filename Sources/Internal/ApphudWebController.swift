@@ -32,7 +32,7 @@ class ApphudWebController: NSObject, WKNavigationDelegate {
             return
         }
 
-        let urlString = "https://connect.aphd.cc?api_key=\(ApphudHttpClient.shared.apiKey)&device_id=\(ApphudInternal.shared.currentDeviceID)&host=\(ApphudHttpClient.shared.host)"
+        let urlString = "\(ApphudHttpClient.shared.connectDomainUrl)?api_key=\(ApphudHttpClient.shared.apiKey)&device_id=\(ApphudInternal.shared.currentDeviceID)&host=\(ApphudHttpClient.shared.host)"
         guard let url = URL(string: urlString) else {
             complete(with: nil)
             return

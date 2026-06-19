@@ -29,6 +29,7 @@ extension ApphudInternal {
 
         do {
             let response = try decoder.decode(ApphudUserResponse<ApphudUser>.self, from: data)
+            ApphudHttpClient.shared.updateConnectDomainUrl(from: response.data.meta)
             await MainActor.run {
                 currentUser = response.data.results
             }
