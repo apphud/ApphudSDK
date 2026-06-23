@@ -987,7 +987,7 @@ s
         ApphudInternal.shared.handleOpenURL(url)
     }
     
-    #if canImport(UIKit)
+    #if canImport(UIKit) && !os(watchOS)
     /**
      Handles app launch options for direct deep links.
 
