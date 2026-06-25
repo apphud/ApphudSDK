@@ -90,6 +90,7 @@ import UIKit
     /**
      Notifies that Apphud Screen did dismiss
     */
+    @objc optional func apphudDidDismissScreen(controller: UIViewController, screenName: String?)
     @objc optional func apphudDidDismissScreen(controller: UIViewController)
 
     /**

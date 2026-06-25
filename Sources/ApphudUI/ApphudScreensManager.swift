@@ -16,6 +16,9 @@ import UIKit
 @MainActor
 internal class ApphudScreensManager {
     static let shared = ApphudScreensManager()
+    
+    var incomingRulePaywallScreenHandler: ((ApphudPaywallScreenController) -> Void)?
+    
     var pendingController: UIViewController?
 
     var pendingPaywallControllers: [String: UIViewController] = [:]
@@ -144,32 +147,61 @@ internal class ApphudScreensManager {
     internal func handleRule(ruleID: String, data: [String: Any]?) {
         let dict = ["id": ruleID].merging(data ?? [:], uniquingKeysWith: {_, new in new})
         let rule = ApphudRule(dictionary: dict)
-        self.handleRule(rule: rule)
+        let paywallIdentifierCandidate = data?["paywall_identifier"] as? String
+        self.handleRule(rule: rule, paywallIdentifier: paywallIdentifierCandidate)
     }
 
-    internal func handleRule(rule: ApphudRule) {
+    internal func handleRule(rule: ApphudRule, paywallIdentifier: String?) {
 
         guard self.pendingController == nil else { return }
-        guard rule.screen_id.count > 0 else { return }
+        
         guard ApphudInternal.shared.uiDelegate?.apphudShouldPerformRule?(rule: rule) ?? true else {
             ApphudInternal.shared.readAllNotifications(for: rule.id)
             apphudLog("apphudShouldPerformRule returned false for rule \(rule.rule_name), exiting", forceDisplay: true)
             return
         }
+        
+        if let paywallIdentifier {
+            let allPaywalls = ApphudInternal.shared.placements.map { $0.paywall }
+            
+            ApphudInternal.shared.fetchPaywall(identifier: paywallIdentifier, forceRefresh: false) { paywall, error in
+                guard let paywall else {
+                    apphudLog("Failed to handle rule with paywall identifier: \(paywallIdentifier), error: \(error?.localizedDescription ?? "paywall not found")")
+                    return
+                }
 
-        let controller = ApphudScreenController(rule: rule, screenID: rule.screen_id) {_ in}
-        controller.loadScreenPage()
+                Apphud.fetchPaywallScreen(paywall) { result in
+                    switch result {
+                    case .error(let error):
+                        apphudLog("Failed to handle rule with paywall identifier: \(paywallIdentifier), error: \(error.localizedDescription)")
+                    case .success(let controller):
+                        controller.rule = rule
+                        self.pendingController = controller
+                        self.handlePendingControllerReady(rule: rule)
+                    }
+                }
+            }
+        } else {
+            guard rule.screen_id.count > 0 else { return }
+            
+            let controller = ApphudScreenController(rule: rule, screenID: rule.screen_id) {_ in}
+            controller.loadScreenPage()
 
-        let nc = ApphudNavigationController(rootViewController: controller)
-        nc.setNavigationBarHidden(true, animated: false)
-        self.pendingController = nc
-
+            let nc = ApphudNavigationController(rootViewController: controller)
+            nc.setNavigationBarHidden(true, animated: false)
+            self.pendingController = nc
+            self.handlePendingControllerReady(rule: rule)
+        }
+    }
+    
+    internal func handlePendingControllerReady(rule: ApphudRule) {
         if ApphudInternal.shared.uiDelegate?.apphudShouldShowScreen?(screenName: rule.screen_name) ?? true {
              showPendingScreen()
         } else {
             ApphudInternal.shared.readAllNotifications(for: rule.id)
             apphudLog("apphudShouldShowScreen returned false for screen \(rule.screen_name), exiting", forceDisplay: true)
         }
+        
     }
 
     internal func showPendingScreen() {
@@ -189,6 +221,8 @@ internal class ApphudScreensManager {
     internal func pendingRule() -> ApphudRule? {
         if let nc = self.pendingController as? ApphudNavigationController, let screenController = nc.viewControllers.first as? ApphudScreenController {
             return screenController.rule
+        } else if let paywallController = self.pendingController as? ApphudPaywallScreenController {
+            return paywallController.rule
         } else {
             return nil
         }

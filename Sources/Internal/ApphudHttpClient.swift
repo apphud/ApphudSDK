@@ -52,7 +52,7 @@ public class ApphudHttpClient {
 
     enum ApphudEndpoint: Equatable {
 
-        case customers, push, logs, events, screens, attribution, products, paywalls, subscriptions, signOffer, promotions, properties, receipt, notifications, readNotifications, rule(String), renderProductProperties, attributionDeeplink
+        case customers, push, logs, events, screens, attribution, products, paywalls, paywall(String), subscriptions, signOffer, promotions, properties, receipt, notifications, readNotifications, rule(String), renderProductProperties, attributionDeeplink
 
         var value: String {
             switch self {
@@ -74,6 +74,9 @@ public class ApphudHttpClient {
                 return "products"
             case .paywalls:
                 return "paywall_configs"
+            case .paywall(let identifier):
+                let safeIdentifier = identifier.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? identifier
+                return "paywall_configs/\(safeIdentifier)"
             case .subscriptions:
                 return "subscriptions"
             case .signOffer:

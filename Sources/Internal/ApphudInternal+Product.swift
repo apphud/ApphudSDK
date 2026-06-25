@@ -322,6 +322,36 @@ extension ApphudInternal {
         }
     }
 
+    @MainActor
+    internal func fetchPaywall(identifier: String, forceRefresh: Bool = false, callback: @escaping (ApphudPaywall?, Error?) -> Void) {
+        let allPaywalls = ApphudInternal.shared.placements.map { $0.paywall }
+        if !forceRefresh, let cachedPaywall = allPaywalls.first(where: { $0?.identifier == identifier }) ?? nil {
+            callback(cachedPaywall, nil)
+            return
+        }
+
+        httpClient?.startRequest(path: .paywall(identifier), apiVersion: .APIV2, params: ["device_id": currentDeviceID], method: .get, useDecoder: true, retry: true) { _, _, data, error, _, _, _ in
+            guard let data = data else {
+                callback(nil, error)
+                return
+            }
+
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+
+            typealias ApphudResponse = ApphudAPIDataResponse<ApphudPaywall>
+            do {
+                let response = try decoder.decode(ApphudResponse.self, from: data)
+                // fill with storekit products
+                response.data.update(placementId: nil, placementIdentifier: nil)
+                callback(response.data, nil)
+            } catch {
+                apphudLog("Failed to decode paywall structure with error: \(error)")
+                callback(nil, error)
+            }
+        }
+    }
+
     // MARK: - Product Groups Helper Methods
 
     @MainActor internal var allAvailableProducts: [ApphudProduct] {

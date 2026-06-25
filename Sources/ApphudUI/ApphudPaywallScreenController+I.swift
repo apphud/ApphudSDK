@@ -9,6 +9,7 @@
 
 import WebKit
 import SafariServices
+import StoreKit
 
 extension ApphudPaywallScreenState: Equatable {
     public static func == (lhs: ApphudPaywallScreenState, rhs: ApphudPaywallScreenState) -> Bool {
@@ -24,6 +25,92 @@ extension ApphudPaywallScreenState: Equatable {
 }
 
 extension ApphudPaywallScreenController: WKUIDelegate {
+    private var ruleScreenName: String? {
+        rule?.screen_name
+    }
+
+    private var ruleScreenID: String {
+        if let id = rule?.screen_id, !id.isEmpty {
+            return id
+        } else {
+            return paywall.screen?.id ?? ""
+        }
+    }
+
+    private var shouldReportRuleUIDelegateCallbacks: Bool {
+        ruleScreenName != nil && ApphudInternal.shared.uiDelegate != nil
+    }
+
+    private func notifyRuleScreenDidAppearIfNeeded() {
+        guard shouldReportRuleUIDelegateCallbacks else { return }
+        guard !didNotifyRuleScreenDidAppear, let ruleScreenName else { return }
+        didNotifyRuleScreenDidAppear = true
+        ApphudInternal.shared.uiDelegate?.apphudScreenDidAppear?(screenName: ruleScreenName)
+    }
+
+    private func notifyRuleScreenWillDismissIfNeeded(error: Error? = nil) {
+        guard shouldReportRuleUIDelegateCallbacks else { return }
+        guard !didNotifyRuleScreenWillDismiss, let ruleScreenName else { return }
+        didNotifyRuleScreenWillDismiss = true
+        ApphudInternal.shared.uiDelegate?.apphudScreenWillDismiss?(screenName: ruleScreenName, error: error)
+    }
+
+    private func notifyRuleScreenDidDismissIfNeeded() {
+        guard shouldReportRuleUIDelegateCallbacks else { return }
+        guard !didNotifyRuleScreenDidDismiss else { return }
+        didNotifyRuleScreenDidDismiss = true
+        ApphudInternal.shared.uiDelegate?.apphudDidDismissScreen?(controller: self, screenName: rule?.screen_name)
+    }
+
+    private func skErrorCode(from error: Error?) -> SKError.Code {
+        if let skError = error as? SKError {
+            return skError.code
+        }
+
+        if #available(iOS 15.0, *), let storeKitError = error as? StoreKitError {
+            switch storeKitError {
+            case .userCancelled:
+                return .paymentCancelled
+            case .systemError(let underlyingError):
+                // StoreKit 2 may wrap StoreKit 1 errors.
+                return skErrorCode(from: underlyingError)
+            default:
+                return .unknown
+            }
+        } else {
+            return .unknown
+        }
+    }
+
+    private func trackRuleScreenPresentedIfNeeded() {
+        guard !didTrackRuleScreenPresented, let rule else { return }
+        didTrackRuleScreenPresented = true
+        ApphudInternal.shared.trackEvent(params: ["rule_id": rule.id, "screen_id": ruleScreenID, "name": "$screen_presented"]) {}
+    }
+
+    private func readRuleNotificationsIfNeeded() {
+        guard !didReadRuleNotifications, let rule else { return }
+        didReadRuleNotifications = true
+        ApphudInternal.shared.readAllNotifications(for: rule.id)
+    }
+
+    private func trackRulePurchaseIfNeeded(product: ApphudProduct, result: ApphudPurchaseResult) {
+        guard let rule else { return }
+
+        var params: [String: AnyHashable] = ["rule_id": rule.id, "name": "$purchase", "screen_id": ruleScreenID]
+        var properties: [String: AnyHashable] = ["product_id": product.productId]
+
+        if let trx = result.transaction, trx.transactionState == .purchased, let transactionID = trx.transactionIdentifier {
+            properties["transaction_id"] = transactionID
+        }
+
+        if let id = result.subscription?.id, !id.isEmpty {
+            properties["subscription_id"] = id
+        }
+
+        params["properties"] = properties
+        ApphudInternal.shared.trackEvent(params: params) {}
+    }
 
     internal func setMaxTimeout(maxTimeout: TimeInterval) {
         Task { [weak self] in
@@ -139,6 +226,7 @@ extension ApphudPaywallScreenController: WKUIDelegate {
     }
 
     private func dismissNow(userAction: Bool) {
+        notifyRuleScreenWillDismissIfNeeded(error: ruleDismissError)
 
         if self.shouldPopOnDismiss, let nc = navigationController {
             nc.popViewController(animated: true)
@@ -164,11 +252,28 @@ extension ApphudPaywallScreenController: WKUIDelegate {
         if self.useSystemLoadingIndicator {
             showLoadingIndicator()
         }
+
+        if let skProduct = product.skProduct, let ruleScreenName {
+            ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(product: skProduct, offerID: nil, screenName: ruleScreenName)
+        }
         
         ApphudInternal.shared.purchase(productId: product.productId, product: product, validate: true, purchasingFromScreen: true) { [weak self] result in
             if let self {
                 self.hideLoadingIndicator()
                 self.onTransactionCompleted?(result)
+
+                if let skProduct = product.skProduct, let ruleScreenName {
+                    if result.success {
+                        ApphudInternal.shared.uiDelegate?.apphudDidPurchase?(product: skProduct, offerID: nil, screenName: ruleScreenName)
+                    } else {
+                        ApphudInternal.shared.uiDelegate?.apphudDidFailPurchase?(product: skProduct, offerID: nil, errorCode: self.skErrorCode(from: result.error), screenName: ruleScreenName)
+                    }
+                }
+
+                if result.success {
+                    self.trackRulePurchaseIfNeeded(product: product, result: result)
+                }
+
                 if result.success && self.shouldAutoDismiss {
                     self.dismissNow(userAction: false)
                 }
@@ -218,15 +323,32 @@ extension ApphudPaywallScreenController: WKUIDelegate {
             Apphud.paywallShown(paywall)
         }
 
+        trackRuleScreenPresentedIfNeeded()
+        readRuleNotificationsIfNeeded()
         ApphudScreensManager.shared.unloadPaywalls(paywall.identifier)
+        notifyRuleScreenDidAppearIfNeeded()
         apphudLog("Paywall View did appear")
     }
 
     public override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
+        if isBeingDismissed || isMovingFromParent {
+            notifyRuleScreenWillDismissIfNeeded(error: ruleDismissError)
+        }
         if !Apphud.hasPremiumAccess() {
             // preload the same paywall again for the next call
             ApphudScreensManager.shared.preloadPaywall(paywall)
+        }
+    }
+
+    public override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        if isBeingDismissed || isMovingFromParent {
+            if ApphudScreensManager.shared.pendingController === self {
+                ApphudScreensManager.shared.pendingController = nil
+            }
+            notifyRuleScreenDidDismissIfNeeded()
+            ruleDismissError = nil
         }
     }
 

@@ -13,24 +13,46 @@ import WebKit
 class ApphudWebController: NSObject, WKNavigationDelegate {
 
     private static let timeoutNanoseconds: UInt64 = 10_000_000_000
+    private static let readinessRetryDelayNanoseconds: UInt64 = 100_000_000
+    private static let maxReadinessRetryAttempts = 3
 
     private var callback: ((String?) -> Void)?
     private var webView: WKWebView?
     private var timeoutTask: Task<Void, Never>?
+    private var readinessRetryTask: Task<Void, Never>?
     private var didComplete = false
 
     func present(callback: @escaping (String?) -> Void) {
         self.callback = callback
+        attemptPresent(readinessAttempt: 0)
+    }
 
+    private func attemptPresent(readinessAttempt: Int) {
         guard #available(iOS 15.0, *) else {
             complete(with: nil)
             return
         }
 
         guard let visibleController = apphudVisibleViewController() else {
-            complete(with: nil)
+            guard scheduleReadinessRetryIfNeeded(after: readinessAttempt) else {
+                apphudLog("ApphudWebController skipped: visible controller not found after retries")
+                complete(with: nil)
+                return
+            }
             return
         }
+
+        guard canPresentWebView(on: visibleController) else {
+            guard scheduleReadinessRetryIfNeeded(after: readinessAttempt) else {
+                apphudLog("ApphudWebController skipped: visible controller is not ready after retries")
+                complete(with: nil)
+                return
+            }
+            return
+        }
+
+        readinessRetryTask?.cancel()
+        readinessRetryTask = nil
 
         let urlString = "\(ApphudHttpClient.shared.connectDomainUrl)?api_key=\(ApphudHttpClient.shared.apiKey)&device_id=\(ApphudInternal.shared.currentDeviceID)&host=\(ApphudHttpClient.shared.host)"
         guard let url = URL(string: urlString) else {
@@ -52,6 +74,42 @@ class ApphudWebController: NSObject, WKNavigationDelegate {
         webView.load(URLRequest(url: url))
 
         apphudLog("ApphudWebController started loading url \(url.absoluteString)")
+    }
+
+    private func scheduleReadinessRetryIfNeeded(after attempt: Int) -> Bool {
+        guard attempt < Self.maxReadinessRetryAttempts else {
+            return false
+        }
+
+        let nextAttempt = attempt + 1
+        apphudLog("ApphudWebController retrying presentation (\(nextAttempt)/\(Self.maxReadinessRetryAttempts))")
+
+        readinessRetryTask?.cancel()
+        readinessRetryTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: Self.readinessRetryDelayNanoseconds)
+            guard let self, !Task.isCancelled, !self.didComplete else { return }
+            self.attemptPresent(readinessAttempt: nextAttempt)
+        }
+
+        return true
+    }
+
+    private func canPresentWebView(on visibleController: UIViewController) -> Bool {
+        guard UIApplication.shared.applicationState == .active else {
+            return false
+        }
+
+        guard visibleController.isViewLoaded,
+              let visibleView = visibleController.viewIfLoaded,
+              visibleView.window != nil else {
+            return false
+        }
+
+        if #available(iOS 13.0, *) {
+            return visibleView.window?.windowScene?.activationState == .foregroundActive
+        } else {
+            return true
+        }
     }
 
     private func startTimeout() {
@@ -121,6 +179,8 @@ class ApphudWebController: NSObject, WKNavigationDelegate {
 
         timeoutTask?.cancel()
         timeoutTask = nil
+        readinessRetryTask?.cancel()
+        readinessRetryTask = nil
 
         webView?.stopLoading()
         webView?.navigationDelegate = nil

@@ -693,10 +693,11 @@ final class ApphudInternal: NSObject {
 
                 if result, let dataDict = response?["data"] as? [String: Any], let notifArray = dataDict["results"] as? [[String: Any]], let notifDict = notifArray.first, var ruleDict = notifDict["rule"] as? [String: Any] {
                     let properties = notifDict["properties"] as? [String: Any]
+                    let paywallIdentifierCandidate = properties?["paywall_identifier"] as? String
                     ruleDict = ruleDict.merging(properties ?? [:], uniquingKeysWith: {_, new in new})
                     let rule = ApphudRule(dictionary: ruleDict)
                     Task { @MainActor in
-                        ApphudScreensManager.shared.handleRule(rule: rule)
+                        ApphudScreensManager.shared.handleRule(rule: rule, paywallIdentifier: paywallIdentifierCandidate)
                     }
                 }
             })

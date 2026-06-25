@@ -262,11 +262,13 @@ extension ApphudInternal {
 
     @MainActor
     internal func requestDeferredDeeplinkAttribution() {
-        self.webController = ApphudWebController()
-        self.webController?.present { visitorId in
-            self.startDeeplinkAttributionRequest(url: nil, visitorId: visitorId) { response in
-                Task { @MainActor in
-                    self.notifyDeeplinkAttribution(attribution: response ?? [:], kind: .deferred, url: nil)
+        performWhenUserRegistered {
+            self.webController = ApphudWebController()
+            self.webController?.present { visitorId in
+                self.startDeeplinkAttributionRequest(url: nil, visitorId: visitorId) { response in
+                    Task { @MainActor in
+                        self.notifyDeeplinkAttribution(attribution: response ?? [:], kind: .deferred, url: nil)
+                    }
                 }
             }
         }

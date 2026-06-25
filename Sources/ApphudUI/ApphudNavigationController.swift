@@ -12,7 +12,7 @@ import StoreKit
 #if os(iOS)
 internal class ApphudNavigationController: UINavigationController {
 
-    private var pendingScreens = [ApphudScreenController]()
+    private var pendingScreens = [UIViewController]()
 
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
         return .portrait
@@ -51,12 +51,26 @@ internal class ApphudNavigationController: UINavigationController {
     }
 
     func pendingScreenController(screenID: String) -> ApphudScreenController? {
-        return pendingScreens.first(where: {$0.screenID == screenID})
+        let controller = pendingScreens.filter { cont in
+            cont is ApphudScreenController && (cont as? ApphudScreenController)?.screenID == screenID
+        }.first as? ApphudScreenController
+        
+        return controller
     }
 
     func handleDidDismiss() {
+        var screenName: String? = nil
+        
+        if let controller = self.viewControllers.first as? ApphudScreenController {
+            screenName = controller.rule.screen_name
+        } else if let controller = self.viewControllers.first as? ApphudPaywallScreenController {
+            screenName = controller.rule?.screen_name
+        }
+        
+        ApphudInternal.shared.uiDelegate?.apphudDidDismissScreen?(controller: self, screenName: screenName)
         ApphudInternal.shared.uiDelegate?.apphudDidDismissScreen?(controller: self)
         ApphudScreensManager.shared.pendingController = nil
+//        HANDLE ALL DELEGATE METHODS
     }
 }
 

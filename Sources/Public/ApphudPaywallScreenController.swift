@@ -50,6 +50,9 @@ public class ApphudPaywallScreenController: UIViewController, @preconcurrency Ap
 
     /// Apphud paywall object.
     public let paywall: ApphudPaywall
+    
+    /// Apphud rule object, optional. Exists only if screen was triggered from a Rule.
+    public internal(set) var rule: ApphudRule?
 
     /// Indicates whether the paywall controller has finished loading its content.
     public internal(set) var state: ApphudPaywallScreenState = .loading
@@ -126,6 +129,12 @@ public class ApphudPaywallScreenController: UIViewController, @preconcurrency Ap
         return ApphudView.create(parentView: self.view)
     }()
     internal var didTrackPaywallShown = false
+    internal var didNotifyRuleScreenDidAppear = false
+    internal var didNotifyRuleScreenWillDismiss = false
+    internal var didNotifyRuleScreenDidDismiss = false
+    internal var didTrackRuleScreenPresented = false
+    internal var didReadRuleNotifications = false
+    internal var ruleDismissError: Error?
 
     internal let loadingView = ApphudLoadingView()
 
