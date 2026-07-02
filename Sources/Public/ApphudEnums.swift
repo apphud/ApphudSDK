@@ -27,6 +27,7 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
     case appleAdsAttribution
     case branch
     case firebase
+    case google
     case facebook
     case singular
     case tenjin
@@ -61,6 +62,8 @@ public typealias ApphudBoolCallback = ((Bool) -> Void)
             return "tiktok"
         case .voluum:
             return "voluum"
+        case .google:
+            return "google"
         default:
             return "Unavailable"
         }

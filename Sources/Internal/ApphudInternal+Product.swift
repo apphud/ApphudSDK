@@ -339,12 +339,12 @@ extension ApphudInternal {
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase
 
-            typealias ApphudResponse = ApphudAPIDataResponse<ApphudPaywall>
+            typealias ApphudResponse = ApphudUserResponse<ApphudPaywall>
             do {
                 let response = try decoder.decode(ApphudResponse.self, from: data)
                 // fill with storekit products
-                response.data.update(placementId: nil, placementIdentifier: nil)
-                callback(response.data, nil)
+                response.data.results.update(placementId: nil, placementIdentifier: nil)
+                callback(response.data.results, nil)
             } catch {
                 apphudLog("Failed to decode paywall structure with error: \(error)")
                 callback(nil, error)
