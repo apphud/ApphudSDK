@@ -65,6 +65,13 @@ public class ApphudSubscription: Codable {
     @objc public let productId: String
 
     /**
+     Product identifier of the upcoming transaction, i.e. the product that will be renewed at the end of the current subscription period. Returns null if auto-renewal is disabled. Can also be null if this field is missing in the backend response or in the local cache (for example during SDK upgrade).
+
+     If this value is different from the `productId` property, it means that the user has initiated a subscription plan change (upgrade, downgrade or crossgrade). This plan change will take effect once the current subscription period expires.
+     */
+    @objc public let upcomingProductId: String?
+    
+    /**
      Expiration date of subscription period. You shouldn't use this property to detect if subscription is active because user can change system date in iOS settings. Check isActive() method instead.
      */
     @objc public let expiresDate: Date
@@ -121,14 +128,14 @@ public class ApphudSubscription: Codable {
 
     required public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: ApphudIAPCodingKeys.self)
-        (self.id, self.expiresDate, self.productId, self.canceledAt, self.startedAt, self.isInRetryBilling, self.isAutorenewEnabled, self.isIntroductoryActivated, self.isSandbox, self.isLocal, self.groupId, self.status, self.originalTransactionId) = try Self.decodeValues(from: values)
+        (self.id, self.expiresDate, self.productId, self.canceledAt, self.startedAt, self.isInRetryBilling, self.isAutorenewEnabled, self.isIntroductoryActivated, self.isSandbox, self.isLocal, self.groupId, self.status, self.originalTransactionId, self.upcomingProductId) = try Self.decodeValues(from: values)
     }
 
     internal init(with values: KeyedDecodingContainer<ApphudIAPCodingKeys>) throws {
-        (self.id, self.expiresDate, self.productId, self.canceledAt, self.startedAt, self.isInRetryBilling, self.isAutorenewEnabled, self.isIntroductoryActivated, self.isSandbox, self.isLocal, self.groupId, self.status, self.originalTransactionId) = try Self.decodeValues(from: values)
+        (self.id, self.expiresDate, self.productId, self.canceledAt, self.startedAt, self.isInRetryBilling, self.isAutorenewEnabled, self.isIntroductoryActivated, self.isSandbox, self.isLocal, self.groupId, self.status, self.originalTransactionId, self.upcomingProductId) = try Self.decodeValues(from: values)
     }
 
-    private static func decodeValues(from values: KeyedDecodingContainer<ApphudIAPCodingKeys>) throws -> (String, Date, String, Date?, Date, Bool, Bool, Bool, Bool, Bool, String, ApphudSubscriptionStatus, String?) {
+    private static func decodeValues(from values: KeyedDecodingContainer<ApphudIAPCodingKeys>) throws -> (String, Date, String, Date?, Date, Bool, Bool, Bool, Bool, Bool, String, ApphudSubscriptionStatus, String?, String?) {
 
         let expiresDateString = try values.decode(String.self, forKey: .expiresAt)
         guard let expDate = expiresDateString.apphudIsoDate else { throw ApphudError(message: "Missing Expires Date") }
@@ -146,8 +153,9 @@ public class ApphudSubscription: Codable {
         let groupId = try values.decode(String.self, forKey: .groupId)
         let status = try values.decode(ApphudSubscriptionStatus.self, forKey: .status)
         let origID = try? values.decode(String.self, forKey: .originalTransactionId)
+        let upcomingProductId = isAutorenewEnabled ? (try? values.decode(String.self, forKey: .autorenewProductId)) : nil
 
-        return (id, expiresDate, productId, canceledAt, startedAt, isInRetryBilling, isAutorenewEnabled, isIntroductoryActivated, isSandbox, isLocal, groupId, status, origID)
+        return (id, expiresDate, productId, canceledAt, startedAt, isInRetryBilling, isAutorenewEnabled, isIntroductoryActivated, isSandbox, isLocal, groupId, status, origID, upcomingProductId)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -166,6 +174,7 @@ public class ApphudSubscription: Codable {
         try container.encode(status.rawValue, forKey: .status)
         try container.encode(ApphudIAPKind.autorenewable.rawValue, forKey: .kind)
         try? container.encode(originalTransactionId, forKey: .originalTransactionId)
+        try? container.encode(upcomingProductId, forKey: .autorenewProductId)
     }
 
     internal init(product: SKProduct) {
@@ -182,6 +191,7 @@ public class ApphudSubscription: Codable {
         status = product.apphudIsTrial ? .trial : product.apphudIsPaidIntro ? .intro : .regular
         isIntroductoryActivated = status == .trial || status == .intro
         originalTransactionId = nil
+        upcomingProductId = product.productIdentifier
     }
 
     internal var stateDescription: String {
