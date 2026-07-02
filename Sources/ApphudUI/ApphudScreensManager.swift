@@ -16,9 +16,7 @@ import UIKit
 @MainActor
 internal class ApphudScreensManager {
     static let shared = ApphudScreensManager()
-    
-    var incomingRulePaywallScreenHandler: ((ApphudPaywallScreenController) -> Void)?
-    
+
     var pendingController: UIViewController?
 
     var pendingPaywallControllers: [String: UIViewController] = [:]
@@ -162,8 +160,6 @@ internal class ApphudScreensManager {
         }
         
         if let paywallIdentifier {
-            let allPaywalls = ApphudInternal.shared.placements.map { $0.paywall }
-            
             ApphudInternal.shared.fetchPaywall(identifier: paywallIdentifier, forceRefresh: false) { paywall, error in
                 guard let paywall else {
                     apphudLog("Failed to handle rule with paywall identifier: \(paywallIdentifier), error: \(error?.localizedDescription ?? "paywall not found")")

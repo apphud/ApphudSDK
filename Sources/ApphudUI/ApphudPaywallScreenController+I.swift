@@ -60,6 +60,7 @@ extension ApphudPaywallScreenController: WKUIDelegate {
         guard !didNotifyRuleScreenDidDismiss else { return }
         didNotifyRuleScreenDidDismiss = true
         ApphudInternal.shared.uiDelegate?.apphudDidDismissScreen?(controller: self, screenName: rule?.screen_name)
+        ApphudInternal.shared.uiDelegate?.apphudDidDismissScreen?(controller: self)
     }
 
     private func skErrorCode(from error: Error?) -> SKError.Code {

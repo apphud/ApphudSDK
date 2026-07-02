@@ -116,7 +116,7 @@ extension ApphudHttpClient {
 
     /// The fallback mechanism only applies to the default production gateway (or a host the SDK itself
     /// switched to). If a developer overrode `domainUrlString` with a custom host, we leave it untouched.
-    private var canUseFallbackHost: Bool {
+    @MainActor private var canUseFallbackHost: Bool {
         domainUrlString == Self.productionEndpoint || didSwitchToApphudFallbackHost
     }
 
@@ -127,6 +127,7 @@ extension ApphudHttpClient {
     /// Downloads an alternative gateway host from the remote fallback file and switches all
     /// subsequent requests to it. Used when the main gateway host is unreachable (e.g. blocked
     /// in certain regions). Returns `true` if a new host was applied.
+    @MainActor
     @discardableResult
     internal func loadFallbackHostIfNeeded() async -> Bool {
         guard canUseFallbackHost else { return false }

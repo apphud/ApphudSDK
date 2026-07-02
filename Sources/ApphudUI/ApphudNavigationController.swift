@@ -59,18 +59,11 @@ internal class ApphudNavigationController: UINavigationController {
     }
 
     func handleDidDismiss() {
-        var screenName: String? = nil
-        
-        if let controller = self.viewControllers.first as? ApphudScreenController {
-            screenName = controller.rule.screen_name
-        } else if let controller = self.viewControllers.first as? ApphudPaywallScreenController {
-            screenName = controller.rule?.screen_name
-        }
-        
+        let screenName = (self.viewControllers.first as? ApphudScreenController)?.rule.screen_name
+
         ApphudInternal.shared.uiDelegate?.apphudDidDismissScreen?(controller: self, screenName: screenName)
         ApphudInternal.shared.uiDelegate?.apphudDidDismissScreen?(controller: self)
         ApphudScreensManager.shared.pendingController = nil
-//        HANDLE ALL DELEGATE METHODS
     }
 }
 

@@ -121,12 +121,13 @@ public class ApphudHttpClient {
     public var domainUrlString = productionEndpoint
 
     // Gateway host fallback state. The related logic lives in `ApphudInternal+Fallback.swift`.
-    internal var isLoadingFallbackHost = false
+    // Isolated to the main actor so the fallback flow can't race between concurrent requests.
+    @MainActor internal var isLoadingFallbackHost = false
 
     // True when the current `domainUrlString` was set by the SDK's own fallback mechanism
     // (fetched from the remote fallback file). Used to avoid touching a host that was manually
     // overridden via the public `domainUrlString` property.
-    internal var didSwitchToApphudFallbackHost = false
+    @MainActor internal var didSwitchToApphudFallbackHost = false
 
     internal var host: String {
         domainUrlString.replacingOccurrences(of: "https://", with: "").replacingOccurrences(of: "gateway.", with: "").replacingOccurrences(of: "api.", with: "")
