@@ -105,3 +105,73 @@ extension ApphudInternal {
         }
     }
 }
+
+// MARK: - Gateway Host Fallback
+
+extension ApphudHttpClient {
+
+    // Remote file containing an alternative gateway host for regions where the
+    // main gateway is unreachable. Expected to contain a single URL, e.g. https://some-alternative-gateway.apphud.com
+    private static var fallbackHostFileURLString: String { "https://apphud.blob.core.windows.net/apphud-gateway/fallback.txt" }
+
+    /// The fallback mechanism only applies to the default production gateway (or a host the SDK itself
+    /// switched to). If a developer overrode `domainUrlString` with a custom host, we leave it untouched.
+    private var canUseFallbackHost: Bool {
+        domainUrlString == Self.productionEndpoint || didSwitchToApphudFallbackHost
+    }
+
+    private static func isValidHost(_ string: String) -> Bool {
+        string.hasPrefix("https://") && URL(string: string) != nil
+    }
+
+    /// Downloads an alternative gateway host from the remote fallback file and switches all
+    /// subsequent requests to it. Used when the main gateway host is unreachable (e.g. blocked
+    /// in certain regions). Returns `true` if a new host was applied.
+    @discardableResult
+    internal func loadFallbackHostIfNeeded() async -> Bool {
+        guard canUseFallbackHost else { return false }
+        guard !isLoadingFallbackHost else { return false }
+        guard let url = URL(string: Self.fallbackHostFileURLString) else { return false }
+
+        isLoadingFallbackHost = true
+        defer { isLoadingFallbackHost = false }
+
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 10.0
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode < 300,
+                  let contents = String(data: data, encoding: .utf8) else {
+                apphudLog("Unable to read gateway fallback host file")
+                return false
+            }
+
+            let newHost = contents
+                .components(separatedBy: .newlines)
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .first(where: { !$0.isEmpty }) ?? ""
+
+            guard Self.isValidHost(newHost) else {
+                apphudLog("Invalid gateway fallback host: \(newHost)")
+                return false
+            }
+
+            guard newHost != domainUrlString else {
+                return false
+            }
+
+            // Switch for the current session only; the fallback host is not persisted, so each
+            // launch starts from the production gateway and re-evaluates reachability.
+            domainUrlString = newHost
+            didSwitchToApphudFallbackHost = true
+            apphudLog("Main gateway is unreachable, switched to fallback host: \(newHost)", forceDisplay: true)
+            return true
+        } catch {
+            apphudLog("Failed to download gateway fallback host: \(error.localizedDescription)")
+            return false
+        }
+    }
+}

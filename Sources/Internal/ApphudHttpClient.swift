@@ -97,6 +97,17 @@ public class ApphudHttpClient {
                 return "paywall_configs/items/render_properties"
             }
         }
+
+        // Only failures of these important endpoints may trigger a switch to the fallback gateway host.
+        // Minor endpoints (notifications, push token, logs, etc.) must not cause a host switch.
+        var canTriggerHostFallback: Bool {
+            switch self {
+            case .customers, .subscriptions, .attribution:
+                return true
+            default:
+                return false
+            }
+        }
     }
 
     static let productionEndpoint = "https://gateway.apphud.com"
@@ -108,6 +119,14 @@ public class ApphudHttpClient {
 
     public static let shared = ApphudHttpClient()
     public var domainUrlString = productionEndpoint
+
+    // Gateway host fallback state. The related logic lives in `ApphudInternal+Fallback.swift`.
+    internal var isLoadingFallbackHost = false
+
+    // True when the current `domainUrlString` was set by the SDK's own fallback mechanism
+    // (fetched from the remote fallback file). Used to avoid touching a host that was manually
+    // overridden via the public `domainUrlString` property.
+    internal var didSwitchToApphudFallbackHost = false
 
     internal var host: String {
         domainUrlString.replacingOccurrences(of: "https://", with: "").replacingOccurrences(of: "gateway.", with: "").replacingOccurrences(of: "api.", with: "")
@@ -176,7 +195,7 @@ public class ApphudHttpClient {
                     retryDelay = 0
                 }
 
-                let response = await start(request: request, useDecoder: useDecoder, retries: retries, delay: retryDelay)
+                let response = await start(request: request, useDecoder: useDecoder, retries: retries, delay: retryDelay, canTriggerHostFallback: path.canTriggerHostFallback)
 
                 Task { @MainActor in
                     callback?(response.0, response.1, response.2, response.3, response.4, response.5, response.6)
@@ -347,7 +366,7 @@ public class ApphudHttpClient {
         task.resume()
     }
 
-    private func start(request: URLRequest, useDecoder: Bool = false, retries: Int, delay: TimeInterval) async -> ApphudHTTPResponse {
+    private func start(request: URLRequest, useDecoder: Bool = false, retries: Int, delay: TimeInterval, canTriggerHostFallback: Bool = false) async -> ApphudHTTPResponse {
 
         let startDate = Date()
         let method = request.httpMethod ?? ""
@@ -383,6 +402,14 @@ public class ApphudHttpClient {
                 apphudLog("Request \(method) \(request.url?.absoluteString ?? "") failed with code: \(code) after: \(attempts) attempts error: \(error.localizedDescription)", logLevel: .all)
             } else {
                 apphudLog("Request \(method) \(request.url?.absoluteString ?? "") failed with code: \(code) after: \(attempts) attempts error: \(error.localizedDescription)")
+            }
+
+            // If an important request fails because the gateway host is unreachable (e.g. blocked in
+            // certain regions), try to switch to an alternative host provided by the remote fallback
+            // file. Subsequent requests and retries will automatically use the new host.
+            let hostUnreachable = [NSURLErrorTimedOut, NSURLErrorCannotConnectToHost, NSURLErrorCannotFindHost, NSURLErrorDNSLookupFailed, NSURLErrorSecureConnectionFailed].contains(code)
+            if hostUnreachable && canTriggerHostFallback {
+                Task { await loadFallbackHostIfNeeded() }
             }
 
             // Handle any errors that occurred during the request
