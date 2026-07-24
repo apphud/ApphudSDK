@@ -45,6 +45,15 @@ import UIKit
 
     #if os(iOS)
     /**
+     Called when a Rule references a paywall that has no visual Screen.
+     
+     Use this to present your own UI for the given paywall. Apphud will not attempt to show a Screen in this case.
+     
+     - Important: Purchases made using manual paywall handling will not be tracked in Rule analytics.
+     */
+    @objc optional func apphudRuleWithoutPaywallScreen(rule: ApphudRule, paywall: ApphudPaywall)
+
+    /**
         Return `UIViewController` instance from which you want to present given Apphud controller. If you don't implement this method, then top visible viewcontroller from key window will be used.
      
         __Note__: This delegate method is recommended for implementation when you have multiple windows in your app, because Apphud SDK may have issues while presenting screens in this case.

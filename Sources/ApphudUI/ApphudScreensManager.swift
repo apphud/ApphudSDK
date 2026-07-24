@@ -167,6 +167,12 @@ internal class ApphudScreensManager {
                     return
                 }
 
+                guard paywall.hasVisualPaywall() else {
+                    apphudLog("Rule \(rule.rule_name) paywall \(paywallID) has no visual screen, calling apphudRuleWithoutPaywallScreen")
+                    ApphudInternal.shared.uiDelegate?.apphudRuleWithoutPaywallScreen?(rule: rule, paywall: paywall)
+                    return
+                }
+
                 Apphud.fetchPaywallScreen(paywall) { result in
                     switch result {
                     case .error(let error):
