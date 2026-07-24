@@ -321,7 +321,9 @@ extension ApphudPaywallScreenController: WKUIDelegate {
 
         if !didTrackPaywallShown {
             didTrackPaywallShown = true
-            Apphud.paywallShown(paywall)
+            if rule == nil {
+                Apphud.paywallShown(paywall)
+            }
         }
 
         trackRuleScreenPresentedIfNeeded()
