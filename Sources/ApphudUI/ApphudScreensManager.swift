@@ -145,11 +145,10 @@ internal class ApphudScreensManager {
     internal func handleRule(ruleID: String, data: [String: Any]?) {
         let dict = ["id": ruleID].merging(data ?? [:], uniquingKeysWith: {_, new in new})
         let rule = ApphudRule(dictionary: dict)
-        let preferredID = (data?["paywall_id"] as? String) ?? (data?["paywall_identifier"] as? String)
-        self.handleRule(rule: rule, paywallID: preferredID)
+        self.handleRule(rule: rule)
     }
 
-    internal func handleRule(rule: ApphudRule, paywallID: String?) {
+    internal func handleRule(rule: ApphudRule) {
 
         guard self.pendingController == nil else { return }
         
@@ -161,7 +160,7 @@ internal class ApphudScreensManager {
 
         // A new Rule screen is identified by the presence of either paywall_id or paywall_identifier.
         // When both are missing this is a legacy screen and must be handled via screen_id.
-        if let paywallID {
+        if let paywallID = rule.preferredPaywallID {
             ApphudInternal.shared.fetchPaywall(identifier: paywallID, forceRefresh: false) { paywall, error in
                 guard let paywall else {
                     apphudLog("Failed to handle rule with paywall: \(paywallID), error: \(error?.localizedDescription ?? "paywall not found")")

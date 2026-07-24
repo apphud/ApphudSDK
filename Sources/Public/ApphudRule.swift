@@ -25,6 +25,13 @@ public class ApphudRule: NSObject {
     // Private
     internal let id: String
     internal let screen_id: String
+    internal let paywall_id: String?
+    internal let paywall_identifier: String?
+
+    /// Prefer `paywall_id`, fall back to `paywall_identifier`.
+    internal var preferredPaywallID: String? {
+        paywall_id ?? paywall_identifier
+    }
 
     // MARK: - Private methods
 
@@ -34,5 +41,7 @@ public class ApphudRule: NSObject {
         screen_id = dictionary["screen_id"] as? String ?? ""
         rule_name = dictionary["rule_name"] as? String ?? ""
         screen_name = dictionary["screen_name"] as? String ?? ""
+        paywall_id = dictionary["paywall_id"] as? String
+        paywall_identifier = dictionary["paywall_identifier"] as? String
     }
 }

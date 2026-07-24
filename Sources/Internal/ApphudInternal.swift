@@ -683,23 +683,6 @@ final class ApphudInternal: NSObject {
         }
     }
 
-    /// Not used yet
-    internal func getRule(ruleID: String, callback: @escaping (ApphudRule?) -> Void) {
-
-        performWhenUserRegistered {
-            let params = ["device_id": self.currentDeviceID] as [String: String]
-
-            self.httpClient?.startRequest(path: .rule(ruleID), apiVersion: .APIV2, params: params, method: .get) { (result, response, _, _, _, _, _) in
-                if result, let dataDict = response?["data"] as? [String: Any],
-                    let ruleDict = dataDict["results"] as? [String: Any] {
-                    callback(ApphudRule(dictionary: ruleDict))
-                } else {
-                    callback(nil)
-                }
-            }
-        }
-    }
-
     internal func checkForUnreadNotifications() {
         #if os(iOS)
         performWhenUserRegistered {
@@ -708,11 +691,10 @@ final class ApphudInternal: NSObject {
 
                 if result, let dataDict = response?["data"] as? [String: Any], let notifArray = dataDict["results"] as? [[String: Any]], let notifDict = notifArray.first, var ruleDict = notifDict["rule"] as? [String: Any] {
                     let properties = notifDict["properties"] as? [String: Any]
-                    let preferredID = (properties?["paywall_id"] as? String) ?? (properties?["paywall_identifier"] as? String)
                     ruleDict = ruleDict.merging(properties ?? [:], uniquingKeysWith: {_, new in new})
                     let rule = ApphudRule(dictionary: ruleDict)
                     Task { @MainActor in
-                        ApphudScreensManager.shared.handleRule(rule: rule, paywallID: preferredID)
+                        ApphudScreensManager.shared.handleRule(rule: rule)
                     }
                 }
             })
