@@ -129,6 +129,7 @@ extension ApphudScreenController {
 
         if UIApplication.shared.canOpenURL(navigationURL) {
             let controller = SFSafariViewController(url: navigationURL)
+            apphudLog("Opening Rule Link URL: \(navigationURL)", forceDisplay: true)
             controller.modalPresentationStyle = self.navigationController?.modalPresentationStyle ?? .fullScreen
             present(controller, animated: true, completion: nil)
         }

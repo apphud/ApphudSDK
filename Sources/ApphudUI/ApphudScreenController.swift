@@ -126,13 +126,81 @@ class ApphudScreenController: UIViewController {
 
     private static let screenReadyScript = "<script>try{window.webkit.messageHandlers.apphudScreenReady.postMessage('ready');}catch(e){}</script>"
 
+    /// `true` when presented as a sheet (`.automatic` / pageSheet / formSheet, etc.),
+    /// `false` for `.fullScreen` / `.overFullScreen`.
+    private var isSheetPresentation: Bool {
+        let style = navigationController?.modalPresentationStyle ?? modalPresentationStyle
+        switch style {
+        case .fullScreen, .overFullScreen:
+            return false
+        default:
+            return true
+        }
+    }
+
+    private var presentationClassName: String {
+        isSheetPresentation ? "aph-sheet" : "aph-fullscreen"
+    }
+
+    /// Injected early so templates can style close-button offsets before first paint.
+    /// Use in CSS: `html.aph-sheet .screen-…__close { top: 20px; }`
+    /// and `html.aph-fullscreen .screen-…__close { top: calc(20px + env(safe-area-inset-top, 0px)); }`
+    private func presentationBootstrapScript() -> String {
+        let className = presentationClassName
+        return """
+        <script>
+        (function(){
+          var c='\(className)';
+          function apply(){
+            var r=document.documentElement;
+            if(!r) return;
+            r.classList.remove('aph-sheet','aph-fullscreen');
+            r.classList.add(c);
+            if(document.body){
+              document.body.classList.remove('aph-sheet','aph-fullscreen');
+              document.body.classList.add(c);
+            }
+          }
+          apply();
+          document.addEventListener('DOMContentLoaded', apply);
+        })();
+        </script>
+        """
+    }
+
+    private func applyPresentationClassToWebView() {
+        let className = presentationClassName
+        let js = """
+        (function(){
+          var c='\(className)';
+          var r=document.documentElement;
+          if(!r) return;
+          r.classList.remove('aph-sheet','aph-fullscreen');
+          r.classList.add(c);
+          if(document.body){
+            document.body.classList.remove('aph-sheet','aph-fullscreen');
+            document.body.classList.add(c);
+          }
+        })();
+        """
+        webView.evaluateJavaScript(js, completionHandler: nil)
+    }
+
     @objc internal func editAndReloadPage(html: String) {
         self.webView.tag = 1
-        let htmlToLoad: String
-        if html.contains("</body>") {
-            htmlToLoad = html.replacingOccurrences(of: "</body>", with: Self.screenReadyScript + "</body>")
+        var htmlToLoad = html
+        let bootstrap = presentationBootstrapScript()
+        if let regex = try? NSRegularExpression(pattern: "<head[^>]*>", options: .caseInsensitive),
+           let match = regex.firstMatch(in: htmlToLoad, range: NSRange(htmlToLoad.startIndex..., in: htmlToLoad)),
+           let range = Range(match.range, in: htmlToLoad) {
+            htmlToLoad.replaceSubrange(range, with: htmlToLoad[range] + bootstrap)
         } else {
-            htmlToLoad = html + Self.screenReadyScript
+            htmlToLoad = bootstrap + htmlToLoad
+        }
+        if htmlToLoad.contains("</body>") {
+            htmlToLoad = htmlToLoad.replacingOccurrences(of: "</body>", with: Self.screenReadyScript + "</body>")
+        } else {
+            htmlToLoad += Self.screenReadyScript
         }
         self.pendingScreenLoadNavigation = self.webView.loadHTMLString(htmlToLoad, baseURL: nil)
     }
@@ -156,6 +224,7 @@ class ApphudScreenController: UIViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(true)
         didAppear = true
+        applyPresentationClassToWebView()
         if error != nil {
             apphudLog("Closing screen due to fatal error: \(error!) rule ID: \(self.rule.id) screen ID: \(self.screenID)", forceDisplay: true)
             dismiss()
@@ -171,6 +240,7 @@ class ApphudScreenController: UIViewController {
 
         apphudLog("Screen is appeared: \(self.screenID)")
 
+        applyPresentationClassToWebView()
         self.getScreenInfo()
         self.preloadSurveyAnswerPages()
         self.handleScreenPresented()
@@ -274,6 +344,7 @@ class ApphudScreenController: UIViewController {
         didLoadScreen = true
         pendingScreenLoadNavigation = nil
 
+        applyPresentationClassToWebView()
         webView.alpha = 1
 
         if didAppear {
