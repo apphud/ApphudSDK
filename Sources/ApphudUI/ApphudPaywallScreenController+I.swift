@@ -265,6 +265,7 @@ extension ApphudPaywallScreenController: WKUIDelegate {
 
                 if let skProduct = product.skProduct, let ruleScreenName {
                     if result.success {
+                        ApphudInternal.shared.uiDelegate?.apphudDidPurchase?(product: skProduct, offerID: nil, transaction: result.transaction, screenName: ruleScreenName)
                         ApphudInternal.shared.uiDelegate?.apphudDidPurchase?(product: skProduct, offerID: nil, screenName: ruleScreenName)
                     } else {
                         ApphudInternal.shared.uiDelegate?.apphudDidFailPurchase?(product: skProduct, offerID: nil, errorCode: self.skErrorCode(from: result.error), screenName: ruleScreenName)

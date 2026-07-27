@@ -75,7 +75,10 @@ import UIKit
 
     /**
      Called when user successfully purchased product in Apphud purchase screen.
+     
+     `transaction` may be nil, for example when purchase was made using StoreKit 2.
     */
+    @objc optional func apphudDidPurchase(product: SKProduct, offerID: String?, transaction: SKPaymentTransaction?, screenName: String)
     @objc optional func apphudDidPurchase(product: SKProduct, offerID: String?, screenName: String)
 
     /**

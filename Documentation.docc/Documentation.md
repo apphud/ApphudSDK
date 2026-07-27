@@ -196,6 +196,7 @@ Here are some primary methods:
 - ``ApphudUIDelegate/apphudParentViewController(controller:)``
 - ``ApphudUIDelegate/apphudScreenPresentationStyle(controller:)``
 - ``ApphudUIDelegate/apphudWillPurchase(product:offerID:screenName:)``
+- ``ApphudUIDelegate/apphudDidPurchase(product:offerID:transaction:screenName:)``
 - ``ApphudUIDelegate/apphudDidPurchase(product:offerID:screenName:)``
 - ``ApphudUIDelegate/apphudDidFailPurchase(product:offerID:errorCode:screenName:)``
 - ``ApphudUIDelegate/apphudScreenDidAppear(screenName:)``

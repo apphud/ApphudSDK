@@ -209,6 +209,7 @@ extension ApphudScreenController {
 
             ApphudInternal.shared.trackEvent(params: params) {}
 
+            ApphudInternal.shared.uiDelegate?.apphudDidPurchase?(product: product, offerID: offerID, transaction: result.transaction, screenName: self.rule.screen_name)
             ApphudInternal.shared.uiDelegate?.apphudDidPurchase?(product: product, offerID: offerID, screenName: self.rule.screen_name)
 
             dismiss() // dismiss only when purchase is successful
