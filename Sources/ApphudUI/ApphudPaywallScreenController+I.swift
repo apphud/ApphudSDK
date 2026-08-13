@@ -145,10 +145,15 @@ extension ApphudPaywallScreenController: WKUIDelegate {
         var infos = [[String: any Sendable]]()
 
         for p in paywall.products {
-            if let skProduct = p.skProduct {
+            // StoreKit 2 product is the primary source; the SK1 feeder is a fallback.
+            var productParams: [String: Any]?
+            if let product = try? await p.product() {
+                productParams = product.apphudSubmittableParameters()
+            } else if let skProduct = p.skProduct {
+                productParams = skProduct.apphudSubmittableParameters()
+            }
 
-                var finalInfo = skProduct.apphudSubmittableParameters()
-
+            if var finalInfo = productParams {
                 if let props = p.jsonProperties() {
                     finalInfo.merge(props, uniquingKeysWith: { _, new in new })
                 }
