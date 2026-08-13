@@ -290,4 +290,27 @@ final class ApphudSDKTests: XCTestCase {
         XCTAssertFalse(tracked.isEmpty, "Foreign purchase must be auto-tracked via POST /v1/subscriptions")
         XCTAssertNotNil(tracked.last?.body["receipt_data"] as? String)
     }
+
+    // MARK: 4. Upgrade compatibility of the transaction dedup storage
+
+    /// Data-compat contract: the dedup list keeps the same UserDefaults key and shape as
+    /// 4.4.x. A rename or format change would make the SDK re-upload every transaction
+    /// the previous version had already submitted.
+    @MainActor
+    func test4TransactionDedupStorageIsUpgradeCompatible() async throws {
+        let key = "ApphudLastUploadedTransactions"
+        let saved = UserDefaults.standard.array(forKey: key)
+        defer { UserDefaults.standard.set(saved, forKey: key) }
+
+        // Values written by a previous SDK version must be read back as-is.
+        let legacyValues: [UInt64] = [2_000_000_123_456_789, 42]
+        UserDefaults.standard.set(legacyValues, forKey: key)
+        XCTAssertEqual(ApphudInternal.shared.lastUploadedTransactions, legacyValues,
+                       "Transactions stored by a previous SDK version must still be recognized")
+
+        // And values written now must stay readable in the same plain-array shape.
+        ApphudInternal.shared.lastUploadedTransactions = [7, 8]
+        XCTAssertEqual(UserDefaults.standard.array(forKey: key) as? [UInt64], [7, 8],
+                       "Dedup list must stay a plain [UInt64] array under the same key")
+    }
 }

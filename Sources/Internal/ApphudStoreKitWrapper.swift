@@ -48,7 +48,6 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver {
 
     fileprivate var fetchers = ApphudSafeSet<ApphudProductsFetcher>()
 
-    var purchasingProductID: String?
     var purchasingValue: ApphudCustomPurchaseValue?
     private(set) var isPurchasing: Bool = false
 
@@ -207,7 +206,15 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver {
                         apphudLog("Payment is in purchasing state \(trx.payment.productIdentifier) for username: \(trx.payment.applicationUsername ?? "")")
                     }
 
-                    if self.purchasingProductID == nil && ApphudUtils.shared.storeKitObserverMode == false {
+                    // StoreKit 2 purchases made by the SDK also surface in the legacy
+                    // payment queue, so observer mode must only be force-enabled when
+                    // the SDK itself is not purchasing right now.
+                    var sdkIsPurchasing = false
+                    if #available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *) {
+                        sdkIsPurchasing = ApphudAsyncStoreKit.shared.isPurchasing
+                    }
+
+                    if !sdkIsPurchasing && ApphudUtils.shared.storeKitObserverMode == false {
                         apphudLog("Seems like Observer Mode is False however purchase is not being made through Apphud SDK. Please make sure you set ObserverMode to True when initialising Apphud SDK. As for now, force enabling observer mode..", logLevel: .off)
                         ApphudUtils.shared.storeKitObserverMode = true
                     }
@@ -273,7 +280,6 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver {
         if transaction.transactionState != .purchasing {
             SKPaymentQueue.default().finishTransaction(transaction)
         }
-        self.purchasingProductID = nil
         self.purchasingValue = nil
     }
 

@@ -10,6 +10,10 @@ import Foundation
 import StoreKit
 import SwiftUI
 
+#if os(visionOS)
+import UIKit
+#endif
+
 extension ApphudInternal {
 
     // MARK: - Main Purchase and Submit Receipt methods
@@ -146,6 +150,13 @@ extension ApphudInternal {
         let upgrade = transaction.isUpgraded
         let productID = transaction.productID
 
+        // A submission for this exact transaction is still in flight: its owner decides
+        // whether the transaction may be finished, so report "not handled" here.
+        if self.submittingTransaction == String(transactionId) {
+            apphudLog("Already submitting the same transaction id \(transactionId), skipping", logLevel: .debug)
+            return false
+        }
+
         // use original transaction id to compare if already tracked
         if await isAlreadyTracked(transactionId: transaction.originalID, productId: productID, purchaseDate: purchaseDate) {
             apphudLog("This transaction already tracked by Apphud: \(transactionId), skipping", logLevel: .debug)
@@ -167,10 +178,6 @@ extension ApphudInternal {
 
         if isActive {
             apphudLog("found transaction with ID: \(transactionId), \(productID), purchase date: \(purchaseDate)", logLevel: .debug)
-            if self.submittingTransaction == String(transactionId) {
-                apphudLog("Already submitting the same transaction id \(transactionId), skipping", logLevel: .debug)
-                return false
-            }
 
             // StoreKit 2 path: product metadata comes from the SK2 product cache,
             // no SKProductsRequest involved.
@@ -602,7 +609,10 @@ extension ApphudInternal {
         }
 
         #if os(visionOS)
-        guard let scene = apphudVisibleViewController()?.view.window?.windowScene else {
+        // visionOS requires an explicit UIScene to confirm the purchase in.
+        let activeScene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive })
+            ?? UIApplication.shared.connectedScenes.first
+        guard let scene = activeScene else {
             callback?(ApphudPurchaseResult(nil, nil, nil, ApphudError(message: "Failed to retrieve UIScene for purchase confirmation")))
             return
         }

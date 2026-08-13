@@ -124,8 +124,12 @@ internal class ApphudAsyncStoreKit {
                 case .verified(let trx):
                     transaction = trx
                     transactionJws = verificationResult.jwsRepresentation
-                case .unverified(let trx, _):
-                    transaction = trx
+                case .unverified(let trx, let verificationError):
+                    // An unverified transaction is never submitted: it is left unfinished
+                    // and re-checked, so StoreKit can redeliver a verified copy later.
+                    apphudLog("Received unverified transaction [\(trx.id), \(trx.productID)] from StoreKit2: \(verificationError)", forceDisplay: true)
+                    ApphudInternal.shared.setNeedToCheckTransactions()
+                    purchaseError = ApphudError(message: "Transaction failed StoreKit verification: \(verificationError.localizedDescription)")
                 }
             case .pending:
                 isPendingPurchase = true
@@ -155,7 +159,23 @@ internal class ApphudAsyncStoreKit {
         }
     }
 
+    /// Transactions currently being submitted by any path — the direct purchase call or
+    /// the `Transaction.updates` listener, both of which receive the same transaction.
+    /// The first path owns submitting and finishing it; the other one skips without
+    /// finishing, so a failed submission still leaves the transaction for redelivery.
+    @MainActor private static var processingTransactionIDs = Set<UInt64>()
+
+    @MainActor
     fileprivate static func processTransaction(_ transaction: StoreKit.Transaction, jws: String?, fromScreen: Bool = false) async {
+
+        guard !processingTransactionIDs.contains(transaction.id) else {
+            apphudLog("Transaction \(transaction.id) is already being processed, skipping duplicate delivery", logLevel: .debug)
+            return
+        }
+
+        processingTransactionIDs.insert(transaction.id)
+        defer { processingTransactionIDs.remove(transaction.id) }
+
         // Finish only after the transaction is handled: an unfinished transaction is
         // redelivered by StoreKit on the next launch, so a submit that failed against
         // the backend keeps the transaction alive for a retry.
@@ -200,8 +220,9 @@ final class ApphudPurchaseIntentsObserver {
     var intentsTask: Task<Void, Never>?
 
     init() {
+        // PurchaseIntent exists on iOS/iPadOS 16.4+, macCatalyst 16.4+ and macOS 14.4+ only.
+        #if os(iOS) || os(macOS)
         guard #available(iOS 16.4, macOS 14.4, *) else { return }
-        #if os(iOS) || os(macOS) || os(visionOS)
         intentsTask = Task(priority: .background) {
             for await intent in PurchaseIntent.intents {
                 await Self.handle(product: intent.product)
@@ -269,10 +290,8 @@ final class ApphudAsyncTransactionObserver {
 
         if !ApphudUtils.shared.storeKitObserverMode {
             Task { @MainActor in
-                if ApphudStoreKitWrapper.shared.purchasingProductID == transaction.productID && ApphudStoreKitWrapper.shared.isPurchasing {
-                    return
-                }
-
+                // Duplicate delivery of a transaction the direct purchase path is already
+                // submitting is filtered inside processTransaction by transaction id.
                 await ApphudAsyncStoreKit.processTransaction(transaction, jws: jws)
             }
         } else {
