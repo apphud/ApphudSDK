@@ -372,7 +372,7 @@ class ApphudScreenController: UIViewController {
 
                     ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(product: product, offerID: offerID!, screenName: self.rule.screen_name)
 
-                    ApphudInternal.shared.purchasePromo(skProduct: product, apphudProduct: nil, discountID: offerID!, fromScreen: true) { (result) in
+                    ApphudInternal.shared.purchasePromo(productId: product.productIdentifier, apphudProduct: nil, discountID: offerID!, fromScreen: true) { (result) in
                         self.handlePurchaseResult(product: product, offerID: offerID!, result: result)
                     }
                 } else {

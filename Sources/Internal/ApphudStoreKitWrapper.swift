@@ -46,8 +46,6 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver {
 
     fileprivate var fetchers = ApphudSafeSet<ApphudProductsFetcher>()
 
-    private var paymentCallback: ApphudTransactionCallback?
-
     var purchasingProductID: String?
     var purchasingValue: ApphudCustomPurchaseValue?
     private(set) var isPurchasing: Bool = false
@@ -184,33 +182,10 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver {
         }
     }
 
-    func purchase(product: SKProduct, value: Double? = nil, callback: @escaping ApphudTransactionCallback) {
-        ApphudUtils.shared.storeKitObserverMode = false
-        let payment = SKMutablePayment(product: product)
-        purchase(payment: payment, value: value, callback: callback)
-    }
-
-    func purchase(product: SKProduct, discount: SKPaymentDiscount, callback: @escaping ApphudTransactionCallback) {
-        ApphudUtils.shared.storeKitObserverMode = false
-        let payment = SKMutablePayment(product: product)
-        payment.paymentDiscount = discount
-        purchase(payment: payment, callback: callback)
-    }
-
-    func purchase(payment: SKPayment, value: Double? = nil, callback: @escaping ApphudTransactionCallback) {
-        finishCompletedTransactions(for: payment.productIdentifier)
-        paymentCallback = callback
-        purchasingProductID = payment.productIdentifier
-        if let v = value {
-            purchasingValue = ApphudCustomPurchaseValue(payment.productIdentifier, v)
-        } else {
-            purchasingValue = nil
-        }
-        apphudLog("Starting payment for \(payment.productIdentifier), transactions in queue: \(SKPaymentQueue.default().transactions)")
-        SKPaymentQueue.default().add(payment)
-    }
-
     // MARK: - SKPaymentTransactionObserver
+    // The observer no longer initiates purchases (all SDK purchases go through
+    // StoreKit 2). It exists to track purchases made by the host app's own
+    // StoreKit 1 code (observer mode) and legacy twins of SK2 transactions.
 
     func paymentQueue(_ queue: SKPaymentQueue, updatedTransactions transactions: [SKPaymentTransaction]) {
         Task { @MainActor in
@@ -262,40 +237,31 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver {
         ApphudInternal.shared.delegate?.handleDeferredTransaction(transaction: transaction)
     }
 
+    @MainActor
     private func handleTransactionIfStarted(_ transaction: SKPaymentTransaction) {
 
         if #available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *), ApphudAsyncStoreKit.shared.isPurchasing {
             return
         }
 
-        if transaction.payment.productIdentifier == self.purchasingProductID {
-            if self.paymentCallback != nil {
-                self.paymentCallback?(transaction, transaction.error)
-            } else {
+        if transaction.transactionState == .purchased {
+            // Skip legacy queue twins of transactions already uploaded via StoreKit 2.
+            if let trxId = transaction.transactionIdentifier, let trxIdInt = UInt64(trxId),
+               ApphudInternal.shared.lastUploadedTransactions.contains(trxIdInt) {
                 finishTransaction(transaction)
+                return
             }
-            self.paymentCallback = nil
-        } else {
-            if transaction.transactionState == .purchased {
-                ApphudInternal.shared.submitReceiptAutomaticPurchaseTracking(transaction: transaction) { result in
-                    if let finish = ApphudInternal.shared.delegate?.apphudDidObservePurchase(result: result), finish == true {
-                        self.finishTransaction(transaction)
-                    } else if ApphudUtils.shared.storeKitObserverMode == false && result.success {
-                        self.finishTransaction(transaction)
-                    }
+
+            ApphudInternal.shared.submitReceiptAutomaticPurchaseTracking(transaction: transaction) { result in
+                if let finish = ApphudInternal.shared.delegate?.apphudDidObservePurchase(result: result), finish == true {
+                    self.finishTransaction(transaction)
+                } else if ApphudUtils.shared.storeKitObserverMode == false && result.success {
+                    self.finishTransaction(transaction)
                 }
-            } else if transaction.failedWithUnknownReason {
-                ApphudInternal.shared.setNeedToCheckTransactions()
             }
+        } else if transaction.failedWithUnknownReason {
+            ApphudInternal.shared.setNeedToCheckTransactions()
         }
-    }
-
-    private func finishCompletedTransactions(for productIdentifier: String) {
-        let transactionsCopy = SKPaymentQueue.default().transactions
-
-        transactionsCopy
-            .filter { $0.payment.productIdentifier == productIdentifier && $0.finishable }
-            .forEach { transaction in finishTransaction(transaction) }
     }
 
     internal func finishTransaction(_ transaction: SKPaymentTransaction) {

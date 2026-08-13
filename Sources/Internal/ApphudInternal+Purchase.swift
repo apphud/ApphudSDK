@@ -369,7 +369,10 @@ extension ApphudInternal {
                                      "environment": environment,
                                      "observer_mode": ApphudUtils.shared.storeKitObserverMode]
 
-        if !ApphudUtils.shared.useStoreKitV2 || transactionIdentifier == nil, let receipt = receiptString {
+        // Send the receipt whenever it is readable from disk: apps without an
+        // App Store Server API key in the Apphud dashboard can only be validated
+        // by receipt on the backend.
+        if let receipt = receiptString {
             params["receipt_data"] = receipt
         }
 
@@ -543,100 +546,52 @@ extension ApphudInternal {
     }
 
     @MainActor internal func purchase(productId: String, product: ApphudProduct?, validate: Bool, purchasingFromScreen: Bool, value: Double? = nil, callback: ((ApphudPurchaseResult) -> Void)?) {
-        
-        let skProduct = product?.skProduct ?? ApphudStoreKitWrapper.shared.products.first(where: { $0.productIdentifier == productId })
-
-        if let skProduct = skProduct {
-            purchase(product: skProduct, apphudProduct: product, validate: validate, fromScreen: purchasingFromScreen, value: value, callback: callback)
-        } else {
-            apphudLog("Product with id \(productId) not found, re-fetching from App Store...")
-            ApphudStoreKitWrapper.shared.fetchProducts(productIds: [productId]) { prds in
-                if let sk = prds?.first(where: { $0.productIdentifier == productId }) {
-                    self.purchase(product: sk, apphudProduct: product, validate: validate, fromScreen: purchasingFromScreen, value: value, callback: callback)
-                } else {
-                    let message = "Unable to start payment because product identifier is invalid: [\([productId])]"
-                    apphudLog(message, forceDisplay: true)
-                    let result = ApphudPurchaseResult(nil, nil, nil, ApphudError(message: message))
-                    callback?(result)
-                }
-            }
+        // All SDK-initiated purchases go through StoreKit 2.
+        purchasingProduct = product
+        let commitmentPlanPreferred = product?.isCommitmentPlanPreferred() ?? false
+        Task { @MainActor in
+            await self.purchaseAsync(apphudProduct: product, productId: productId, commitmentPlan: commitmentPlanPreferred, fromScreen: purchasingFromScreen, value: value, callback: callback)
         }
     }
 
-    internal func purchasePromo(skProduct: SKProduct?, apphudProduct: ApphudProduct?, discountID: String, fromScreen: Bool, callback: ((ApphudPurchaseResult) -> Void)?) {
+    internal func purchasePromo(productId: String?, apphudProduct: ApphudProduct?, discountID: String, fromScreen: Bool, callback: ((ApphudPurchaseResult) -> Void)?) {
 
-        let skCallback: ((SKProduct) -> Void) = { skProduct in
-            self.signPromoOffer(productID: skProduct.productIdentifier, discountID: discountID) { (paymentDiscount, _) in
-                if let paymentDiscount = paymentDiscount {
-                    self.purchasePromo(skProduct: skProduct, product: apphudProduct, discount: paymentDiscount, fromScreen: fromScreen, callback: callback)
-                } else {
-                    callback?(ApphudPurchaseResult(nil, nil, nil, ApphudError(message: "Could not sign offer id: \(discountID), product id: \(skProduct.productIdentifier)")))
-                }
-            }
-
+        guard let productId = productId ?? apphudProduct?.productId else {
+            callback?(ApphudPurchaseResult(nil, nil, nil, ApphudError(message: "Could not sign offer id: \(discountID): unknown product identifier")))
+            return
         }
 
-        if let skProduct = skProduct {
-            skCallback(skProduct)
-        } else if let productId = apphudProduct?.productId {
-            Task {
-                if let skProduct = await ApphudStoreKitWrapper.shared.fetchProduct(productId) {
-                    apphudPerformOnMainThread {
-                        skCallback(skProduct)
-                    }
-                }
+        self.signPromoOffer(productID: productId, discountID: discountID) { signedOffer, _ in
+            guard let signedOffer else {
+                callback?(ApphudPurchaseResult(nil, nil, nil, ApphudError(message: "Could not sign offer id: \(discountID), product id: \(productId)")))
+                return
+            }
+
+            Task { @MainActor in
+                self.purchasingProduct = apphudProduct
+                let option = Product.PurchaseOption.promotionalOffer(offerID: signedOffer.offerID,
+                                                                     keyID: signedOffer.keyID,
+                                                                     nonce: signedOffer.nonce,
+                                                                     signature: signedOffer.signature,
+                                                                     timestamp: signedOffer.timestamp)
+                await self.purchaseAsync(apphudProduct: apphudProduct, productId: productId, commitmentPlan: false, fromScreen: fromScreen, extraOptions: [option], callback: callback)
             }
         }
     }
 
     // MARK: - Private purchase methods
 
-    private func purchase(product: SKProduct, apphudProduct: ApphudProduct?, validate: Bool, fromScreen: Bool, value: Double? = nil, callback: ((ApphudPurchaseResult) -> Void)?) {
-        
-        let screenId = fromScreen ? apphudProduct?.paywall?.screen?.id : nil
-        
-        ApphudLoggerService.shared.paywallCheckoutInitiated(apphudProduct: apphudProduct, productId: product.productIdentifier, screenId: screenId)
-
-        purchasingProduct = apphudProduct
-
-        #if os(iOS) || os(tvOS) || os(macOS) || os(watchOS)
-        let commitmentPlanPreferred = apphudProduct?.isCommitmentPlanPreferred() ?? false
-
-        if (commitmentPlanPreferred && apphudProduct != nil) || ApphudUtils.shared.useStoreKitV2 {
-            Task { @MainActor in
-                await self.purchaseAsync(apphudProduct: apphudProduct, productId: product.productIdentifier, commitmentPlan: commitmentPlanPreferred, fromScreen: fromScreen, value: value, callback: callback)
-            }
-            return
-        }
-        #endif
-
-        ApphudStoreKitWrapper.shared.purchase(product: product, value: value) { transaction, error in
-
-            if let error = error {
-                ApphudLoggerService.shared.paywallPaymentError(paywallId: apphudProduct?.paywallId, placementId: apphudProduct?.placementId, productId: product.productIdentifier, error: error.apphudErrorMessage())
-            }
-
-            Task { @MainActor in
-                if validate {
-                    self.handleTransaction(product: product, transaction: transaction, error: error, apphudProduct: apphudProduct, fromScreen: fromScreen, callback: callback)
-                } else {
-                    self.handleTransaction(product: product, transaction: transaction, error: error, apphudProduct: apphudProduct, fromScreen: fromScreen, callback: nil)
-                    callback?(ApphudPurchaseResult(nil, nil, transaction, error))
-                }
-            }
-        }
-    }
-    
-    #if os(iOS) || os(tvOS) || os(macOS) || os(watchOS)
     @MainActor
-    private func purchaseAsync(apphudProduct: ApphudProduct?, productId: String?, commitmentPlan: Bool, fromScreen: Bool, value: Double? = nil, callback: ((ApphudPurchaseResult) -> Void)?) async {
+    private func purchaseAsync(apphudProduct: ApphudProduct?, productId: String?, commitmentPlan: Bool, fromScreen: Bool, value: Double? = nil, extraOptions: Set<Product.PurchaseOption> = [], callback: ((ApphudPurchaseResult) -> Void)?) async {
         var product = try? await apphudProduct?.product()
         if product == nil, let productId {
-            product = try? await Product.products(for: [productId]).first
+            product = try? await ApphudAsyncStoreKit.shared.fetchProduct(productId)
         }
 
         guard let product else {
-            callback?(ApphudPurchaseResult(nil, nil, nil, ApphudError(message: "Failed to retrieve product information")))
+            let message = "Unable to start payment because product identifier is invalid: [\([productId ?? ""])]"
+            apphudLog(message, forceDisplay: true)
+            callback?(ApphudPurchaseResult(nil, nil, nil, ApphudError(message: message)))
             return
         }
 
@@ -646,41 +601,21 @@ extension ApphudInternal {
             ApphudStoreKitWrapper.shared.purchasingValue = nil
         }
 
-        let result: ApphudAsyncPurchaseResult = await ApphudAsyncStoreKit.shared.purchase(product: product, commitmentPlan: commitmentPlan, apphudProduct: apphudProduct, fromScreen: fromScreen)
+        #if os(visionOS)
+        guard let scene = apphudVisibleViewController()?.view.window?.windowScene else {
+            callback?(ApphudPurchaseResult(nil, nil, nil, ApphudError(message: "Failed to retrieve UIScene for purchase confirmation")))
+            return
+        }
+        let result: ApphudAsyncPurchaseResult = await ApphudAsyncStoreKit.shared.purchase(product: product, scene: scene, apphudProduct: apphudProduct, fromScreen: fromScreen, extraOptions: extraOptions)
+        #else
+        let result: ApphudAsyncPurchaseResult = await ApphudAsyncStoreKit.shared.purchase(product: product, commitmentPlan: commitmentPlan, apphudProduct: apphudProduct, fromScreen: fromScreen, extraOptions: extraOptions)
+        #endif
         let resultV2 = ApphudPurchaseResult(result.subscription, result.nonRenewingPurchase, nil, result.error, transactionV2: result.transaction)
         callback?(resultV2)
-    }
-    #endif
-
-    private func purchasePromo(skProduct: SKProduct, product: ApphudProduct?, discount: SKPaymentDiscount, fromScreen: Bool, callback: ((ApphudPurchaseResult) -> Void)?) {
-
-        purchasingProduct = product
-
-        ApphudStoreKitWrapper.shared.purchase(product: skProduct, discount: discount) { transaction, error in
-            if let error = error {
-                ApphudLoggerService.shared.paywallPaymentError(paywallId: product?.paywallId, placementId: product?.placementId, productId: skProduct.productIdentifier, error: error.apphudErrorMessage())
-            }
-
-            Task { @MainActor in
-                self.handleTransaction(product: skProduct, transaction: transaction, error: error, apphudProduct: product, fromScreen: fromScreen, callback: callback)
-            }
-        }
     }
 
     internal func willPurchaseProductFrom(paywallId: String, placementId: String?) {
         observerModePurchaseIdentifiers = (paywallId, placementId)
-    }
-
-    @MainActor private func handleTransaction(product: SKProduct, transaction: SKPaymentTransaction, error: Error?, apphudProduct: ApphudProduct?, fromScreen: Bool, callback: ((ApphudPurchaseResult) -> Void)?) {
-        if transaction.transactionState == .purchased || transaction.failedWithUnknownReason {
-            self.submitReceipt(product: product, transaction: transaction, apphudProduct: apphudProduct, fromScreen: fromScreen) { (result) in
-                ApphudStoreKitWrapper.shared.finishTransaction(transaction)
-                callback?(result)
-            }
-        } else {
-            callback?(purchaseResult(productId: product.productIdentifier, transaction: transaction, error: error))
-            ApphudStoreKitWrapper.shared.finishTransaction(transaction)
-        }
     }
 
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
@@ -731,20 +666,30 @@ extension ApphudInternal {
         return ApphudPurchaseResult(subscription, purchase, transaction, error ?? transaction?.error)
     }
 
-    private func signPromoOffer(productID: String, discountID: String, callback: ((SKPaymentDiscount?, Error?) -> Void)?) {
+    /// Signed promotional offer fields returned by the `/sign_offer` endpoint,
+    /// shaped for `Product.PurchaseOption.promotionalOffer`.
+    struct ApphudSignedPromoOffer {
+        let offerID: String
+        let keyID: String
+        let nonce: UUID
+        let signature: Data
+        let timestamp: Int
+    }
+
+    private func signPromoOffer(productID: String, discountID: String, callback: ((ApphudSignedPromoOffer?, Error?) -> Void)?) {
         let params: [String: Any] = ["product_id": productID, "offer_id": discountID, "application_username": ApphudStoreKitWrapper.shared.appropriateApplicationUsername() ?? "", "device_id": currentDeviceID, "user_id": currentUserID ]
         httpClient?.startRequest(path: .signOffer, params: params, method: .post) { (result, dict, _, error, _, _, _) in
             if result, let responseDict = dict, let dataDict = responseDict["data"] as? [String: Any], let resultsDict = dataDict["results"] as? [String: Any] {
 
                 let signatureData = resultsDict["data"] as? [String: Any]
                 let uuid = UUID(uuidString: signatureData?["nonce"] as? String ?? "")
-                let signature = signatureData?["signature"] as? String
+                let signatureString = signatureData?["signature"] as? String
                 let timestamp = signatureData?["timestamp"] as? NSNumber
                 let keyID = resultsDict["key_id"] as? String
 
-                if signature != nil && uuid != nil && timestamp != nil && keyID != nil {
-                    let paymentDiscount = SKPaymentDiscount(identifier: discountID, keyIdentifier: keyID!, nonce: uuid!, signature: signature!, timestamp: timestamp!)
-                    callback?(paymentDiscount, nil)
+                if let signatureString, let signature = Data(base64Encoded: signatureString), let uuid, let timestamp, let keyID {
+                    let signedOffer = ApphudSignedPromoOffer(offerID: discountID, keyID: keyID, nonce: uuid, signature: signature, timestamp: timestamp.intValue)
+                    callback?(signedOffer, nil)
                     return
                 }
             }

@@ -161,6 +161,10 @@ enum ApphudTestConstants {
 final class ApphudSDKTests: XCTestCase {
 
     static var sdkStarted = false
+    // One shared StoreKitTest session for the whole suite: individual sessions are
+    // deallocated with their tests, and unfinished transactions from a previous run
+    // would otherwise be redelivered into the next one.
+    static var storeKitSession: SKTestSession?
 
     override class func setUp() {
         super.setUp()
@@ -168,6 +172,12 @@ final class ApphudSDKTests: XCTestCase {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [ApphudStubURLProtocol.self]
         ApphudHttpClient.testURLSessionConfiguration = config
+
+        storeKitSession = try? SKTestSession(configurationFileNamed: "StoreKit")
+        storeKitSession?.disableDialogs = true
+        // Drop unfinished transactions left over from previous test runs BEFORE the
+        // SDK starts and its Transaction.updates listener begins redelivering them.
+        storeKitSession?.clearTransactions()
     }
 
     @MainActor
@@ -210,12 +220,14 @@ final class ApphudSDKTests: XCTestCase {
 
     @MainActor
     func test2PurchaseSubmitsReceiptToBackend() async throws {
-        let session = try SKTestSession(configurationFileNamed: "StoreKit")
-        session.disableDialogs = true
+        let session = try XCTUnwrap(Self.storeKitSession)
         session.clearTransactions()
 
         await startSDKIfNeeded()
         ApphudStubURLProtocol.reset()
+        // clearTransactions() resets StoreKitTest's transaction id counter while the
+        // SDK's dedup list persists in UserDefaults between test-host launches.
+        ApphudInternal.shared.lastUploadedTransactions = []
 
         let result: ApphudPurchaseResult = await withCheckedContinuation { continuation in
             ApphudInternal.shared.purchase(productId: ApphudTestConstants.weeklyProductId,
@@ -232,10 +244,15 @@ final class ApphudSDKTests: XCTestCase {
         let submits = ApphudStubURLProtocol.requests(to: "/subscriptions").filter { $0.method == "POST" }
         XCTAssertEqual(submits.count, 1, "Exactly one receipt submission expected")
 
-        let body = submits[0].body
-        // Baseline payload contract (SK1 pipeline).
-        XCTAssertNotNil(body["receipt_data"] as? String, "SK receipt must be attached")
+        guard let body = submits.first?.body else {
+            XCTFail("No subscription submission captured")
+            return
+        }
+        // Payload contract (StoreKit 2 pipeline): receipt still attached while
+        // readable, plus the SK2 transaction id and its signed JWS representation.
+        XCTAssertNotNil(body["receipt_data"] as? String, "App Store receipt must be attached while readable")
         XCTAssertNotNil(body["transaction_id"] as? String, "transaction id must be attached")
+        XCTAssertNotNil(body["jws"] as? String, "signed StoreKit 2 transaction (JWS) must be attached")
         XCTAssertEqual(body["observer_mode"] as? Bool, false)
         XCTAssertEqual(body["environment"] as? String, "sandbox")
         XCTAssertEqual((body["product_info"] as? [String: Any])?["product_id"] as? String, ApphudTestConstants.weeklyProductId)
@@ -247,9 +264,11 @@ final class ApphudSDKTests: XCTestCase {
 
     @MainActor
     func test3ForeignPurchaseIsTracked() async throws {
-        let session = try SKTestSession(configurationFileNamed: "StoreKit")
-        session.disableDialogs = true
+        let session = try XCTUnwrap(Self.storeKitSession)
         session.clearTransactions()
+        // Untracked foreign transactions stay unfinished in observer mode — drop them
+        // so they don't leak into the next test run.
+        defer { session.clearTransactions() }
 
         await startSDKIfNeeded()
         ApphudStubURLProtocol.reset()

@@ -465,10 +465,10 @@ s
      - Note: This method automatically sends the in-app purchase receipt to Apphud.
      */
     @objc public static func purchasePromo(apphudProduct: ApphudProduct, discountID: String, _ callback: ((ApphudPurchaseResult) -> Void)?) {
-        ApphudInternal.shared.purchasePromo(skProduct: nil, apphudProduct: apphudProduct, discountID: discountID, fromScreen: false, callback: callback)
+        ApphudInternal.shared.purchasePromo(productId: nil, apphudProduct: apphudProduct, discountID: discountID, fromScreen: false, callback: callback)
     }
     @objc public static func purchasePromo(_ skProduct: SKProduct, discountID: String, _ callback: ((ApphudPurchaseResult) -> Void)?) {
-        ApphudInternal.shared.purchasePromo(skProduct: skProduct, apphudProduct: nil, discountID: discountID, fromScreen: false, callback: callback)
+        ApphudInternal.shared.purchasePromo(productId: skProduct.productIdentifier, apphudProduct: nil, discountID: discountID, fromScreen: false, callback: callback)
     }
 
     /**
