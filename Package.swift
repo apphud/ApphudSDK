@@ -9,5 +9,8 @@ let package = Package(name: "ApphudSDK",
                                         path: "Sources",
                                         resources: [
                                             .process("PrivacyInfo.xcprivacy")
-                                        ])],
+                                        ]),
+                                .testTarget(name: "ApphudUnitTests",
+                                            dependencies: ["ApphudSDK"],
+                                            path: "Tests/ApphudUnitTests")],
                       swiftLanguageVersions: [.v5])

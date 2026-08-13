@@ -22,6 +22,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate, @preconcurrency UNUserNot
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
 
+        // When running as a unit-test host, the test suite starts and configures
+        // the SDK itself (with a stubbed network); skip the demo app setup.
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+            return true
+        }
+
         Apphud.start(apiKey: "YOUR_API_KEY")
         Apphud.setDeviceIdentifiers(idfa: nil, idfv: UIDevice.current.identifierForVendor?.uuidString)
 //        fetchIDFA()
