@@ -358,8 +358,27 @@ class ApphudScreenController: UIViewController {
 
     internal func purchaseProduct(productID: String?, offerID: String?) {
 
+        guard let productID else {
+            apphudLog("Aborting purchase because product id is missing", forceDisplay: true)
+            return
+        }
+
+        // The SK1 products cache is filled by a best-effort background feeder now, so the
+        // product may not be there yet — fetch it on demand instead of aborting.
         guard let product = ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == productID}) else {
-            apphudLog("Aborting purchase because couldn't find product with id: \(productID ?? "")", forceDisplay: true)
+            if isPurchasing { return }
+            isPurchasing = true
+            self.startLoading()
+            Task { @MainActor in
+                let fetched = await ApphudStoreKitWrapper.shared.fetchProduct(productID)
+                self.isPurchasing = false
+                self.stopLoading()
+                if fetched != nil {
+                    self.purchaseProduct(productID: productID, offerID: offerID)
+                } else {
+                    apphudLog("Aborting purchase because couldn't find product with id: \(productID)", forceDisplay: true)
+                }
+            }
             return
         }
 

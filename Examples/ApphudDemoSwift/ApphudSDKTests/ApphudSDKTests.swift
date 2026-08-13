@@ -50,6 +50,10 @@ final class ApphudStubURLProtocol: URLProtocol {
         requests.filter { $0.path.hasSuffix(pathSuffix) }
     }
 
+    /// Artificial latency for POST /v1/subscriptions, so a test can keep a submission
+    /// in flight and exercise concurrent delivery of the same transaction.
+    static var subscriptionsResponseDelay: TimeInterval = 0
+
     override class func canInit(with request: URLRequest) -> Bool {
         guard let host = request.url?.host else { return false }
         return host.contains("apphud.com") || host.contains("aphd.cc")
@@ -67,9 +71,19 @@ final class ApphudStubURLProtocol: URLProtocol {
         let data = try! JSONSerialization.data(withJSONObject: json)
         let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: ["Content-Type": "application/json"])!
 
-        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-        client?.urlProtocol(self, didLoad: data)
-        client?.urlProtocolDidFinishLoading(self)
+        let deliver = { [weak self] in
+            guard let self else { return }
+            self.client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            self.client?.urlProtocol(self, didLoad: data)
+            self.client?.urlProtocolDidFinishLoading(self)
+        }
+
+        let delay = path.hasSuffix("/subscriptions") ? Self.subscriptionsResponseDelay : 0
+        if delay > 0 {
+            DispatchQueue.global().asyncAfter(deadline: .now() + delay, execute: deliver)
+        } else {
+            deliver()
+        }
     }
 
     override func stopLoading() {}
@@ -178,6 +192,14 @@ final class ApphudSDKTests: XCTestCase {
         // Drop unfinished transactions left over from previous test runs BEFORE the
         // SDK starts and its Transaction.updates listener begins redelivering them.
         storeKitSession?.clearTransactions()
+    }
+
+    override func tearDown() {
+        super.tearDown()
+        // Tracking a foreign purchase force-enables observer mode process-wide; reset it
+        // so test order (or running a single test) can't change what other tests observe.
+        ApphudUtils.shared.storeKitObserverMode = false
+        ApphudStubURLProtocol.subscriptionsResponseDelay = 0
     }
 
     @MainActor
@@ -289,6 +311,51 @@ final class ApphudSDKTests: XCTestCase {
 
         XCTAssertFalse(tracked.isEmpty, "Foreign purchase must be auto-tracked via POST /v1/subscriptions")
         XCTAssertNotNil(tracked.last?.body["receipt_data"] as? String)
+    }
+
+    // MARK: 3b. Concurrent delivery of one transaction must upload it once
+
+    /// The same transaction reaches the SDK twice — from the purchase call and from the
+    /// `Transaction.updates` listener. Only one submission may go out, and the second
+    /// caller must receive the same outcome instead of a premature "nothing happened".
+    @MainActor
+    func test3bConcurrentDeliveryUploadsTransactionOnce() async throws {
+        let session = try XCTUnwrap(Self.storeKitSession)
+        session.clearTransactions()
+        defer { session.clearTransactions() }
+
+        await startSDKIfNeeded()
+        ApphudInternal.shared.lastUploadedTransactions = []
+
+        try session.buyProduct(productIdentifier: "com.apphud.lifetime")
+
+        // Grab the resulting verified transaction without letting the SDK submit it yet.
+        var delivered: VerificationResult<StoreKit.Transaction>?
+        let deadline = Date().addingTimeInterval(10)
+        while Date() < deadline && delivered == nil {
+            for await result in StoreKit.Transaction.all {
+                if case .verified(let trx) = result, trx.productID == "com.apphud.lifetime" {
+                    delivered = result
+                    break
+                }
+            }
+            if delivered == nil { try await Task.sleep(nanoseconds: 200_000_000) }
+        }
+        let verified = try XCTUnwrap(delivered, "SKTestSession must produce a verified transaction")
+
+        ApphudStubURLProtocol.reset()
+        ApphudInternal.shared.lastUploadedTransactions = []
+        // Keep the first submission in flight while the duplicate arrives.
+        ApphudStubURLProtocol.subscriptionsResponseDelay = 1.0
+
+        async let first = ApphudAsyncStoreKit.processTransaction(verified.unsafePayloadValue, jws: verified.jwsRepresentation)
+        async let second = ApphudAsyncStoreKit.processTransaction(verified.unsafePayloadValue, jws: verified.jwsRepresentation)
+        let results = await [first, second]
+
+        let submits = ApphudStubURLProtocol.requests(to: "/subscriptions").filter { $0.method == "POST" }
+        XCTAssertEqual(submits.count, 1, "A transaction delivered twice must be uploaded exactly once")
+        XCTAssertEqual(results[0], results[1], "Both callers must observe the same outcome")
+        XCTAssertTrue(results[0], "The submission succeeded, so the transaction may be finished")
     }
 
     // MARK: 4. Upgrade compatibility of the transaction dedup storage

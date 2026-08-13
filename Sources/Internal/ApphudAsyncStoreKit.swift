@@ -159,30 +159,43 @@ internal class ApphudAsyncStoreKit {
         }
     }
 
-    /// Transactions currently being submitted by any path — the direct purchase call or
-    /// the `Transaction.updates` listener, both of which receive the same transaction.
-    /// The first path owns submitting and finishing it; the other one skips without
-    /// finishing, so a failed submission still leaves the transaction for redelivery.
-    @MainActor private static var processingTransactionIDs = Set<UInt64>()
+    /// Transactions currently being submitted. The same transaction is delivered to both
+    /// the direct purchase call and the `Transaction.updates` listener: the first arrival
+    /// owns submitting and finishing it, and any later arrival awaits that same work
+    /// instead of duplicating it — so the purchase caller still sees the real outcome.
+    @MainActor private static var processingTransactions = [UInt64: Task<Bool, Never>]()
 
     @MainActor
-    fileprivate static func processTransaction(_ transaction: StoreKit.Transaction, jws: String?, fromScreen: Bool = false) async {
+    @discardableResult
+    internal static func processTransaction(_ transaction: StoreKit.Transaction, jws: String?, fromScreen: Bool = false) async -> Bool {
 
-        guard !processingTransactionIDs.contains(transaction.id) else {
-            apphudLog("Transaction \(transaction.id) is already being processed, skipping duplicate delivery", logLevel: .debug)
-            return
+        if let inFlight = processingTransactions[transaction.id] {
+            apphudLog("Transaction \(transaction.id) is already being processed, awaiting its result", logLevel: .debug)
+            return await inFlight.value
         }
 
-        processingTransactionIDs.insert(transaction.id)
-        defer { processingTransactionIDs.remove(transaction.id) }
-
-        // Finish only after the transaction is handled: an unfinished transaction is
-        // redelivered by StoreKit on the next launch, so a submit that failed against
-        // the backend keeps the transaction alive for a retry.
-        let handled = await ApphudInternal.shared.handleTransaction(transaction, jws: jws, fromScreen: fromScreen)
-        if handled {
-            await transaction.finish()
+        let task = Task { @MainActor in
+            // Finish only after the transaction is handled: an unfinished transaction is
+            // redelivered by StoreKit on the next launch, so a submit that failed against
+            // the backend keeps the transaction alive for a retry.
+            let handled = await ApphudInternal.shared.handleTransaction(transaction, jws: jws, fromScreen: fromScreen)
+            if handled {
+                await transaction.finish()
+            }
+            return handled
         }
+
+        processingTransactions[transaction.id] = task
+        let handled = await task.value
+        processingTransactions[transaction.id] = nil
+        return handled
+    }
+
+    /// True while a submission for this transaction is in flight (used by tests and by
+    /// the legacy payment queue observer to avoid duplicating work).
+    @MainActor
+    internal static func isProcessing(transactionID: UInt64) -> Bool {
+        processingTransactions[transactionID] != nil
     }
 
     func fetchLatestTransaction() async -> VerificationResult<StoreKit.Transaction>? {

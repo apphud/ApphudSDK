@@ -131,7 +131,9 @@ extension ApphudInternal {
             Task(priority: .background) {
                 if let latestResult = await ApphudAsyncStoreKit.shared.fetchLatestTransaction(),
                    case .verified(let latestTransaction) = latestResult {
-                    await handleTransaction(latestTransaction, jws: latestResult.jwsRepresentation)
+                    // Route through processTransaction so this path shares the same
+                    // in-flight ownership as the purchase and updates listeners.
+                    await ApphudAsyncStoreKit.processTransaction(latestTransaction, jws: latestResult.jwsRepresentation)
                 }
             }
         }
@@ -152,7 +154,7 @@ extension ApphudInternal {
 
         // A submission for this exact transaction is still in flight: its owner decides
         // whether the transaction may be finished, so report "not handled" here.
-        if self.submittingTransaction == String(transactionId) {
+        if await self.submittingTransaction == String(transactionId) {
             apphudLog("Already submitting the same transaction id \(transactionId), skipping", logLevel: .debug)
             return false
         }
@@ -354,21 +356,41 @@ extension ApphudInternal {
                                 fromScreen: Bool,
                                 callback: ApphudNSErrorCallback?) async {
 
-        await MainActor.run {
-            if callback != nil {
+        let newClaim = transactionIdentifier ?? transactionProductIdentifier ?? (productInfo?["product_id"] as? String) ?? "Restoration"
+
+        // Claim the single-flight slot atomically. A submission carrying its own
+        // transaction must never be answered by another submission's result: its caller
+        // decides whether that transaction may be finished, and a foreign success would
+        // finish a transaction nobody uploaded. Callers without a transaction
+        // (restoration, eligibility checks) may still piggyback on the in-flight upload.
+        let inFlight: String? = await MainActor.run {
+            let existing = self.submittingTransaction
+
+            if existing == nil {
+                self.submittingTransaction = newClaim
+            }
+
+            if let callback, existing == nil || transactionIdentifier == nil {
                 if eligibilityCheck || self.submitReceiptCallbacks.count > 0 {
                     self.submitReceiptCallbacks.append(callback)
                 } else {
                     self.submitReceiptCallbacks = [callback]
                 }
             }
+
+            return existing
         }
 
-        if submittingTransaction != nil {
-            apphudLog("Already submitting some receipt (\(submittingTransaction!)), exiting")
+        if let inFlight {
+            if let transactionIdentifier {
+                let message = "Already submitting another receipt (\(inFlight)), transaction \(transactionIdentifier) will be retried later"
+                apphudLog(message)
+                await MainActor.run { callback?(ApphudError(message: message)) }
+            } else {
+                apphudLog("Already submitting some receipt (\(inFlight)), this caller will receive its result")
+            }
             return
         }
-        submittingTransaction = transactionIdentifier ?? transactionProductIdentifier ?? (productInfo?["product_id"] as? String) ?? "Restoration"
 
         let environment = Apphud.isSandbox() ? ApphudEnvironment.sandbox.rawValue : ApphudEnvironment.production.rawValue
 
@@ -478,15 +500,25 @@ extension ApphudInternal {
 
         apphudLog("Uploading App Store Receipt...")
 
+        // Undoes the "uploaded" claim above when the upload did not succeed, so the
+        // transaction is not mistaken for a submitted one and can be retried. Only the
+        // failed id is removed — ids the backend already acknowledged must survive.
+        let releaseUploadClaim: @MainActor () -> Void = {
+            guard let transactionId, let trInt = UInt64(transactionId) else { return }
+            self.lastUploadedTransactions = self.lastUploadedTransactions.filter { $0 != trInt }
+        }
+
         httpClient?.startRequest(path: .subscriptions, params: params, method: .post, useDecoder: true, retry: (hasMadePurchase && !fallbackMode)) { (result, _, data, error, errorCode, duration, _) in
             Task { @MainActor in
                 if !result && hasMadePurchase && self.fallbackMode {
                     self.requiresReceiptSubmission = true
                     self.submittingTransaction = nil
+                    releaseUploadClaim()
+                    self.scheduleSubmitReceiptRetry(error: error, code: errorCode)
                     let stubProductId = transactionProductIdentifier ?? (productInfo?["product_id"] as? String) ?? apphudProduct?.productId
                     let hasChanges = await self.stubPurchase(productId: stubProductId)
                     self.notifyAboutUpdates(hasChanges)
-                    self.submitReceiptCallbacks.forEach { callback in callback?(error)}
+                    self.submitReceiptCallbacks.forEach { callback in callback?(error ?? ApphudError(message: "Failed to submit transaction in fallback mode"))}
                     self.submitReceiptCallbacks.removeAll()
                     return
                 }
@@ -512,7 +544,7 @@ extension ApphudInternal {
                         self.notifyAboutUpdates(hasChanges)
                     }
                 } else {
-                    self.lastUploadedTransactions = []
+                    releaseUploadClaim()
                     self.scheduleSubmitReceiptRetry(error: error, code: errorCode)
                 }
 

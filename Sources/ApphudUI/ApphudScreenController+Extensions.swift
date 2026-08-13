@@ -164,8 +164,10 @@ extension ApphudScreenController {
     internal func handlePurchaseResult(product: SKProduct, offerID: String? = nil, result: ApphudPurchaseResult) {
 
         let errorCode: SKError.Code
-        if let skError = result.transaction?.error as? SKError {
+        if let skError = (result.error ?? result.transaction?.error) as? SKError {
             errorCode = skError.code
+        } else if result.userCanceled {
+            errorCode = .paymentCancelled
         } else {
             errorCode = .unknown
         }
@@ -177,8 +179,10 @@ extension ApphudScreenController {
             hasSubscriptionWithAutorenewEnabled = false
         }
 
+        // StoreKit 2 purchases carry no SKPaymentTransaction, so success is decided by
+        // the result itself; the SK1 transaction state is only a legacy fallback.
         let purchaseSucceeded: Bool
-        if result.transaction?.transactionState == .purchased {
+        if result.success || result.transactionV2 != nil || result.transaction?.transactionState == .purchased {
             purchaseSucceeded = true
         } else {
             purchaseSucceeded = (result.transaction?.failedWithUnknownReason ?? false) && hasSubscriptionWithAutorenewEnabled
@@ -197,7 +201,9 @@ extension ApphudScreenController {
                 apphudLog("Product purchased with id: \(product.productIdentifier)", forceDisplay: true)
             }
 
-            if let trx = result.transaction, trx.transactionState == .purchased, let transaction_id = trx.transactionIdentifier {
+            if let trxV2 = result.transactionV2 {
+                properties["transaction_id"] = String(trxV2.id)
+            } else if let trx = result.transaction, trx.transactionState == .purchased, let transaction_id = trx.transactionIdentifier {
                 properties["transaction_id"] = transaction_id
             }
 
