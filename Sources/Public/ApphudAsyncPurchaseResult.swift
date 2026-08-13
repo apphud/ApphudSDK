@@ -35,7 +35,22 @@ public struct ApphudAsyncPurchaseResult {
      */
     public let error: Error?
 
+    /**
+     True when the purchase is awaiting approval (Ask to Buy / Strong Customer
+     Authentication). The transaction will be delivered later via `Transaction.updates`
+     once approved; no error is reported in this case.
+     */
+    public let isPending: Bool
+
     public var success: Bool {
         transaction != nil
+    }
+
+    internal init(subscription: ApphudSubscription?, nonRenewingPurchase: ApphudNonRenewingPurchase?, transaction: Transaction?, error: Error?, isPending: Bool = false) {
+        self.subscription = subscription
+        self.nonRenewingPurchase = nonRenewingPurchase
+        self.transaction = transaction
+        self.error = error
+        self.isPending = isPending
     }
 }

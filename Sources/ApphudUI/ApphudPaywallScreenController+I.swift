@@ -259,21 +259,30 @@ extension ApphudPaywallScreenController: WKUIDelegate {
             showLoadingIndicator()
         }
 
-        if let skProduct = product.skProduct, let ruleScreenName {
-            ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(product: skProduct, offerID: nil, screenName: ruleScreenName)
+        if let ruleScreenName {
+            if let skProduct = product.skProduct {
+                ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(product: skProduct, offerID: nil, screenName: ruleScreenName)
+            }
+            ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(productId: product.productId, offerID: nil, screenName: ruleScreenName)
         }
-        
+
         ApphudInternal.shared.purchase(productId: product.productId, product: product, validate: true, purchasingFromScreen: true) { [weak self] result in
             if let self {
                 self.hideLoadingIndicator()
                 self.onTransactionCompleted?(result)
 
-                if let skProduct = product.skProduct, let ruleScreenName {
+                if let ruleScreenName {
                     if result.success {
-                        ApphudInternal.shared.uiDelegate?.apphudDidPurchase?(product: skProduct, offerID: nil, transaction: result.transaction, screenName: ruleScreenName)
-                        ApphudInternal.shared.uiDelegate?.apphudDidPurchase?(product: skProduct, offerID: nil, screenName: ruleScreenName)
+                        if let skProduct = product.skProduct {
+                            ApphudInternal.shared.uiDelegate?.apphudDidPurchase?(product: skProduct, offerID: nil, transaction: result.transaction, screenName: ruleScreenName)
+                            ApphudInternal.shared.uiDelegate?.apphudDidPurchase?(product: skProduct, offerID: nil, screenName: ruleScreenName)
+                        }
+                        ApphudInternal.shared.uiDelegate?.apphudDidPurchase?(productId: product.productId, offerID: nil, screenName: ruleScreenName)
                     } else {
-                        ApphudInternal.shared.uiDelegate?.apphudDidFailPurchase?(product: skProduct, offerID: nil, errorCode: self.skErrorCode(from: result.error), screenName: ruleScreenName)
+                        if let skProduct = product.skProduct {
+                            ApphudInternal.shared.uiDelegate?.apphudDidFailPurchase?(product: skProduct, offerID: nil, errorCode: self.skErrorCode(from: result.error), screenName: ruleScreenName)
+                        }
+                        ApphudInternal.shared.uiDelegate?.apphudDidFailPurchase?(productId: product.productId, offerID: nil, error: result.error, screenName: ruleScreenName)
                     }
                 }
 

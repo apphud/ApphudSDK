@@ -71,22 +71,43 @@ import UIKit
     /**
      Called when user tapped on purchase button in Apphud purchase screen.
     */
+    @available(*, deprecated, message: "Use apphudWillPurchase(productId:offerID:screenName:) instead.")
     @objc optional func apphudWillPurchase(product: SKProduct, offerID: String?, screenName: String)
+
+    /**
+     Called when user tapped on purchase button in Apphud purchase screen. StoreKit-version agnostic variant.
+    */
+    @objc optional func apphudWillPurchase(productId: String, offerID: String?, screenName: String)
 
     /**
      Called when user successfully purchased product in Apphud purchase screen.
      
      `transaction` may be nil, for example when purchase was made using StoreKit 2.
     */
+    @available(*, deprecated, message: "Use apphudDidPurchase(productId:offerID:screenName:) instead. SDK purchases run on StoreKit 2 and the SKPaymentTransaction parameter is always nil for them.")
     @objc optional func apphudDidPurchase(product: SKProduct, offerID: String?, transaction: SKPaymentTransaction?, screenName: String)
+    @available(*, deprecated, message: "Use apphudDidPurchase(productId:offerID:screenName:) instead.")
     @objc optional func apphudDidPurchase(product: SKProduct, offerID: String?, screenName: String)
+
+    /**
+     Called when user successfully purchased product in Apphud purchase screen. StoreKit-version agnostic variant.
+    */
+    @objc optional func apphudDidPurchase(productId: String, offerID: String?, screenName: String)
 
     /**
      Called when purchase failed in Apphud purchase screen.
      
      See error code for details. For example, `.paymentCancelled` error code is when user canceled the purchase by himself.
     */
+    @available(*, deprecated, message: "Use apphudDidFailPurchase(productId:offerID:error:screenName:) instead.")
     @objc optional func apphudDidFailPurchase(product: SKProduct, offerID: String?, errorCode: SKError.Code, screenName: String)
+
+    /**
+     Called when purchase failed in Apphud purchase screen. StoreKit-version agnostic variant.
+
+     Check `ApphudPurchaseResult.userCanceled` semantics via the error: `StoreKitError.userCancelled` or `SKError.paymentCancelled` mean the user closed the payment sheet.
+    */
+    @objc optional func apphudDidFailPurchase(productId: String, offerID: String?, error: Error?, screenName: String)
 
     /**
      Called when screen succesfully loaded and is visible to user.

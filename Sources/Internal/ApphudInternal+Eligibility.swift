@@ -11,6 +11,50 @@ import StoreKit
 
 extension ApphudInternal {
 
+    // MARK: - StoreKit 2 eligibility by product identifiers
+
+    @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
+    internal func checkIntroEligibilitiesSK2(productIds: [String]) async -> [String: Bool] {
+        var response = [String: Bool]()
+        for id in productIds {
+            response[id] = true // can purchase intro by default
+            if let product = try? await ApphudAsyncStoreKit.shared.fetchProduct(id), let subscription = product.subscription {
+                response[id] = await subscription.isEligibleForIntroOffer
+            }
+        }
+        return response
+    }
+
+    @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
+    internal func checkPromoEligibilitiesSK2(productIds: [String]) async -> [String: Bool] {
+        var response = [String: Bool]()
+
+        // Collect subscription group ids of all products the user ever transacted with.
+        var purchasedGroupIds = Set<String>()
+        for await result in StoreKit.Transaction.all {
+            if case .verified(let transaction) = result,
+               let product = try? await ApphudAsyncStoreKit.shared.fetchProduct(transaction.productID),
+               let groupId = product.subscription?.subscriptionGroupID {
+                purchasedGroupIds.insert(groupId)
+            }
+        }
+
+        let userSubscriptionIds = await Set((currentUser?.subscriptions ?? []).map { $0.productId })
+
+        for id in productIds {
+            if userSubscriptionIds.contains(id) {
+                response[id] = true
+                continue
+            }
+            response[id] = false // cannot purchase offer by default
+            if let product = try? await ApphudAsyncStoreKit.shared.fetchProduct(id),
+               let groupId = product.subscription?.subscriptionGroupID {
+                response[id] = purchasedGroupIds.contains(groupId)
+            }
+        }
+        return response
+    }
+
     // MARK: - Eligibilities API
 
     internal func checkEligibilitiesForPromotionalOffers(products: [SKProduct], callback: @escaping ApphudEligibilityCallback) {

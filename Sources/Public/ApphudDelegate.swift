@@ -53,6 +53,7 @@ public protocol ApphudDelegate {
      - parameter product: The `SKProduct` object representing the product to be purchased.
      - Returns: A closure of type `((ApphudPurchaseResult) -> Void)` that is called upon the completion of the purchase.
      */
+    @available(*, deprecated, message: "Implement apphudShouldStartAppStoreDirectPurchase(product: Product) instead. This SKProduct-based method is only called as a fallback when the new one is not implemented.")
     func apphudShouldStartAppStoreDirectPurchase(_ product: SKProduct) -> ((ApphudPurchaseResult) -> Void)?
 
     /**
@@ -85,6 +86,7 @@ public protocol ApphudDelegate {
      - parameter transaction: The `SKPaymentTransaction` object representing the deferred or interrupted transaction.
      - Note: Use this method to handle cases where transaction completion is delayed or requires additional user interaction.
      */
+    @available(*, deprecated, message: "SDK purchases run on StoreKit 2: a pending purchase (Ask to Buy / SCA) is reported via ApphudPurchaseResult.isPending, and the transaction is delivered automatically once approved. This method is only called for the host app's own StoreKit 1 transactions.")
     func handleDeferredTransaction(transaction: SKPaymentTransaction)
 
     /**

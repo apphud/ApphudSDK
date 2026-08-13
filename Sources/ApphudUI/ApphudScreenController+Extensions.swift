@@ -211,6 +211,7 @@ extension ApphudScreenController {
 
             ApphudInternal.shared.uiDelegate?.apphudDidPurchase?(product: product, offerID: offerID, transaction: result.transaction, screenName: self.rule.screen_name)
             ApphudInternal.shared.uiDelegate?.apphudDidPurchase?(product: product, offerID: offerID, screenName: self.rule.screen_name)
+            ApphudInternal.shared.uiDelegate?.apphudDidPurchase?(productId: product.productIdentifier, offerID: offerID, screenName: self.rule.screen_name)
 
             dismiss() // dismiss only when purchase is successful
 
@@ -225,6 +226,7 @@ extension ApphudScreenController {
             }
 
             ApphudInternal.shared.uiDelegate?.apphudDidFailPurchase?(product: product, offerID: offerID, errorCode: errorCode, screenName: self.rule.screen_name)
+            ApphudInternal.shared.uiDelegate?.apphudDidFailPurchase?(productId: product.productIdentifier, offerID: offerID, error: result.error, screenName: self.rule.screen_name)
         }
     }
 

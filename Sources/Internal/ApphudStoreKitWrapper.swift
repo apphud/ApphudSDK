@@ -13,7 +13,9 @@ internal typealias ApphudStoreKitProductsCallback = ([SKProduct], Error?) -> Voi
 private typealias ApphudStoreKitFetcherCallback = ([SKProduct], Error?, ApphudProductsFetcher) -> Void
 internal typealias ApphudTransactionCallback = (SKPaymentTransaction, Error?) -> Void
 
+@available(*, deprecated, message: "SDK purchases run on StoreKit 2 and no longer post SKPaymentTransaction notifications for them. Observer-mode (foreign SK1) transactions still post this.")
 public let _ApphudWillFinishTransactionNotification = Notification.Name(rawValue: "ApphudWillFinishTransactionNotification")
+@available(*, deprecated, message: "SDK purchases run on StoreKit 2 and no longer post SKPaymentTransaction notifications for them. Observer-mode (foreign SK1) transactions still post this.")
 public let _ApphudDidFinishTransactionNotification = Notification.Name(rawValue: "ApphudDidFinishTransactionNotification")
 
 enum ApphudStoreKitProductsFetchStatus {

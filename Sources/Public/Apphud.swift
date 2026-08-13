@@ -324,6 +324,7 @@ s
      
      - Returns: An array of `SKProduct` objects corresponding to the products added in the Apphud > Product hub section.
      */
+    @available(*, deprecated, message: "Use StoreKit 2 `fetchProducts()` returning [Product] instead.")
     @objc public static func fetchSKProducts(maxAttempts: Int = APPHUD_DEFAULT_RETRIES) async -> [SKProduct] {
         await withUnsafeContinuation { continuation in
             Apphud.fetchProducts(maxAttempts: maxAttempts) { prds, _ in continuation.resume(returning: prds) }
@@ -339,6 +340,7 @@ s
 
      - Important: Best practice is to manage products using placements configurations in the Apphud Mission control > Targetings, rather than directly fetching products. Implementing placements logic via the dashboard allows for more organized and scalable management of your app's placements and paywalls.
      */
+    @available(*, deprecated, message: "Use StoreKit 2 `fetchProducts()` returning [Product] instead.")
     @objc public static func fetchProducts(maxAttempts: Int = APPHUD_DEFAULT_RETRIES, _ callback: @escaping ([SKProduct], Error?) -> Void) {
         ApphudInternal.shared.refreshStoreKitProductsWithCallback(maxAttempts: maxAttempts, callback: callback)
     }
@@ -350,6 +352,7 @@ s
 
      - Important: As a best practice, instead of using this method directly, implement your paywall logic through the Apphud Dashboard for more effective paywall management and to leverage Apphud's functionalities.
      */
+    @available(*, deprecated, message: "Use StoreKit 2 `fetchProducts()` returning [Product] instead.")
     @objc(storeKitProducts)
     public static var products: [SKProduct]? {
         guard ApphudStoreKitWrapper.shared.products.count > 0 else {
@@ -368,6 +371,7 @@ s
      - Note: This method will return `nil` if the product associated with the given identifier has not yet been fetched from the App Store. Ensure that your product identifiers are correctly set up in the App Store Connect and Apphud Dashboard.
      - Important: Best practice is to manage and retrieve products through placements configurations added in the Apphud Dashboard under Mission control > Targetings. Direct use of this method is discouraged in favor of a more structured approach to managing your app's placements and paywalls.
      */
+    @available(*, deprecated, message: "Use StoreKit 2 `ApphudProduct.product()` or `fetchProducts()` instead.")
     @objc public static func product(productIdentifier: String) -> SKProduct? {
         ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == productIdentifier})
     }
@@ -467,8 +471,25 @@ s
     @objc public static func purchasePromo(apphudProduct: ApphudProduct, discountID: String, _ callback: ((ApphudPurchaseResult) -> Void)?) {
         ApphudInternal.shared.purchasePromo(productId: nil, apphudProduct: apphudProduct, discountID: discountID, fromScreen: false, callback: callback)
     }
+    @available(*, deprecated, message: "Use purchasePromo(apphudProduct:discountID:) or the StoreKit 2 variant purchasePromo(_ product: Product, discountID:) instead.")
     @objc public static func purchasePromo(_ skProduct: SKProduct, discountID: String, _ callback: ((ApphudPurchaseResult) -> Void)?) {
         ApphudInternal.shared.purchasePromo(productId: skProduct.productIdentifier, apphudProduct: nil, discountID: discountID, fromScreen: false, callback: callback)
+    }
+
+    /**
+     Purchases a subscription with a promotional offer using a StoreKit 2 `Product` and automatically submits the transaction to Apphud.
+
+     - parameter product: Required. The StoreKit 2 `Product` to purchase.
+     - parameter discountID: Required. The identifier of the promotional offer to apply.
+     - Returns: An `ApphudPurchaseResult` object.
+     */
+    @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, visionOS 1.0, *)
+    public static func purchasePromo(_ product: Product, discountID: String) async -> ApphudPurchaseResult {
+        await withCheckedContinuation { continuation in
+            ApphudInternal.shared.purchasePromo(productId: product.id, apphudProduct: nil, discountID: discountID, fromScreen: false) { result in
+                continuation.resume(returning: result)
+            }
+        }
     }
 
     /**
@@ -1046,6 +1067,7 @@ s
 
      - Note: This check is essential for offering introductory prices correctly according to Apple's guidelines.
      */
+    @available(*, deprecated, message: "Use checkEligibilityForIntroductoryOffer(productId:) async instead.")
     @objc public static func checkEligibilityForIntroductoryOffer(product: SKProduct, callback: @escaping ApphudBoolCallback) {
         guard product.introductoryPrice != nil else {
             callback(false)
@@ -1068,6 +1090,7 @@ s
 
      - Note: Use this method to determine if a user can be offered a discount on a subscription renewal or upgrade.
      */
+    @available(*, deprecated, message: "Use checkEligibilityForPromotionalOffer(productId:) async instead.")
     @objc public static func checkEligibilityForPromotionalOffer(product: SKProduct, callback: @escaping ApphudBoolCallback) {
         ApphudInternal.shared.checkEligibilitiesForPromotionalOffers(products: [product]) { result in
             callback(result[product.productIdentifier] ?? false)
@@ -1082,8 +1105,30 @@ s
 
      - Note: This method is useful for batch processing multiple products, especially when setting up a store or special offers section in your app.
      */
+    @available(*, deprecated, message: "Use checkEligibilitiesForPromotionalOffers(productIds:) async instead.")
     @objc public static func checkEligibilitiesForPromotionalOffers(products: [SKProduct], callback: @escaping ApphudEligibilityCallback) {
         ApphudInternal.shared.checkEligibilitiesForPromotionalOffers(products: products, callback: callback)
+    }
+
+    /**
+     Checks eligibility for promotional offers for multiple products by their identifiers using StoreKit 2.
+
+     Only customers who already purchased a subscription in the same subscription group are eligible.
+
+     - parameter productIds: Required. Product identifiers to check.
+     - Returns: A dictionary with product identifiers as keys and eligibility flags as values.
+     */
+    @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, visionOS 1.0, *)
+    public static func checkEligibilitiesForPromotionalOffers(productIds: [String]) async -> [String: Bool] {
+        await ApphudInternal.shared.checkPromoEligibilitiesSK2(productIds: productIds)
+    }
+
+    /**
+     Checks whether the product with the given identifier is eligible for any of its promotional offers using StoreKit 2.
+     */
+    @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, visionOS 1.0, *)
+    public static func checkEligibilityForPromotionalOffer(productId: String) async -> Bool {
+        await ApphudInternal.shared.checkPromoEligibilitiesSK2(productIds: [productId])[productId] ?? false
     }
 
     /**
@@ -1094,8 +1139,28 @@ s
 
      - Note: Use this method to efficiently determine introductory offer eligibility for a range of products, aiding in dynamic pricing and offer strategies.
      */
+    @available(*, deprecated, message: "Use checkEligibilitiesForIntroductoryOffers(productIds:) async instead.")
     @objc public static func checkEligibilitiesForIntroductoryOffers(products: [SKProduct], callback: @escaping ApphudEligibilityCallback) {
         ApphudInternal.shared.checkEligibilitiesForIntroductoryOffers(products: products, callback: callback)
+    }
+
+    /**
+     Checks eligibility for introductory offers (free trial, pay as you go, pay up front) for multiple products by their identifiers using StoreKit 2.
+
+     - parameter productIds: Required. Product identifiers to check.
+     - Returns: A dictionary with product identifiers as keys and eligibility flags as values.
+     */
+    @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, visionOS 1.0, *)
+    public static func checkEligibilitiesForIntroductoryOffers(productIds: [String]) async -> [String: Bool] {
+        await ApphudInternal.shared.checkIntroEligibilitiesSK2(productIds: productIds)
+    }
+
+    /**
+     Checks whether the product with the given identifier is eligible for its introductory offer using StoreKit 2.
+     */
+    @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, visionOS 1.0, *)
+    public static func checkEligibilityForIntroductoryOffer(productId: String) async -> Bool {
+        await ApphudInternal.shared.checkIntroEligibilitiesSK2(productIds: [productId])[productId] ?? true
     }
 
     // MARK: - Other

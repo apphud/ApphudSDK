@@ -116,6 +116,7 @@ internal class ApphudAsyncStoreKit {
             var transaction: StoreKit.Transaction?
             var transactionJws: String?
             var purchaseError: Error?
+            var isPendingPurchase = false
 
             switch result {
             case .success(let verificationResult):
@@ -127,6 +128,7 @@ internal class ApphudAsyncStoreKit {
                     transaction = trx
                 }
             case .pending:
+                isPendingPurchase = true
                 apphudLog("Purchase of \(product.id) is pending (e.g. Ask to Buy)", forceDisplay: true)
             case .userCancelled:
                 ApphudLoggerService.shared.paywallPaymentCancelled(paywallId: apphudProduct?.paywallId, placementId: apphudProduct?.placementId, product: product)
@@ -142,7 +144,7 @@ internal class ApphudAsyncStoreKit {
             self.isPurchasing = false
             isPurchasing?.wrappedValue = false
 
-            return ApphudInternal.shared.asyncPurchaseResult(product: product, transaction: transaction, error: purchaseError)
+            return ApphudInternal.shared.asyncPurchaseResult(product: product, transaction: transaction, error: purchaseError, isPending: isPendingPurchase)
 
         } catch {
             ApphudLoggerService.shared.paywallPaymentError(paywallId: apphudProduct?.paywallId, placementId: apphudProduct?.placementId, productId: product.id, error: error.apphudErrorMessage())

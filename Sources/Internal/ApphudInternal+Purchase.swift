@@ -611,6 +611,7 @@ extension ApphudInternal {
         let result: ApphudAsyncPurchaseResult = await ApphudAsyncStoreKit.shared.purchase(product: product, commitmentPlan: commitmentPlan, apphudProduct: apphudProduct, fromScreen: fromScreen, extraOptions: extraOptions)
         #endif
         let resultV2 = ApphudPurchaseResult(result.subscription, result.nonRenewingPurchase, nil, result.error, transactionV2: result.transaction)
+        resultV2.isPending = result.isPending
         callback?(resultV2)
     }
 
@@ -619,7 +620,7 @@ extension ApphudInternal {
     }
 
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
-    @MainActor internal func asyncPurchaseResult(product: Product, transaction: StoreKit.Transaction?, error: Error?) -> ApphudAsyncPurchaseResult {
+    @MainActor internal func asyncPurchaseResult(product: Product, transaction: StoreKit.Transaction?, error: Error?, isPending: Bool = false) -> ApphudAsyncPurchaseResult {
 
         // 1. try to find in app purchase by product id
         let purchase = currentUser?.purchases.first(where: {$0.productId == product.id})
@@ -638,7 +639,7 @@ extension ApphudInternal {
             }
         }
 
-        return ApphudAsyncPurchaseResult(subscription: subscription, nonRenewingPurchase: purchase, transaction: transaction, error: error)
+        return ApphudAsyncPurchaseResult(subscription: subscription, nonRenewingPurchase: purchase, transaction: transaction, error: error, isPending: isPending)
     }
 
     @MainActor private func purchaseResult(productId: String, transaction: SKPaymentTransaction?, error: Error?) -> ApphudPurchaseResult {

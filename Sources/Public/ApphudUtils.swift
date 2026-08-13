@@ -30,9 +30,9 @@ public class ApphudUtils: NSObject {
         shared.logLevel = .all
     }
 
-    // Should not be used directly by developer
+    @available(*, deprecated, message: "StoreKit 2 is the only purchase engine now; this flag is a no-op and will be removed.")
     @objc public class func useStoreKitV2() {
-        shared.useStoreKitV2 = true
+        // No-op: StoreKit 2 is always on.
     }
 
     public static func checkRules() {
@@ -47,7 +47,7 @@ public class ApphudUtils: NSObject {
     private(set) var logLevel: ApphudLogLevel = .off
     internal var storeKitObserverMode = false
     internal var optOutOfTracking = false
-    private(set) var useStoreKitV2 = false
+
 
     /**
      When `true`, duplicates console logs to `Caches/logs.txt`.
