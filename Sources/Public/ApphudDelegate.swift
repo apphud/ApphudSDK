@@ -56,6 +56,21 @@ public protocol ApphudDelegate {
     func apphudShouldStartAppStoreDirectPurchase(_ product: SKProduct) -> ((ApphudPurchaseResult) -> Void)?
 
     /**
+     StoreKit 2 variant of the App Store direct purchase handler. Called when the system
+     delivers a purchase intent — the customer started a purchase outside of the app
+     (an App Store promoted in-app purchase, or a win-back offer on iOS 18+).
+
+     Return a callback block to start the purchase immediately, or `nil` to ignore it.
+     When this method is not implemented, the SDK falls back to the legacy
+     `apphudShouldStartAppStoreDirectPurchase(_ product: SKProduct)` method.
+
+     - parameter product: The StoreKit 2 `Product` the customer intends to buy.
+     - Returns: A closure of type `((ApphudPurchaseResult) -> Void)` that is called upon the completion of the purchase.
+     */
+    @available(iOS 16.4, macOS 14.4, *)
+    func apphudShouldStartAppStoreDirectPurchase(product: Product) -> ((ApphudPurchaseResult) -> Void)?
+
+    /**
      Called when the Apphud SDK detects a purchase made outside of its standard purchase methods. This is particularly useful for handling purchases made with Promo Codes.
 
      - parameter result: An `ApphudPurchaseResult` object containing details of the purchase.
@@ -102,6 +117,8 @@ public extension ApphudDelegate {
     func apphudNonRenewingPurchasesUpdated(_ purchases: [ApphudNonRenewingPurchase]) {}
     func apphudDidChangeUserID(_ userID: String) {}
     func apphudShouldStartAppStoreDirectPurchase(_ product: SKProduct) -> ((ApphudPurchaseResult) -> Void)? { nil }
+    @available(iOS 16.4, macOS 14.4, *)
+    func apphudShouldStartAppStoreDirectPurchase(product: Product) -> ((ApphudPurchaseResult) -> Void)? { nil }
     func apphudDidObservePurchase(result: ApphudPurchaseResult) -> Bool { false }
     func handleDeferredTransaction(transaction: SKPaymentTransaction) {}
     func userDidLoad(user: ApphudUser) {}

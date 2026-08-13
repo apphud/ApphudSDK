@@ -19,7 +19,11 @@ internal class ApphudAsyncStoreKit {
     static let shared = ApphudAsyncStoreKit()
     var isPurchasing: Bool = false
     var transactionsListener = ApphudAsyncTransactionObserver()
+    var purchaseIntentsListener = ApphudPurchaseIntentsObserver()
     var productsLoaded = false
+
+    /// Touching this method forces the lazy singleton (and both listeners) to start.
+    func startObserving() {}
 
     private var productsStorage = ApphudProductsStorage()
 
@@ -184,6 +188,49 @@ internal class ApphudAsyncStoreKit {
         return await purchaseResult(product: product, scene, commitmentPlan: false, apphudProduct: apphudProduct, fromScreen: fromScreen, isPurchasing: isPurchasing, extraOptions: extraOptions)
     }
     #endif
+}
+
+/// Listens to StoreKit 2 purchase intents: promoted in-app purchases started on the
+/// App Store product page, and win-back offers (iOS 18+). Replaces the StoreKit 1
+/// `paymentQueue(_:shouldAddStorePayment:for:)` handler — Apple forbids using both.
+final class ApphudPurchaseIntentsObserver {
+
+    var intentsTask: Task<Void, Never>?
+
+    init() {
+        guard #available(iOS 16.4, macOS 14.4, *) else { return }
+        #if os(iOS) || os(macOS) || os(visionOS)
+        intentsTask = Task(priority: .background) {
+            for await intent in PurchaseIntent.intents {
+                await Self.handle(product: intent.product)
+            }
+        }
+        #endif
+    }
+
+    deinit {
+        intentsTask?.cancel()
+    }
+
+    @available(iOS 16.4, macOS 14.4, *)
+    @MainActor
+    private static func handle(product: Product) async {
+        if let callback = ApphudInternal.shared.delegate?.apphudShouldStartAppStoreDirectPurchase(product: product) {
+            ApphudInternal.shared.purchase(productId: product.id, product: nil, validate: true, purchasingFromScreen: false, callback: callback)
+            return
+        }
+
+        // Bridge for delegates still implementing the legacy SKProduct-based method.
+        let skProduct: SKProduct? = await withCheckedContinuation { continuation in
+            ApphudStoreKitWrapper.shared.fetchProducts(productIds: [product.id]) { products in
+                continuation.resume(returning: products?.first)
+            }
+        }
+
+        if let skProduct, let callback = ApphudInternal.shared.delegate?.apphudShouldStartAppStoreDirectPurchase(skProduct) {
+            ApphudInternal.shared.purchase(productId: product.id, product: nil, validate: true, purchasingFromScreen: false, callback: callback)
+        }
+    }
 }
 
 @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)

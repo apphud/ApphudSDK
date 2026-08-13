@@ -287,6 +287,11 @@ final class ApphudInternal: NSObject {
         if httpClient == nil {
             ApphudStoreKitWrapper.shared.setupObserver()
             httpClient = ApphudHttpClient.shared
+            if #available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *) {
+                // Start Transaction.updates and PurchaseIntent listeners with the SDK,
+                // not lazily — purchase intents must be caught from launch.
+                ApphudAsyncStoreKit.shared.startObserving()
+            }
         }
 
         httpClient!.apiKey = apiKey

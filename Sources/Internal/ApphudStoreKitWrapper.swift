@@ -283,18 +283,10 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver {
         }
     }
 
-    #if os(iOS) && !targetEnvironment(macCatalyst)
-    func paymentQueue(_ queue: SKPaymentQueue, shouldAddStorePayment payment: SKPayment, for product: SKProduct) -> Bool {
-
-        DispatchQueue.main.async {
-            if let callback = ApphudInternal.shared.delegate?.apphudShouldStartAppStoreDirectPurchase(product) {
-                ApphudInternal.shared.purchase(productId: product.productIdentifier, product: nil, validate: true, purchasingFromScreen: false, callback: callback)
-            }
-        }
-
-        return false
-    }
-    #endif
+    // Promoted in-app purchases are handled via StoreKit 2 PurchaseIntent.intents
+    // (see ApphudPurchaseIntentsObserver). Per Apple's documentation, an app must not
+    // use both PurchaseIntent and paymentQueue(_:shouldAddStorePayment:for:) at the
+    // same time, so the SK1 handler was removed with the StoreKit 2 migration.
 
     func presentOfferCodeSheet() {
         if #available(iOS 14.0, *) {

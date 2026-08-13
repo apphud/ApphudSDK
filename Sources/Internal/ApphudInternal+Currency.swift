@@ -18,10 +18,6 @@ extension ApphudInternal {
             } else {
                 await fetchStorefrontCurrency()
             }
-        } else {
-            Task.detached {
-                await self.fetchCurrencyLegacy()
-            }
         }
     }
 
@@ -57,9 +53,9 @@ extension ApphudInternal {
                                                     countryCodeAlpha3: store.countryCode)
                 setNeedsToUpdateUser = true
             } else if result == nil {
-                apphudLog("Failed to get Storefront, fetching currency from SKProducts")
+                apphudLog("Failed to get Storefront, fetching currency from StoreKit products")
                 Task.detached {
-                    await self.fetchCurrencyLegacy()
+                    await self.fetchCurrencyFromProducts()
                 }
             } else {
                 apphudLog("Storefront currency didn't change, skipping")
@@ -78,44 +74,34 @@ extension ApphudInternal {
         }
     }
 
-    private func fetchCurrencyLegacy() async {
+    /// Fallback when `Storefront.current` is unavailable: derive the currency from
+    /// a loaded StoreKit 2 product (price format style on iOS 16+, SK1 feeder below).
+    @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
+    private func fetchCurrencyFromProducts() async {
 
-        var skProducts: [SKProduct] = ApphudStoreKitWrapper.shared.products
+        var products = await ApphudAsyncStoreKit.shared.products()
 
-        if skProducts.isEmpty {
-            let groups: [ApphudGroup]?
-            if await permissionGroups != nil {
-                groups = await permissionGroups
-            } else {
-                groups = await fetchPermissionGroups()
+        if products.isEmpty {
+            if await permissionGroups == nil {
+                _ = await fetchPermissionGroups()
             }
 
-            var productIds = [String]()
-
-            groups?.forEach({ group in
-                productIds.append(contentsOf: group.products.compactMap { $0.productId })
-            })
-
             await continueToFetchStoreKitProducts(maxAttempts: APPHUD_DEFAULT_RETRIES)
-            skProducts = await withUnsafeContinuation { continuation in
+            products = await withUnsafeContinuation { continuation in
                 Task { @MainActor in
                     performWhenStoreKitProductFetched(maxAttempts: 3) { _ in
-                        continuation.resume(returning: ApphudStoreKitWrapper.shared.products)
+                        Task {
+                            continuation.resume(returning: await ApphudAsyncStoreKit.shared.products())
+                        }
                     }
                 }
             }
         }
 
-        let priceLocale = skProducts.first?.priceLocale
+        guard let product = products.first else { return }
+        guard let countryCode = product.apphudCountryCode() else { return }
+        guard let currencyCode = product.apphudCurrencyCode() else { return }
 
-        guard let priceLocale = priceLocale else { return }
-        #if os(visionOS)
-        guard let countryCode = priceLocale.region?.identifier else { return }
-        guard let currencyCode = priceLocale.currency?.identifier else { return }
-        #else
-        guard let countryCode = priceLocale.regionCode else { return }
-        guard let currencyCode = priceLocale.currencyCode else { return }
-        #endif
         guard await countryCode != currentUser?.currency?.countryCode else { return }
         guard await currencyCode != currentUser?.currency?.code else { return }
 
@@ -125,6 +111,6 @@ extension ApphudInternal {
                                             countryCodeAlpha3: nil)
 
         setNeedsToUpdateUser = true
-        apphudLog("Did prepare legacy currency \(countryCode)/\(currencyCode)")
+        apphudLog("Did prepare currency from products: \(countryCode)/\(currencyCode)")
     }
 }
