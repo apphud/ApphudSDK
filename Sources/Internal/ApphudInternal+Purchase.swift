@@ -26,8 +26,6 @@ extension ApphudInternal {
 
     @MainActor internal func restorePurchases(callback: @escaping (ApphudPurchaseResult) -> Void) {
         self.restorePurchasesCallback = { subs, purchases, error in
-            if error != nil { ApphudStoreKitWrapper.shared.restoreTransactions() }
-
             let activeSub = subs?.first { $0.isActive() }
             let activePurch = purchases?.first { $0.isActive() }
 
@@ -35,7 +33,78 @@ extension ApphudInternal {
             result.isRestoreResult = true
             callback(result)
         }
-        self.submitReceiptRestore(allowsReceiptRefresh: true, transaction: nil)
+
+        if #available(iOS 15.0, tvOS 15.0, watchOS 8.0, macOS 12.0, *) {
+            Task {
+                await restoreUsingStoreKit2()
+            }
+        } else {
+            self.submitReceiptRestore(transaction: nil)
+        }
+    }
+
+    /// Restore semantics (StoreKit 2): silently walk `Transaction.currentEntitlements`
+    /// first; only when the device has no entitlements at all, call `AppStore.sync()`
+    /// once (shows the system authentication sheet) and walk again.
+    @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
+    internal func restoreUsingStoreKit2() async {
+
+        func latestEntitlement() async -> VerificationResult<StoreKit.Transaction>? {
+            var latest: VerificationResult<StoreKit.Transaction>?
+            for await result in StoreKit.Transaction.currentEntitlements {
+                if case .verified(let transaction) = result {
+                    if latest == nil || latest!.unsafePayloadValue.purchaseDate < transaction.purchaseDate {
+                        latest = result
+                    }
+                }
+            }
+            return latest
+        }
+
+        var latest = await latestEntitlement()
+
+        if latest == nil {
+            apphudLog("No entitlements on device, requesting AppStore.sync()..")
+            do {
+                try await AppStore.sync()
+                latest = await latestEntitlement()
+            } catch {
+                apphudLog("AppStore.sync() failed or was canceled by user: \(error)")
+            }
+        }
+
+        let receiptString = apphudReceiptDataString()
+        let transaction = latest.map { $0.unsafePayloadValue }
+        let jws = latest?.jwsRepresentation
+
+        if receiptString == nil && transaction == nil {
+            let error = ApphudError(message: "Failed to restore purchases: neither entitlements nor App Store receipt found on device.")
+            apphudLog(error.localizedDescription, forceDisplay: true)
+            await MainActor.run {
+                self.restorePurchasesCallback?(self.currentUser?.subscriptions, self.currentUser?.purchases, error)
+                self.restorePurchasesCallback = nil
+            }
+            return
+        }
+
+        performWhenUserRegistered {
+            Task {
+                await self.submitReceipt(productInfo: nil,
+                                         apphudProduct: nil,
+                                         transactionIdentifier: transaction.map { String($0.id) },
+                                         transactionProductIdentifier: transaction?.productID,
+                                         transactionState: nil,
+                                         receiptString: receiptString,
+                                         transactionJws: jws,
+                                         notifyDelegate: true,
+                                         fromScreen: false) { error in
+                    Task { @MainActor in
+                        self.restorePurchasesCallback?(self.currentUser?.subscriptions, self.currentUser?.purchases, error)
+                        self.restorePurchasesCallback = nil
+                    }
+                }
+            }
+        }
     }
 
     internal func setNeedToCheckTransactions() {
@@ -56,15 +125,20 @@ extension ApphudInternal {
             if ApphudAsyncStoreKit.shared.isPurchasing { return }
 
             Task(priority: .background) {
-                if let latestTransaction = await ApphudAsyncStoreKit.shared.fetchLatestTransaction() {
-                    await handleTransaction(latestTransaction)
+                if let latestResult = await ApphudAsyncStoreKit.shared.fetchLatestTransaction(),
+                   case .verified(let latestTransaction) = latestResult {
+                    await handleTransaction(latestTransaction, jws: latestResult.jwsRepresentation)
                 }
             }
         }
     }
 
+    /// Returns `true` when the transaction needs no further delivery (already tracked,
+    /// inactive, or submitted successfully) — the caller may finish it. Returns `false`
+    /// when the submission failed or was skipped mid-flight, so an unfinished
+    /// transaction gets redelivered by StoreKit and retried.
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
-    @discardableResult internal func handleTransaction(_ transaction: StoreKit.Transaction, fromScreen: Bool = false) async -> Bool {
+    @discardableResult internal func handleTransaction(_ transaction: StoreKit.Transaction, jws: String? = nil, fromScreen: Bool = false) async -> Bool {
         let transactionId = transaction.id
         let refundDate = transaction.revocationDate
         let expirationDate = transaction.expirationDate
@@ -75,12 +149,12 @@ extension ApphudInternal {
         // use original transaction id to compare if already tracked
         if await isAlreadyTracked(transactionId: transaction.originalID, productId: productID, purchaseDate: purchaseDate) {
             apphudLog("This transaction already tracked by Apphud: \(transactionId), skipping", logLevel: .debug)
-            return false
+            return true
         }
 
         let transactions = await self.lastUploadedTransactions
         if transactions.contains(transactionId) {
-            return false
+            return true
         }
 
         var isActive = false
@@ -118,15 +192,16 @@ extension ApphudInternal {
                                            transactionProductIdentifier: productID,
                                            transactionState: isRecentlyPurchased ? .purchased : nil,
                                            receiptString: receipt,
+                                           transactionJws: jws,
                                                  notifyDelegate: true,
-                                                 fromScreen: fromScreen) { _ in
-                            continuation.resume(returning: true)
+                                                 fromScreen: fromScreen) { error in
+                            continuation.resume(returning: error == nil)
                         }
                     }
                 }
             }
         }
-        return false
+        return true
     }
 
     fileprivate func isAlreadyTracked(transactionId: UInt64, productId: String, purchaseDate: Date) async -> Bool {
@@ -146,17 +221,9 @@ extension ApphudInternal {
     }
 
     internal func appStoreReceipt() async -> String? {
-        if let receiptString = apphudReceiptDataString() {
-            return receiptString
-        }
-
-        apphudLog("App Store receipt is missing on device, refreshing...")
-
-        return await withUnsafeContinuation { continuation in
-            ApphudStoreKitWrapper.shared.refreshReceipt {
-                continuation.resume(returning: apphudReceiptDataString())
-            }
-        }
+        // No SKReceiptRefreshRequest anymore: a missing receipt no longer blocks
+        // submission — the transaction id and JWS identify the purchase.
+        apphudReceiptDataString()
     }
 
     internal func submitReceiptAutomaticPurchaseTracking(transaction: SKPaymentTransaction, callback: @escaping ((ApphudPurchaseResult) -> Void)) {
@@ -177,20 +244,22 @@ extension ApphudInternal {
     }
 
     @objc internal func submitAppStoreReceipt() {
+        // Receipt submission retry: re-check the latest StoreKit 2 transaction and
+        // resubmit (lastUploadedTransactions is cleared on a failed submission).
         Task { @MainActor in
-            submitReceiptRestore(allowsReceiptRefresh: false, transaction: nil)
+            if #available(iOS 15.0, tvOS 15.0, watchOS 8.0, macOS 12.0, *) {
+                checkTransactionsNow()
+            } else {
+                submitReceiptRestore(transaction: nil)
+            }
         }
     }
 
-    @MainActor internal func submitReceiptRestore(allowsReceiptRefresh: Bool, transaction: SKPaymentTransaction?) {
+    @MainActor internal func submitReceiptRestore(transaction: SKPaymentTransaction?) {
 
         let receiptString = apphudReceiptDataString()
 
-        if receiptString == nil && allowsReceiptRefresh {
-            apphudLog("App Store receipt is missing on device, will refresh first then retry")
-            ApphudStoreKitWrapper.shared.refreshReceipt(nil)
-            return
-        } else if receiptString == nil && transaction?.transactionIdentifier == nil && allowsReceiptRefresh == false {
+        if receiptString == nil && transaction?.transactionIdentifier == nil {
             let error = ApphudError(message: "Failed to restore purchases because App Store receipt is missing on device.")
             apphudLog(error.localizedDescription, forceDisplay: true)
             self.restorePurchasesCallback?(self.currentUser?.subscriptions, self.currentUser?.purchases, error)
@@ -226,22 +295,13 @@ extension ApphudInternal {
 
         if let receiptString = apphudReceiptDataString() {
             block(receiptString)
+        } else if transaction?.transactionIdentifier != nil {
+            apphudLog("App Store receipt is missing, but got transaction. Will try to submit transaction instead..", forceDisplay: true)
+            block(nil)
         } else {
-            apphudLog("Receipt not found on device, refreshing.", forceDisplay: true)
-            ApphudStoreKitWrapper.shared.refreshReceipt {
-                if let receipt = apphudReceiptDataString() {
-                    block(receipt)
-                } else {
-                    if transaction?.transactionIdentifier != nil {
-                        apphudLog("App Store receipt is missing, but got transaction. Will try to submit transaction instead..", forceDisplay: true)
-                        block(nil)
-                    } else {
-                        let message = "Failed to get App Store receipt"
-                        apphudLog(message, forceDisplay: true)
-                        callback?(ApphudPurchaseResult(nil, nil, transaction, ApphudError(message: "Failed to get App Store receipt")))
-                    }
-                }
-            }
+            let message = "Failed to get App Store receipt"
+            apphudLog(message, forceDisplay: true)
+            callback?(ApphudPurchaseResult(nil, nil, transaction, ApphudError(message: message)))
         }
     }
 
@@ -281,6 +341,7 @@ extension ApphudInternal {
                                 transactionProductIdentifier: String?,
                                 transactionState: SKPaymentTransactionState?,
                                 receiptString: String?,
+                                transactionJws: String? = nil,
                                 notifyDelegate: Bool,
                                 eligibilityCheck: Bool = false,
                                 fromScreen: Bool,
@@ -314,6 +375,11 @@ extension ApphudInternal {
 
         if let transactionID = transactionIdentifier {
             params["transaction_id"] = transactionID
+        }
+        // Signed StoreKit 2 transaction (JWS). Backend can verify it locally against
+        // Apple's certificate chain without an App Store Server API key.
+        if let transactionJws {
+            params["jws"] = transactionJws
         }
         if let bundleID = Bundle.main.bundleIdentifier {
             params["bundle_id"] = bundleID

@@ -107,13 +107,18 @@ internal class ApphudAsyncStoreKit {
             #endif
 
             var transaction: StoreKit.Transaction?
+            var transactionJws: String?
             var purchaseError: Error?
 
             switch result {
-            case .success(.verified(let trx)):
-                transaction = trx
-            case .success(.unverified(let trx, _)):
-                transaction = trx
+            case .success(let verificationResult):
+                switch verificationResult {
+                case .verified(let trx):
+                    transaction = trx
+                    transactionJws = verificationResult.jwsRepresentation
+                case .unverified(let trx, _):
+                    transaction = trx
+                }
             case .pending:
                 break
             case .userCancelled:
@@ -124,7 +129,7 @@ internal class ApphudAsyncStoreKit {
             }
 
             if let transaction {
-                await Self.processTransaction(transaction, fromScreen: fromScreen)
+                await Self.processTransaction(transaction, jws: transactionJws, fromScreen: fromScreen)
             }
 
             self.isPurchasing = false
@@ -141,23 +146,23 @@ internal class ApphudAsyncStoreKit {
         }
     }
 
-    fileprivate static func processTransaction(_ transaction: StoreKit.Transaction, fromScreen: Bool = false) async {
-        _ = await ApphudInternal.shared.handleTransaction(transaction, fromScreen: fromScreen)
-        Task {
-            if transaction.productType == .consumable {
-                try? await Task.sleep(nanoseconds: 3_000_000_000)
-            }
+    fileprivate static func processTransaction(_ transaction: StoreKit.Transaction, jws: String?, fromScreen: Bool = false) async {
+        // Finish only after the transaction is handled: an unfinished transaction is
+        // redelivered by StoreKit on the next launch, so a submit that failed against
+        // the backend keeps the transaction alive for a retry.
+        let handled = await ApphudInternal.shared.handleTransaction(transaction, jws: jws, fromScreen: fromScreen)
+        if handled {
             await transaction.finish()
         }
     }
 
-    func fetchLatestTransaction() async -> StoreKit.Transaction? {
-        var latestTransaction: StoreKit.Transaction?
+    func fetchLatestTransaction() async -> VerificationResult<StoreKit.Transaction>? {
+        var latestTransaction: VerificationResult<StoreKit.Transaction>?
 
         for await result in StoreKit.Transaction.all {
             if case .verified(let transaction) = result {
-                if latestTransaction == nil || latestTransaction!.purchaseDate < transaction.purchaseDate {
-                    latestTransaction = transaction
+                if latestTransaction == nil || latestTransaction!.unsafePayloadValue.purchaseDate < transaction.purchaseDate {
+                    latestTransaction = result
                 }
             }
         }
@@ -208,18 +213,20 @@ final class ApphudAsyncTransactionObserver {
             return
         }
 
+        let jws = verificationResult.jwsRepresentation
+
         if !ApphudUtils.shared.storeKitObserverMode {
             Task { @MainActor in
                 if ApphudStoreKitWrapper.shared.purchasingProductID == transaction.productID && ApphudStoreKitWrapper.shared.isPurchasing {
                     return
                 }
 
-                await ApphudAsyncStoreKit.processTransaction(transaction)
+                await ApphudAsyncStoreKit.processTransaction(transaction, jws: jws)
             }
         } else {
             apphudLog("Received transaction [\(transaction.id), \(transaction.productID)] from StoreKit2")
             Task { @MainActor in
-                await ApphudInternal.shared.handleTransaction(transaction)
+                await ApphudInternal.shared.handleTransaction(transaction, jws: jws)
             }
         }
     }

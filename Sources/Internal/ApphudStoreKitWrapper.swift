@@ -23,7 +23,7 @@ enum ApphudStoreKitProductsFetchStatus {
     case error(ApphudError?)
 }
 
-internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SKRequestDelegate {
+internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver {
     static var shared = ApphudStoreKitWrapper()
 
     private var _products = [SKProduct]()
@@ -46,7 +46,6 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     fileprivate var fetchers = ApphudSafeSet<ApphudProductsFetcher>()
 
-    private var refreshReceiptCallback: (() -> Void)?
     private var paymentCallback: ApphudTransactionCallback?
 
     var purchasingProductID: String?
@@ -54,8 +53,6 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     private(set) var isPurchasing: Bool = false
 
     internal var loadingAll: Bool = false
-
-    private var refreshRequest: SKReceiptRefreshRequest?
 
     internal var productsLoadTime: TimeInterval = 0.0
 
@@ -65,13 +62,6 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     func enableSwizzle() {
         SKPaymentQueue.doSwizzle()
-    }
-
-    func restoreTransactions() {
-
-        Task { @MainActor in
-            SKPaymentQueue.default().restoreCompletedTransactions()
-        }
     }
 
     func latestError() -> Error? {
@@ -85,13 +75,6 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         case .error(let error):
             return error
         }
-    }
-
-    func refreshReceipt(_ callback: (() -> Void)?) {
-        refreshReceiptCallback = callback
-        refreshRequest = SKReceiptRefreshRequest()
-        refreshRequest?.delegate = self
-        refreshRequest?.start()
     }
 
     func fetchAllProducts(identifiers: Set<String>) async -> ([SKProduct], ApphudError?) {
@@ -260,7 +243,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
                      Will not finish transaction, because we didn't start it. Developer should finish transaction manually.
                      */
                     self.isPurchasing = false
-                    ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: true, transaction: trx.original ?? trx)
+                    ApphudInternal.shared.submitReceiptRestore(transaction: trx.original ?? trx)
                     if !ApphudUtils.shared.storeKitObserverMode {
                         // force finish transaction
                         self.finishTransaction(trx)
@@ -346,41 +329,6 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         return false
     }
     #endif
-
-    // MARK: - SKRequestDelegate
-
-    func requestDidFinish(_ request: SKRequest) {
-        if request is SKReceiptRefreshRequest {
-            DispatchQueue.main.async {
-                if self.refreshReceiptCallback != nil {
-                    self.refreshReceiptCallback?()
-                    self.refreshReceiptCallback = nil
-                } else {
-                    ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: false, transaction: nil)
-                }
-            }
-            request.cancel()
-            self.refreshRequest = nil
-        }
-    }
-
-    /**
-     Try to restore even if refresh receipt failed. Current receipt (unrefreshed) will be sent instead.
-     */
-    func request(_ request: SKRequest, didFailWithError error: Error) {
-        if request is SKReceiptRefreshRequest {
-            DispatchQueue.main.async {
-                if self.refreshReceiptCallback != nil {
-                    self.refreshReceiptCallback?()
-                    self.refreshReceiptCallback = nil
-                } else {
-                    ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: false, transaction: nil)
-                }
-            }
-            request.cancel()
-            self.refreshRequest = nil
-        }
-    }
 
     func presentOfferCodeSheet() {
         if #available(iOS 14.0, *) {
