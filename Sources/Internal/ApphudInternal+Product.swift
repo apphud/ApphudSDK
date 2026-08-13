@@ -98,10 +98,10 @@ extension ApphudInternal {
                 } else {
                     error = ApphudError(message: "No Paywalls Found", code: APPHUD_NO_PRODUCTS)
                 }
-                await handleDidFetchAllProducts(storeKitProducts: [], error: error)
+                await handleDidFetchAllProducts(error: error)
             } else if await currentUser != nil && didPreparePaywalls {
                 let error = ApphudError(message: "No Paywalls Found", code: APPHUD_NO_PRODUCTS)
-                await handleDidFetchAllProducts(storeKitProducts: [], error: error)
+                await handleDidFetchAllProducts(error: error)
             } else {
                 apphudLog("not yet registered user")
             }
@@ -114,27 +114,43 @@ extension ApphudInternal {
 
         if case .fetched = ApphudStoreKitWrapper.shared.status {
             apphudLog("Already Fetched All Products")
-            return await handleDidFetchAllProducts(storeKitProducts: ApphudStoreKitWrapper.shared.products, error: nil)
+            return await handleDidFetchAllProducts(error: nil)
         }
 
-        var result: ([SKProduct], ApphudError?) = ([], nil)
+        ApphudStoreKitWrapper.shared.status = .loading
+
+        // SK1 feeder: keeps the public `ApphudProduct.skProduct` populated in parallel.
+        // Paywall readiness is keyed to the StoreKit 2 fetch below and does not
+        // depend on this request.
+        await MainActor.run {
+            self.skProductsFeederTask = Task.detached {
+                await ApphudStoreKitWrapper.shared.fetchAllProductsFeeder(identifiers: productIds)
+            }
+        }
+
+        var lastError: ApphudError?
         var requestCount = 0
-        var shouldTry = true
         let startDate = Date()
+        var shouldTry = true
         while shouldTry {
             requestCount += 1
-            if ApphudStoreKitWrapper.shared.loadingAll {
-                apphudLog("Already fetching all products")
-                return
+            do {
+                _ = try await ApphudAsyncStoreKit.shared.fetchProducts(productIds, isLoadingAllAvailable: true)
+                lastError = nil
+            } catch {
+                lastError = ApphudError(error: error)
             }
-            result = await ApphudStoreKitWrapper.shared.fetchAllProducts(identifiers: productIds)
-            shouldTry = result.0.isEmpty && result.1 != nil && requestCount < maxAttempts
+            let loadedCount = await ApphudAsyncStoreKit.shared.products().count
+            shouldTry = loadedCount == 0 && lastError != nil && requestCount < maxAttempts
         }
         ApphudStoreKitWrapper.shared.productsLoadTime = Date().timeIntervalSince(startDate)
-        await handleDidFetchAllProducts(storeKitProducts: result.0, error: result.1)
+
+        let loadedProducts = await ApphudAsyncStoreKit.shared.products()
+        ApphudStoreKitWrapper.shared.status = loadedProducts.count > 0 ? .fetched : .error(lastError)
+        await handleDidFetchAllProducts(error: loadedProducts.count > 0 ? nil : lastError)
     }
 
-    internal func handleDidFetchAllProducts(storeKitProducts: [SKProduct], error: ApphudError?) async {
+    internal func handleDidFetchAllProducts(error: ApphudError?) async {
         await MainActor.run {
             self.updatePaywallsAndPlacements()
         }
@@ -167,7 +183,11 @@ extension ApphudInternal {
         ApphudStoreKitWrapper.shared.status = .none
         Task.detached { @MainActor in
             self.performWhenStoreKitProductFetched(maxAttempts: maxAttempts) { error in
-                apphudPerformOnMainThread { callback?(ApphudStoreKitWrapper.shared.products, error) }
+                // Callers of this legacy API expect SKProducts — wait for the feeder too.
+                Task { @MainActor in
+                    await self.skProductsFeederTask?.value
+                    callback?(ApphudStoreKitWrapper.shared.products, error)
+                }
             }
         }
     }

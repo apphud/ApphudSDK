@@ -98,7 +98,9 @@ extension ApphudInternal {
                 return false
             }
 
-            let product = await ApphudStoreKitWrapper.shared.fetchProduct(productID)
+            // StoreKit 2 path: product metadata comes from the SK2 product cache,
+            // no SKProductsRequest involved.
+            let product = try? await ApphudAsyncStoreKit.shared.fetchProduct(productID)
             let receipt = await appStoreReceipt()
             let isRecentlyPurchased: Bool = purchaseDate > Date().addingTimeInterval(-3600)
             return await withUnsafeContinuation { continuation in
@@ -110,7 +112,7 @@ extension ApphudInternal {
                     self.lastUploadedTransactions = trx
 
                     Task {
-                        await self.submitReceipt(product: product,
+                        await self.submitReceipt(productInfo: product?.apphudSubmittableParameters(isRecentlyPurchased),
                                            apphudProduct: nil,
                                            transactionIdentifier: String(transactionId),
                                            transactionProductIdentifier: productID,
@@ -249,8 +251,9 @@ extension ApphudInternal {
         let finalProduct = product ?? ApphudStoreKitWrapper.shared.products.first(where: { $0.productIdentifier == productId })
 
         let block: ((SKProduct?) -> Void) = { pr in
+            let hasMadePurchase = transaction?.transactionState == .purchased
             Task {
-                await self.submitReceipt(product: pr,
+                await self.submitReceipt(productInfo: pr?.apphudSubmittableParameters(hasMadePurchase),
                                    apphudProduct: apphudProduct,
                                    transactionIdentifier: transaction?.transactionIdentifier,
                                    transactionProductIdentifier: productId,
@@ -272,7 +275,7 @@ extension ApphudInternal {
         }
     }
 
-    internal func submitReceipt(product: SKProduct?,
+    internal func submitReceipt(productInfo: [String: Any]?,
                                 apphudProduct: ApphudProduct?,
                                 transactionIdentifier: String?,
                                 transactionProductIdentifier: String?,
@@ -297,7 +300,7 @@ extension ApphudInternal {
             apphudLog("Already submitting some receipt (\(submittingTransaction!)), exiting")
             return
         }
-        submittingTransaction = transactionIdentifier ?? transactionProductIdentifier ?? product?.productIdentifier ?? "Restoration"
+        submittingTransaction = transactionIdentifier ?? transactionProductIdentifier ?? (productInfo?["product_id"] as? String) ?? "Restoration"
 
         let environment = Apphud.isSandbox() ? ApphudEnvironment.sandbox.rawValue : ApphudEnvironment.production.rawValue
 
@@ -320,7 +323,7 @@ extension ApphudInternal {
 
         params["user_id"] = currentUserID
 
-        if let info = product?.apphudSubmittableParameters(hasMadePurchase) {
+        if let info = productInfo {
             params["product_info"] = info
         }
 
@@ -404,7 +407,8 @@ extension ApphudInternal {
                 if !result && hasMadePurchase && self.fallbackMode {
                     self.requiresReceiptSubmission = true
                     self.submittingTransaction = nil
-                    let hasChanges = self.stubPurchase(product: product ?? apphudProduct?.skProduct)
+                    let stubProductId = transactionProductIdentifier ?? (productInfo?["product_id"] as? String) ?? apphudProduct?.productId
+                    let hasChanges = await self.stubPurchase(productId: stubProductId)
                     self.notifyAboutUpdates(hasChanges)
                     self.submitReceiptCallbacks.forEach { callback in callback?(error)}
                     self.submitReceiptCallbacks.removeAll()

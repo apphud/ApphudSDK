@@ -43,6 +43,9 @@ final class ApphudInternal: NSObject {
     // MARK: - Receipt and products properties
 
     @MainActor internal var storeKitProductsFetchedCallbacks = [ApphudErrorCallback]()
+    // SK1 feeder task that populates the public `ApphudProduct.skProduct` property.
+    // Legacy SKProduct-based APIs await it; paywall readiness does not.
+    @MainActor internal var skProductsFeederTask: Task<Void, Never>?
     internal var customRegistrationAttemptsCount: Int?
     internal var submitReceiptRetries: ApphudRetryLog = (0, 0)
     @MainActor internal var submitReceiptCallbacks = [ApphudNSErrorCallback?]()

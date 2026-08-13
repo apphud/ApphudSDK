@@ -194,6 +194,24 @@ public class ApphudSubscription: Codable {
         upcomingProductId = product.productIdentifier
     }
 
+    // StoreKit 2 counterpart of the stub initializer above (fallback mode).
+    internal init(product: Product) {
+        id = product.id
+        expiresDate = Date().addingTimeInterval(3600)
+        productId = product.id
+        canceledAt = nil
+        startedAt = Date()
+        isInRetryBilling = false
+        isAutorenewEnabled = true
+        isSandbox = apphudIsSandbox()
+        isLocal = false
+        groupId = stub_key
+        status = product.apphudIsTrial ? .trial : (product.subscription?.introductoryOffer != nil ? .intro : .regular)
+        isIntroductoryActivated = status == .trial || status == .intro
+        originalTransactionId = nil
+        upcomingProductId = product.id
+    }
+
     internal var stateDescription: String {
         [String(expiresDate.timeIntervalSince1970), productId, status.rawValue, String(isAutorenewEnabled)].joined(separator: "|")
     }

@@ -122,6 +122,33 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         }
     }
 
+    /// Feeder fetch: populates the SKProduct cache (public `ApphudProduct.skProduct`)
+    /// without driving the products fetch status — paywall readiness is keyed to the
+    /// StoreKit 2 fetch and must not depend on this request.
+    func fetchAllProductsFeeder(identifiers: Set<String>) async {
+        guard identifiers.count > 0 else { return }
+
+        let fetcher = ApphudProductsFetcher()
+        fetchers.insert(fetcher)
+
+        await withUnsafeContinuation { (continuation: UnsafeContinuation<Void, Never>) in
+            fetcher.fetchStoreKitProducts(identifiers: identifiers) { products, _, ftchr in
+                let existingIDS = self.products.map { $0.productIdentifier }
+                let uniqueProducts = products.filter { !existingIDS.contains($0.productIdentifier) }
+                var newProducts = self.products
+                newProducts.append(contentsOf: uniqueProducts)
+                self.products = newProducts
+                self.fetchers.remove(ftchr)
+                continuation.resume()
+            }
+        }
+
+        // Re-associate skProduct on paywalls/placements once the feeder delivers.
+        await MainActor.run {
+            ApphudInternal.shared.updatePaywallsAndPlacements()
+        }
+    }
+
     func fetchProduct(_ productId: String) async -> SKProduct? {
 
         if let availableProduct = products.first(where: { $0.productIdentifier == productId }) {
