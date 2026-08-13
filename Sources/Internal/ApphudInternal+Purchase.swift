@@ -187,7 +187,16 @@ extension ApphudInternal {
             let receipt = await appStoreReceipt()
             let isRecentlyPurchased: Bool = purchaseDate > Date().addingTimeInterval(-3600)
             return await withUnsafeContinuation { continuation in
-                performWhenUserRegistered {
+                // allowFailure: a block that waits for a registration which never succeeds
+                // is never released, which would hang the purchase call awaiting it.
+                performWhenUserRegistered(allowFailure: true) {
+
+                    guard self.currentUser != nil else {
+                        apphudLog("Cannot submit transaction \(transactionId) because user is not registered, will retry later", forceDisplay: true)
+                        continuation.resume(returning: false)
+                        return
+                    }
+
                     apphudLog("Submitting transaction \(transactionId), \(productID) from StoreKit2.. Is recently purchased: \(isRecentlyPurchased)")
 
                     var trx = self.lastUploadedTransactions
