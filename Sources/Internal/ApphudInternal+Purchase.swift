@@ -131,9 +131,10 @@ extension ApphudInternal {
             Task(priority: .background) {
                 if let latestResult = await ApphudAsyncStoreKit.shared.fetchLatestTransaction(),
                    case .verified(let latestTransaction) = latestResult {
-                    // Route through processTransaction so this path shares the same
-                    // in-flight ownership as the purchase and updates listeners.
-                    await ApphudAsyncStoreKit.processTransaction(latestTransaction, jws: latestResult.jwsRepresentation)
+                    // Submits only — finishing a transaction belongs to whoever owns it
+                    // (the purchase call or the updates listener). In observer mode the
+                    // host finishes its own transactions and this must not interfere.
+                    await handleTransaction(latestTransaction, jws: latestResult.jwsRepresentation)
                 }
             }
         }
@@ -199,10 +200,9 @@ extension ApphudInternal {
 
                     apphudLog("Submitting transaction \(transactionId), \(productID) from StoreKit2.. Is recently purchased: \(isRecentlyPurchased)")
 
-                    var trx = self.lastUploadedTransactions
-                    trx.append(transactionId)
-                    self.lastUploadedTransactions = trx
-
+                    // The id is recorded as uploaded by submitReceipt once it owns the
+                    // submission — marking it here would strand the transaction if the
+                    // submission never started.
                     Task {
                         await self.submitReceipt(productInfo: product?.apphudSubmittableParameters(isRecentlyPurchased),
                                            apphudProduct: nil,
@@ -212,6 +212,7 @@ extension ApphudInternal {
                                            receiptString: receipt,
                                            transactionJws: jws,
                                                  notifyDelegate: true,
+                                                 ownsTransaction: true,
                                                  fromScreen: fromScreen) { error in
                             continuation.resume(returning: error == nil)
                         }
@@ -362,16 +363,19 @@ extension ApphudInternal {
                                 transactionJws: String? = nil,
                                 notifyDelegate: Bool,
                                 eligibilityCheck: Bool = false,
+                                // True only for the submission that owns a StoreKit 2
+                                // transaction and decides whether it may be finished.
+                                ownsTransaction: Bool = false,
                                 fromScreen: Bool,
                                 callback: ApphudNSErrorCallback?) async {
 
         let newClaim = transactionIdentifier ?? transactionProductIdentifier ?? (productInfo?["product_id"] as? String) ?? "Restoration"
 
-        // Claim the single-flight slot atomically. A submission carrying its own
-        // transaction must never be answered by another submission's result: its caller
-        // decides whether that transaction may be finished, and a foreign success would
-        // finish a transaction nobody uploaded. Callers without a transaction
-        // (restoration, eligibility checks) may still piggyback on the in-flight upload.
+        // Claim the single-flight slot atomically. A submission that OWNS a transaction
+        // must never be answered by another submission's result: its caller decides
+        // whether that transaction may be finished, and a foreign success would finish a
+        // transaction nobody uploaded. Every other caller (restore, eligibility checks,
+        // observer-mode tracking) still piggybacks on the in-flight upload as before.
         let inFlight: String? = await MainActor.run {
             let existing = self.submittingTransaction
 
@@ -379,7 +383,7 @@ extension ApphudInternal {
                 self.submittingTransaction = newClaim
             }
 
-            if let callback, existing == nil || transactionIdentifier == nil {
+            if let callback, existing == nil || !ownsTransaction {
                 if eligibilityCheck || self.submitReceiptCallbacks.count > 0 {
                     self.submitReceiptCallbacks.append(callback)
                 } else {
@@ -391,8 +395,8 @@ extension ApphudInternal {
         }
 
         if let inFlight {
-            if let transactionIdentifier {
-                let message = "Already submitting another receipt (\(inFlight)), transaction \(transactionIdentifier) will be retried later"
+            if ownsTransaction {
+                let message = "Already submitting another receipt (\(inFlight)), transaction \(transactionIdentifier ?? newClaim) stays unfinished and will be redelivered"
                 apphudLog(message)
                 await MainActor.run { callback?(ApphudError(message: message)) }
             } else {
@@ -542,7 +546,13 @@ extension ApphudInternal {
                 }
 
                 self.forceSendAttributionDataIfNeeded()
+
+                // Release the slot and take the callbacks in one step: a submission that
+                // starts in between would otherwise inherit this one's callbacks and
+                // answer its caller with a foreign result.
                 self.submittingTransaction = nil
+                let pendingCallbacks = self.submitReceiptCallbacks
+                self.submitReceiptCallbacks.removeAll()
 
                 if result {
                     self.observerModePurchaseIdentifiers = nil
@@ -557,10 +567,7 @@ extension ApphudInternal {
                     self.scheduleSubmitReceiptRetry(error: error, code: errorCode)
                 }
 
-                while !self.submitReceiptCallbacks.isEmpty {
-                    let callback = self.submitReceiptCallbacks.removeFirst()
-                    callback?(error)
-                }
+                pendingCallbacks.forEach { $0?(error) }
             }
         }
     }

@@ -451,11 +451,15 @@ final class ApphudInternal: NSObject {
 
     @MainActor
     private func scheduleUserRegistering(errorCode: Int) {
+        // Registration will not be retried: release everything waiting on it, otherwise
+        // callers that allow failure (a transaction submission, for one) wait forever.
         guard httpClient != nil, httpClient!.canRetry else {
+            performAllUserFailedBlocks()
             return
         }
         guard willRetryUserRegistration() else {
             apphudLog("Reached max number of user register retries \(userRegisterRetries.count). Exiting..", forceDisplay: true)
+            performAllUserFailedBlocks()
             return
         }
 

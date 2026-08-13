@@ -364,23 +364,32 @@ class ApphudScreenController: UIViewController {
         }
 
         // The SK1 products cache is filled by a best-effort background feeder now, so the
-        // product may not be there yet — fetch it on demand instead of aborting.
+        // product may not be there yet — fetch it once on demand instead of aborting.
+        // The fetched product is used directly: the cache is not written by this fetch,
+        // so re-entering through it would loop forever.
         guard let product = ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == productID}) else {
             if isPurchasing { return }
             isPurchasing = true
             self.startLoading()
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 let fetched = await ApphudStoreKitWrapper.shared.fetchProduct(productID)
+                guard let self else { return }
                 self.isPurchasing = false
                 self.stopLoading()
-                if fetched != nil {
-                    self.purchaseProduct(productID: productID, offerID: offerID)
+                guard self.view.window != nil else { return } // screen was closed meanwhile
+                if let fetched {
+                    self.startPurchase(product: fetched, offerID: offerID)
                 } else {
                     apphudLog("Aborting purchase because couldn't find product with id: \(productID)", forceDisplay: true)
                 }
             }
             return
         }
+
+        startPurchase(product: product, offerID: offerID)
+    }
+
+    private func startPurchase(product: SKProduct, offerID: String?) {
 
         if offerID != nil && offerID!.count > 0 {
                 if product.discounts.first(where: {$0.identifier == offerID!}) != nil {
