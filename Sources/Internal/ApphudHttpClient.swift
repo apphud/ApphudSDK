@@ -214,7 +214,13 @@ public class ApphudHttpClient {
                 }
             }
         } else {
-            apphudLog("Unable to perform API requests, because your account has been suspended.", forceDisplay: true)
+            let message = "Unable to perform API requests, because your account has been suspended."
+            apphudLog(message, forceDisplay: true)
+            // Always answer the caller: a dropped callback leaves whoever awaits it —
+            // a transaction submission, for one — waiting forever.
+            Task { @MainActor in
+                callback?(false, nil, nil, ApphudError(message: message), NSURLErrorUnknown, 0, 0)
+            }
         }
     }
 

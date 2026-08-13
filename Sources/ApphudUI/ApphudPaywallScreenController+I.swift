@@ -101,7 +101,9 @@ extension ApphudPaywallScreenController: WKUIDelegate {
         var params: [String: AnyHashable] = ["rule_id": rule.id, "name": "$purchase", "screen_id": ruleScreenID, "paywall_id": paywall.id]
         var properties: [String: AnyHashable] = ["product_id": product.productId]
 
-        if let trx = result.transaction, trx.transactionState == .purchased, let transactionID = trx.transactionIdentifier {
+        if let trxV2 = result.transactionV2 {
+            properties["transaction_id"] = String(trxV2.id)
+        } else if let trx = result.transaction, trx.transactionState == .purchased, let transactionID = trx.transactionIdentifier {
             properties["transaction_id"] = transactionID
         }
 
@@ -270,6 +272,13 @@ extension ApphudPaywallScreenController: WKUIDelegate {
             if let self {
                 self.hideLoadingIndicator()
                 self.onTransactionCompleted?(result)
+
+                // Ask to Buy / SCA: neither success nor failure yet — the transaction
+                // arrives later via Transaction.updates once it is approved.
+                if result.isPending {
+                    apphudLog("Purchase is pending approval, waiting for the transaction", forceDisplay: true)
+                    return
+                }
 
                 if let ruleScreenName {
                     if result.success {

@@ -264,7 +264,9 @@ extension ApphudInternal {
 
     @objc internal func submitAppStoreReceipt() {
         // Receipt submission retry: re-check the latest StoreKit 2 transaction and
-        // resubmit (lastUploadedTransactions is cleared on a failed submission).
+        // resubmit (a failed submission releases its own id from lastUploadedTransactions).
+        // Known limitation: this retries the newest transaction, so an older failed one
+        // waits for its next redelivery by StoreKit instead of being retried here.
         Task { @MainActor in
             if #available(iOS 15.0, tvOS 15.0, watchOS 8.0, macOS 12.0, *) {
                 checkTransactionsNow()

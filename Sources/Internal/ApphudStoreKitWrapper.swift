@@ -254,11 +254,19 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver {
         }
 
         if transaction.transactionState == .purchased {
-            // Skip legacy queue twins of transactions already uploaded via StoreKit 2.
-            if let trxId = transaction.transactionIdentifier, let trxIdInt = UInt64(trxId),
-               ApphudInternal.shared.lastUploadedTransactions.contains(trxIdInt) {
-                finishTransaction(transaction)
-                return
+            if let trxId = transaction.transactionIdentifier, let trxIdInt = UInt64(trxId) {
+                // A StoreKit 2 submission for this transaction is still in flight: its
+                // owner decides whether it may be finished, so leave it alone.
+                if #available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *),
+                   ApphudAsyncStoreKit.isProcessing(transactionID: trxIdInt) {
+                    return
+                }
+
+                // Skip legacy queue twins of transactions already uploaded via StoreKit 2.
+                if ApphudInternal.shared.lastUploadedTransactions.contains(trxIdInt) {
+                    finishTransaction(transaction)
+                    return
+                }
             }
 
             ApphudInternal.shared.submitReceiptAutomaticPurchaseTracking(transaction: transaction) { result in

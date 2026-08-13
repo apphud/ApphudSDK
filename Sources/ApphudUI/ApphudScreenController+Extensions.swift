@@ -179,6 +179,15 @@ extension ApphudScreenController {
             hasSubscriptionWithAutorenewEnabled = false
         }
 
+        // Ask to Buy / SCA: the purchase is neither done nor failed — it will arrive via
+        // Transaction.updates once approved, so do not report either outcome now.
+        if result.isPending {
+            stopLoading()
+            isPurchasing = false
+            apphudLog("Purchase is pending approval, waiting for the transaction", forceDisplay: true)
+            return
+        }
+
         // StoreKit 2 purchases carry no SKPaymentTransaction, so success is decided by
         // the result itself; the SK1 transaction state is only a legacy fallback.
         let purchaseSucceeded: Bool
@@ -187,6 +196,10 @@ extension ApphudScreenController {
         } else {
             purchaseSucceeded = (result.transaction?.failedWithUnknownReason ?? false) && hasSubscriptionWithAutorenewEnabled
         }
+
+        // Both outcomes leave the button usable again; dismissal is decided below.
+        stopLoading()
+        isPurchasing = false
 
         if purchaseSucceeded {
 
@@ -222,9 +235,7 @@ extension ApphudScreenController {
             dismiss() // dismiss only when purchase is successful
 
         } else {
-            stopLoading()
-            isPurchasing = false
-            apphudLog("Couldn't purchase with error:\(error?.localizedDescription ?? "")", forceDisplay: true)
+            apphudLog("Couldn't purchase with error: \(result.error?.localizedDescription ?? "code \(errorCode.rawValue)")", forceDisplay: true)
             // if error occurred, restore subscriptions
             if !(errorCode == .paymentCancelled) {
                 // maybe remove?
