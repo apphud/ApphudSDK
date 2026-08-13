@@ -111,6 +111,13 @@ extension ApphudInternal {
         }
     }
 
+    /// Runs a transaction check that was deferred because a purchase was in flight.
+    @MainActor internal func runDeferredTransactionCheckIfNeeded() {
+        guard deferredTransactionCheck else { return }
+        deferredTransactionCheck = false
+        setNeedToCheckTransactions()
+    }
+
     internal func setNeedToCheckTransactions() {
         apphudPerformOnMainThread {
             NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(self.checkTransactionsNow), object: nil)
@@ -120,13 +127,20 @@ extension ApphudInternal {
 
     @MainActor @objc internal func checkTransactionsNow() {
 
+        // A purchase is in flight: it delivers its own transaction. Remember the check
+        // instead of dropping it — otherwise a failed submission is never re-attempted —
+        // and run it when the purchase completes rather than polling meanwhile.
         if ApphudStoreKitWrapper.shared.isPurchasing {
+            deferredTransactionCheck = true
             return
         }
 
         if #available(iOS 15.0, tvOS 15.0, watchOS 8.0, macOS 12.0, *) {
 
-            if ApphudAsyncStoreKit.shared.isPurchasing { return }
+            if ApphudAsyncStoreKit.shared.isPurchasing {
+                deferredTransactionCheck = true
+                return
+            }
 
             Task(priority: .background) {
                 if let latestResult = await ApphudAsyncStoreKit.shared.fetchLatestTransaction(),
@@ -398,8 +412,10 @@ extension ApphudInternal {
 
         if let inFlight {
             if ownsTransaction {
-                let message = "Already submitting another receipt (\(inFlight)), transaction \(transactionIdentifier ?? newClaim) stays unfinished and will be redelivered"
+                let message = "Already submitting another receipt (\(inFlight)), transaction \(transactionIdentifier ?? newClaim) stays unfinished and will be retried"
                 apphudLog(message)
+                // Re-attempt shortly instead of waiting for StoreKit to redeliver.
+                setNeedToCheckTransactions()
                 await MainActor.run { callback?(ApphudError(message: message)) }
             } else {
                 apphudLog("Already submitting some receipt (\(inFlight)), this caller will receive its result")
@@ -503,38 +519,38 @@ extension ApphudInternal {
         #endif
 
         let transactionId = params["transaction_id"] as? String
-        await MainActor.run {
-            if transactionId != nil, let trInt = UInt64(transactionId!) {
-                var trx = self.lastUploadedTransactions
-                trx.append(trInt)
-                self.lastUploadedTransactions = trx
-            }
-        }
 
         self.requiresReceiptSubmission = true
 
         apphudLog("Uploading App Store Receipt...")
 
-        // Undoes the "uploaded" claim above when the upload did not succeed, so the
-        // transaction is not mistaken for a submitted one and can be retried. Only the
-        // failed id is removed — ids the backend already acknowledged must survive.
-        let releaseUploadClaim: @MainActor () -> Void = {
+        // `lastUploadedTransactions` means "the backend acknowledged this transaction",
+        // because it is what authorises finishing one (see handleTransaction and the
+        // legacy queue twin). It is therefore recorded only after a successful upload.
+        let recordUploadedTransaction: @MainActor () -> Void = {
             guard let transactionId, let trInt = UInt64(transactionId) else { return }
-            self.lastUploadedTransactions = self.lastUploadedTransactions.filter { $0 != trInt }
+            guard !self.lastUploadedTransactions.contains(trInt) else { return }
+            // Keep the list bounded: it is persisted and only used for recent dedup.
+            self.lastUploadedTransactions = (self.lastUploadedTransactions + [trInt]).suffix(200)
         }
 
         httpClient?.startRequest(path: .subscriptions, params: params, method: .post, useDecoder: true, retry: (hasMadePurchase && !fallbackMode)) { (result, _, data, error, errorCode, duration, _) in
             Task { @MainActor in
+
+                // Release the slot and take the callbacks in ONE synchronous step, before
+                // any await: a submission starting in between would otherwise inherit
+                // these callbacks and answer its caller with a foreign result.
+                self.submittingTransaction = nil
+                let pendingCallbacks = self.submitReceiptCallbacks
+                self.submitReceiptCallbacks.removeAll()
+
                 if !result && hasMadePurchase && self.fallbackMode {
                     self.requiresReceiptSubmission = true
-                    self.submittingTransaction = nil
-                    releaseUploadClaim()
                     self.scheduleSubmitReceiptRetry(error: error, code: errorCode)
                     let stubProductId = transactionProductIdentifier ?? (productInfo?["product_id"] as? String) ?? apphudProduct?.productId
                     let hasChanges = await self.stubPurchase(productId: stubProductId)
                     self.notifyAboutUpdates(hasChanges)
-                    self.submitReceiptCallbacks.forEach { callback in callback?(error ?? ApphudError(message: "Failed to submit transaction in fallback mode"))}
-                    self.submitReceiptCallbacks.removeAll()
+                    pendingCallbacks.forEach { $0?(error ?? ApphudError(message: "Failed to submit transaction in fallback mode")) }
                     return
                 }
 
@@ -549,14 +565,8 @@ extension ApphudInternal {
 
                 self.forceSendAttributionDataIfNeeded()
 
-                // Release the slot and take the callbacks in one step: a submission that
-                // starts in between would otherwise inherit this one's callbacks and
-                // answer its caller with a foreign result.
-                self.submittingTransaction = nil
-                let pendingCallbacks = self.submitReceiptCallbacks
-                self.submitReceiptCallbacks.removeAll()
-
                 if result {
+                    recordUploadedTransaction()
                     self.observerModePurchaseIdentifiers = nil
                     self.submitReceiptRetries = (0, 0)
                     self.requiresReceiptSubmission = false
@@ -565,7 +575,6 @@ extension ApphudInternal {
                         self.notifyAboutUpdates(hasChanges)
                     }
                 } else {
-                    releaseUploadClaim()
                     self.scheduleSubmitReceiptRetry(error: error, code: errorCode)
                 }
 

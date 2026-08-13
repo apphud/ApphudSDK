@@ -238,6 +238,11 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver {
                     default:
                     self.isPurchasing = false
                 }
+
+                // A transaction check deferred while this purchase was in flight runs now.
+                if !self.isPurchasing {
+                    ApphudInternal.shared.runDeferredTransactionCheckIfNeeded()
+                }
             }
         }
     }
@@ -256,15 +261,21 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver {
         if transaction.transactionState == .purchased {
             if let trxId = transaction.transactionIdentifier, let trxIdInt = UInt64(trxId) {
                 // A StoreKit 2 submission for this transaction is still in flight: its
-                // owner decides whether it may be finished, so leave it alone.
+                // owner decides whether it may be finished, so leave it alone and
+                // re-check afterwards.
                 if #available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *),
                    ApphudAsyncStoreKit.isProcessing(transactionID: trxIdInt) {
+                    ApphudInternal.shared.setNeedToCheckTransactions()
                     return
                 }
 
-                // Skip legacy queue twins of transactions already uploaded via StoreKit 2.
+                // Legacy queue twin of a transaction the backend already acknowledged via
+                // StoreKit 2. In observer mode the host owns finishing it, exactly like
+                // the other finish sites in this file.
                 if ApphudInternal.shared.lastUploadedTransactions.contains(trxIdInt) {
-                    finishTransaction(transaction)
+                    if !ApphudUtils.shared.storeKitObserverMode {
+                        finishTransaction(transaction)
+                    }
                     return
                 }
             }

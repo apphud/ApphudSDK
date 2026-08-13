@@ -53,6 +53,9 @@ final class ApphudInternal: NSObject {
     // Single-flight slot for receipt submission. Main-actor isolated because it decides
     // whether a transaction may be finished — it must not be read or written concurrently.
     @MainActor internal var submittingTransaction: String?
+    // A transaction check that arrived while a purchase was in flight; it runs once that
+    // purchase completes, so the check is neither dropped nor polled for.
+    @MainActor internal var deferredTransactionCheck = false
     @MainActor internal var lastUploadedTransactions: [UInt64] {
         get {
             UserDefaults.standard.array(forKey: "ApphudLastUploadedTransactions") as? [UInt64] ?? [UInt64]()

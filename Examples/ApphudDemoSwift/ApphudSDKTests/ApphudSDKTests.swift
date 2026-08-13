@@ -54,6 +54,10 @@ final class ApphudStubURLProtocol: URLProtocol {
     /// in flight and exercise concurrent delivery of the same transaction.
     static var subscriptionsResponseDelay: TimeInterval = 0
 
+    /// When set, POST /v1/subscriptions answers with this status instead of 200, so the
+    /// failure paths (where purchases are lost) are exercisable.
+    static var subscriptionsFailureStatus: Int?
+
     override class func canInit(with request: URLRequest) -> Bool {
         guard let host = request.url?.host else { return false }
         return host.contains("apphud.com") || host.contains("aphd.cc")
@@ -67,9 +71,11 @@ final class ApphudStubURLProtocol: URLProtocol {
         let body = Self.readBodyJSON(from: request)
         Self.record(RecordedRequest(method: request.httpMethod ?? "", path: path, body: body))
 
-        let json = Self.fixture(for: path, requestBody: body)
+        let isSubscriptions = path.hasSuffix("/subscriptions")
+        let statusCode = isSubscriptions ? (Self.subscriptionsFailureStatus ?? 200) : 200
+        let json = statusCode == 200 ? Self.fixture(for: path, requestBody: body) : ["errors": ["stubbed failure"]]
         let data = try! JSONSerialization.data(withJSONObject: json)
-        let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: ["Content-Type": "application/json"])!
+        let response = HTTPURLResponse(url: url, statusCode: statusCode, httpVersion: nil, headerFields: ["Content-Type": "application/json"])!
 
         let deliver = { [weak self] in
             guard let self else { return }
@@ -78,7 +84,7 @@ final class ApphudStubURLProtocol: URLProtocol {
             self.client?.urlProtocolDidFinishLoading(self)
         }
 
-        let delay = path.hasSuffix("/subscriptions") ? Self.subscriptionsResponseDelay : 0
+        let delay = isSubscriptions ? Self.subscriptionsResponseDelay : 0
         if delay > 0 {
             DispatchQueue.global().asyncAfter(deadline: .now() + delay, execute: deliver)
         } else {
@@ -200,6 +206,7 @@ final class ApphudSDKTests: XCTestCase {
         // so test order (or running a single test) can't change what other tests observe.
         ApphudUtils.shared.storeKitObserverMode = false
         ApphudStubURLProtocol.subscriptionsResponseDelay = 0
+        ApphudStubURLProtocol.subscriptionsFailureStatus = nil
     }
 
     @MainActor
@@ -356,6 +363,43 @@ final class ApphudSDKTests: XCTestCase {
         XCTAssertEqual(submits.count, 1, "A transaction delivered twice must be uploaded exactly once")
         XCTAssertEqual(results[0], results[1], "Both callers must observe the same outcome")
         XCTAssertTrue(results[0], "The submission succeeded, so the transaction may be finished")
+    }
+
+    // MARK: 3c. A failed upload must not mark the transaction as delivered
+
+    /// The dedup list is what authorises finishing a transaction, so a submission that
+    /// the backend rejected must leave no trace in it — otherwise the transaction is
+    /// finished on the next delivery and the paid purchase never reaches Apphud.
+    @MainActor
+    func test3cFailedUploadDoesNotMarkTransactionAsUploaded() async throws {
+        let session = try XCTUnwrap(Self.storeKitSession)
+        session.clearTransactions()
+        defer { session.clearTransactions() }
+
+        await startSDKIfNeeded()
+        ApphudInternal.shared.lastUploadedTransactions = []
+        ApphudStubURLProtocol.reset()
+        ApphudStubURLProtocol.subscriptionsFailureStatus = 500
+
+        let result: ApphudPurchaseResult = await withCheckedContinuation { continuation in
+            ApphudInternal.shared.purchase(productId: ApphudTestConstants.weeklyProductId,
+                                           product: nil,
+                                           validate: true,
+                                           purchasingFromScreen: false) { result in
+                continuation.resume(returning: result)
+            }
+        }
+
+        let submits = ApphudStubURLProtocol.requests(to: "/subscriptions").filter { $0.method == "POST" }
+        XCTAssertFalse(submits.isEmpty, "The SDK must have attempted an upload")
+
+        let transactionId = submits.compactMap { $0.body["transaction_id"] as? String }.compactMap { UInt64($0) }.first
+        let uploaded = ApphudInternal.shared.lastUploadedTransactions
+        if let transactionId {
+            XCTAssertFalse(uploaded.contains(transactionId),
+                           "A transaction whose upload failed must not be recorded as uploaded")
+        }
+        XCTAssertFalse(result.success, "A rejected submission must not be reported as a successful purchase")
     }
 
     // MARK: 4. Upgrade compatibility of the transaction dedup storage

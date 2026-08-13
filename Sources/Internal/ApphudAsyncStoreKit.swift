@@ -147,6 +147,7 @@ internal class ApphudAsyncStoreKit {
 
             self.isPurchasing = false
             isPurchasing?.wrappedValue = false
+            ApphudInternal.shared.runDeferredTransactionCheckIfNeeded()
 
             return ApphudInternal.shared.asyncPurchaseResult(product: product, transaction: transaction, error: purchaseError, isPending: isPendingPurchase)
 
@@ -155,6 +156,7 @@ internal class ApphudAsyncStoreKit {
 
             self.isPurchasing = false
             isPurchasing?.wrappedValue = false
+            ApphudInternal.shared.runDeferredTransactionCheckIfNeeded()
             return ApphudInternal.shared.asyncPurchaseResult(product: product, transaction: nil, error: error)
         }
     }
