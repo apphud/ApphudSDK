@@ -545,26 +545,40 @@ final class ApphudSDKTests: XCTestCase {
         XCTAssertNil(restore.error, "A restore during an in-flight submission must piggyback on its outcome, got: \(String(describing: restore.error))")
     }
 
-    // MARK: 4. Upgrade compatibility of the transaction dedup storage
+    // MARK: 4. Legacy transaction dedup storage is not trusted after upgrade
 
-    /// Data-compat contract: the dedup list keeps the same UserDefaults key and shape as
-    /// 4.4.x. A rename or format change would make the SDK re-upload every transaction
-    /// the previous version had already submitted.
+    /// Data-compat contract, inverted from 4.4.x: the pre-SK2 SDK persisted ids under
+    /// "ApphudLastUploadedTransactions" BEFORE backend acknowledgment, so an inherited id
+    /// may belong to a purchase that never reached Apphud. This SDK's store means
+    /// "backend acknowledged — safe to finish", therefore it lives under its own key and
+    /// legacy ids must never authorize finishing a transaction. (Transactions the old SDK
+    /// did get acknowledged were also finished by it, so ignoring the legacy list cannot
+    /// cause redelivery loops; a rare re-submission is deduplicated by the backend.)
     @MainActor
-    func test4TransactionDedupStorageIsUpgradeCompatible() async throws {
-        let key = "ApphudLastUploadedTransactions"
-        let saved = UserDefaults.standard.array(forKey: key)
-        defer { UserDefaults.standard.set(saved, forKey: key) }
+    func test4LegacyDedupStorageIsIgnoredAfterUpgrade() async throws {
+        let legacyKey = "ApphudLastUploadedTransactions"
+        let currentKey = "ApphudLastUploadedTransactionsSK2"
+        let savedLegacy = UserDefaults.standard.array(forKey: legacyKey)
+        let savedCurrent = UserDefaults.standard.array(forKey: currentKey)
+        defer {
+            UserDefaults.standard.set(savedLegacy, forKey: legacyKey)
+            UserDefaults.standard.set(savedCurrent, forKey: currentKey)
+        }
 
-        // Values written by a previous SDK version must be read back as-is.
-        let legacyValues: [UInt64] = [2_000_000_123_456_789, 42]
-        UserDefaults.standard.set(legacyValues, forKey: key)
-        XCTAssertEqual(ApphudInternal.shared.lastUploadedTransactions, legacyValues,
-                       "Transactions stored by a previous SDK version must still be recognized")
+        let preAckLegacyIds: [UInt64] = [2_000_000_123_456_789, 42]
+        UserDefaults.standard.set(preAckLegacyIds, forKey: legacyKey)
+        UserDefaults.standard.removeObject(forKey: currentKey)
+        for id in preAckLegacyIds {
+            XCTAssertFalse(ApphudInternal.shared.lastUploadedTransactions.contains(id),
+                           "Ids inherited from the pre-SK2 SDK must not authorize finishing a transaction")
+        }
 
-        // And values written now must stay readable in the same plain-array shape.
+        // The store itself round-trips as a plain [UInt64] array under the SK2 key,
+        // and the legacy key is left as-is for a possible SDK downgrade.
         ApphudInternal.shared.lastUploadedTransactions = [7, 8]
-        XCTAssertEqual(UserDefaults.standard.array(forKey: key) as? [UInt64], [7, 8],
-                       "Dedup list must stay a plain [UInt64] array under the same key")
+        XCTAssertEqual(UserDefaults.standard.array(forKey: currentKey) as? [UInt64], [7, 8],
+                       "Ack list must persist as a plain [UInt64] array under the SK2 key")
+        XCTAssertEqual(UserDefaults.standard.array(forKey: legacyKey) as? [UInt64], preAckLegacyIds,
+                       "Legacy key must be left untouched")
     }
 }

@@ -56,12 +56,16 @@ final class ApphudInternal: NSObject {
     // A transaction check that arrived while a purchase was in flight; it runs once that
     // purchase completes, so the check is neither dropped nor polled for.
     @MainActor internal var deferredTransactionCheck = false
+    // The SK2 store means "backend acknowledged — safe to finish". Pre-SK2 versions
+    // persisted ids under "ApphudLastUploadedTransactions" BEFORE acknowledgment, so
+    // that key may name purchases that never reached Apphud and must not be read here:
+    // an inherited id would finish a paid transaction without ever submitting it.
     @MainActor internal var lastUploadedTransactions: [UInt64] {
         get {
-            UserDefaults.standard.array(forKey: "ApphudLastUploadedTransactions") as? [UInt64] ?? [UInt64]()
+            UserDefaults.standard.array(forKey: "ApphudLastUploadedTransactionsSK2") as? [UInt64] ?? [UInt64]()
         }
         set {
-            UserDefaults.standard.set(newValue, forKey: "ApphudLastUploadedTransactions")
+            UserDefaults.standard.set(newValue, forKey: "ApphudLastUploadedTransactionsSK2")
         }
     }
 
