@@ -67,8 +67,11 @@ extension ApphudInternal {
 
         var latest = await latestEntitlement()
 
-        if latest == nil {
-            apphudLog("No entitlements on device, requesting AppStore.sync()..")
+        // AppStore.sync() shows the system authentication sheet, so it is a last resort:
+        // only when the device has neither entitlements nor an App Store receipt to
+        // submit (master parity — the receipt path was always silent).
+        if latest == nil && apphudReceiptDataString() == nil {
+            apphudLog("No entitlements and no receipt on device, requesting AppStore.sync()..")
             do {
                 try await AppStore.sync()
                 latest = await latestEntitlement()
@@ -315,33 +318,6 @@ extension ApphudInternal {
         }
     }
 
-    internal func submitReceipt(product: SKProduct, transaction: SKPaymentTransaction?, apphudProduct: ApphudProduct? = nil, fromScreen: Bool, callback: ((ApphudPurchaseResult) -> Void)?) {
-
-        let block: (String?) -> Void = { receiptStr in
-            if transaction != nil {
-                self.submitReceipt(product: product, apphudProduct: apphudProduct, transaction: transaction, receiptString: receiptStr, notifyDelegate: true, fromScreen: fromScreen) { error in
-                    Task { @MainActor in
-                        let result = self.purchaseResult(productId: product.productIdentifier, transaction: transaction, error: error)
-                        callback?(result)
-                    }
-                }
-            } else {
-                apphudLog("Tried to make submitReceipt: \(product.productIdentifier) request but transaction doesn't exist, addind to schedule..")
-            }
-        }
-
-        if let receiptString = apphudReceiptDataString() {
-            block(receiptString)
-        } else if transaction?.transactionIdentifier != nil {
-            apphudLog("App Store receipt is missing, but got transaction. Will try to submit transaction instead..", forceDisplay: true)
-            block(nil)
-        } else {
-            let message = "Failed to get App Store receipt"
-            apphudLog(message, forceDisplay: true)
-            callback?(ApphudPurchaseResult(nil, nil, transaction, ApphudError(message: message)))
-        }
-    }
-
     internal func submitReceipt(product: SKProduct?, apphudProduct: ApphudProduct?, transaction: SKPaymentTransaction?, receiptString: String?, notifyDelegate: Bool, eligibilityCheck: Bool = false, ownsTransaction: Bool = false, fromScreen: Bool, callback: ApphudNSErrorCallback?) {
 
         let productId = product?.productIdentifier ?? transaction?.payment.productIdentifier
@@ -414,7 +390,10 @@ extension ApphudInternal {
         }
 
         if let inFlight {
-            if ownsTransaction {
+            // The in-flight submission IS this very transaction (its SK1 twin or a
+            // duplicate delivery): answering the owner with its result is safe and
+            // correct — rejecting it would report a bogus failure for a routine purchase.
+            if ownsTransaction && inFlight != newClaim {
                 let message = "Already submitting another receipt (\(inFlight)), transaction \(transactionIdentifier ?? newClaim) stays unfinished and will be retried"
                 apphudLog(message)
                 // Re-attempt shortly instead of waiting for StoreKit to redeliver.
@@ -581,7 +560,10 @@ extension ApphudInternal {
                     self.scheduleSubmitReceiptRetry(error: error, code: errorCode)
                 }
 
-                pendingCallbacks.forEach { $0?(error) }
+                // A failure must answer with a guaranteed error — a nil error reads as
+                // backend acknowledgement and authorizes finishing the transaction.
+                let finalError = result ? error : (error ?? ApphudError(message: "Failed to submit transaction"))
+                pendingCallbacks.forEach { $0?(finalError) }
             }
         }
     }

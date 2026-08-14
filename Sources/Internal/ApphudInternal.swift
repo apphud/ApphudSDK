@@ -785,6 +785,7 @@ final class ApphudInternal: NSObject {
         didPreparePaywalls = false
 
         submitReceiptRetries = (0, 0)
+        restorePurchasesCallback?(nil, nil, ApphudError(message: "Apphud SDK was logged out"))
         restorePurchasesCallback = nil
         lastUploadedPaywallEvent.removeAll()
         lastUploadedPaywallEventDate = nil

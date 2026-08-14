@@ -271,16 +271,16 @@ extension ApphudPaywallScreenController: WKUIDelegate {
         ApphudInternal.shared.purchase(productId: product.productId, product: product, validate: true, purchasingFromScreen: true) { [weak self] result in
             if let self {
                 self.hideLoadingIndicator()
+                self.onTransactionCompleted?(result)
 
                 // Ask to Buy / SCA: neither success nor failure yet — the transaction
-                // arrives later via Transaction.updates once it is approved. Do not
-                // report a completed outcome to the host either.
+                // arrives later via Transaction.updates once it is approved. The host
+                // completion above can distinguish via result.isPending; only the
+                // did-purchase/did-fail/dismiss logic is skipped here.
                 if result.isPending {
                     apphudLog("Purchase is pending approval, waiting for the transaction", forceDisplay: true)
                     return
                 }
-
-                self.onTransactionCompleted?(result)
 
                 let purchaseSucceeded = result.success || result.transactionV2 != nil
 

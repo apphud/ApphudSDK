@@ -501,13 +501,15 @@ public class ApphudHttpClient {
         }
     }
 
-    private func parseError(_ dictionary: [String: Any]) -> Error? {
+    private func parseError(_ dictionary: [String: Any]) -> Error {
         if let errors = dictionary["errors"] as? [[String: Any]], let errorDict = errors.first, let errorMessage = errorDict["title"] as? String {
             let idString = errorDict["id"] as? String
 
             return ApphudError(message: (idString ?? "") + " " + errorMessage)
         } else {
-            return nil
+            // A failure must never surface as a nil error: callers treat a nil error
+            // as backend acknowledgement and may finish a paid transaction on it.
+            return ApphudError(message: "HTTP Request Failed", code: 422)
         }
     }
 }

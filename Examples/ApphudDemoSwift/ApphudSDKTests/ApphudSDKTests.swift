@@ -437,14 +437,16 @@ final class ApphudSDKTests: XCTestCase {
         ApphudStubURLProtocol.subscriptionsFailureStatus = nil
         ApphudStubURLProtocol.reset()
 
+        // Transaction.unfinished (not .all): proves the failed transaction was NOT
+        // finished — Transaction.all would also return finished ones.
         var redelivered: VerificationResult<StoreKit.Transaction>?
-        for await result in StoreKit.Transaction.all {
+        for await result in StoreKit.Transaction.unfinished {
             if case .verified(let trx) = result, trx.productID == ApphudTestConstants.weeklyProductId {
                 redelivered = result
                 break
             }
         }
-        let verified = try XCTUnwrap(redelivered, "The failed transaction must still be present (unfinished)")
+        let verified = try XCTUnwrap(redelivered, "The failed transaction must still be UNFINISHED")
 
         let handled = await ApphudAsyncStoreKit.processTransaction(verified.unsafePayloadValue, jws: verified.jwsRepresentation)
 

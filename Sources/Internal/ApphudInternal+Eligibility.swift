@@ -18,8 +18,18 @@ extension ApphudInternal {
         var response = [String: Bool]()
         for id in productIds {
             response[id] = true // can purchase intro by default
-            if let product = try? await ApphudAsyncStoreKit.shared.fetchProduct(id), let subscription = product.subscription {
-                response[id] = await subscription.isEligibleForIntroOffer
+            if let product = try? await ApphudAsyncStoreKit.shared.fetchProduct(id) {
+                if let subscription = product.subscription {
+                    // A product with no introductory offer configured cannot be eligible
+                    // for one, regardless of the subscription group's history.
+                    if subscription.introductoryOffer == nil {
+                        response[id] = false
+                    } else {
+                        response[id] = await subscription.isEligibleForIntroOffer
+                    }
+                } else {
+                    response[id] = false // not a subscription
+                }
             }
         }
         return response

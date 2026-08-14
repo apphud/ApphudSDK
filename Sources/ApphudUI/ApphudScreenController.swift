@@ -410,7 +410,10 @@ class ApphudScreenController: UIViewController {
                         self.handlePurchaseResult(product: product, offerID: offerID!, result: result)
                     }
                 } else {
+                    stopLoading()
+                    isPurchasing = false
                     apphudLog("Aborting purchase because couldn't find promo offer with id: \(offerID!) in product: \(product.productIdentifier), available promo offer ids: \(product.apphudPromoIdentifiers())", forceDisplay: true)
+                    ApphudInternal.shared.uiDelegate?.apphudDidFailPurchase?(productId: product.productIdentifier, offerID: offerID, error: ApphudError(message: "Promo offer not found: \(offerID ?? "")"), screenName: self.rule.screen_name)
                 }
         } else {
 
