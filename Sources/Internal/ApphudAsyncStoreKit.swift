@@ -139,6 +139,7 @@ internal class ApphudAsyncStoreKit {
                 purchaseError = StoreKitError.userCancelled
             default:
                 apphudLog("Purchase of \(product.id) returned unknown result: \(result)", forceDisplay: true)
+                purchaseError = ApphudError(message: "Unknown StoreKit purchase result")
             }
 
             if let transaction {

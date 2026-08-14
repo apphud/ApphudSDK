@@ -592,6 +592,10 @@ final class ApphudInternal: NSObject {
         Task.detached { @MainActor in
             if self.currentUser != nil {
                 callback()
+            } else if allowFailure, let client = self.httpClient, !client.canRetry {
+                // Registration will never be retried (invalid API key / unauthorized):
+                // a failure-tolerant caller must not wait forever.
+                callback()
             } else {
                 if self.userRegisterRetries.count >= self.maxNumberOfUserRegisterRetries {
                     self.continueToRegisteringUser()
@@ -763,8 +767,16 @@ final class ApphudInternal: NSObject {
             currentUser = nil
             isPremium = false
             hasActiveSubscription = false
+            // Answer everyone still waiting before clearing: a dropped callback leaves
+            // its awaiting continuation (a purchase call, for one) suspended forever.
+            let logoutError = ApphudError(message: "Apphud SDK was logged out")
+            userRegisteredCallbacks.forEach { tuple in
+                if tuple.allowFailure { tuple.block() }
+            }
             userRegisteredCallbacks.removeAll()
+            storeKitProductsFetchedCallbacks.forEach { $0(logoutError) }
             storeKitProductsFetchedCallbacks.removeAll()
+            submitReceiptCallbacks.forEach { $0?(logoutError) }
             submitReceiptCallbacks.removeAll()
             lastUploadedTransactions = []
             submittingTransaction = nil

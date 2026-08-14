@@ -193,7 +193,16 @@ public class ApphudHttpClient {
 
         let timeout = path == .customers ? POST_CUSTOMERS_TIMEOUT : nil
 
-        if let request = makeRequest(path: path.value, apiVersion: apiVersion, params: params, method: method, defaultTimeout: timeout, requestID: requestID), !suspended {
+        guard !suspended else {
+            let message = "Unable to perform API requests, because your account has been suspended."
+            apphudLog(message, forceDisplay: true)
+            Task { @MainActor in
+                callback?(false, nil, nil, ApphudError(message: message), NSURLErrorUnknown, 0, 0)
+            }
+            return
+        }
+
+        if let request = makeRequest(path: path.value, apiVersion: apiVersion, params: params, method: method, defaultTimeout: timeout, requestID: requestID) {
             Task(priority: .userInitiated) {
 
                 let retries: Int
@@ -214,7 +223,7 @@ public class ApphudHttpClient {
                 }
             }
         } else {
-            let message = "Unable to perform API requests, because your account has been suspended."
+            let message = "Failed to build request for \(path.value)"
             apphudLog(message, forceDisplay: true)
             // Always answer the caller: a dropped callback leaves whoever awaits it —
             // a transaction submission, for one — waiting forever.

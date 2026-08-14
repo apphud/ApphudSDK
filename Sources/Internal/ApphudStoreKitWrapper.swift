@@ -51,8 +51,6 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver {
     var purchasingValue: ApphudCustomPurchaseValue?
     private(set) var isPurchasing: Bool = false
 
-    internal var loadingAll: Bool = false
-
     internal var productsLoadTime: TimeInterval = 0.0
 
     func setupObserver() {
@@ -73,34 +71,6 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver {
             return nil
         case .error(let error):
             return error
-        }
-    }
-
-    func fetchAllProducts(identifiers: Set<String>) async -> ([SKProduct], ApphudError?) {
-        loadingAll = true
-        apphudLog("Started Fetching All Products")
-        self.status = .loading
-
-        let fetcher = ApphudProductsFetcher()
-        fetchers.insert(fetcher)
-
-        return await withUnsafeContinuation { continuation in
-            fetcher.fetchStoreKitProducts(identifiers: identifiers) { products, error, ftchr in
-                let existingIDS = self.products.map { $0.productIdentifier }
-                let uniqueProducts = products.filter { !existingIDS.contains($0.productIdentifier) }
-                var newProducts = self.products
-                newProducts.append(contentsOf: uniqueProducts)
-                self.products = newProducts
-                var aphError: ApphudError?
-                if let error = error {
-                    aphError = ApphudError(error: error)
-                }
-
-                self.status = newProducts.count > 0 ? .fetched : .error(aphError)
-                self.fetchers.remove(ftchr)
-                self.loadingAll = false
-                continuation.resume(returning: (products, aphError))
-            }
         }
     }
 

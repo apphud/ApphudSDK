@@ -271,17 +271,21 @@ extension ApphudPaywallScreenController: WKUIDelegate {
         ApphudInternal.shared.purchase(productId: product.productId, product: product, validate: true, purchasingFromScreen: true) { [weak self] result in
             if let self {
                 self.hideLoadingIndicator()
-                self.onTransactionCompleted?(result)
 
                 // Ask to Buy / SCA: neither success nor failure yet — the transaction
-                // arrives later via Transaction.updates once it is approved.
+                // arrives later via Transaction.updates once it is approved. Do not
+                // report a completed outcome to the host either.
                 if result.isPending {
                     apphudLog("Purchase is pending approval, waiting for the transaction", forceDisplay: true)
                     return
                 }
 
+                self.onTransactionCompleted?(result)
+
+                let purchaseSucceeded = result.success || result.transactionV2 != nil
+
                 if let ruleScreenName {
-                    if result.success {
+                    if purchaseSucceeded {
                         if let skProduct = product.skProduct {
                             ApphudInternal.shared.uiDelegate?.apphudDidPurchase?(product: skProduct, offerID: nil, transaction: result.transaction, screenName: ruleScreenName)
                             ApphudInternal.shared.uiDelegate?.apphudDidPurchase?(product: skProduct, offerID: nil, screenName: ruleScreenName)
@@ -295,11 +299,11 @@ extension ApphudPaywallScreenController: WKUIDelegate {
                     }
                 }
 
-                if result.success {
+                if purchaseSucceeded {
                     self.trackRulePurchaseIfNeeded(product: product, result: result)
                 }
 
-                if result.success && self.shouldAutoDismiss {
+                if purchaseSucceeded && self.shouldAutoDismiss {
                     self.dismissNow(userAction: false)
                 }
             }

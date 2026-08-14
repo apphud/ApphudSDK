@@ -269,7 +269,9 @@ extension ApphudInternal {
                 apphudLog("App Store receipt is missing, but got transaction. Will try to submit transaction instead..", forceDisplay: true)
             }
 
-            self.submitReceipt(product: nil, apphudProduct: nil, transaction: transaction, receiptString: receiptString, notifyDelegate: true, eligibilityCheck: true, fromScreen: false, callback: { error in
+            // The completion may finish this SK1 transaction, so this submission owns it
+            // and must never be answered by a foreign submission's result.
+            self.submitReceipt(product: nil, apphudProduct: nil, transaction: transaction, receiptString: receiptString, notifyDelegate: true, eligibilityCheck: true, ownsTransaction: true, fromScreen: false, callback: { error in
                 let result = self.purchaseResult(productId: transaction.payment.productIdentifier, transaction: transaction, error: error)
                 callback(result)
             })
@@ -340,7 +342,7 @@ extension ApphudInternal {
         }
     }
 
-    internal func submitReceipt(product: SKProduct?, apphudProduct: ApphudProduct?, transaction: SKPaymentTransaction?, receiptString: String?, notifyDelegate: Bool, eligibilityCheck: Bool = false, fromScreen: Bool, callback: ApphudNSErrorCallback?) {
+    internal func submitReceipt(product: SKProduct?, apphudProduct: ApphudProduct?, transaction: SKPaymentTransaction?, receiptString: String?, notifyDelegate: Bool, eligibilityCheck: Bool = false, ownsTransaction: Bool = false, fromScreen: Bool, callback: ApphudNSErrorCallback?) {
 
         let productId = product?.productIdentifier ?? transaction?.payment.productIdentifier
         let finalProduct = product ?? ApphudStoreKitWrapper.shared.products.first(where: { $0.productIdentifier == productId })
@@ -356,6 +358,7 @@ extension ApphudInternal {
                                    receiptString: receiptString,
                                    notifyDelegate: notifyDelegate,
                                    eligibilityCheck: eligibilityCheck,
+                                   ownsTransaction: ownsTransaction,
                                    fromScreen: fromScreen,
                                    callback: callback)
             }

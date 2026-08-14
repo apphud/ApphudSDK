@@ -374,13 +374,18 @@ class ApphudScreenController: UIViewController {
             Task { @MainActor [weak self] in
                 let fetched = await ApphudStoreKitWrapper.shared.fetchProduct(productID)
                 guard let self else { return }
+                // Hand the loading state over to startPurchase without a visible flicker.
                 self.isPurchasing = false
-                self.stopLoading()
-                guard self.view.window != nil else { return } // screen was closed meanwhile
+                guard self.view.window != nil else {
+                    self.stopLoading()
+                    return // screen was closed meanwhile
+                }
                 if let fetched {
                     self.startPurchase(product: fetched, offerID: offerID)
                 } else {
+                    self.stopLoading()
                     apphudLog("Aborting purchase because couldn't find product with id: \(productID)", forceDisplay: true)
+                    ApphudInternal.shared.uiDelegate?.apphudDidFailPurchase?(productId: productID, offerID: offerID, error: ApphudError(message: "Product not found: \(productID)"), screenName: self.rule.screen_name)
                 }
             }
             return

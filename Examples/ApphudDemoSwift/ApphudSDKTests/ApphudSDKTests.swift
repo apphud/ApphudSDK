@@ -168,6 +168,11 @@ final class ApphudStubURLProtocol: URLProtocol {
     }
 }
 
+/// Reference box for a purchase result delivered via a callback the test must outlive.
+final class ApphudResultBox: @unchecked Sendable {
+    var result: ApphudPurchaseResult?
+}
+
 enum ApphudTestConstants {
     static let apiKey = "app_stubbed_key"
     // Unique per test run: the SDK caches the registered user on disk between
@@ -400,6 +405,142 @@ final class ApphudSDKTests: XCTestCase {
                            "A transaction whose upload failed must not be recorded as uploaded")
         }
         XCTAssertFalse(result.success, "A rejected submission must not be reported as a successful purchase")
+    }
+
+    // MARK: 3d. A failed upload must be recoverable on redelivery
+
+    /// Completes the negative path of test3c: after the backend rejected the upload, the
+    /// transaction is still unfinished — redelivering it once the backend is healthy must
+    /// upload it and only then mark it as delivered.
+    @MainActor
+    func test3dFailedUploadIsRecoveredOnRedelivery() async throws {
+        let session = try XCTUnwrap(Self.storeKitSession)
+        session.clearTransactions()
+        defer { session.clearTransactions() }
+
+        await startSDKIfNeeded()
+        ApphudInternal.shared.lastUploadedTransactions = []
+        ApphudStubURLProtocol.reset()
+        ApphudStubURLProtocol.subscriptionsFailureStatus = 500
+
+        _ = await withCheckedContinuation { continuation in
+            ApphudInternal.shared.purchase(productId: ApphudTestConstants.weeklyProductId,
+                                           product: nil,
+                                           validate: true,
+                                           purchasingFromScreen: false) { result in
+                continuation.resume(returning: result)
+            }
+        }
+        XCTAssertTrue(ApphudInternal.shared.lastUploadedTransactions.isEmpty, "Failed upload must leave no delivered mark")
+
+        // Backend is healthy again; the unfinished transaction gets redelivered.
+        ApphudStubURLProtocol.subscriptionsFailureStatus = nil
+        ApphudStubURLProtocol.reset()
+
+        var redelivered: VerificationResult<StoreKit.Transaction>?
+        for await result in StoreKit.Transaction.all {
+            if case .verified(let trx) = result, trx.productID == ApphudTestConstants.weeklyProductId {
+                redelivered = result
+                break
+            }
+        }
+        let verified = try XCTUnwrap(redelivered, "The failed transaction must still be present (unfinished)")
+
+        let handled = await ApphudAsyncStoreKit.processTransaction(verified.unsafePayloadValue, jws: verified.jwsRepresentation)
+
+        XCTAssertTrue(handled, "Redelivery against a healthy backend must succeed")
+        let submits = ApphudStubURLProtocol.requests(to: "/subscriptions").filter { $0.method == "POST" }
+        XCTAssertEqual(submits.count, 1, "Redelivery must upload the transaction")
+        XCTAssertTrue(ApphudInternal.shared.lastUploadedTransactions.contains(verified.unsafePayloadValue.id),
+                      "A successful upload must record the transaction as delivered")
+    }
+
+    // MARK: 5. Restore submits the newest entitlement
+
+    @MainActor
+    func test5RestoreSubmitsEntitlementWithJws() async throws {
+        let session = try XCTUnwrap(Self.storeKitSession)
+        session.clearTransactions()
+        defer { session.clearTransactions() }
+
+        await startSDKIfNeeded()
+        ApphudInternal.shared.lastUploadedTransactions = []
+
+        // Give the device an entitlement outside of the SDK flow, and let the SDK's own
+        // background tracking of it fully finish — otherwise the restore below would
+        // piggyback on that in-flight submission instead of making its own.
+        try session.buyProduct(productIdentifier: ApphudTestConstants.weeklyProductId)
+        let settleDeadline = Date().addingTimeInterval(10)
+        repeat {
+            try await Task.sleep(nanoseconds: 300_000_000)
+        } while (ApphudInternal.shared.submittingTransaction != nil || ApphudStubURLProtocol.requests(to: "/subscriptions").isEmpty) && Date() < settleDeadline
+        ApphudStubURLProtocol.reset()
+        ApphudInternal.shared.lastUploadedTransactions = []
+
+        let result: ApphudPurchaseResult = await withCheckedContinuation { continuation in
+            Task { @MainActor in
+                ApphudInternal.shared.restorePurchases { result in
+                    continuation.resume(returning: result)
+                }
+            }
+        }
+
+        XCTAssertNil(result.error, "Restore with a valid entitlement must succeed, got: \(String(describing: result.error))")
+        let submits = ApphudStubURLProtocol.requests(to: "/subscriptions").filter { $0.method == "POST" }
+        XCTAssertFalse(submits.isEmpty, "Restore must submit the entitlement")
+        let body = try XCTUnwrap(submits.last?.body)
+        XCTAssertNotNil(body["transaction_id"] as? String, "Restore must carry the entitlement's transaction id")
+        XCTAssertNotNil(body["jws"] as? String, "Restore must carry the entitlement's signed transaction")
+    }
+
+    // MARK: 6. Restore piggybacks on an in-flight submission
+
+    /// A restore that arrives while another submission is in flight must receive that
+    /// submission's outcome — not an error and not an eternal wait.
+    @MainActor
+    func test6RestorePiggybacksOnInflightSubmission() async throws {
+        let session = try XCTUnwrap(Self.storeKitSession)
+        session.clearTransactions()
+        defer { session.clearTransactions() }
+
+        await startSDKIfNeeded()
+        ApphudInternal.shared.lastUploadedTransactions = []
+        ApphudStubURLProtocol.reset()
+        ApphudStubURLProtocol.subscriptionsResponseDelay = 1.5
+
+        // Start a purchase; its submission will be in flight for ~1.5s.
+        let purchaseTask = Task { @MainActor () -> ApphudPurchaseResult in
+            await withCheckedContinuation { continuation in
+                ApphudInternal.shared.purchase(productId: ApphudTestConstants.weeklyProductId,
+                                               product: nil,
+                                               validate: true,
+                                               purchasingFromScreen: false) { result in
+                    continuation.resume(returning: result)
+                }
+            }
+        }
+
+        // Give the purchase time to reach the network layer, then restore mid-flight.
+        try await Task.sleep(nanoseconds: 700_000_000)
+
+        // Bounded wait via XCTestExpectation: the known failure mode of this path is a
+        // dropped callback that never resolves — the test must FAIL on that (unfulfilled
+        // expectation), not hang the whole run. Task-group timeouts don't work here:
+        // the group would still await the non-cancellable continuation on exit.
+        let restoreExpectation = XCTestExpectation(description: "restore completes while a submission is in flight")
+        let restoreBox = ApphudResultBox()
+        ApphudInternal.shared.restorePurchases { result in
+            restoreBox.result = result
+            restoreExpectation.fulfill()
+        }
+
+        await fulfillment(of: [restoreExpectation], timeout: 10)
+
+        let purchaseResult = await purchaseTask.value
+
+        XCTAssertNil(purchaseResult.error, "The purchase itself must succeed")
+        let restore = try XCTUnwrap(restoreBox.result, "Restore must complete while a submission is in flight — a hang means its callback was dropped")
+        XCTAssertNil(restore.error, "A restore during an in-flight submission must piggyback on its outcome, got: \(String(describing: restore.error))")
     }
 
     // MARK: 4. Upgrade compatibility of the transaction dedup storage
