@@ -173,6 +173,20 @@ final class ApphudResultBox: @unchecked Sendable {
     var result: ApphudPurchaseResult?
 }
 
+extension ApphudSDKTests {
+    /// Decodes the payload segment of a JWS (base64url JSON) — the signature is not
+    /// verified here; tests only pin WHICH transaction the token was signed for.
+    static func jwsPayloadJSON(_ jws: String?) -> [String: Any]? {
+        guard let segments = jws?.components(separatedBy: "."), segments.count == 3 else { return nil }
+        var base64 = segments[1]
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        while base64.count % 4 != 0 { base64 += "=" }
+        guard let data = Data(base64Encoded: base64) else { return nil }
+        return (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+    }
+}
+
 enum ApphudTestConstants {
     static let apiKey = "app_stubbed_key"
     // Unique per test run: the SDK caches the registered user on disk between
@@ -284,9 +298,22 @@ final class ApphudSDKTests: XCTestCase {
         }
         // Payload contract (StoreKit 2 pipeline): receipt still attached while
         // readable, plus the SK2 transaction id and its signed JWS representation.
+        // Values are pinned against the actual StoreKit transaction — a wrong id or
+        // garbage JWS must fail, not just a missing field.
         XCTAssertNotNil(body["receipt_data"] as? String, "App Store receipt must be attached while readable")
-        XCTAssertNotNil(body["transaction_id"] as? String, "transaction id must be attached")
-        XCTAssertNotNil(body["jws"] as? String, "signed StoreKit 2 transaction (JWS) must be attached")
+        let latestResult = await StoreKit.Transaction.latest(for: ApphudTestConstants.weeklyProductId)
+        let latest = try XCTUnwrap(latestResult, "StoreKitTest must hold a transaction for the purchased product")
+        guard case .verified(let latestTrx) = latest else { return XCTFail("Purchased transaction must be verified") }
+        XCTAssertEqual(body["transaction_id"] as? String, String(latestTrx.id),
+                       "transaction id must match the purchased StoreKit transaction")
+        // StoreKitTest re-signs the JWS on every query (fresh signedDate/nonce), so the
+        // string itself is not comparable — the signed PAYLOAD's identity fields are.
+        let jwsPayload = try XCTUnwrap(Self.jwsPayloadJSON(body["jws"] as? String),
+                                       "jws must be a decodable signed transaction")
+        XCTAssertEqual(jwsPayload["transactionId"] as? String, String(latestTrx.id),
+                       "jws must be signed for the purchased transaction")
+        XCTAssertEqual(jwsPayload["productId"] as? String, ApphudTestConstants.weeklyProductId,
+                       "jws must be signed for the purchased product")
         XCTAssertEqual(body["observer_mode"] as? Bool, false)
         XCTAssertEqual(body["environment"] as? String, "sandbox")
         XCTAssertEqual((body["product_info"] as? [String: Any])?["product_id"] as? String, ApphudTestConstants.weeklyProductId)
@@ -398,12 +425,14 @@ final class ApphudSDKTests: XCTestCase {
         let submits = ApphudStubURLProtocol.requests(to: "/subscriptions").filter { $0.method == "POST" }
         XCTAssertFalse(submits.isEmpty, "The SDK must have attempted an upload")
 
-        let transactionId = submits.compactMap { $0.body["transaction_id"] as? String }.compactMap { UInt64($0) }.first
+        // XCTUnwrap, not if-let: a failed id extraction must fail the test, or the
+        // core assertion below would be silently skipped.
+        let transactionId = try XCTUnwrap(
+            submits.compactMap { $0.body["transaction_id"] as? String }.compactMap { UInt64($0) }.first,
+            "The upload attempt must carry a transaction id")
         let uploaded = ApphudInternal.shared.lastUploadedTransactions
-        if let transactionId {
-            XCTAssertFalse(uploaded.contains(transactionId),
-                           "A transaction whose upload failed must not be recorded as uploaded")
-        }
+        XCTAssertFalse(uploaded.contains(transactionId),
+                       "A transaction whose upload failed must not be recorded as uploaded")
         XCTAssertFalse(result.success, "A rejected submission must not be reported as a successful purchase")
     }
 
@@ -489,10 +518,19 @@ final class ApphudSDKTests: XCTestCase {
 
         XCTAssertNil(result.error, "Restore with a valid entitlement must succeed, got: \(String(describing: result.error))")
         let submits = ApphudStubURLProtocol.requests(to: "/subscriptions").filter { $0.method == "POST" }
-        XCTAssertFalse(submits.isEmpty, "Restore must submit the entitlement")
+        XCTAssertEqual(submits.count, 1, "Restore must submit the entitlement exactly once")
         let body = try XCTUnwrap(submits.last?.body)
-        XCTAssertNotNil(body["transaction_id"] as? String, "Restore must carry the entitlement's transaction id")
-        XCTAssertNotNil(body["jws"] as? String, "Restore must carry the entitlement's signed transaction")
+        // Pin the entitlement's actual values, not mere field presence.
+        let entitlementResult = await StoreKit.Transaction.latest(for: ApphudTestConstants.weeklyProductId)
+        let entitlement = try XCTUnwrap(entitlementResult, "StoreKitTest must hold the entitlement bought above")
+        guard case .verified(let entitlementTrx) = entitlement else { return XCTFail("Entitlement must be verified") }
+        XCTAssertEqual(body["transaction_id"] as? String, String(entitlementTrx.id),
+                       "Restore must carry the entitlement's transaction id")
+        // Same as test2: the JWS string is re-signed per query, compare payload identity.
+        let jwsPayload = try XCTUnwrap(Self.jwsPayloadJSON(body["jws"] as? String),
+                                       "Restore must carry a decodable signed transaction")
+        XCTAssertEqual(jwsPayload["transactionId"] as? String, String(entitlementTrx.id),
+                       "Restore's jws must be signed for the entitlement's transaction")
     }
 
     // MARK: 6. Restore piggybacks on an in-flight submission
@@ -543,6 +581,12 @@ final class ApphudSDKTests: XCTestCase {
         XCTAssertNil(purchaseResult.error, "The purchase itself must succeed")
         let restore = try XCTUnwrap(restoreBox.result, "Restore must complete while a submission is in flight — a hang means its callback was dropped")
         XCTAssertNil(restore.error, "A restore during an in-flight submission must piggyback on its outcome, got: \(String(describing: restore.error))")
+
+        // The piggyback itself: the restore must NOT have fired a second POST — both
+        // callers share the one in-flight submission. Without this, two independent
+        // stub-blessed submissions would also pass the error checks above.
+        let submits = ApphudStubURLProtocol.requests(to: "/subscriptions").filter { $0.method == "POST" }
+        XCTAssertEqual(submits.count, 1, "Restore arriving mid-submission must piggyback, not fire its own request")
     }
 
     // MARK: 4. Legacy transaction dedup storage is not trusted after upgrade
