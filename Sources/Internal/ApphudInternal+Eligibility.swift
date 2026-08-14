@@ -155,7 +155,13 @@ extension ApphudInternal {
         for product in products {
             if #available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *) {
                 if let productStruct = try? await ApphudAsyncStoreKit.shared.fetchProduct(product.productIdentifier), let sub = productStruct.subscription {
-                    response[product.productIdentifier] = await sub.isEligibleForIntroOffer
+                    // Same guard as the productIds-based API: no configured intro offer
+                    // means not eligible, regardless of subscription-group history.
+                    if sub.introductoryOffer == nil {
+                        response[product.productIdentifier] = false
+                    } else {
+                        response[product.productIdentifier] = await sub.isEligibleForIntroOffer
+                    }
                 }
             } else if let sub = await currentUser?.subscriptions.first(where: { $0.productId == product.productIdentifier }) {
                 let eligible = !sub.isIntroductoryActivated

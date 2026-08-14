@@ -378,7 +378,7 @@ extension ApphudInternal {
                 self.submittingTransaction = newClaim
             }
 
-            if let callback, existing == nil || !ownsTransaction {
+            if let callback, existing == nil || !ownsTransaction || existing == newClaim {
                 if eligibilityCheck || self.submitReceiptCallbacks.count > 0 {
                     self.submitReceiptCallbacks.append(callback)
                 } else {

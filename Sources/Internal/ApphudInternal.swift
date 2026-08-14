@@ -780,13 +780,16 @@ final class ApphudInternal: NSObject {
             submitReceiptCallbacks.removeAll()
             lastUploadedTransactions = []
             submittingTransaction = nil
+            // Answer and clear in the same main-actor step: doing it outside would run
+            // on a background executor and could race a drain-scheduled invocation
+            // into calling the host's completion twice.
+            restorePurchasesCallback?(nil, nil, logoutError)
+            restorePurchasesCallback = nil
         }
 
         didPreparePaywalls = false
 
         submitReceiptRetries = (0, 0)
-        restorePurchasesCallback?(nil, nil, ApphudError(message: "Apphud SDK was logged out"))
-        restorePurchasesCallback = nil
         lastUploadedPaywallEvent.removeAll()
         lastUploadedPaywallEventDate = nil
         reinstallTracked = false

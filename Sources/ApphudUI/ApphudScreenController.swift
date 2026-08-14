@@ -410,9 +410,11 @@ class ApphudScreenController: UIViewController {
                         self.handlePurchaseResult(product: product, offerID: offerID!, result: result)
                     }
                 } else {
+                    // isPurchasing was never set on this path — clearing it here could
+                    // drop the double-purchase guard of a concurrent in-flight purchase.
                     stopLoading()
-                    isPurchasing = false
                     apphudLog("Aborting purchase because couldn't find promo offer with id: \(offerID!) in product: \(product.productIdentifier), available promo offer ids: \(product.apphudPromoIdentifiers())", forceDisplay: true)
+                    ApphudInternal.shared.uiDelegate?.apphudDidFailPurchase?(product: product, offerID: offerID, errorCode: .storeProductNotAvailable, screenName: self.rule.screen_name)
                     ApphudInternal.shared.uiDelegate?.apphudDidFailPurchase?(productId: product.productIdentifier, offerID: offerID, error: ApphudError(message: "Promo offer not found: \(offerID ?? "")"), screenName: self.rule.screen_name)
                 }
         } else {
