@@ -261,8 +261,30 @@ extension ApphudPaywallScreenController: WKUIDelegate {
             showLoadingIndicator()
         }
 
+        // The SK1 cache is filled by a best-effort background feeder, so skProduct may
+        // be missing while the SK2 paywall is fully purchasable. Legacy SKProduct-based
+        // UI-delegate callbacks must not be silently skipped for clients that have not
+        // migrated — resolve the product on demand first (mirrors ApphudScreenController).
+        if ruleScreenName != nil, product.skProduct == nil {
+            Task { @MainActor [weak self] in
+                let fetched = await ApphudStoreKitWrapper.shared.fetchProduct(product.productId)
+                guard let self else { return }
+                guard self.view.window != nil else {
+                    self.hideLoadingIndicator()
+                    return // screen was closed while resolving the product
+                }
+                self.startPaywallPurchase(product: product, skProduct: fetched)
+            }
+        } else {
+            startPaywallPurchase(product: product, skProduct: product.skProduct)
+        }
+    }
+
+    @MainActor
+    private func startPaywallPurchase(product: ApphudProduct, skProduct: SKProduct?) {
+
         if let ruleScreenName {
-            if let skProduct = product.skProduct {
+            if let skProduct {
                 ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(product: skProduct, offerID: nil, screenName: ruleScreenName)
             }
             ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(productId: product.productId, offerID: nil, screenName: ruleScreenName)
@@ -286,13 +308,13 @@ extension ApphudPaywallScreenController: WKUIDelegate {
 
                 if let ruleScreenName {
                     if purchaseSucceeded {
-                        if let skProduct = product.skProduct {
+                        if let skProduct {
                             ApphudInternal.shared.uiDelegate?.apphudDidPurchase?(product: skProduct, offerID: nil, transaction: result.transaction, screenName: ruleScreenName)
                             ApphudInternal.shared.uiDelegate?.apphudDidPurchase?(product: skProduct, offerID: nil, screenName: ruleScreenName)
                         }
                         ApphudInternal.shared.uiDelegate?.apphudDidPurchase?(productId: product.productId, offerID: nil, screenName: ruleScreenName)
                     } else {
-                        if let skProduct = product.skProduct {
+                        if let skProduct {
                             ApphudInternal.shared.uiDelegate?.apphudDidFailPurchase?(product: skProduct, offerID: nil, errorCode: self.skErrorCode(from: result.error), screenName: ruleScreenName)
                         }
                         ApphudInternal.shared.uiDelegate?.apphudDidFailPurchase?(productId: product.productId, offerID: nil, error: result.error, screenName: ruleScreenName)
