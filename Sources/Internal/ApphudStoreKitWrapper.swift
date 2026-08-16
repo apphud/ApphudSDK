@@ -25,7 +25,7 @@ enum ApphudStoreKitProductsFetchStatus {
     case error(ApphudError?)
 }
 
-internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver {
+internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SKRequestDelegate {
     static var shared = ApphudStoreKitWrapper()
 
     private var _products = [SKProduct]()
@@ -52,6 +52,43 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver {
     private(set) var isPurchasing: Bool = false
 
     internal var productsLoadTime: TimeInterval = 0.0
+
+    // Master-parity receipt refreshing (see appStoreReceipt()).
+    private var refreshReceiptCallback: (() -> Void)?
+    private var refreshRequest: SKReceiptRefreshRequest?
+
+    func refreshReceipt(_ callback: (() -> Void)?) {
+        refreshReceiptCallback = callback
+        refreshRequest = SKReceiptRefreshRequest()
+        refreshRequest?.delegate = self
+        refreshRequest?.start()
+    }
+
+    // MARK: - SKRequestDelegate (receipt refresh)
+
+    func requestDidFinish(_ request: SKRequest) {
+        if request is SKReceiptRefreshRequest {
+            DispatchQueue.main.async {
+                self.refreshReceiptCallback?()
+                self.refreshReceiptCallback = nil
+            }
+            request.cancel()
+            self.refreshRequest = nil
+        }
+    }
+
+    /// Master parity: a failed refresh never blocks the submission — the caller
+    /// re-reads the (possibly still missing) receipt and proceeds.
+    func request(_ request: SKRequest, didFailWithError error: Error) {
+        if request is SKReceiptRefreshRequest {
+            DispatchQueue.main.async {
+                self.refreshReceiptCallback?()
+                self.refreshReceiptCallback = nil
+            }
+            request.cancel()
+            self.refreshRequest = nil
+        }
+    }
 
     func setupObserver() {
         SKPaymentQueue.default().add(self)

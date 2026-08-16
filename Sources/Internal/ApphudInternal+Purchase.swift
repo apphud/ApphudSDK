@@ -80,7 +80,7 @@ extension ApphudInternal {
             }
         }
 
-        let receiptString = apphudReceiptDataString()
+        let receiptString = await appStoreReceipt()
         let transaction = latest.map { $0.unsafePayloadValue }
         let jws = latest?.jwsRepresentation
 
@@ -265,10 +265,22 @@ extension ApphudInternal {
         return false
     }
 
+    // Master-parity receipt sourcing: when the receipt is missing on device, refresh
+    // it via SKReceiptRefreshRequest before submitting (the backend validates by
+    // receipt until it learns JWS). Unlike master, a still-missing receipt does NOT
+    // block the submission — transaction id and JWS ride along either way.
     internal func appStoreReceipt() async -> String? {
-        // No SKReceiptRefreshRequest anymore: a missing receipt no longer blocks
-        // submission — the transaction id and JWS identify the purchase.
-        apphudReceiptDataString()
+        if let receiptString = apphudReceiptDataString() {
+            return receiptString
+        }
+
+        apphudLog("App Store receipt is missing on device, refreshing...")
+
+        return await withUnsafeContinuation { continuation in
+            ApphudStoreKitWrapper.shared.refreshReceipt {
+                continuation.resume(returning: apphudReceiptDataString())
+            }
+        }
     }
 
     internal func submitReceiptAutomaticPurchaseTracking(transaction: SKPaymentTransaction, callback: @escaping ((ApphudPurchaseResult) -> Void)) {
