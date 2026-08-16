@@ -141,11 +141,38 @@ final class ApphudStubURLProtocol: URLProtocol {
             "user_id": ApphudTestConstants.userId,
             "id": "internal-\(ApphudTestConstants.userId)",
             "subscriptions": subscriptions,
-            "paywalls": [[String: Any]](),
-            "placements": [[String: Any]](),
+            "paywalls": [paywallFixture()],
+            "placements": [placementFixture()],
             "total_devices_count": 1
         ]
         return ["data": ["results": user]]
+    }
+
+    // The real backend always serves placements/paywalls with the user; the empty
+    // arrays of the early harness were a simplification. Snake_case keys: the SDK
+    // decodes with .convertFromSnakeCase.
+    private static func paywallFixture() -> [String: Any] {
+        [
+            "id": "pw_1",
+            "name": "Main Paywall",
+            "identifier": "main_paywall",
+            "default": true,
+            "items": [[
+                "id": "bundle_1",
+                "item_id": "item_1",
+                "name": "Weekly",
+                "store": "app_store",
+                "product_id": ApphudTestConstants.weeklyProductId
+            ]]
+        ]
+    }
+
+    private static func placementFixture() -> [String: Any] {
+        [
+            "id": "plc_1",
+            "identifier": "main",
+            "paywalls": [paywallFixture()]
+        ]
     }
 
     private static func subscriptionFixture(productId: String) -> [String: Any] {
@@ -262,6 +289,72 @@ final class ApphudSDKTests: XCTestCase {
         }
         XCTAssertFalse(registrations.isEmpty, "SDK must register the user via POST /v1/customers")
         XCTAssertEqual(registrations.last?.method, "POST")
+    }
+
+    // MARK: 1b. Placements, paywalls and priced products are available after start
+
+    /// Core-functionality contract: after SDK start the backend's placements arrive with
+    /// their paywalls and products, and each product resolves to a live StoreKit 2
+    /// product with a real price — the exact chain a client's paywall screen depends on.
+    @MainActor
+    func test1bPlacementsPaywallsAndPricedProductsAreAvailable() async throws {
+        await startSDKIfNeeded()
+
+        let placements = await Apphud.placements()
+        XCTAssertEqual(placements.count, 1, "The stubbed backend serves exactly one placement")
+        let placement = try XCTUnwrap(placements.first)
+        XCTAssertEqual(placement.identifier, "main")
+
+        let paywall = try XCTUnwrap(placement.paywall, "Placement must carry its paywall")
+        XCTAssertEqual(paywall.identifier, "main_paywall")
+        XCTAssertEqual(paywall.products.count, 1, "Paywall must carry its products")
+
+        let product = try XCTUnwrap(paywall.products.first)
+        XCTAssertEqual(product.productId, ApphudTestConstants.weeklyProductId)
+
+        let resolvedProduct = try await product.product()
+        let storeProduct = try XCTUnwrap(resolvedProduct, "ApphudProduct must resolve to a StoreKit 2 Product")
+        XCTAssertGreaterThan(storeProduct.price, 0, "Product must carry a real price")
+        XCTAssertFalse(storeProduct.displayPrice.isEmpty, "Product must carry a display price")
+    }
+
+    // MARK: 9. A StoreKit-level purchase failure returns control with an error
+    // (numbered LAST: SKTestSession applies failTransactionsEnabled asynchronously in
+    // storekitd, so the injection can leak into a purchase that starts right after
+    // this test — no purchase test may run behind it)
+
+    /// Core-functionality contract: when StoreKit itself fails the purchase (payment
+    /// declined, store outage), the purchase callback must return an error — control
+    /// goes back to the app, nothing hangs — and nothing may reach the backend.
+    @MainActor
+    func test9StoreKitFailureReturnsControlWithError() async throws {
+        let session = try XCTUnwrap(Self.storeKitSession)
+        session.clearTransactions()
+        defer {
+            session.clearTransactions()
+            session.failTransactionsEnabled = false
+        }
+
+        await startSDKIfNeeded()
+        ApphudInternal.shared.lastUploadedTransactions = []
+        ApphudStubURLProtocol.reset()
+
+        session.failTransactionsEnabled = true
+        session.failureError = .unknown
+
+        let result: ApphudPurchaseResult = await withCheckedContinuation { continuation in
+            ApphudInternal.shared.purchase(productId: ApphudTestConstants.weeklyProductId,
+                                           product: nil,
+                                           validate: true,
+                                           purchasingFromScreen: false) { result in
+                continuation.resume(returning: result)
+            }
+        }
+
+        XCTAssertNotNil(result.error, "A StoreKit-failed purchase must return an error to the app")
+        XCTAssertFalse(result.success, "A StoreKit-failed purchase must not be reported as success")
+        let submits = ApphudStubURLProtocol.requests(to: "/subscriptions").filter { $0.method == "POST" }
+        XCTAssertEqual(submits.count, 0, "Nothing must be submitted to the backend when StoreKit fails the purchase")
     }
 
     // MARK: 2. Purchase pipeline baseline
