@@ -157,12 +157,21 @@ extension ApphudInternal {
         }
     }
 
-    /// Returns `true` when the transaction needs no further delivery (already tracked,
-    /// inactive, or submitted successfully) — the caller may finish it. Returns `false`
-    /// when the submission failed or was skipped mid-flight, so an unfinished
-    /// transaction gets redelivered by StoreKit and retried.
+    /// Compatibility wrapper over `handleTransactionResult`: `true` when the
+    /// transaction needs no further delivery — the caller may finish it.
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
     @discardableResult internal func handleTransaction(_ transaction: StoreKit.Transaction, jws: String? = nil, fromScreen: Bool = false) async -> Bool {
+        await handleTransactionResult(transaction, jws: jws, fromScreen: fromScreen) == nil
+    }
+
+    /// Returns `nil` when the transaction needs no further delivery (already tracked,
+    /// inactive, or submitted successfully) — the caller may finish it. Returns the
+    /// submission error when it failed or was skipped mid-flight, so an unfinished
+    /// transaction gets redelivered by StoreKit and retried — and the purchase path
+    /// can surface WHY the purchase is not confirmed (master parity: clients gating
+    /// on `result.error` must see a failed submission).
+    @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
+    internal func handleTransactionResult(_ transaction: StoreKit.Transaction, jws: String? = nil, fromScreen: Bool = false) async -> Error? {
         let transactionId = transaction.id
         let refundDate = transaction.revocationDate
         let expirationDate = transaction.expirationDate
@@ -174,18 +183,18 @@ extension ApphudInternal {
         // whether the transaction may be finished, so report "not handled" here.
         if await self.submittingTransaction == String(transactionId) {
             apphudLog("Already submitting the same transaction id \(transactionId), skipping", logLevel: .debug)
-            return false
+            return ApphudError(message: "Transaction \(transactionId) is already being submitted")
         }
 
         // use original transaction id to compare if already tracked
         if await isAlreadyTracked(transactionId: transaction.originalID, productId: productID, purchaseDate: purchaseDate) {
             apphudLog("This transaction already tracked by Apphud: \(transactionId), skipping", logLevel: .debug)
-            return true
+            return nil
         }
 
         let transactions = await self.lastUploadedTransactions
         if transactions.contains(transactionId) {
-            return true
+            return nil
         }
 
         var isActive = false
@@ -211,7 +220,7 @@ extension ApphudInternal {
 
                     guard self.currentUser != nil else {
                         apphudLog("Cannot submit transaction \(transactionId) because user is not registered, will retry later", forceDisplay: true)
-                        continuation.resume(returning: false)
+                        continuation.resume(returning: ApphudError(message: "Cannot submit transaction \(transactionId): user is not registered"))
                         return
                     }
 
@@ -231,13 +240,13 @@ extension ApphudInternal {
                                                  notifyDelegate: true,
                                                  ownsTransaction: true,
                                                  fromScreen: fromScreen) { error in
-                            continuation.resume(returning: error == nil)
+                            continuation.resume(returning: error)
                         }
                     }
                 }
             }
         }
-        return true
+        return nil
     }
 
     fileprivate func isAlreadyTracked(transactionId: UInt64, productId: String, purchaseDate: Date) async -> Bool {

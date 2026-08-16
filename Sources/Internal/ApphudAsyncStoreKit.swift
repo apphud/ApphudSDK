@@ -143,7 +143,14 @@ internal class ApphudAsyncStoreKit {
             }
 
             if let transaction {
-                await Self.processTransaction(transaction, jws: transactionJws, fromScreen: fromScreen)
+                // Master parity: a purchase that went through StoreKit but whose
+                // submission the backend rejected must surface that error — clients
+                // gating on `result.error == nil` would otherwise unlock without a
+                // validated purchase. The transaction stays unfinished and retried.
+                let submitError = await Self.processTransaction(transaction, jws: transactionJws, fromScreen: fromScreen)
+                if purchaseError == nil {
+                    purchaseError = submitError
+                }
             }
 
             self.isPurchasing = false
@@ -166,11 +173,13 @@ internal class ApphudAsyncStoreKit {
     /// the direct purchase call and the `Transaction.updates` listener: the first arrival
     /// owns submitting and finishing it, and any later arrival awaits that same work
     /// instead of duplicating it — so the purchase caller still sees the real outcome.
-    @MainActor private static var processingTransactions = [UInt64: Task<Bool, Never>]()
+    /// A task's value is `nil` when the transaction was handled (submitted or already
+    /// known) and the submission error otherwise — the purchase path surfaces it.
+    @MainActor private static var processingTransactions = [UInt64: Task<Error?, Never>]()
 
     @MainActor
     @discardableResult
-    internal static func processTransaction(_ transaction: StoreKit.Transaction, jws: String?, fromScreen: Bool = false) async -> Bool {
+    internal static func processTransaction(_ transaction: StoreKit.Transaction, jws: String?, fromScreen: Bool = false) async -> Error? {
 
         if let inFlight = processingTransactions[transaction.id] {
             apphudLog("Transaction \(transaction.id) is already being processed, awaiting its result", logLevel: .debug)
@@ -181,17 +190,17 @@ internal class ApphudAsyncStoreKit {
             // Finish only after the transaction is handled: an unfinished transaction is
             // redelivered by StoreKit on the next launch, so a submit that failed against
             // the backend keeps the transaction alive for a retry.
-            let handled = await ApphudInternal.shared.handleTransaction(transaction, jws: jws, fromScreen: fromScreen)
-            if handled {
+            let submitError = await ApphudInternal.shared.handleTransactionResult(transaction, jws: jws, fromScreen: fromScreen)
+            if submitError == nil {
                 await transaction.finish()
             }
-            return handled
+            return submitError
         }
 
         processingTransactions[transaction.id] = task
-        let handled = await task.value
+        let submitError = await task.value
         processingTransactions[transaction.id] = nil
-        return handled
+        return submitError
     }
 
     /// True while a submission for this transaction is in flight (used by tests and by
