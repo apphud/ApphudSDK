@@ -77,6 +77,13 @@ public class ApphudPaywall: NSObject, Codable, ObservableObject {
         paywallVariationName
     }
 
+    /**
+     Name of the paywall's visual Screen as set in the Apphud Dashboard, if the paywall has one.
+     */
+    @objc public var screenName: String? {
+        screen?.name
+    }
+
     private var paywallExperimentName: String?
     private var paywallVariationName: String?
 
