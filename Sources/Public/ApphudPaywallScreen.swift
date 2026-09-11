@@ -9,6 +9,12 @@ import Foundation
 public class ApphudPaywallScreen: Codable {
 
     public var id: String
+
+    /**
+     Screen name as set in the Apphud Dashboard.
+     */
+    public var name: String?
+
     public var defaultURL: String?
     public var urls: [String: String]
 
