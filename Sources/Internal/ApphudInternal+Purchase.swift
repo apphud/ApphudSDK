@@ -94,7 +94,13 @@ extension ApphudInternal {
             return
         }
 
-        performWhenUserRegistered {
+        // Like the purchase path, never wait forever for a registration that will not
+        // be retried (invalid API key / unauthorized): the restore call must return.
+        performWhenUserRegistered(allowFailure: true) {
+            guard self.currentUser != nil else {
+                self.failRestoreWithoutRegisteredUser()
+                return
+            }
             Task {
                 await self.submitReceipt(productInfo: nil,
                                          apphudProduct: nil,
@@ -112,6 +118,14 @@ extension ApphudInternal {
                 }
             }
         }
+    }
+
+    /// A restore cannot proceed without a registered user: report it instead of hanging.
+    @MainActor private func failRestoreWithoutRegisteredUser() {
+        let error = ApphudError(message: "Failed to restore purchases: user is not registered.")
+        apphudLog(error.localizedDescription, forceDisplay: true)
+        restorePurchasesCallback?(nil, nil, error)
+        restorePurchasesCallback = nil
     }
 
     /// Runs a transaction check that was deferred because a purchase was in flight.
@@ -330,7 +344,16 @@ extension ApphudInternal {
             apphudLog("App Store receipt is missing, but got transaction. Will try to submit transaction instead..", forceDisplay: true)
         }
 
-        performWhenUserRegistered {
+        // A user-initiated restore is waiting for an answer and, like the purchase path,
+        // must not wait forever for a registration that will not be retried. An automatic
+        // submission (a restored transaction from the payment queue) has nobody waiting:
+        // it stays queued for a later registration, as before.
+        let userInitiated = restorePurchasesCallback != nil
+        performWhenUserRegistered(allowFailure: userInitiated) {
+            guard self.currentUser != nil else {
+                self.failRestoreWithoutRegisteredUser()
+                return
+            }
 
             self.submitReceipt(product: nil, apphudProduct: nil, transaction: transaction, receiptString: receiptString, notifyDelegate: true, fromScreen: false) { error in
                 self.restorePurchasesCallback?(self.currentUser?.subscriptions, self.currentUser?.purchases, error)

@@ -323,6 +323,55 @@ final class ApphudSDKTests: XCTestCase {
         XCTAssertFalse(storeProduct.displayPrice.isEmpty, "Product must carry a display price")
     }
 
+    // MARK: 7. Restore returns control when registration can never succeed
+
+    // Like the purchase path, a restore must not wait forever for a user registration
+    // that will never be retried (invalid API key / unauthorized): the app's restore UI
+    // would hang. The entitlement bought below makes the restore reach the registration
+    // wait — with no entitlement and no receipt it returns early on its own.
+    @MainActor
+    func test7RestoreDoesNotHangWhenRegistrationCannotSucceed() async throws {
+        let session = try XCTUnwrap(Self.storeKitSession)
+        session.clearTransactions()
+        defer { session.clearTransactions() }
+
+        await startSDKIfNeeded()
+        ApphudInternal.shared.lastUploadedTransactions = []
+
+        try session.buyProduct(productIdentifier: ApphudTestConstants.weeklyProductId)
+        // Let the SDK's own background tracking of that purchase fully settle first.
+        let settleDeadline = Date().addingTimeInterval(10)
+        repeat {
+            try await Task.sleep(nanoseconds: 300_000_000)
+        } while (ApphudInternal.shared.submittingTransaction != nil || ApphudStubURLProtocol.requests(to: "/subscriptions").isEmpty) && Date() < settleDeadline
+        ApphudStubURLProtocol.reset()
+
+        let client = try XCTUnwrap(ApphudInternal.shared.httpClient)
+        let registeredUser = ApphudInternal.shared.currentUser
+        ApphudInternal.shared.currentUser = nil
+        client.invalidAPiKey = true
+        // Put the shared SDK back whatever happens below, so a failure here cannot poison later tests.
+        defer {
+            client.invalidAPiKey = false
+            ApphudInternal.shared.currentUser = registeredUser
+        }
+
+        let restoreExpectation = XCTestExpectation(description: "restore completes although registration can never succeed")
+        let restoreBox = ApphudResultBox()
+        await MainActor.run {
+            ApphudInternal.shared.restorePurchases { result in
+                restoreBox.result = result
+                restoreExpectation.fulfill()
+            }
+        }
+        await fulfillment(of: [restoreExpectation], timeout: 10)
+
+        let restore = try XCTUnwrap(restoreBox.result, "Restore must return control when registration can never succeed — a hang means its callback waits forever")
+        XCTAssertNotNil(restore.error, "A restore without a registered user must report an error, not success")
+        let submits = ApphudStubURLProtocol.requests(to: "/subscriptions").filter { $0.method == "POST" }
+        XCTAssertEqual(submits.count, 0, "Nothing must be submitted without a registered user")
+    }
+
     // MARK: 9. A StoreKit-level purchase failure returns control with an error
 
     /// Core-functionality contract: when the StoreKit layer cannot start the purchase,
