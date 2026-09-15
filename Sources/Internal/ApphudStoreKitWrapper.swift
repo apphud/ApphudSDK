@@ -53,40 +53,69 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     internal var productsLoadTime: TimeInterval = 0.0
 
-    // Master-parity receipt refreshing (see appStoreReceipt()).
-    private var refreshReceiptCallback: (() -> Void)?
+    // Master-parity receipt refreshing (see appStoreReceipt()). Callers can overlap
+    // (two Transaction.updates deliveries, a restore during a purchase) and each one
+    // awaits a continuation that must resume exactly once, so callbacks queue up
+    // behind a single in-flight request instead of overwriting each other.
+    private var refreshReceiptCallbacks: [() -> Void] = []
     private var refreshRequest: SKReceiptRefreshRequest?
+    private var refreshWatchdog: DispatchWorkItem?
+    /// StoreKit occasionally never calls back (no network, storekitd wedged). Waiting
+    /// callers are released after this bound and proceed without a receipt — a stuck
+    /// request must not block every later submission for the life of the process.
+    internal var receiptRefreshTimeout: TimeInterval = 15
+    /// Test seam: unit tests hand in a request whose `start()` never reaches StoreKit.
+    internal var makeReceiptRefreshRequest: () -> SKReceiptRefreshRequest = { SKReceiptRefreshRequest() }
 
     func refreshReceipt(_ callback: (() -> Void)?) {
-        refreshReceiptCallback = callback
-        refreshRequest = SKReceiptRefreshRequest()
-        refreshRequest?.delegate = self
-        refreshRequest?.start()
+        DispatchQueue.main.async {
+            if let callback {
+                self.refreshReceiptCallbacks.append(callback)
+            }
+            // A refresh is already running: this caller is served by its completion.
+            guard self.refreshRequest == nil else { return }
+            let request = self.makeReceiptRefreshRequest()
+            self.refreshRequest = request
+            request.delegate = self
+            request.start()
+
+            let watchdog = DispatchWorkItem { [weak self, weak request] in
+                guard let request else { return }
+                self?.completeReceiptRefresh(request)
+            }
+            self.refreshWatchdog = watchdog
+            DispatchQueue.main.asyncAfter(deadline: .now() + self.receiptRefreshTimeout, execute: watchdog)
+        }
+    }
+
+    /// Every completion — finished, failed or timed out — releases all waiting callers.
+    /// Master parity: a failed refresh never blocks the submission, the caller re-reads
+    /// the (possibly still missing) receipt and proceeds.
+    private func completeReceiptRefresh(_ request: SKRequest) {
+        DispatchQueue.main.async {
+            // Only the request in flight may release the waiting callers.
+            guard request === self.refreshRequest else { return }
+            request.cancel()
+            self.refreshWatchdog?.cancel()
+            self.refreshWatchdog = nil
+            self.refreshRequest = nil
+            let callbacks = self.refreshReceiptCallbacks
+            self.refreshReceiptCallbacks.removeAll()
+            callbacks.forEach { $0() }
+        }
     }
 
     // MARK: - SKRequestDelegate (receipt refresh)
 
     func requestDidFinish(_ request: SKRequest) {
         if request is SKReceiptRefreshRequest {
-            DispatchQueue.main.async {
-                self.refreshReceiptCallback?()
-                self.refreshReceiptCallback = nil
-            }
-            request.cancel()
-            self.refreshRequest = nil
+            completeReceiptRefresh(request)
         }
     }
 
-    /// Master parity: a failed refresh never blocks the submission — the caller
-    /// re-reads the (possibly still missing) receipt and proceeds.
     func request(_ request: SKRequest, didFailWithError error: Error) {
         if request is SKReceiptRefreshRequest {
-            DispatchQueue.main.async {
-                self.refreshReceiptCallback?()
-                self.refreshReceiptCallback = nil
-            }
-            request.cancel()
-            self.refreshRequest = nil
+            completeReceiptRefresh(request)
         }
     }
 
