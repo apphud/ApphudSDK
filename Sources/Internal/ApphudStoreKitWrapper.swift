@@ -265,8 +265,9 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
                     self.isPurchasing = false
                     ApphudInternal.shared.submitReceiptRestore(transaction: trx.original ?? trx)
                     if !ApphudUtils.shared.storeKitObserverMode {
-                        // force finish transaction
-                        self.finishTransaction(trx)
+                        // force finish transaction; not ours, so the custom value of a
+                        // purchase in flight must survive it
+                        self.finishTransaction(trx, clearsPurchasingValue: false)
                     }
                 case .deferred:
                     self.isPurchasing = false
@@ -289,6 +290,22 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     @MainActor
     private func handleTransactionIfStarted(_ transaction: SKPaymentTransaction) {
+
+        // A failed transaction has no owner left to finish it now that the SK1 purchase
+        // path is gone; left unfinished, StoreKit redelivers it on every launch. Handled
+        // before the in-flight check so a failure arriving during an SDK purchase is not
+        // skipped. Observer mode: the host finishes it, like every other state here.
+        // The transaction is never the SDK's own purchase, so the custom value of a
+        // purchase in flight must survive it.
+        if transaction.transactionState == .failed {
+            if transaction.failedWithUnknownReason {
+                ApphudInternal.shared.setNeedToCheckTransactions()
+            }
+            if !ApphudUtils.shared.storeKitObserverMode {
+                finishTransaction(transaction, clearsPurchasingValue: false)
+            }
+            return
+        }
 
         if #available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *), ApphudAsyncStoreKit.shared.isPurchasing {
             return
@@ -323,19 +340,19 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
                     self.finishTransaction(transaction)
                 }
             }
-        } else if transaction.failedWithUnknownReason {
-            ApphudInternal.shared.setNeedToCheckTransactions()
         }
     }
 
-    internal func finishTransaction(_ transaction: SKPaymentTransaction) {
+    internal func finishTransaction(_ transaction: SKPaymentTransaction, clearsPurchasingValue: Bool = true) {
         apphudLog("Finish Transaction: \(transaction.payment.productIdentifier), state: \(transaction.transactionState.rawValue), id: \(transaction.transactionIdentifier ?? "")")
         NotificationCenter.default.post(name: _ApphudWillFinishTransactionNotification, object: transaction)
 
         if transaction.transactionState != .purchasing {
             SKPaymentQueue.default().finishTransaction(transaction)
         }
-        self.purchasingValue = nil
+        if clearsPurchasingValue {
+            self.purchasingValue = nil
+        }
     }
 
     func paymentQueue(_ queue: SKPaymentQueue, removedTransactions transactions: [SKPaymentTransaction]) {
