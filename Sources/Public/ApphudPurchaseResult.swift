@@ -29,6 +29,7 @@ public class ApphudPurchaseResult: NSObject {
     /**
      Transaction from StoreKit. May be nil, if no transaction made. For example, if couldn't sign promo offer or couldn't get App Store receipt.
      */
+    @available(*, deprecated, message: "SDK purchases run on StoreKit 2 and no longer produce SKPaymentTransaction. Use `transactionV2` instead.")
     @objc public let transaction: SKPaymentTransaction?
     
     /**
@@ -48,6 +49,13 @@ public class ApphudPurchaseResult: NSObject {
      Indicates whether the purchase result was triggered by a restore action.
     */
     public var isRestoreResult: Bool = false
+
+    /**
+     True when the purchase is awaiting approval (Ask to Buy / Strong Customer
+     Authentication). The transaction will be delivered later via `Transaction.updates`
+     once approved; no error is reported in this case.
+     */
+    @objc public internal(set) var isPending: Bool = false
 
     public var success: Bool {
         error == nil && (subscription?.isActive() ?? false || nonRenewingPurchase?.isActive() ?? false)

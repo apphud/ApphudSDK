@@ -19,7 +19,11 @@ internal class ApphudAsyncStoreKit {
     static let shared = ApphudAsyncStoreKit()
     var isPurchasing: Bool = false
     var transactionsListener = ApphudAsyncTransactionObserver()
+    var purchaseIntentsListener = ApphudPurchaseIntentsObserver()
     var productsLoaded = false
+
+    /// Touching this method forces the lazy singleton (and both listeners) to start.
+    func startObserving() {}
 
     private var productsStorage = ApphudProductsStorage()
 
@@ -79,20 +83,21 @@ internal class ApphudAsyncStoreKit {
     }
 
     @MainActor
-    internal func purchaseResult(product: Product, _ scene: Any? = nil, commitmentPlan: Bool, apphudProduct: ApphudProduct?, fromScreen: Bool = false, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
+    internal func purchaseResult(product: Product, _ scene: Any? = nil, commitmentPlan: Bool, apphudProduct: ApphudProduct?, fromScreen: Bool = false, isPurchasing: Binding<Bool>? = nil, extraOptions: Set<Product.PurchaseOption> = []) async -> ApphudAsyncPurchaseResult {
         self.isPurchasing = true
         await productsStorage.append(product)
         isPurchasing?.wrappedValue = true
-                
+
         var options = Set<Product.PurchaseOption>()
-        
+        options.formUnion(extraOptions)
+
         if #available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *) {
             let isSupported = await product.isCommitmentPlanSupported()
             if commitmentPlan && isSupported {
                 options.insert(.billingPlanType(.monthly))
             }
         }
-        
+
         if let uuidString = ApphudStoreKitWrapper.shared.appropriateApplicationUsername(), let uuid = UUID(uuidString: uuidString) {
             options.insert(.appAccountToken(uuid))
         }
@@ -100,64 +105,118 @@ internal class ApphudAsyncStoreKit {
         do {
 
             ApphudLoggerService.shared.paywallCheckoutInitiated(apphudProduct: apphudProduct, productId: product.id, screenId: nil)
+            apphudLog("Starting StoreKit2 purchase of \(product.id), options: \(options.count)", forceDisplay: true)
             #if os(iOS) || os(tvOS) || os(macOS) || os(watchOS)
             let result = try await product.purchase(options: options)
             #else
             let result = try await product.purchase(confirmIn: (scene as! UIScene), options: options)
             #endif
+            apphudLog("StoreKit2 purchase returned for \(product.id)", forceDisplay: true)
 
             var transaction: StoreKit.Transaction?
+            var transactionJws: String?
             var purchaseError: Error?
+            var isPendingPurchase = false
 
             switch result {
-            case .success(.verified(let trx)):
-                transaction = trx
-            case .success(.unverified(let trx, _)):
-                transaction = trx
+            case .success(let verificationResult):
+                switch verificationResult {
+                case .verified(let trx):
+                    transaction = trx
+                    transactionJws = verificationResult.jwsRepresentation
+                case .unverified(let trx, let verificationError):
+                    // An unverified transaction is never submitted: it is left unfinished
+                    // and re-checked, so StoreKit can redeliver a verified copy later.
+                    apphudLog("Received unverified transaction [\(trx.id), \(trx.productID)] from StoreKit2: \(verificationError)", forceDisplay: true)
+                    ApphudInternal.shared.setNeedToCheckTransactions()
+                    purchaseError = ApphudError(message: "Transaction failed StoreKit verification: \(verificationError.localizedDescription)")
+                }
             case .pending:
-                break
+                isPendingPurchase = true
+                apphudLog("Purchase of \(product.id) is pending (e.g. Ask to Buy)", forceDisplay: true)
             case .userCancelled:
                 ApphudLoggerService.shared.paywallPaymentCancelled(paywallId: apphudProduct?.paywallId, placementId: apphudProduct?.placementId, product: product)
                 purchaseError = StoreKitError.userCancelled
             default:
-                break
+                apphudLog("Purchase of \(product.id) returned unknown result: \(result)", forceDisplay: true)
+                purchaseError = ApphudError(message: "Unknown StoreKit purchase result")
             }
 
             if let transaction {
-                await Self.processTransaction(transaction, fromScreen: fromScreen)
+                // Master parity: a purchase that went through StoreKit but whose
+                // submission the backend rejected must surface that error — clients
+                // gating on `result.error == nil` would otherwise unlock without a
+                // validated purchase. The transaction stays unfinished and retried.
+                let submitError = await Self.processTransaction(transaction, jws: transactionJws, fromScreen: fromScreen)
+                if purchaseError == nil {
+                    purchaseError = submitError
+                }
             }
 
             self.isPurchasing = false
             isPurchasing?.wrappedValue = false
+            ApphudInternal.shared.runDeferredTransactionCheckIfNeeded()
 
-            return ApphudInternal.shared.asyncPurchaseResult(product: product, transaction: transaction, error: purchaseError)
+            return ApphudInternal.shared.asyncPurchaseResult(product: product, transaction: transaction, error: purchaseError, isPending: isPendingPurchase)
 
         } catch {
             ApphudLoggerService.shared.paywallPaymentError(paywallId: apphudProduct?.paywallId, placementId: apphudProduct?.placementId, productId: product.id, error: error.apphudErrorMessage())
 
             self.isPurchasing = false
             isPurchasing?.wrappedValue = false
+            ApphudInternal.shared.runDeferredTransactionCheckIfNeeded()
             return ApphudInternal.shared.asyncPurchaseResult(product: product, transaction: nil, error: error)
         }
     }
 
-    fileprivate static func processTransaction(_ transaction: StoreKit.Transaction, fromScreen: Bool = false) async {
-        _ = await ApphudInternal.shared.handleTransaction(transaction, fromScreen: fromScreen)
-        Task {
-            if transaction.productType == .consumable {
-                try? await Task.sleep(nanoseconds: 3_000_000_000)
-            }
-            await transaction.finish()
+    /// Transactions currently being submitted. The same transaction is delivered to both
+    /// the direct purchase call and the `Transaction.updates` listener: the first arrival
+    /// owns submitting and finishing it, and any later arrival awaits that same work
+    /// instead of duplicating it — so the purchase caller still sees the real outcome.
+    /// A task's value is `nil` when the transaction was handled (submitted or already
+    /// known) and the submission error otherwise — the purchase path surfaces it.
+    @MainActor private static var processingTransactions = [UInt64: Task<Error?, Never>]()
+
+    @MainActor
+    @discardableResult
+    internal static func processTransaction(_ transaction: StoreKit.Transaction, jws: String?, fromScreen: Bool = false) async -> Error? {
+
+        if let inFlight = processingTransactions[transaction.id] {
+            apphudLog("Transaction \(transaction.id) is already being processed, awaiting its result", logLevel: .debug)
+            return await inFlight.value
         }
+
+        let task = Task { @MainActor in
+            // Finish only after the transaction is handled: an unfinished transaction is
+            // redelivered by StoreKit on the next launch, so a submit that failed against
+            // the backend keeps the transaction alive for a retry.
+            let submitError = await ApphudInternal.shared.handleTransactionResult(transaction, jws: jws, fromScreen: fromScreen)
+            if submitError == nil {
+                await transaction.finish()
+            }
+            return submitError
+        }
+
+        processingTransactions[transaction.id] = task
+        let submitError = await task.value
+        processingTransactions[transaction.id] = nil
+        return submitError
     }
 
-    func fetchLatestTransaction() async -> StoreKit.Transaction? {
-        var latestTransaction: StoreKit.Transaction?
+    /// True while a submission for this transaction is in flight (used by tests and by
+    /// the legacy payment queue observer to avoid duplicating work).
+    @MainActor
+    internal static func isProcessing(transactionID: UInt64) -> Bool {
+        processingTransactions[transactionID] != nil
+    }
+
+    func fetchLatestTransaction() async -> VerificationResult<StoreKit.Transaction>? {
+        var latestTransaction: VerificationResult<StoreKit.Transaction>?
 
         for await result in StoreKit.Transaction.all {
             if case .verified(let transaction) = result {
-                if latestTransaction == nil || latestTransaction!.purchaseDate < transaction.purchaseDate {
-                    latestTransaction = transaction
+                if latestTransaction == nil || latestTransaction!.unsafePayloadValue.purchaseDate < transaction.purchaseDate {
+                    latestTransaction = result
                 }
             }
         }
@@ -167,15 +226,59 @@ internal class ApphudAsyncStoreKit {
 
     #if os(iOS) || os(tvOS) || os(macOS) || os(watchOS)
     @MainActor
-    func purchase(product: Product, commitmentPlan: Bool = false, apphudProduct: ApphudProduct?, fromScreen: Bool = false, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
-        return await purchaseResult(product: product, commitmentPlan: commitmentPlan, apphudProduct: apphudProduct, fromScreen: fromScreen, isPurchasing: isPurchasing)
+    func purchase(product: Product, commitmentPlan: Bool = false, apphudProduct: ApphudProduct?, fromScreen: Bool = false, isPurchasing: Binding<Bool>? = nil, extraOptions: Set<Product.PurchaseOption> = []) async -> ApphudAsyncPurchaseResult {
+        return await purchaseResult(product: product, commitmentPlan: commitmentPlan, apphudProduct: apphudProduct, fromScreen: fromScreen, isPurchasing: isPurchasing, extraOptions: extraOptions)
     }
     #else
     @MainActor
-    func purchase(product: Product, scene: UIScene, apphudProduct: ApphudProduct?, fromScreen: Bool = false, isPurchasing: Binding<Bool>? = nil) async -> ApphudAsyncPurchaseResult {
-        return await purchaseResult(product: product, scene, commitmentPlan: false, apphudProduct: apphudProduct, fromScreen: fromScreen, isPurchasing: isPurchasing)
+    func purchase(product: Product, scene: UIScene, apphudProduct: ApphudProduct?, fromScreen: Bool = false, isPurchasing: Binding<Bool>? = nil, extraOptions: Set<Product.PurchaseOption> = []) async -> ApphudAsyncPurchaseResult {
+        return await purchaseResult(product: product, scene, commitmentPlan: false, apphudProduct: apphudProduct, fromScreen: fromScreen, isPurchasing: isPurchasing, extraOptions: extraOptions)
     }
     #endif
+}
+
+/// Listens to StoreKit 2 purchase intents: promoted in-app purchases started on the
+/// App Store product page, and win-back offers (iOS 18+). Replaces the StoreKit 1
+/// `paymentQueue(_:shouldAddStorePayment:for:)` handler — Apple forbids using both.
+final class ApphudPurchaseIntentsObserver {
+
+    var intentsTask: Task<Void, Never>?
+
+    init() {
+        // PurchaseIntent exists on iOS/iPadOS 16.4+, macCatalyst 16.4+ and macOS 14.4+ only.
+        #if os(iOS) || os(macOS)
+        guard #available(iOS 16.4, macOS 14.4, *) else { return }
+        intentsTask = Task(priority: .background) {
+            for await intent in PurchaseIntent.intents {
+                await Self.handle(product: intent.product)
+            }
+        }
+        #endif
+    }
+
+    deinit {
+        intentsTask?.cancel()
+    }
+
+    @available(iOS 16.4, macOS 14.4, *)
+    @MainActor
+    private static func handle(product: Product) async {
+        if let callback = ApphudInternal.shared.delegate?.apphudShouldStartAppStoreDirectPurchase(product: product) {
+            ApphudInternal.shared.purchase(productId: product.id, product: nil, validate: true, purchasingFromScreen: false, callback: callback)
+            return
+        }
+
+        // Bridge for delegates still implementing the legacy SKProduct-based method.
+        let skProduct: SKProduct? = await withCheckedContinuation { continuation in
+            ApphudStoreKitWrapper.shared.fetchProducts(productIds: [product.id]) { products in
+                continuation.resume(returning: products?.first)
+            }
+        }
+
+        if let skProduct, let callback = ApphudInternal.shared.delegate?.apphudShouldStartAppStoreDirectPurchase(skProduct) {
+            ApphudInternal.shared.purchase(productId: product.id, product: nil, validate: true, purchasingFromScreen: false, callback: callback)
+        }
+    }
 }
 
 @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
@@ -208,18 +311,18 @@ final class ApphudAsyncTransactionObserver {
             return
         }
 
+        let jws = verificationResult.jwsRepresentation
+
         if !ApphudUtils.shared.storeKitObserverMode {
             Task { @MainActor in
-                if ApphudStoreKitWrapper.shared.purchasingProductID == transaction.productID && ApphudStoreKitWrapper.shared.isPurchasing {
-                    return
-                }
-
-                await ApphudAsyncStoreKit.processTransaction(transaction)
+                // Duplicate delivery of a transaction the direct purchase path is already
+                // submitting is filtered inside processTransaction by transaction id.
+                await ApphudAsyncStoreKit.processTransaction(transaction, jws: jws)
             }
         } else {
             apphudLog("Received transaction [\(transaction.id), \(transaction.productID)] from StoreKit2")
             Task { @MainActor in
-                await ApphudInternal.shared.handleTransaction(transaction)
+                await ApphudInternal.shared.handleTransaction(transaction, jws: jws)
             }
         }
     }

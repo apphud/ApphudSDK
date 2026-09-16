@@ -96,6 +96,7 @@ public class ApphudProduct: NSObject, Codable, ObservableObject {
      
      May be `nil` if product identifier is invalid, or product is not available in App Store Connect.
      */
+    @available(*, deprecated, message: "SDK runs on StoreKit 2. Use `product()` returning a StoreKit 2 Product instead; this SKProduct is populated by a background compatibility fetch and may arrive later or stay nil.")
     @Published @objc public internal(set) var skProduct: SKProduct? {
         willSet {
             objectWillChange.send()

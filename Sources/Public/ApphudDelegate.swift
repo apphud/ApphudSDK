@@ -53,7 +53,23 @@ public protocol ApphudDelegate {
      - parameter product: The `SKProduct` object representing the product to be purchased.
      - Returns: A closure of type `((ApphudPurchaseResult) -> Void)` that is called upon the completion of the purchase.
      */
+    @available(*, deprecated, message: "Implement apphudShouldStartAppStoreDirectPurchase(product: Product) instead. This SKProduct-based method is only called as a fallback when the new one is not implemented.")
     func apphudShouldStartAppStoreDirectPurchase(_ product: SKProduct) -> ((ApphudPurchaseResult) -> Void)?
+
+    /**
+     StoreKit 2 variant of the App Store direct purchase handler. Called when the system
+     delivers a purchase intent — the customer started a purchase outside of the app
+     (an App Store promoted in-app purchase, or a win-back offer on iOS 18+).
+
+     Return a callback block to start the purchase immediately, or `nil` to ignore it.
+     When this method is not implemented, the SDK falls back to the legacy
+     `apphudShouldStartAppStoreDirectPurchase(_ product: SKProduct)` method.
+
+     - parameter product: The StoreKit 2 `Product` the customer intends to buy.
+     - Returns: A closure of type `((ApphudPurchaseResult) -> Void)` that is called upon the completion of the purchase.
+     */
+    @available(iOS 16.4, macOS 14.4, *)
+    func apphudShouldStartAppStoreDirectPurchase(product: Product) -> ((ApphudPurchaseResult) -> Void)?
 
     /**
      Called when the Apphud SDK detects a purchase made outside of its standard purchase methods. This is particularly useful for handling purchases made with Promo Codes.
@@ -70,6 +86,7 @@ public protocol ApphudDelegate {
      - parameter transaction: The `SKPaymentTransaction` object representing the deferred or interrupted transaction.
      - Note: Use this method to handle cases where transaction completion is delayed or requires additional user interaction.
      */
+    @available(*, deprecated, message: "SDK purchases run on StoreKit 2: a pending purchase (Ask to Buy / SCA) is reported via ApphudPurchaseResult.isPending, and the transaction is delivered automatically once approved. This method is only called for the host app's own StoreKit 1 transactions.")
     func handleDeferredTransaction(transaction: SKPaymentTransaction)
 
     /**
@@ -102,6 +119,8 @@ public extension ApphudDelegate {
     func apphudNonRenewingPurchasesUpdated(_ purchases: [ApphudNonRenewingPurchase]) {}
     func apphudDidChangeUserID(_ userID: String) {}
     func apphudShouldStartAppStoreDirectPurchase(_ product: SKProduct) -> ((ApphudPurchaseResult) -> Void)? { nil }
+    @available(iOS 16.4, macOS 14.4, *)
+    func apphudShouldStartAppStoreDirectPurchase(product: Product) -> ((ApphudPurchaseResult) -> Void)? { nil }
     func apphudDidObservePurchase(result: ApphudPurchaseResult) -> Bool { false }
     func handleDeferredTransaction(transaction: SKPaymentTransaction) {}
     func userDidLoad(user: ApphudUser) {}

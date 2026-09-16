@@ -101,7 +101,9 @@ extension ApphudPaywallScreenController: WKUIDelegate {
         var params: [String: AnyHashable] = ["rule_id": rule.id, "name": "$purchase", "screen_id": ruleScreenID, "paywall_id": paywall.id]
         var properties: [String: AnyHashable] = ["product_id": product.productId]
 
-        if let trx = result.transaction, trx.transactionState == .purchased, let transactionID = trx.transactionIdentifier {
+        if let trxV2 = result.transactionV2 {
+            properties["transaction_id"] = String(trxV2.id)
+        } else if let trx = result.transaction, trx.transactionState == .purchased, let transactionID = trx.transactionIdentifier {
             properties["transaction_id"] = transactionID
         }
 
@@ -145,10 +147,15 @@ extension ApphudPaywallScreenController: WKUIDelegate {
         var infos = [[String: any Sendable]]()
 
         for p in paywall.products {
-            if let skProduct = p.skProduct {
+            // StoreKit 2 product is the primary source; the SK1 feeder is a fallback.
+            var productParams: [String: Any]?
+            if let product = try? await p.product() {
+                productParams = product.apphudSubmittableParameters()
+            } else if let skProduct = p.skProduct {
+                productParams = skProduct.apphudSubmittableParameters()
+            }
 
-                var finalInfo = skProduct.apphudSubmittableParameters()
-
+            if var finalInfo = productParams {
                 if let props = p.jsonProperties() {
                     finalInfo.merge(props, uniquingKeysWith: { _, new in new })
                 }
@@ -254,29 +261,71 @@ extension ApphudPaywallScreenController: WKUIDelegate {
             showLoadingIndicator()
         }
 
-        if let skProduct = product.skProduct, let ruleScreenName {
-            ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(product: skProduct, offerID: nil, screenName: ruleScreenName)
+        // The SK1 cache is filled by a best-effort background feeder, so skProduct may
+        // be missing while the SK2 paywall is fully purchasable. Legacy SKProduct-based
+        // UI-delegate callbacks must not be silently skipped for clients that have not
+        // migrated — resolve the product on demand first (mirrors ApphudScreenController).
+        if ruleScreenName != nil, product.skProduct == nil {
+            Task { @MainActor [weak self] in
+                let fetched = await ApphudStoreKitWrapper.shared.fetchProduct(product.productId)
+                guard let self else { return }
+                guard self.view.window != nil else {
+                    self.hideLoadingIndicator()
+                    return // screen was closed while resolving the product
+                }
+                self.startPaywallPurchase(product: product, skProduct: fetched)
+            }
+        } else {
+            startPaywallPurchase(product: product, skProduct: product.skProduct)
         }
-        
+    }
+
+    @MainActor
+    private func startPaywallPurchase(product: ApphudProduct, skProduct: SKProduct?) {
+
+        if let ruleScreenName {
+            if let skProduct {
+                ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(product: skProduct, offerID: nil, screenName: ruleScreenName)
+            }
+            ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(productId: product.productId, offerID: nil, screenName: ruleScreenName)
+        }
+
         ApphudInternal.shared.purchase(productId: product.productId, product: product, validate: true, purchasingFromScreen: true) { [weak self] result in
             if let self {
                 self.hideLoadingIndicator()
                 self.onTransactionCompleted?(result)
 
-                if let skProduct = product.skProduct, let ruleScreenName {
-                    if result.success {
-                        ApphudInternal.shared.uiDelegate?.apphudDidPurchase?(product: skProduct, offerID: nil, transaction: result.transaction, screenName: ruleScreenName)
-                        ApphudInternal.shared.uiDelegate?.apphudDidPurchase?(product: skProduct, offerID: nil, screenName: ruleScreenName)
+                // Ask to Buy / SCA: neither success nor failure yet — the transaction
+                // arrives later via Transaction.updates once it is approved. The host
+                // completion above can distinguish via result.isPending; only the
+                // did-purchase/did-fail/dismiss logic is skipped here.
+                if result.isPending {
+                    apphudLog("Purchase is pending approval, waiting for the transaction", forceDisplay: true)
+                    return
+                }
+
+                let purchaseSucceeded = result.success || result.transactionV2 != nil
+
+                if let ruleScreenName {
+                    if purchaseSucceeded {
+                        if let skProduct {
+                            ApphudInternal.shared.uiDelegate?.apphudDidPurchase?(product: skProduct, offerID: nil, transaction: result.transaction, screenName: ruleScreenName)
+                            ApphudInternal.shared.uiDelegate?.apphudDidPurchase?(product: skProduct, offerID: nil, screenName: ruleScreenName)
+                        }
+                        ApphudInternal.shared.uiDelegate?.apphudDidPurchase?(productId: product.productId, offerID: nil, screenName: ruleScreenName)
                     } else {
-                        ApphudInternal.shared.uiDelegate?.apphudDidFailPurchase?(product: skProduct, offerID: nil, errorCode: self.skErrorCode(from: result.error), screenName: ruleScreenName)
+                        if let skProduct {
+                            ApphudInternal.shared.uiDelegate?.apphudDidFailPurchase?(product: skProduct, offerID: nil, errorCode: self.skErrorCode(from: result.error), screenName: ruleScreenName)
+                        }
+                        ApphudInternal.shared.uiDelegate?.apphudDidFailPurchase?(productId: product.productId, offerID: nil, error: result.error, screenName: ruleScreenName)
                     }
                 }
 
-                if result.success {
+                if purchaseSucceeded {
                     self.trackRulePurchaseIfNeeded(product: product, result: result)
                 }
 
-                if result.success && self.shouldAutoDismiss {
+                if purchaseSucceeded && self.shouldAutoDismiss {
                     self.dismissNow(userAction: false)
                 }
             }

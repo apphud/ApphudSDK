@@ -43,17 +43,29 @@ final class ApphudInternal: NSObject {
     // MARK: - Receipt and products properties
 
     @MainActor internal var storeKitProductsFetchedCallbacks = [ApphudErrorCallback]()
+    // SK1 feeder task that populates the public `ApphudProduct.skProduct` property.
+    // Legacy SKProduct-based APIs await it; paywall readiness does not.
+    @MainActor internal var skProductsFeederTask: Task<Void, Never>?
     internal var customRegistrationAttemptsCount: Int?
     internal var submitReceiptRetries: ApphudRetryLog = (0, 0)
     @MainActor internal var submitReceiptCallbacks = [ApphudNSErrorCallback?]()
     internal var restorePurchasesCallback: (([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void)?
-    internal var submittingTransaction: String?
+    // Single-flight slot for receipt submission. Main-actor isolated because it decides
+    // whether a transaction may be finished — it must not be read or written concurrently.
+    @MainActor internal var submittingTransaction: String?
+    // A transaction check that arrived while a purchase was in flight; it runs once that
+    // purchase completes, so the check is neither dropped nor polled for.
+    @MainActor internal var deferredTransactionCheck = false
+    // The SK2 store means "backend acknowledged — safe to finish". Pre-SK2 versions
+    // persisted ids under "ApphudLastUploadedTransactions" BEFORE acknowledgment, so
+    // that key may name purchases that never reached Apphud and must not be read here:
+    // an inherited id would finish a paid transaction without ever submitting it.
     @MainActor internal var lastUploadedTransactions: [UInt64] {
         get {
-            UserDefaults.standard.array(forKey: "ApphudLastUploadedTransactions") as? [UInt64] ?? [UInt64]()
+            UserDefaults.standard.array(forKey: "ApphudLastUploadedTransactionsSK2") as? [UInt64] ?? [UInt64]()
         }
         set {
-            UserDefaults.standard.set(newValue, forKey: "ApphudLastUploadedTransactions")
+            UserDefaults.standard.set(newValue, forKey: "ApphudLastUploadedTransactionsSK2")
         }
     }
 
@@ -284,6 +296,11 @@ final class ApphudInternal: NSObject {
         if httpClient == nil {
             ApphudStoreKitWrapper.shared.setupObserver()
             httpClient = ApphudHttpClient.shared
+            if #available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *) {
+                // Start Transaction.updates and PurchaseIntent listeners with the SDK,
+                // not lazily — purchase intents must be caught from launch.
+                ApphudAsyncStoreKit.shared.startObserving()
+            }
         }
 
         httpClient!.apiKey = apiKey
@@ -441,11 +458,15 @@ final class ApphudInternal: NSObject {
 
     @MainActor
     private func scheduleUserRegistering(errorCode: Int) {
+        // Registration will not be retried: release everything waiting on it, otherwise
+        // callers that allow failure (a transaction submission, for one) wait forever.
         guard httpClient != nil, httpClient!.canRetry else {
+            performAllUserFailedBlocks()
             return
         }
         guard willRetryUserRegistration() else {
             apphudLog("Reached max number of user register retries \(userRegisterRetries.count). Exiting..", forceDisplay: true)
+            performAllUserFailedBlocks()
             return
         }
 
@@ -574,6 +595,10 @@ final class ApphudInternal: NSObject {
         // detach to call in the next run loop
         Task.detached { @MainActor in
             if self.currentUser != nil {
+                callback()
+            } else if allowFailure, let client = self.httpClient, !client.canRetry {
+                // Registration will never be retried (invalid API key / unauthorized):
+                // a failure-tolerant caller must not wait forever.
                 callback()
             } else {
                 if self.userRegisterRetries.count >= self.maxNumberOfUserRegisterRetries {
@@ -746,17 +771,29 @@ final class ApphudInternal: NSObject {
             currentUser = nil
             isPremium = false
             hasActiveSubscription = false
+            // Answer everyone still waiting before clearing: a dropped callback leaves
+            // its awaiting continuation (a purchase call, for one) suspended forever.
+            let logoutError = ApphudError(message: "Apphud SDK was logged out")
+            userRegisteredCallbacks.forEach { tuple in
+                if tuple.allowFailure { tuple.block() }
+            }
             userRegisteredCallbacks.removeAll()
+            storeKitProductsFetchedCallbacks.forEach { $0(logoutError) }
             storeKitProductsFetchedCallbacks.removeAll()
+            submitReceiptCallbacks.forEach { $0?(logoutError) }
             submitReceiptCallbacks.removeAll()
             lastUploadedTransactions = []
+            submittingTransaction = nil
+            // Answer and clear in the same main-actor step: doing it outside would run
+            // on a background executor and could race a drain-scheduled invocation
+            // into calling the host's completion twice.
+            restorePurchasesCallback?(nil, nil, logoutError)
+            restorePurchasesCallback = nil
         }
 
         didPreparePaywalls = false
 
         submitReceiptRetries = (0, 0)
-        restorePurchasesCallback = nil
-        submittingTransaction = nil
         lastUploadedPaywallEvent.removeAll()
         lastUploadedPaywallEventDate = nil
         reinstallTracked = false
