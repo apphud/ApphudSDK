@@ -358,10 +358,43 @@ class ApphudScreenController: UIViewController {
 
     internal func purchaseProduct(productID: String?, offerID: String?) {
 
-        guard let product = ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == productID}) else {
-            apphudLog("Aborting purchase because couldn't find product with id: \(productID ?? "")", forceDisplay: true)
+        guard let productID else {
+            apphudLog("Aborting purchase because product id is missing", forceDisplay: true)
             return
         }
+
+        // The SK1 products cache is filled by a best-effort background feeder now, so the
+        // product may not be there yet — fetch it once on demand instead of aborting.
+        // The fetched product is used directly: the cache is not written by this fetch,
+        // so re-entering through it would loop forever.
+        guard let product = ApphudStoreKitWrapper.shared.products.first(where: {$0.productIdentifier == productID}) else {
+            if isPurchasing { return }
+            isPurchasing = true
+            self.startLoading()
+            Task { @MainActor [weak self] in
+                let fetched = await ApphudStoreKitWrapper.shared.fetchProduct(productID)
+                guard let self else { return }
+                // Hand the loading state over to startPurchase without a visible flicker.
+                self.isPurchasing = false
+                guard self.view.window != nil else {
+                    self.stopLoading()
+                    return // screen was closed meanwhile
+                }
+                if let fetched {
+                    self.startPurchase(product: fetched, offerID: offerID)
+                } else {
+                    self.stopLoading()
+                    apphudLog("Aborting purchase because couldn't find product with id: \(productID)", forceDisplay: true)
+                    ApphudInternal.shared.uiDelegate?.apphudDidFailPurchase?(productId: productID, offerID: offerID, error: ApphudError(message: "Product not found: \(productID)"), screenName: self.rule.screen_name)
+                }
+            }
+            return
+        }
+
+        startPurchase(product: product, offerID: offerID)
+    }
+
+    private func startPurchase(product: SKProduct, offerID: String?) {
 
         if offerID != nil && offerID!.count > 0 {
                 if product.discounts.first(where: {$0.identifier == offerID!}) != nil {
@@ -371,12 +404,18 @@ class ApphudScreenController: UIViewController {
                     self.startLoading()
 
                     ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(product: product, offerID: offerID!, screenName: self.rule.screen_name)
+                    ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(productId: product.productIdentifier, offerID: offerID!, screenName: self.rule.screen_name)
 
-                    ApphudInternal.shared.purchasePromo(skProduct: product, apphudProduct: nil, discountID: offerID!, fromScreen: true) { (result) in
+                    ApphudInternal.shared.purchasePromo(productId: product.productIdentifier, apphudProduct: nil, discountID: offerID!, fromScreen: true) { (result) in
                         self.handlePurchaseResult(product: product, offerID: offerID!, result: result)
                     }
                 } else {
+                    // isPurchasing was never set on this path — clearing it here could
+                    // drop the double-purchase guard of a concurrent in-flight purchase.
+                    stopLoading()
                     apphudLog("Aborting purchase because couldn't find promo offer with id: \(offerID!) in product: \(product.productIdentifier), available promo offer ids: \(product.apphudPromoIdentifiers())", forceDisplay: true)
+                    ApphudInternal.shared.uiDelegate?.apphudDidFailPurchase?(product: product, offerID: offerID, errorCode: .storeProductNotAvailable, screenName: self.rule.screen_name)
+                    ApphudInternal.shared.uiDelegate?.apphudDidFailPurchase?(productId: product.productIdentifier, offerID: offerID, error: ApphudError(message: "Promo offer not found: \(offerID ?? "")"), screenName: self.rule.screen_name)
                 }
         } else {
 
@@ -385,6 +424,7 @@ class ApphudScreenController: UIViewController {
             self.startLoading()
 
             ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(product: product, offerID: nil, screenName: self.rule.screen_name)
+            ApphudInternal.shared.uiDelegate?.apphudWillPurchase?(productId: product.productIdentifier, offerID: nil, screenName: self.rule.screen_name)
 
             ApphudInternal.shared.purchase(productId: product.productIdentifier, product: nil, validate: true, purchasingFromScreen: true) { result in
                 self.handlePurchaseResult(product: product, result: result)

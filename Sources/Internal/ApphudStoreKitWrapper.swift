@@ -13,7 +13,9 @@ internal typealias ApphudStoreKitProductsCallback = ([SKProduct], Error?) -> Voi
 private typealias ApphudStoreKitFetcherCallback = ([SKProduct], Error?, ApphudProductsFetcher) -> Void
 internal typealias ApphudTransactionCallback = (SKPaymentTransaction, Error?) -> Void
 
+@available(*, deprecated, message: "SDK purchases run on StoreKit 2 and no longer post SKPaymentTransaction notifications for them. Observer-mode (foreign SK1) transactions still post this.")
 public let _ApphudWillFinishTransactionNotification = Notification.Name(rawValue: "ApphudWillFinishTransactionNotification")
+@available(*, deprecated, message: "SDK purchases run on StoreKit 2 and no longer post SKPaymentTransaction notifications for them. Observer-mode (foreign SK1) transactions still post this.")
 public let _ApphudDidFinishTransactionNotification = Notification.Name(rawValue: "ApphudDidFinishTransactionNotification")
 
 enum ApphudStoreKitProductsFetchStatus {
@@ -46,18 +48,76 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     fileprivate var fetchers = ApphudSafeSet<ApphudProductsFetcher>()
 
-    private var refreshReceiptCallback: (() -> Void)?
-    private var paymentCallback: ApphudTransactionCallback?
-
-    var purchasingProductID: String?
     var purchasingValue: ApphudCustomPurchaseValue?
     private(set) var isPurchasing: Bool = false
 
-    internal var loadingAll: Bool = false
-
-    private var refreshRequest: SKReceiptRefreshRequest?
-
     internal var productsLoadTime: TimeInterval = 0.0
+
+    // Master-parity receipt refreshing (see appStoreReceipt()). Callers can overlap
+    // (two Transaction.updates deliveries, a restore during a purchase) and each one
+    // awaits a continuation that must resume exactly once, so callbacks queue up
+    // behind a single in-flight request instead of overwriting each other.
+    private var refreshReceiptCallbacks: [() -> Void] = []
+    private var refreshRequest: SKReceiptRefreshRequest?
+    private var refreshWatchdog: DispatchWorkItem?
+    /// StoreKit occasionally never calls back (no network, storekitd wedged). Waiting
+    /// callers are released after this bound and proceed without a receipt — a stuck
+    /// request must not block every later submission for the life of the process.
+    internal var receiptRefreshTimeout: TimeInterval = 15
+    /// Test seam: unit tests hand in a request whose `start()` never reaches StoreKit.
+    internal var makeReceiptRefreshRequest: () -> SKReceiptRefreshRequest = { SKReceiptRefreshRequest() }
+
+    func refreshReceipt(_ callback: (() -> Void)?) {
+        DispatchQueue.main.async {
+            if let callback {
+                self.refreshReceiptCallbacks.append(callback)
+            }
+            // A refresh is already running: this caller is served by its completion.
+            guard self.refreshRequest == nil else { return }
+            let request = self.makeReceiptRefreshRequest()
+            self.refreshRequest = request
+            request.delegate = self
+            request.start()
+
+            let watchdog = DispatchWorkItem { [weak self, weak request] in
+                guard let request else { return }
+                self?.completeReceiptRefresh(request)
+            }
+            self.refreshWatchdog = watchdog
+            DispatchQueue.main.asyncAfter(deadline: .now() + self.receiptRefreshTimeout, execute: watchdog)
+        }
+    }
+
+    /// Every completion — finished, failed or timed out — releases all waiting callers.
+    /// Master parity: a failed refresh never blocks the submission, the caller re-reads
+    /// the (possibly still missing) receipt and proceeds.
+    private func completeReceiptRefresh(_ request: SKRequest) {
+        DispatchQueue.main.async {
+            // Only the request in flight may release the waiting callers.
+            guard request === self.refreshRequest else { return }
+            request.cancel()
+            self.refreshWatchdog?.cancel()
+            self.refreshWatchdog = nil
+            self.refreshRequest = nil
+            let callbacks = self.refreshReceiptCallbacks
+            self.refreshReceiptCallbacks.removeAll()
+            callbacks.forEach { $0() }
+        }
+    }
+
+    // MARK: - SKRequestDelegate (receipt refresh)
+
+    func requestDidFinish(_ request: SKRequest) {
+        if request is SKReceiptRefreshRequest {
+            completeReceiptRefresh(request)
+        }
+    }
+
+    func request(_ request: SKRequest, didFailWithError error: Error) {
+        if request is SKReceiptRefreshRequest {
+            completeReceiptRefresh(request)
+        }
+    }
 
     func setupObserver() {
         SKPaymentQueue.default().add(self)
@@ -65,13 +125,6 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     func enableSwizzle() {
         SKPaymentQueue.doSwizzle()
-    }
-
-    func restoreTransactions() {
-
-        Task { @MainActor in
-            SKPaymentQueue.default().restoreCompletedTransactions()
-        }
     }
 
     func latestError() -> Error? {
@@ -87,38 +140,30 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         }
     }
 
-    func refreshReceipt(_ callback: (() -> Void)?) {
-        refreshReceiptCallback = callback
-        refreshRequest = SKReceiptRefreshRequest()
-        refreshRequest?.delegate = self
-        refreshRequest?.start()
-    }
-
-    func fetchAllProducts(identifiers: Set<String>) async -> ([SKProduct], ApphudError?) {
-        loadingAll = true
-        apphudLog("Started Fetching All Products")
-        self.status = .loading
+    /// Feeder fetch: populates the SKProduct cache (public `ApphudProduct.skProduct`)
+    /// without driving the products fetch status — paywall readiness is keyed to the
+    /// StoreKit 2 fetch and must not depend on this request.
+    func fetchAllProductsFeeder(identifiers: Set<String>) async {
+        guard identifiers.count > 0 else { return }
 
         let fetcher = ApphudProductsFetcher()
         fetchers.insert(fetcher)
 
-        return await withUnsafeContinuation { continuation in
-            fetcher.fetchStoreKitProducts(identifiers: identifiers) { products, error, ftchr in
+        await withUnsafeContinuation { (continuation: UnsafeContinuation<Void, Never>) in
+            fetcher.fetchStoreKitProducts(identifiers: identifiers) { products, _, ftchr in
                 let existingIDS = self.products.map { $0.productIdentifier }
                 let uniqueProducts = products.filter { !existingIDS.contains($0.productIdentifier) }
                 var newProducts = self.products
                 newProducts.append(contentsOf: uniqueProducts)
                 self.products = newProducts
-                var aphError: ApphudError?
-                if let error = error {
-                    aphError = ApphudError(error: error)
-                }
-
-                self.status = newProducts.count > 0 ? .fetched : .error(aphError)
                 self.fetchers.remove(ftchr)
-                self.loadingAll = false
-                continuation.resume(returning: (products, aphError))
+                continuation.resume()
             }
+        }
+
+        // Re-associate skProduct on paywalls/placements once the feeder delivers.
+        await MainActor.run {
+            ApphudInternal.shared.updatePaywallsAndPlacements()
         }
     }
 
@@ -174,33 +219,10 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         }
     }
 
-    func purchase(product: SKProduct, value: Double? = nil, callback: @escaping ApphudTransactionCallback) {
-        ApphudUtils.shared.storeKitObserverMode = false
-        let payment = SKMutablePayment(product: product)
-        purchase(payment: payment, value: value, callback: callback)
-    }
-
-    func purchase(product: SKProduct, discount: SKPaymentDiscount, callback: @escaping ApphudTransactionCallback) {
-        ApphudUtils.shared.storeKitObserverMode = false
-        let payment = SKMutablePayment(product: product)
-        payment.paymentDiscount = discount
-        purchase(payment: payment, callback: callback)
-    }
-
-    func purchase(payment: SKPayment, value: Double? = nil, callback: @escaping ApphudTransactionCallback) {
-        finishCompletedTransactions(for: payment.productIdentifier)
-        paymentCallback = callback
-        purchasingProductID = payment.productIdentifier
-        if let v = value {
-            purchasingValue = ApphudCustomPurchaseValue(payment.productIdentifier, v)
-        } else {
-            purchasingValue = nil
-        }
-        apphudLog("Starting payment for \(payment.productIdentifier), transactions in queue: \(SKPaymentQueue.default().transactions)")
-        SKPaymentQueue.default().add(payment)
-    }
-
     // MARK: - SKPaymentTransactionObserver
+    // The observer no longer initiates purchases (all SDK purchases go through
+    // StoreKit 2). It exists to track purchases made by the host app's own
+    // StoreKit 1 code (observer mode) and legacy twins of SK2 transactions.
 
     func paymentQueue(_ queue: SKPaymentQueue, updatedTransactions transactions: [SKPaymentTransaction]) {
         Task { @MainActor in
@@ -220,7 +242,15 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
                         apphudLog("Payment is in purchasing state \(trx.payment.productIdentifier) for username: \(trx.payment.applicationUsername ?? "")")
                     }
 
-                    if self.purchasingProductID == nil && ApphudUtils.shared.storeKitObserverMode == false {
+                    // StoreKit 2 purchases made by the SDK also surface in the legacy
+                    // payment queue, so observer mode must only be force-enabled when
+                    // the SDK itself is not purchasing right now.
+                    var sdkIsPurchasing = false
+                    if #available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *) {
+                        sdkIsPurchasing = ApphudAsyncStoreKit.shared.isPurchasing
+                    }
+
+                    if !sdkIsPurchasing && ApphudUtils.shared.storeKitObserverMode == false {
                         apphudLog("Seems like Observer Mode is False however purchase is not being made through Apphud SDK. Please make sure you set ObserverMode to True when initialising Apphud SDK. As for now, force enabling observer mode..", logLevel: .off)
                         ApphudUtils.shared.storeKitObserverMode = true
                     }
@@ -233,16 +263,22 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
                      Will not finish transaction, because we didn't start it. Developer should finish transaction manually.
                      */
                     self.isPurchasing = false
-                    ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: true, transaction: trx.original ?? trx)
+                    ApphudInternal.shared.submitReceiptRestore(transaction: trx.original ?? trx)
                     if !ApphudUtils.shared.storeKitObserverMode {
-                        // force finish transaction
-                        self.finishTransaction(trx)
+                        // force finish transaction; not ours, so the custom value of a
+                        // purchase in flight must survive it
+                        self.finishTransaction(trx, clearsPurchasingValue: false)
                     }
                 case .deferred:
                     self.isPurchasing = false
                     self.handleDeferredTransaction(trx)
                     default:
                     self.isPurchasing = false
+                }
+
+                // A transaction check deferred while this purchase was in flight runs now.
+                if !self.isPurchasing {
+                    ApphudInternal.shared.runDeferredTransactionCheckIfNeeded()
                 }
             }
         }
@@ -252,51 +288,71 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         ApphudInternal.shared.delegate?.handleDeferredTransaction(transaction: transaction)
     }
 
+    @MainActor
     private func handleTransactionIfStarted(_ transaction: SKPaymentTransaction) {
+
+        // A failed transaction has no owner left to finish it now that the SK1 purchase
+        // path is gone; left unfinished, StoreKit redelivers it on every launch. Handled
+        // before the in-flight check so a failure arriving during an SDK purchase is not
+        // skipped. Observer mode: the host finishes it, like every other state here.
+        // The transaction is never the SDK's own purchase, so the custom value of a
+        // purchase in flight must survive it.
+        if transaction.transactionState == .failed {
+            if transaction.failedWithUnknownReason {
+                ApphudInternal.shared.setNeedToCheckTransactions()
+            }
+            if !ApphudUtils.shared.storeKitObserverMode {
+                finishTransaction(transaction, clearsPurchasingValue: false)
+            }
+            return
+        }
 
         if #available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *), ApphudAsyncStoreKit.shared.isPurchasing {
             return
         }
 
-        if transaction.payment.productIdentifier == self.purchasingProductID {
-            if self.paymentCallback != nil {
-                self.paymentCallback?(transaction, transaction.error)
-            } else {
-                finishTransaction(transaction)
-            }
-            self.paymentCallback = nil
-        } else {
-            if transaction.transactionState == .purchased {
-                ApphudInternal.shared.submitReceiptAutomaticPurchaseTracking(transaction: transaction) { result in
-                    if let finish = ApphudInternal.shared.delegate?.apphudDidObservePurchase(result: result), finish == true {
-                        self.finishTransaction(transaction)
-                    } else if ApphudUtils.shared.storeKitObserverMode == false && result.success {
-                        self.finishTransaction(transaction)
-                    }
+        if transaction.transactionState == .purchased {
+            if let trxId = transaction.transactionIdentifier, let trxIdInt = UInt64(trxId) {
+                // A StoreKit 2 submission for this transaction is still in flight: its
+                // owner decides whether it may be finished, so leave it alone and
+                // re-check afterwards.
+                if #available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *),
+                   ApphudAsyncStoreKit.isProcessing(transactionID: trxIdInt) {
+                    ApphudInternal.shared.setNeedToCheckTransactions()
+                    return
                 }
-            } else if transaction.failedWithUnknownReason {
-                ApphudInternal.shared.setNeedToCheckTransactions()
+
+                // Legacy queue twin of a transaction the backend already acknowledged via
+                // StoreKit 2. In observer mode the host owns finishing it, exactly like
+                // the other finish sites in this file.
+                if ApphudInternal.shared.lastUploadedTransactions.contains(trxIdInt) {
+                    if !ApphudUtils.shared.storeKitObserverMode {
+                        finishTransaction(transaction)
+                    }
+                    return
+                }
+            }
+
+            ApphudInternal.shared.submitReceiptAutomaticPurchaseTracking(transaction: transaction) { result in
+                if let finish = ApphudInternal.shared.delegate?.apphudDidObservePurchase(result: result), finish == true {
+                    self.finishTransaction(transaction)
+                } else if ApphudUtils.shared.storeKitObserverMode == false && result.success {
+                    self.finishTransaction(transaction)
+                }
             }
         }
     }
 
-    private func finishCompletedTransactions(for productIdentifier: String) {
-        let transactionsCopy = SKPaymentQueue.default().transactions
-
-        transactionsCopy
-            .filter { $0.payment.productIdentifier == productIdentifier && $0.finishable }
-            .forEach { transaction in finishTransaction(transaction) }
-    }
-
-    internal func finishTransaction(_ transaction: SKPaymentTransaction) {
+    internal func finishTransaction(_ transaction: SKPaymentTransaction, clearsPurchasingValue: Bool = true) {
         apphudLog("Finish Transaction: \(transaction.payment.productIdentifier), state: \(transaction.transactionState.rawValue), id: \(transaction.transactionIdentifier ?? "")")
         NotificationCenter.default.post(name: _ApphudWillFinishTransactionNotification, object: transaction)
 
         if transaction.transactionState != .purchasing {
             SKPaymentQueue.default().finishTransaction(transaction)
         }
-        self.purchasingProductID = nil
-        self.purchasingValue = nil
+        if clearsPurchasingValue {
+            self.purchasingValue = nil
+        }
     }
 
     func paymentQueue(_ queue: SKPaymentQueue, removedTransactions transactions: [SKPaymentTransaction]) {
@@ -307,53 +363,10 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         }
     }
 
-    #if os(iOS) && !targetEnvironment(macCatalyst)
-    func paymentQueue(_ queue: SKPaymentQueue, shouldAddStorePayment payment: SKPayment, for product: SKProduct) -> Bool {
-
-        DispatchQueue.main.async {
-            if let callback = ApphudInternal.shared.delegate?.apphudShouldStartAppStoreDirectPurchase(product) {
-                ApphudInternal.shared.purchase(productId: product.productIdentifier, product: nil, validate: true, purchasingFromScreen: false, callback: callback)
-            }
-        }
-
-        return false
-    }
-    #endif
-
-    // MARK: - SKRequestDelegate
-
-    func requestDidFinish(_ request: SKRequest) {
-        if request is SKReceiptRefreshRequest {
-            DispatchQueue.main.async {
-                if self.refreshReceiptCallback != nil {
-                    self.refreshReceiptCallback?()
-                    self.refreshReceiptCallback = nil
-                } else {
-                    ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: false, transaction: nil)
-                }
-            }
-            request.cancel()
-            self.refreshRequest = nil
-        }
-    }
-
-    /**
-     Try to restore even if refresh receipt failed. Current receipt (unrefreshed) will be sent instead.
-     */
-    func request(_ request: SKRequest, didFailWithError error: Error) {
-        if request is SKReceiptRefreshRequest {
-            DispatchQueue.main.async {
-                if self.refreshReceiptCallback != nil {
-                    self.refreshReceiptCallback?()
-                    self.refreshReceiptCallback = nil
-                } else {
-                    ApphudInternal.shared.submitReceiptRestore(allowsReceiptRefresh: false, transaction: nil)
-                }
-            }
-            request.cancel()
-            self.refreshRequest = nil
-        }
-    }
+    // Promoted in-app purchases are handled via StoreKit 2 PurchaseIntent.intents
+    // (see ApphudPurchaseIntentsObserver). Per Apple's documentation, an app must not
+    // use both PurchaseIntent and paymentQueue(_:shouldAddStorePayment:for:) at the
+    // same time, so the SK1 handler was removed with the StoreKit 2 migration.
 
     func presentOfferCodeSheet() {
         if #available(iOS 14.0, *) {

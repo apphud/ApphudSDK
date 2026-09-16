@@ -153,12 +153,23 @@ public class ApphudHttpClient {
     internal var unauthorized: Bool = false
     internal var suspended: Bool = false
 
+    // Test seam: when set BEFORE the first access to `shared`, all SDK traffic is routed
+    // through a session built from this configuration (lets tests intercept requests via
+    // URLProtocol stubs). Always nil in production.
+    internal static var testURLSessionConfiguration: URLSessionConfiguration?
+
     private let session: URLSession = {
-        let config = URLSessionConfiguration.default
+        let config = ApphudHttpClient.testURLSessionConfiguration ?? URLSessionConfiguration.default
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
         config.urlCache = nil
         return URLSession.init(configuration: config)
     }()
+
+    // Async requests go through URLSession.shared in production; the test seam redirects
+    // them to the stubbed session because URLProtocol classes don't apply to `shared`.
+    private var asyncSession: URLSession {
+        ApphudHttpClient.testURLSessionConfiguration == nil ? URLSession.shared : session
+    }
 
     private let GET_TIMEOUT: TimeInterval = 7.0
     public var POST_CUSTOMERS_TIMEOUT: TimeInterval = 7.0
@@ -182,7 +193,16 @@ public class ApphudHttpClient {
 
         let timeout = path == .customers ? POST_CUSTOMERS_TIMEOUT : nil
 
-        if let request = makeRequest(path: path.value, apiVersion: apiVersion, params: params, method: method, defaultTimeout: timeout, requestID: requestID), !suspended {
+        guard !suspended else {
+            let message = "Unable to perform API requests, because your account has been suspended."
+            apphudLog(message, forceDisplay: true)
+            Task { @MainActor in
+                callback?(false, nil, nil, ApphudError(message: message), NSURLErrorUnknown, 0, 0)
+            }
+            return
+        }
+
+        if let request = makeRequest(path: path.value, apiVersion: apiVersion, params: params, method: method, defaultTimeout: timeout, requestID: requestID) {
             Task(priority: .userInitiated) {
 
                 let retries: Int
@@ -203,7 +223,13 @@ public class ApphudHttpClient {
                 }
             }
         } else {
-            apphudLog("Unable to perform API requests, because your account has been suspended.", forceDisplay: true)
+            let message = "Failed to build request for \(path.value)"
+            apphudLog(message, forceDisplay: true)
+            // Always answer the caller: a dropped callback leaves whoever awaits it —
+            // a transaction submission, for one — waiting forever.
+            Task { @MainActor in
+                callback?(false, nil, nil, ApphudError(message: message), NSURLErrorUnknown, 0, 0)
+            }
         }
     }
 
@@ -386,9 +412,9 @@ public class ApphudHttpClient {
         do {
             let result: (Data, URLResponse, Int)
             if retries > 0 {
-                result = try await URLSession.shared.data(for: request, retries: retries, delay: delay)
+                result = try await asyncSession.data(for: request, retries: retries, delay: delay)
             } else {
-                let resp = try await URLSession.shared.data(for: request)
+                let resp = try await asyncSession.data(for: request)
                 result = (resp.0, resp.1, 1)
             }
 
@@ -475,13 +501,15 @@ public class ApphudHttpClient {
         }
     }
 
-    private func parseError(_ dictionary: [String: Any]) -> Error? {
+    private func parseError(_ dictionary: [String: Any]) -> Error {
         if let errors = dictionary["errors"] as? [[String: Any]], let errorDict = errors.first, let errorMessage = errorDict["title"] as? String {
             let idString = errorDict["id"] as? String
 
             return ApphudError(message: (idString ?? "") + " " + errorMessage)
         } else {
-            return nil
+            // A failure must never surface as a nil error: callers treat a nil error
+            // as backend acknowledgement and may finish a paid transaction on it.
+            return ApphudError(message: "HTTP Request Failed", code: 422)
         }
     }
 }

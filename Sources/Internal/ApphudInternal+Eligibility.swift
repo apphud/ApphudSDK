@@ -11,6 +11,60 @@ import StoreKit
 
 extension ApphudInternal {
 
+    // MARK: - StoreKit 2 eligibility by product identifiers
+
+    @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
+    internal func checkIntroEligibilitiesSK2(productIds: [String]) async -> [String: Bool] {
+        var response = [String: Bool]()
+        for id in productIds {
+            response[id] = true // can purchase intro by default
+            if let product = try? await ApphudAsyncStoreKit.shared.fetchProduct(id) {
+                if let subscription = product.subscription {
+                    // A product with no introductory offer configured cannot be eligible
+                    // for one, regardless of the subscription group's history.
+                    if subscription.introductoryOffer == nil {
+                        response[id] = false
+                    } else {
+                        response[id] = await subscription.isEligibleForIntroOffer
+                    }
+                } else {
+                    response[id] = false // not a subscription
+                }
+            }
+        }
+        return response
+    }
+
+    @available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *)
+    internal func checkPromoEligibilitiesSK2(productIds: [String]) async -> [String: Bool] {
+        var response = [String: Bool]()
+
+        // Collect subscription group ids of all products the user ever transacted with.
+        var purchasedGroupIds = Set<String>()
+        for await result in StoreKit.Transaction.all {
+            if case .verified(let transaction) = result,
+               let product = try? await ApphudAsyncStoreKit.shared.fetchProduct(transaction.productID),
+               let groupId = product.subscription?.subscriptionGroupID {
+                purchasedGroupIds.insert(groupId)
+            }
+        }
+
+        let userSubscriptionIds = await Set((currentUser?.subscriptions ?? []).map { $0.productId })
+
+        for id in productIds {
+            if userSubscriptionIds.contains(id) {
+                response[id] = true
+                continue
+            }
+            response[id] = false // cannot purchase offer by default
+            if let product = try? await ApphudAsyncStoreKit.shared.fetchProduct(id),
+               let groupId = product.subscription?.subscriptionGroupID {
+                response[id] = purchasedGroupIds.contains(groupId)
+            }
+        }
+        return response
+    }
+
     // MARK: - Eligibilities API
 
     internal func checkEligibilitiesForPromotionalOffers(products: [SKProduct], callback: @escaping ApphudEligibilityCallback) {
@@ -18,9 +72,6 @@ extension ApphudInternal {
         performWhenUserRegistered(allowFailure: true) {
             apphudLog("User registered, check promo eligibility")
 
-            let didSendReceiptForPromoEligibility = "ReceiptForPromoSent"
-
-            // not found subscriptions, try to restore and try again
             if self.currentUser == nil {
                 apphudLog("Failed to register user, aborting Promo eligibility checks.", forceDisplay: true)
                 var response = [String: Bool]()
@@ -28,26 +79,8 @@ extension ApphudInternal {
                     response[product.productIdentifier] = false // cannot purchase offer by default
                 }
                 callback(response)
-            } else if self.currentUser?.subscriptions.count ?? 0 == 0 && !UserDefaults.standard.bool(forKey: didSendReceiptForPromoEligibility) {
-                if let receiptString = apphudReceiptDataString() {
-                    apphudLog("Restoring subscriptions for promo eligibility check")
-                    self.submitReceipt(product: nil, apphudProduct: nil, transaction: nil, receiptString: receiptString, notifyDelegate: true, eligibilityCheck: true, fromScreen: false, callback: { _ in
-                        UserDefaults.standard.set(true, forKey: didSendReceiptForPromoEligibility)
-                        Task {
-                            let response = await self._checkPromoEligibilitiesForRegisteredUser(products: products)
-                            apphudPerformOnMainThread { callback(response) }
-                        }
-                    })
-                } else {
-                    apphudLog("Receipt not found on device, impossible to determine eligibility. This is probably missing sandbox receipt issue. This should never not happen on production, because there receipt always exists. For more information see: https://docs.apphud.com/docs/testing-troubleshooting. Exiting", forceDisplay: true)
-                    var response = [String: Bool]()
-                    for product in products {
-                        response[product.productIdentifier] = false // cannot purchase offer by default
-                    }
-                    callback(response)
-                }
             } else {
-                apphudLog("Has purchased subscriptions or has checked receipt for promo eligibility")
+                // StoreKit 2 checks the transaction history locally — no receipt upload needed.
                 Task {
                     let response = await self._checkPromoEligibilitiesForRegisteredUser(products: products)
                     apphudPerformOnMainThread { callback(response) }
@@ -93,9 +126,6 @@ extension ApphudInternal {
         performWhenUserRegistered(allowFailure: true) {
             apphudLog("User registered, check intro eligibility")
 
-            // not found subscriptions, try to restore and try again
-
-            let didSendReceiptForIntroEligibility = "ReceiptForIntroSent"
             if self.currentUser == nil {
                 apphudLog("Failed to register user, aborting Intro eligibility checks.", forceDisplay: true)
                 var response = [String: Bool]()
@@ -103,28 +133,8 @@ extension ApphudInternal {
                     response[product.productIdentifier] = true // can purchase intro by default
                 }
                 callback(response)
-            } else if self.currentUser?.subscriptions.count ?? 0 == 0 && !UserDefaults.standard.bool(forKey: didSendReceiptForIntroEligibility) {
-                if let receiptString = apphudReceiptDataString() {
-                    apphudLog("Restoring subscriptions for intro eligibility check")
-                    self.submitReceipt(product: nil, apphudProduct: nil, transaction: nil, receiptString: receiptString, notifyDelegate: true, eligibilityCheck: true, fromScreen: false, callback: { _ in
-                        UserDefaults.standard.set(true, forKey: didSendReceiptForIntroEligibility)
-                        Task {
-                            let response = await self._checkIntroEligibilitiesForRegisteredUser(products: products)
-                            apphudPerformOnMainThread {
-                                callback(response)
-                            }
-                        }
-                    })
-                } else {
-                    apphudLog("Receipt not found on device, impossible to determine eligibility. This is probably missing sandbox receipt issue. This should never not happen on production, because there receipt always exists. For more information see: https://docs.apphud.com/docs/testing-troubleshooting. Exiting", forceDisplay: true)
-                    var response = [String: Bool]()
-                    for product in products {
-                        response[product.productIdentifier] = true // can purchase intro by default
-                    }
-                    callback(response)
-                }
             } else {
-                apphudLog("Has purchased subscriptions or has checked receipt for intro eligibility")
+                // StoreKit 2 answers intro eligibility locally — no receipt upload needed.
                 Task {
                     let response = await self._checkIntroEligibilitiesForRegisteredUser(products: products)
                     apphudPerformOnMainThread {
@@ -145,7 +155,13 @@ extension ApphudInternal {
         for product in products {
             if #available(iOS 15.0, macOS 12.0, watchOS 8.0, tvOS 15.0, *) {
                 if let productStruct = try? await ApphudAsyncStoreKit.shared.fetchProduct(product.productIdentifier), let sub = productStruct.subscription {
-                    response[product.productIdentifier] = await sub.isEligibleForIntroOffer
+                    // Same guard as the productIds-based API: no configured intro offer
+                    // means not eligible, regardless of subscription-group history.
+                    if sub.introductoryOffer == nil {
+                        response[product.productIdentifier] = false
+                    } else {
+                        response[product.productIdentifier] = await sub.isEligibleForIntroOffer
+                    }
                 }
             } else if let sub = await currentUser?.subscriptions.first(where: { $0.productId == product.productIdentifier }) {
                 let eligible = !sub.isIntroductoryActivated

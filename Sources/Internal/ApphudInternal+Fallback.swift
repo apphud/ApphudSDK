@@ -77,6 +77,37 @@ extension ApphudInternal {
         }
     }
 
+    /// Fallback-mode stub keyed by product id: prefers the StoreKit 2 product cache,
+    /// falls back to the SK1 products feeder.
+    @MainActor func stubPurchase(productId: String?) async -> HasPurchasesChanges {
+        guard let productId, !Apphud.hasPremiumAccess() else {
+            apphudLog("No need to stub purchase because already has premium access")
+            return HasPurchasesChanges(false, false)
+        }
+
+        if let product = await ApphudAsyncStoreKit.shared.products().first(where: { $0.id == productId }) {
+            if product.subscription != nil {
+                let subscription = ApphudSubscription(product: product)
+                self.currentUser = ApphudUser(userID: currentUserID, subscriptions: [subscription], paywalls: paywalls)
+                apphudLog("Creating stub subscription with 1 hour expiration..")
+                Task {
+                    await self.currentUser?.toCacheV2()
+                }
+                return HasPurchasesChanges(true, false)
+            } else {
+                let purchase = ApphudNonRenewingPurchase(product: product)
+                self.currentUser = ApphudUser(userID: currentUserID, purchases: [purchase], paywalls: paywalls)
+                Task {
+                    await self.currentUser?.toCacheV2()
+                }
+                return HasPurchasesChanges(false, true)
+            }
+        }
+
+        let skProduct = ApphudStoreKitWrapper.shared.products.first(where: { $0.productIdentifier == productId })
+        return stubPurchase(product: skProduct)
+    }
+
     @MainActor func stubPurchase(product: SKProduct?) -> HasPurchasesChanges {
         guard let product = product, !Apphud.hasPremiumAccess() else {
             apphudLog("No need to stub purchase because already has premium access")

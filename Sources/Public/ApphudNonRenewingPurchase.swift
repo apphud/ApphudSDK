@@ -128,6 +128,16 @@ public class ApphudNonRenewingPurchase: Codable {
         transactionId = "0"
     }
 
+    // StoreKit 2 counterpart of the stub initializer above (fallback mode).
+    internal init(product: Product) {
+        productId = product.id
+        purchasedAt = Date()
+        canceledAt = Date().addingTimeInterval(3600)
+        isSandbox = apphudIsSandbox()
+        isLocal = false
+        transactionId = "0"
+    }
+
     internal var stateDescription: String {
         [String(canceledAt?.timeIntervalSince1970 ?? 0), productId, String(purchasedAt.timeIntervalSince1970)].joined(separator: "|")
     }
