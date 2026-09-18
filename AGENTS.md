@@ -74,8 +74,11 @@ xcodebuild test -workspace Examples/ApphudDemoSwift/ApphudSDKDemo.xcworkspace \
   UserDefaults by `ApphudKeychain`; `logout()` blanks both and the next `start` mints a
   new device id. Read the Identity section of architecture.md before touching
   `identify`, `checkUserID`, `updateUserID` or `logout`.
-- **`ApphudUI/` and screen files are `#if os(iOS)`** — keep macOS/watchOS/tvOS/visionOS
-  compiling; do not add UIKit imports outside those guards.
+- **UIKit/WebKit code is compile-guarded** — `ApphudUI/` and
+  `Public/ApphudPaywallScreenController.swift` sit in `#if os(iOS)` (per-file details in
+  [agent_docs/structure.md](agent_docs/structure.md)); keep macOS/watchOS/tvOS/visionOS
+  compiling; do not add unguarded UIKit imports (an import above the `#if os(iOS)` body
+  goes behind `#if canImport(UIKit)`).
 - **Delegate protocols are source-compatible** — new `ApphudDelegate` methods need an
   empty default in the protocol extension; `ApphudUIDelegate` methods are `@objc optional`.
   Prefer `productId:` / `Product` parameters; the `SKProduct` variants are deprecated and

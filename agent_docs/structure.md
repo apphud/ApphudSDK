@@ -2,8 +2,16 @@
 
 One SPM target/CocoaPods pod (`ApphudSDK`) rooted at `Sources/`. The three folders
 under it are conventions inside a single module, not separate targets or products.
-Every file in `ApphudUI/` and the UI-related files in `Public/` are wrapped in
-`#if os(iOS)`; the rest compiles for iOS, macOS, tvOS, watchOS and visionOS.
+UIKit/WebKit code is compile-guarded: the body of every file in `ApphudUI/` is wrapped in
+`#if os(iOS)` (imports may sit above it, UIKit/WebKit/SafariServices ones behind
+`#if canImport(...)`) except `ApphudLoadingView.swift` (`#if canImport(UIKit) && !os(watchOS)`)
+and `ApphudPaywallView.swift` (`#if os(iOS)` with an `#else` placeholder `View` for the
+other platforms); in `Public/`, `ApphudPaywallScreenController.swift` is wrapped in
+`#if os(iOS)` and
+`ApphudUIDelegate.swift` guards only its UIKit import and its iOS-only methods.
+`ApphudRule.swift`, `ApphudRuleScreen.swift` and `ApphudPaywallScreen.swift` have no guard
+(they use no UIKit) and compile everywhere, like the rest: iOS, macOS, tvOS, watchOS and
+visionOS.
 
 ```
 Package.swift             # SPM: library product/target "ApphudSDK" (path Sources/) + test target
@@ -133,10 +141,13 @@ LICENSE                   # MIT
   `Examples/ApphudDemoSwift/ApphudSDKTests/` behind `ApphudStubURLProtocol` + `SKTestSession`.
 - **Delegate callback** — add to `ApphudDelegate` with an empty default in the protocol
   extension (host apps must keep compiling), or as `@objc optional` on `ApphudUIDelegate`.
-- **Rule/screen or paywall-screen UI** — `Sources/ApphudUI/`, wrapped in `#if os(iOS)`;
-  its public surface goes in `Public/ApphudPaywallScreenController.swift`.
+- **Rule/screen or paywall-screen UI** — `Sources/ApphudUI/`, with the UIKit/WebKit code
+  wrapped in `#if os(iOS)`; its public surface goes in
+  `Public/ApphudPaywallScreenController.swift`.
 - **Version bump** — `apphud_sdk_version` in `Public/Apphud.swift` and `s.version` in
-  `ApphudSDK.podspec` must match; the demo `Podfile.lock`s pin the same number.
+  `ApphudSDK.podspec` must match. The demo `Podfile.lock`s are not bumped with releases
+  (they still record an old `ApphudSDK` version), so do not
+  use them as a version reference.
 
 ## Naming
 
@@ -149,8 +160,11 @@ LICENSE                   # MIT
   for the screen coordinator, `*Controller` for view controllers, `*Service` for the
   logger, `*Tests` for XCTest cases; SK2 counterparts of `SKProduct` helpers keep the same
   `apphud*` name on `Product`.
-- Public constants are `APPHUD_UPPER_SNAKE`; UserDefaults keys are stored in
-  `*Key` properties or string literals colocated with their accessor.
-- JSON fields are snake_case on the wire and camelCase in Swift; the only `@objc`
-  snake_case public properties are on `ApphudRule`/`ApphudRuleScreen` (`rule_name`,
-  `screen_name`, `status_bar_color`).
+- Public constants are `APPHUD_UPPER_SNAKE`, except the `_ApphudCamelCase` ones: the
+  `_ApphudUserPropertyKey*` strings and the two `_Apphud*FinishTransactionNotification`
+  names; UserDefaults keys are stored in `*Key` properties or string literals colocated
+  with their accessor.
+- JSON fields are snake_case on the wire and camelCase in Swift; the only snake_case
+  public properties are on `ApphudRule` (`rule_name` and `screen_name`, both `@objc`;
+  `screen_id`, `paywall_id`, `paywall_identifier`) and on the `ApphudRuleScreen` struct
+  (`status_bar_color`, not `@objc`).
