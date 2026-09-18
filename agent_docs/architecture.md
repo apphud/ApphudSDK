@@ -8,7 +8,8 @@ payments, the payment swizzle, receipt refresh and the deprecated `SKProduct` su
 
 One SPM target (`ApphudSDK`, path `Sources/`) with three folders that are conventions,
 not modules: `Public/` (API surface + Codable models), `Internal/` (the engine),
-`ApphudUI/` (iOS-only web-view screens, every file wrapped in `#if os(iOS)`).
+`ApphudUI/` (iOS-only web-view screens behind `#if os(iOS)`; per-file guards are listed
+in structure.md).
 
 Everything hangs off singletons:
 
@@ -76,7 +77,7 @@ Apphud.start(apiKey:userID:observerMode:)                 // Public/Apphud.swift
       ├─> guard allowIdentifyUser (false after first start until logout())
       └─> identify(inputUserID:inputDeviceID:observerMode:)
           ├─> resolve deviceID / userID (see Identity)
-          ├─> currentUser = ApphudUser.fromCacheV2()      (Caches/ApphudUser, 90-day TTL)
+          ├─> currentUser = ApphudUser.fromCacheV2()      (Caches/ApphudUser; expiry is not checked)
           ├─> load cached paywalls / placements / groups  (Caches/Apphud{Paywalls,Placements,ProductGroups})
           ├─> fetchCurrencyIfNeeded()                      // Internal/ApphudInternal+Currency.swift
           └─> continueToRegisteringUser(skipRegistration:)
@@ -98,7 +99,9 @@ carries device params from `apphudCurrentDeviceiOSParameters()` (locale, time zo
 device model, os/app/sdk versions, idfa/idfv when set and not opted out), plus
 `device_id`, `is_debug`, `is_new`, `need_placements`, `opt_out`, `reinstall` (once),
 `first_seen` (Documents-folder creation date), `bundle_id`, storefront currency fields.
-`user_id` is sent only on the initial call, on `updateUserID`, and on web2web attribution.
+`user_id` is passed explicitly on the initial call, on `updateUserID` and on web2web
+attribution when the payload carries a user id; every other `updateUser` call adds `currentUser.userId` once a user exists, so
+only a non-initial call made before the first user load goes without it.
 HTTP 401 sets `invalidAPiKey`, 403 sets `unauthorized` + `suspended`; both stop retries.
 
 **`performWhenUserRegistered(allowFailure:callback:)`** is the gate every feature sits
@@ -143,12 +146,16 @@ Consequences worth knowing:
 
 - On a clean install with no `userID` passed, **userID == deviceID byte-for-byte**, and
   both are uppercase UUID strings (`NSUUID().uuidString`).
-- `inputDeviceID` overrides the stored device id but is never itself persisted unless the
-  stored one was nil — `saveDeviceID` runs only in the `deviceID == nil` branch.
+- `inputDeviceID` overrides the stored device id but is never persisted: the override runs
+  before the nil check, so `identify` only ever saves a generated id (the other
+  `saveDeviceID` caller, `resetValues`, writes `""`).
 - The user id is written to Keychain/UserDefaults only when it differs from what the
   Keychain already had (`isIdenticalUserIds` check in `identify`).
 - `currentCustomerID` mirrors `currentUser.internalId` (the backend `id`) and is added as
-  `customer_id` to every request body / query (`ApphudHttpClient.makeRequest`). It is
+  `customer_id` to request bodies / queries whenever it is non-empty
+  (`ApphudHttpClient.makeRequest`). It follows `currentUser`, including the cached user
+  loaded in `identify`, so requests made before any user is loaded — e.g. a `/customers`
+  call with no cached user — carry none. It is
   distinct from `userId`; `ApphudUser.internalId` is documented "should not be used in analytics".
 
 ### Server-driven changes (`checkUserID`, `+UserUpdate.swift`)
@@ -168,8 +175,8 @@ Waits for registration, no-ops if the id is unchanged, otherwise
 
 ### `logout()` (`ApphudInternal.swift`, `async`)
 
-Clears, in order: `ApphudDataActor` (AF/Adjust attribution caches, user-properties
-cache), Keychain + UserDefaults ids (`resetValues` writes `""` to both — **only if
+Clears, in order: `ApphudDataActor.clear()` (effectively the user-properties cache only —
+see "Not cleared"), Keychain + UserDefaults ids (`resetValues` writes `""` to both — **only if
 `canUseKeychain`**, otherwise nothing is reset), the cached user file (v2 and legacy),
 `currentUserID`/`currentDeviceID` = `""`, paywalls/placements caches and in-memory
 arrays, `currentUser`, premium flags, all pending callback arrays (each waiting callback
@@ -180,7 +187,10 @@ counters, attribution "submitted" flags, push token, `observerModePurchaseIdenti
 then `allowIdentifyUser = true`. **Not cleared:** `permissionGroups` and its cache
 (comment: "never change"), `ApphudReinstallFlag`, `lastUserUpdatedAt`,
 `requiresReceiptSubmissionKey`, `ApphudKnownProductTypes`, IDFA/IDFV
-`submittedDeviceIdentifiers`, `swizzlePaymentDisabledKey`, the `Transaction.updates` /
+`submittedDeviceIdentifiers`, `swizzlePaymentDisabledKey`, the AF/Adjust attribution cache
+files (`clear()` assigns nil, but the `submittedAFData` / `submittedAdjustData` setters ignore
+nil, so the cached payloads survive logout and are ignored only once older than 7 days),
+the `Transaction.updates` /
 `PurchaseIntent.intents` listeners, and the `ApphudDelegate`/`ApphudUIDelegate` references.
 
 The next `start` therefore behaves like a fresh install: `loadDeviceID()` returns nil
@@ -224,7 +234,7 @@ POST /v1/customers response → ApphudUser.paywalls / .placements (Codable)
               │     → Product.products(for:) into ApphudProductsStorage
               ├─> wrapper.status = .fetched / .error(lastError)  (keyed to the SK2 result)
               └─> handleDidFetchAllProducts(error:) → updatePaywallsAndPlacements()
-                  ├─> ApphudPaywall.update(placementId:) sets product.skProduct (if fed),
+                  ├─> ApphudPaywall.update(placementId:placementIdentifier:) sets product.skProduct (if fed),
                   │     paywallId/placementId/experimentId/variationIdentifier
                   └─> delegate.paywallsDidFullyLoad / placementsDidFullyLoad
 ```
@@ -233,7 +243,9 @@ The deprecated `SKProduct` callback API (`refreshStoreKitProductsWithCallback`) 
 `skProductsFeederTask` before returning `wrapper.products`.
 
 - `Apphud.placements()` / `fetchPlacements` / `preloadPaywallScreens` all go through
-  `fetchOfferingsFull(maxAttempts:)`, which waits for registration then for SKProducts.
+  `fetchOfferingsFull(maxAttempts:)`, which waits for registration then for the StoreKit 2
+  product fetch; only its `deferPlacements` branch (re-register, then
+  `refreshStoreKitProductsOnly`) also awaits the `SKProduct` feeder.
   `deferPlacements()` makes the initial `/customers` call send `need_placements: false`;
   the next `fetchOfferingsFull` re-registers with placements.
 - Permission groups come from `GET /v3/products` (`fetchPermissionGroups`), cached to
@@ -249,9 +261,14 @@ The deprecated `SKProduct` callback API (`refreshStoreKitProductsWithCallback`) 
   a best-effort side cache.
 - Fallback (`Internal/ApphudInternal+Fallback.swift`): when registration keeps failing
   (`serverIsUnreachable` and attempts ≥ max or > `APPHUD_MAX_INITIAL_LOAD_TIME` 10 s)
-  `executeFallback` synthesises an `ApphudUser(userID:)`, releases the registration
-  queue, and loads paywalls from cache or from `apphud_paywalls_fallback.json` in the
-  app bundle. In `fallbackMode` a failed transaction upload becomes
+  `executeFallback` runs. After a no-op exit when paywalls are already prepared and no
+  callback was passed, it requires `apphud_paywalls_fallback.json` in the app bundle:
+  without the file it returns (error to the callback) before setting `fallbackMode` or
+  creating a user. With it, it exits again if already in `fallbackMode` with no callback;
+  otherwise it sets `fallbackMode` and, when there is no current user, synthesises an
+  `ApphudUser(userID:)` and releases the registration queue; then it uses the already
+  loaded paywalls when there are any and `allAvailableProductIDs()` is non-empty, otherwise
+  the paywalls decoded from that JSON. In `fallbackMode` a failed transaction upload becomes
   `stubPurchase(productId:)` — a 1-hour stub subscription/purchase
   (`groupId == "apphud_stub"`) built from the SK2 `Product`
   (`ApphudSubscription(product:)` / `ApphudNonRenewingPurchase(product:)`), falling back
@@ -328,8 +345,9 @@ see an in-flight id.
 more needs to happen and an error when the transaction must stay unfinished:
 
 - error if `submittingTransaction == String(transaction.id)` (already in flight);
-- nil if `isAlreadyTracked` (current user has the same product with a purchase date
-  within 2 s, or the same original transaction id) or the id is in
+- nil if `isAlreadyTracked` (the current user already has the same product id with either
+  a purchase date within 2 s or the same original transaction id — the product id must
+  match in both cases) or the id is in
   `lastUploadedTransactions` (UserDefaults `ApphudLastUploadedTransactionsSK2`);
 - nil if inactive (auto-renewable: expired, revoked or upgraded; others: revoked);
 - otherwise fetch the SK2 `Product` for `product_info`, `appStoreReceipt()` (refreshes
@@ -343,7 +361,8 @@ more needs to happen and an error when the transaction must stay unfinished:
 each verified transaction goes through `processTransaction` (deduplicated by id against
 the purchase in flight); in observer mode it calls `handleTransaction` (submit only, never
 finishes). Unverified transactions trigger `setNeedToCheckTransactions`.
-`checkTransactionsNow` (app active / retries, debounced 0.5 s) defers itself
+`checkTransactionsNow` (called directly on app active and from `submitAppStoreReceipt` —
+the pending-upload resubmit and its retries; the 0.5 s debounce applies only to `setNeedToCheckTransactions`) defers itself
 (`deferredTransactionCheck`) while either engine reports `isPurchasing` and is re-run by
 `runDeferredTransactionCheckIfNeeded` when the purchase ends; otherwise it submits the
 latest verified transaction from `Transaction.all` without finishing it.
@@ -445,16 +464,20 @@ paths.
 - Headers: `APPHUD-API-KEY`, `X-Platform` (`ios`/`macos`), `X-SDK` (`sdkType`, default
   `swift`; `flutter` changes behaviour), `X-SDK-VERSION`, `User-Agent`,
   `Idempotency-Key` (fresh UUID per request; the initial `/customers` call reuses
-  `initialRequestID` across retries). The response's `idempotency-key` must echo the
-  request's or the response is rejected as "Invalid HTTP Response".
-- `api_key` and `customer_id` are also placed in every body (POST/PUT) or query (GET).
+  `initialRequestID` across retries). A response whose `idempotency-key` header is present
+  and differs from the request's is rejected as "Invalid HTTP Response"; a response
+  without the header is accepted.
+- `api_key` is also placed in every body (POST/PUT) or query (GET), and `customer_id` too
+  whenever it is non-empty (requests made before any user is loaded carry none).
 - Timeouts: GET 7 s, POST 20 s, `POST /customers` 7 s (`POST_CUSTOMERS_TIMEOUT`, public).
-- `URLSession` with caching disabled; `useDecoder: true` skips the `[String: Any]`
-  parse in production so Codable models read `Data` directly. Async requests go through
-  `URLSession.shared`, except under the test seam
+- `useDecoder: true` skips the `[String: Any]` parse in production so Codable models read
+  `Data` directly. `startRequest` traffic goes through `URLSession.shared`; the client's
+  private session with caching disabled serves the screen HTML loads. The Apple Ads lookup
+  (`getAppleAttribution`) and the `fallback.txt` download (`loadFallbackHostIfNeeded`) call
+  `URLSession.shared` directly, bypassing `startRequest` and the test seam. That seam is
   `ApphudHttpClient.testURLSessionConfiguration` (must be set before the first access to
-  `shared`; routes everything through a session built from that configuration so
-  `URLProtocol` stubs apply; always nil in production).
+  `shared`; routes `startRequest` traffic and the screen HTML loads through a session built
+  from that configuration so `URLProtocol` stubs apply; always nil in production).
 - **Every `startRequest` answers its callback.** A suspended account or a request that
   could not be built delivers `ApphudError` on the main actor instead of dropping the
   callback; `parseError` never returns nil (non-422 bodies become
@@ -482,7 +505,7 @@ paths.
 | Where | Key / file | Written by |
 | --- | --- | --- |
 | Keychain + UserDefaults | `ApphudDeviceID`/`com.apphud.device_id`, `ApphudUserID`/`com.apphud.user_id` | `ApphudKeychain` |
-| Caches/ (via `ApphudDataActor`) | `ApphudUser` (90 d), `ApphudPaywalls`, `ApphudPlacements`, `ApphudProductGroups` (`cacheTimeout`), `ApphudUserPropertiesCache`, `submittedAFDataKey`, `submittedAdjustDataKey` (7 d), `{screenId}.html` | `+Product`, `ApphudUser.toCacheV2`, `+UserUpdate`, `+Attribution`, `ApphudHttpClient` |
+| Caches/ (via `ApphudDataActor`) | `ApphudUser` (a 90 d timeout is passed, but expiry is not checked on load), `ApphudPaywalls`, `ApphudPlacements`, `ApphudProductGroups` (`cacheTimeout`), `ApphudUserPropertiesCache`, `submittedAFDataKey`, `submittedAdjustDataKey` (7 d), `{screenId}.html` | `+Product`, `ApphudUser.toCacheV2`, `+UserUpdate`, `+Attribution`, `ApphudHttpClient` |
 | UserDefaults | `ApphudReinstallFlag`, `lastUserUpdatedAt`, `requiresReceiptSubmissionKey`, `ApphudLastUploadedTransactionsSK2` (ids acknowledged by the backend; the pre-4.5.0 `ApphudLastUploadedTransactions` key is deliberately never read because it was written before acknowledgement), `ApphudKnownProductTypes`, `swizzlePaymentDisabledKey`, `submittedDeviceIdentifiersKey`, `submittedPushTokenKey`, `submittedFirebaseIdKey`, `submittedFacebookAnonIdKey`, `didSubmit{AppsFlyer,Adjust,AppleAds}AttributionKey`, `ApphudSubscriptionsMigrated`, `ApphudMigrateCachesKey`, `ApphudConnectDomainUrl`, `apphud_installation_date` (read-only override) | various |
 | Bundle | `apphud_paywalls_fallback.json` (read only) | host app |
 
@@ -549,7 +572,9 @@ compatibility only; it never starts a payment.
 - Push: `submitPushNotificationsToken` → `PUT /v1/customers/push_token`, de-duplicated by
   the last token in UserDefaults.
 - Web-to-app: `attributeFromWeb(data:)` (`tryWebAttribution`) reads `aph_user_id`/
-  `apphud_user_id`/`email` and re-registers with `from_web2web: true` and that `user_id`
+  `apphud_user_id` and `email`/`apphud_user_email`. With neither it fails; with only a user
+  id equal to the current one it returns success without a request; otherwise it
+  re-registers with `from_web2web: true` plus `user_id` and/or `email`, whichever was found
   (→ `checkUserID` → `apphudDidChangeUserID`). Deep-link attribution:
   `handleOpen(url:)`/`handleLaunchOptions`/`continueUserActivity` →
   `POST /v2/customers/deeplink_attribution` with `url` (kind `.direct`);
@@ -575,7 +600,8 @@ compatibility only; it never starts a payment.
 
 `Sources/ApphudUI/` plus `Public/ApphudPaywallScreenController.swift`,
 `Public/ApphudRule.swift`, `Public/ApphudRuleScreen.swift`, `Public/ApphudPaywallScreen.swift`.
-Not a separate SPM target — same module, `#if os(iOS)`.
+Not a separate SPM target — same module; the UIKit/WebKit code is behind `#if os(iOS)`
+(per-file exceptions are listed in structure.md; the three model files `ApphudRule`, `ApphudRuleScreen`, `ApphudPaywallScreen` are unguarded).
 
 ### Rules
 
@@ -587,7 +613,7 @@ registerUser success / app active (≥60 s apart) / ApphudUtils.checkRules()
           ├─> rule has paywall_id/paywall_identifier (new style)
           │     → fetchPaywall(identifier:) → hasVisualPaywall()
           │         ├─> no screen → uiDelegate.apphudRuleWithoutPaywallScreen
-          │         └─> Apphud.fetchPaywallScreen → ApphudPaywallScreenController(rule:)
+          │         └─> Apphud.fetchPaywallScreen → ApphudPaywallScreenController(paywall:), then controller.rule = rule
           └─> legacy: ApphudScreenController(rule:screenID:) inside ApphudNavigationController
                 → loadScreenPage → GET /preview_screen/{id} HTML
           → pendingController; uiDelegate.apphudShouldShowScreen? → showPendingScreen()
