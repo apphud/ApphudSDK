@@ -340,11 +340,12 @@ final class ApphudSessionTests: XCTestCase {
         // initializer, where a host observer reading `Apphud.sessionId` would re-enter it.
         let caller = Thread.current
         let lock = NSLock()
+        var posted = 0
         var postedOnCaller = false
         let token = NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: defaults, queue: nil) { _ in
-            guard Thread.current == caller else { return }
             lock.lock()
-            postedOnCaller = true
+            posted += 1
+            if Thread.current == caller { postedOnCaller = true }
             lock.unlock()
         }
         defer { NotificationCenter.default.removeObserver(token) }
@@ -352,6 +353,7 @@ final class ApphudSessionTests: XCTestCase {
         flush(launch())
 
         lock.lock(); defer { lock.unlock() }
+        XCTAssertGreaterThan(posted, 0, "the launch write must reach UserDefaults")
         XCTAssertFalse(postedOnCaller)
     }
 }
