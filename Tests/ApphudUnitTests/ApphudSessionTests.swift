@@ -6,6 +6,11 @@
 //
 
 import XCTest
+#if os(macOS)
+import AppKit
+#elseif canImport(UIKit)
+import UIKit
+#endif
 @testable import ApphudSDK
 
 private let uuidPattern = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
@@ -24,6 +29,7 @@ final class ApphudSessionTests: XCTestCase {
     private var defaults: UserDefaults!
     private var clock: TestClock!
     private var center: NotificationCenter!
+    private var launched: [ApphudSession] = []
 
     override func setUp() {
         super.setUp()
@@ -31,16 +37,22 @@ final class ApphudSessionTests: XCTestCase {
         defaults = UserDefaults(suiteName: suiteName)
         clock = TestClock()
         center = NotificationCenter()
+        launched = []
     }
 
     override func tearDown() {
+        launched.forEach { $0.waitForPendingWrites() }
         defaults.removePersistentDomain(forName: suiteName)
         super.tearDown()
     }
 
+    /// A new process over the same storage: writes of the previous ones have landed.
     private func launch() -> ApphudSession {
+        launched.forEach { $0.waitForPendingWrites() }
         let clock = self.clock!
-        return ApphudSession(defaults: defaults, now: { clock.date }, notificationCenter: center)
+        let session = ApphudSession(defaults: defaults, now: { clock.date }, notificationCenter: center)
+        launched.append(session)
+        return session
     }
 
     private func background(_ session: ApphudSession, for seconds: TimeInterval) {
@@ -167,16 +179,33 @@ final class ApphudSessionTests: XCTestCase {
     }
 
     func testLifecycleNotificationsDriveSession() {
+        #if os(macOS)
+        // macOS has no background state: an inactive app counts as backgrounded.
+        let background = NSApplication.didResignActiveNotification
+        let foreground = NSApplication.didBecomeActiveNotification
+        #else
+        let background = UIApplication.didEnterBackgroundNotification
+        let foreground = UIApplication.willEnterForegroundNotification
+        #endif
         let session = launch()
         let id = session.sessionId
-        let names = ApphudSession.lifecycleNotificationNames
 
-        center.post(name: names.background, object: nil)
+        center.post(name: background, object: nil)
         clock.date.addTimeInterval(30 * 60 + 1)
-        center.post(name: names.foreground, object: nil)
+        center.post(name: foreground, object: nil)
 
         XCTAssertNotEqual(session.sessionId, id)
         XCTAssertEqual(session.sessionNumber, 2)
+    }
+
+    func testBackgroundDateIsPersistedAndSurvivesLogout() {
+        let session = launch()
+        session.didEnterBackground()
+        let date = clock.date
+        session.startNewSessionOnLogout()
+        _ = launch()
+
+        XCTAssertEqual(defaults.object(forKey: "ApphudSessionLastBackgroundDate") as? Date, date)
     }
 
     // MARK: External mode
@@ -244,6 +273,46 @@ final class ApphudSessionTests: XCTestCase {
         ids.forEach { assertLowercaseUUID($0) }
         XCTAssertEqual(session.sessionNumber, 1001)
     }
+
+    func testConcurrentExternalIdsAndReads() {
+        let session = launch()
+        let hostIds = (0..<8).map { _ in UUID().uuidString }
+        let lock = NSLock()
+        var ids: [String] = []
+
+        DispatchQueue.concurrentPerform(iterations: 2000) { index in
+            if index % 2 == 0 {
+                session.setExternalSessionId(hostIds[index % hostIds.count])
+            } else {
+                let id = session.sessionId
+                lock.lock()
+                ids.append(id)
+                lock.unlock()
+            }
+        }
+
+        ids.forEach { assertLowercaseUUID($0) }
+        XCTAssertTrue(hostIds.map { $0.lowercased() }.contains(session.sessionId))
+    }
+
+    func testHostReadingSessionInsideDefaultsNotificationDoesNotHang() {
+        let session = launch()
+        let hostRead = expectation(description: "a host observer read the session id inside UserDefaults' change notification")
+        hostRead.assertForOverFulfill = false
+        let token = NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: defaults, queue: nil) { _ in
+            _ = session.sessionId
+            hostRead.fulfill()
+        }
+        defer { NotificationCenter.default.removeObserver(token) }
+
+        let rotated = expectation(description: "logout boundary returned")
+        DispatchQueue.global().async {
+            session.startNewSessionOnLogout()
+            rotated.fulfill()
+        }
+
+        wait(for: [rotated, hostRead], timeout: 3)
+    }
 }
 
 // MARK: - Request header
@@ -253,6 +322,7 @@ private final class SessionStubProtocol: URLProtocol {
     struct Recorded {
         let url: URL?
         let sessionHeader: String?
+        let idempotencyKey: String?
     }
 
     private static let lock = NSLock()
@@ -277,7 +347,9 @@ private final class SessionStubProtocol: URLProtocol {
 
     override func startLoading() {
         Self.lock.lock()
-        Self._recorded.append(Recorded(url: request.url, sessionHeader: request.value(forHTTPHeaderField: ApphudSession.headerName)))
+        Self._recorded.append(Recorded(url: request.url,
+                                       sessionHeader: request.value(forHTTPHeaderField: ApphudSession.headerName),
+                                       idempotencyKey: request.value(forHTTPHeaderField: "Idempotency-Key")))
         let index = Self._recorded.count - 1
         let status = index < Self.statuses.count ? Self.statuses[index] : 200
         let hook = Self.onRequest
@@ -315,14 +387,15 @@ final class ApphudSessionHeaderTests: XCTestCase {
 
     override func tearDown() {
         ApphudHttpClient.testURLSessionConfiguration = nil
+        ApphudSession.shared.waitForPendingWrites()
         ApphudSession.shared = originalSession
         UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName)
         super.tearDown()
     }
 
-    private func send(_ path: ApphudHttpClient.ApphudEndpoint, method: ApphudHttpClient.ApphudHttpMethod, retry: Bool = false, timeout: TimeInterval = 5) {
+    private func send(_ path: ApphudHttpClient.ApphudEndpoint, method: ApphudHttpClient.ApphudHttpMethod, retry: Bool = false, requestID: String? = nil, timeout: TimeInterval = 5) {
         let done = expectation(description: "request answered")
-        client.startRequest(path: path, params: method == .get ? nil : ["key": "value"], method: method, retry: retry) { _, _, _, _, _, _, _ in
+        client.startRequest(path: path, params: method == .get ? nil : ["key": "value"], method: method, retry: retry, requestID: requestID) { _, _, _, _, _, _, _ in
             done.fulfill()
         }
         wait(for: [done], timeout: timeout)
@@ -360,6 +433,18 @@ final class ApphudSessionHeaderTests: XCTestCase {
         XCTAssertNotEqual(ApphudSession.shared.sessionId, original)
     }
 
+    func testResentRegistrationWithSameIdempotencyKeyTakesCurrentSession() {
+        send(.customers, method: .post, requestID: "initial-registration")
+        ApphudSession.shared.startNewSessionOnLogout()
+        send(.customers, method: .post, requestID: "initial-registration")
+
+        let recorded = SessionStubProtocol.recorded
+        XCTAssertEqual(recorded.count, 2)
+        XCTAssertEqual(recorded.map(\.idempotencyKey), ["initial-registration", "initial-registration"])
+        XCTAssertNotEqual(recorded[0].sessionHeader, recorded[1].sessionHeader)
+        XCTAssertEqual(recorded[1].sessionHeader, ApphudSession.shared.sessionId)
+    }
+
     func testSetSessionIdBeforeFirstRequestReachesRegistration() {
         Apphud.setSessionId("E621E1F8-C36C-495A-93FC-0C247A3E6E5F")
 
@@ -385,8 +470,8 @@ final class ApphudSessionHeaderTests: XCTestCase {
         }
     }
 
-    #if os(iOS)
-    // Runs only on the simulator: a full logout resets the Keychain, which on macOS is the login keychain.
+    #if os(iOS) && targetEnvironment(simulator)
+    // Simulator only: a full logout resets the Keychain, which on macOS is the login keychain.
     func testLogoutStartsNewSession() async {
         let session = ApphudSession.shared
         let id = session.sessionId

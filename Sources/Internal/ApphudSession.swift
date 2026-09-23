@@ -42,6 +42,10 @@ internal final class ApphudSession: @unchecked Sendable {
     private static let lastBackgroundDateKey = "ApphudSessionLastBackgroundDate"
 
     private let lock = NSLock()
+    // UserDefaults posts didChangeNotification synchronously inside set(), and a host
+    // observer may read `Apphud.sessionId` there: writes never run under `lock`. They are
+    // queued while holding it, so they reach UserDefaults in order.
+    private let writeQueue = DispatchQueue(label: "com.apphud.session.defaults")
     private let defaults: UserDefaults
     private let now: () -> Date
     private let launchDate: Date
@@ -60,10 +64,11 @@ internal final class ApphudSession: @unchecked Sendable {
         self.defaults = defaults
         self.now = now
         self.launchDate = now()
-        // Launch boundary.
+        // Launch boundary. Before the first unlock after a reboot (prewarming, background
+        // launch) UserDefaults reads empty, so the number may restart from 1.
         self.id = Self.makeId()
         self.number = defaults.integer(forKey: Self.numberKey) + 1
-        defaults.set(number, forKey: Self.numberKey)
+        persistNumber()
         observeLifecycle(notificationCenter)
     }
 
@@ -83,7 +88,9 @@ internal final class ApphudSession: @unchecked Sendable {
         // The first notification wins: the app has been in background since then.
         guard backgroundStartDate == nil else { return }
         backgroundStartDate = date
-        defaults.set(date, forKey: Self.lastBackgroundDateKey)
+        writeQueue.async { [defaults] in
+            defaults.set(date, forKey: Self.lastBackgroundDateKey)
+        }
     }
 
     internal func willEnterForeground() {
@@ -135,11 +142,24 @@ internal final class ApphudSession: @unchecked Sendable {
 
     // MARK: - Private
 
+    /// Tests only: waits until queued writes reach UserDefaults.
+    internal func waitForPendingWrites() {
+        writeQueue.sync {}
+    }
+
     // The caller holds the lock.
     private func startNewSession() {
         id = Self.makeId()
         number += 1
-        defaults.set(number, forKey: Self.numberKey)
+        persistNumber()
+    }
+
+    // The caller holds the lock, or is the initializer.
+    private func persistNumber() {
+        let number = self.number
+        writeQueue.async { [defaults] in
+            defaults.set(number, forKey: Self.numberKey)
+        }
     }
 
     private static func makeId() -> String {
