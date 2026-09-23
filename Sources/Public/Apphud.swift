@@ -105,7 +105,7 @@ s
     /**
      Returns the current session ID. It is sent in the `X-Apphud-Session-Id` header with every API request the SDK makes to Apphud.
 
-     A new session starts on app launch (the SDK's first use in the app process), when the app returns to the foreground after more than 30 minutes in the background (on macOS: after more than 30 minutes inactive), and on `logout()`. Once `setSessionId(_:)` accepts an ID, returns that ID.
+     A new session starts on app launch (the SDK's first use in the app process), when the app returns to the foreground after more than 30 minutes in the background (in native macOS apps: after more than 30 minutes inactive), and on `logout()`. Once `setSessionId(_:)` accepts an ID, returns that ID.
      */
     @objc public static var sessionId: String {
         return ApphudSession.shared.sessionId

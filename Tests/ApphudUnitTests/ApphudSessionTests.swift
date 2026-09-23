@@ -8,6 +8,8 @@
 import XCTest
 #if os(macOS)
 import AppKit
+#elseif os(watchOS)
+import WatchKit
 #elseif canImport(UIKit)
 import UIKit
 #endif
@@ -17,6 +19,18 @@ private let uuidPattern = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9
 
 private func assertLowercaseUUID(_ value: String?, file: StaticString = #filePath, line: UInt = #line) {
     XCTAssertNotNil(value?.range(of: uuidPattern, options: .regularExpression), "\(value ?? "nil") is not a lowercase UUID", file: file, line: line)
+}
+
+/// Waits for the session's queued UserDefaults writes; fails instead of hanging.
+private func flush(_ session: ApphudSession, file: StaticString = #filePath, line: UInt = #line) {
+    let finished = DispatchSemaphore(value: 0)
+    DispatchQueue.global().async {
+        session.waitForPendingWrites()
+        finished.signal()
+    }
+    if finished.wait(timeout: .now() + 3) == .timedOut {
+        XCTFail("queued UserDefaults writes did not finish", file: file, line: line)
+    }
 }
 
 private final class TestClock: @unchecked Sendable {
@@ -41,14 +55,14 @@ final class ApphudSessionTests: XCTestCase {
     }
 
     override func tearDown() {
-        launched.forEach { $0.waitForPendingWrites() }
+        launched.forEach { flush($0) }
         defaults.removePersistentDomain(forName: suiteName)
         super.tearDown()
     }
 
     /// A new process over the same storage: writes of the previous ones have landed.
     private func launch() -> ApphudSession {
-        launched.forEach { $0.waitForPendingWrites() }
+        launched.forEach { flush($0) }
         let clock = self.clock!
         let session = ApphudSession(defaults: defaults, now: { clock.date }, notificationCenter: center)
         launched.append(session)
@@ -183,6 +197,9 @@ final class ApphudSessionTests: XCTestCase {
         // macOS has no background state: an inactive app counts as backgrounded.
         let background = NSApplication.didResignActiveNotification
         let foreground = NSApplication.didBecomeActiveNotification
+        #elseif os(watchOS)
+        let background = WKApplication.didEnterBackgroundNotification
+        let foreground = WKApplication.willEnterForegroundNotification
         #else
         let background = UIApplication.didEnterBackgroundNotification
         let foreground = UIApplication.willEnterForegroundNotification
@@ -203,7 +220,8 @@ final class ApphudSessionTests: XCTestCase {
         session.didEnterBackground()
         let date = clock.date
         session.startNewSessionOnLogout()
-        _ = launch()
+        let relaunched = launch()
+        flush(relaunched)
 
         XCTAssertEqual(defaults.object(forKey: "ApphudSessionLastBackgroundDate") as? Date, date)
     }
@@ -297,7 +315,9 @@ final class ApphudSessionTests: XCTestCase {
 
     func testHostReadingSessionInsideDefaultsNotificationDoesNotHang() {
         let session = launch()
+        flush(session)
         let hostRead = expectation(description: "a host observer read the session id inside UserDefaults' change notification")
+        hostRead.expectedFulfillmentCount = 2 // the background date and the logout number
         hostRead.assertForOverFulfill = false
         let token = NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: defaults, queue: nil) { _ in
             _ = session.sessionId
@@ -305,13 +325,34 @@ final class ApphudSessionTests: XCTestCase {
         }
         defer { NotificationCenter.default.removeObserver(token) }
 
-        let rotated = expectation(description: "logout boundary returned")
+        let returned = expectation(description: "background and logout boundaries returned")
         DispatchQueue.global().async {
+            session.didEnterBackground()
             session.startNewSessionOnLogout()
-            rotated.fulfill()
+            returned.fulfill()
         }
 
-        wait(for: [rotated, hostRead], timeout: 3)
+        wait(for: [returned, hostRead], timeout: 3)
+    }
+
+    func testLaunchDoesNotWriteDefaultsOnTheCallingThread() {
+        // A write inside init would post didChangeNotification inside `ApphudSession.shared`'s
+        // initializer, where a host observer reading `Apphud.sessionId` would re-enter it.
+        let caller = Thread.current
+        let lock = NSLock()
+        var postedOnCaller = false
+        let token = NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: defaults, queue: nil) { _ in
+            guard Thread.current == caller else { return }
+            lock.lock()
+            postedOnCaller = true
+            lock.unlock()
+        }
+        defer { NotificationCenter.default.removeObserver(token) }
+
+        flush(launch())
+
+        lock.lock(); defer { lock.unlock() }
+        XCTAssertFalse(postedOnCaller)
     }
 }
 
@@ -387,7 +428,7 @@ final class ApphudSessionHeaderTests: XCTestCase {
 
     override func tearDown() {
         ApphudHttpClient.testURLSessionConfiguration = nil
-        ApphudSession.shared.waitForPendingWrites()
+        flush(ApphudSession.shared)
         ApphudSession.shared = originalSession
         UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName)
         super.tearDown()
