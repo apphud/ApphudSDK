@@ -817,6 +817,9 @@ final class ApphudInternal: NSObject {
 
         observerModePurchaseIdentifiers = nil
 
+        // The next customer's first request starts a new session.
+        ApphudSession.shared.startNewSessionOnLogout()
+
         allowIdentifyUser = true
         apphudLog("User logged out. Apphud SDK is uninitialized.", logLevel: .all)
     }
