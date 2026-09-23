@@ -228,12 +228,17 @@ final class ApphudSessionTests: XCTestCase {
 
     // MARK: External mode
 
-    func testExternalIdIsKeptExactlyAsGiven() {
-        let session = launch()
-
+    func testAnyExternalIdIsKeptExactlyAsGivenAndEntersExternalMode() {
         for value in ["E621E1F8-C36C-495A-93FC-0C247A3E6E5F", "not-a-uuid", ""] {
+            let session = launch()
             session.setExternalSessionId(value)
-            XCTAssertEqual(session.sessionId, value)
+            let number = session.sessionNumber
+
+            background(session, for: 30 * 60 + 1)
+            session.startNewSessionOnLogout()
+
+            XCTAssertEqual(session.sessionId, value, "\"\(value)\"")
+            XCTAssertEqual(session.sessionNumber, number, "\"\(value)\"")
         }
     }
 
