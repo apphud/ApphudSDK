@@ -109,16 +109,11 @@ internal final class ApphudSession: @unchecked Sendable {
         startNewSession()
     }
 
-    /// Host-owned session id. Every request carries a lowercase UUID, so a value that is
-    /// not a UUID is ignored.
+    /// Host-owned session id, sent exactly as given.
     internal func setExternalSessionId(_ value: String) {
-        guard let uuid = UUID(uuidString: value) else {
-            apphudLog("Session id \"\(value)\" is not a UUID and was ignored.", forceDisplay: true)
-            return
-        }
         lock.lock(); defer { lock.unlock() }
         isExternal = true
-        id = uuid.uuidString.lowercased()
+        id = value
     }
 
     /// An app launched straight into the background (background fetch, silent push) has

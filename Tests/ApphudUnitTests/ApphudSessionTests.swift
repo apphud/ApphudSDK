@@ -228,12 +228,13 @@ final class ApphudSessionTests: XCTestCase {
 
     // MARK: External mode
 
-    func testExternalIdIsSentLowercase() {
+    func testExternalIdIsKeptExactlyAsGiven() {
         let session = launch()
 
-        session.setExternalSessionId("E621E1F8-C36C-495A-93FC-0C247A3E6E5F")
-
-        XCTAssertEqual(session.sessionId, "e621e1f8-c36c-495a-93fc-0c247a3e6e5f")
+        for value in ["E621E1F8-C36C-495A-93FC-0C247A3E6E5F", "not-a-uuid", ""] {
+            session.setExternalSessionId(value)
+            XCTAssertEqual(session.sessionId, value)
+        }
     }
 
     func testExternalModeIgnoresBackgroundAndLogout() {
@@ -251,20 +252,6 @@ final class ApphudSessionTests: XCTestCase {
 
         XCTAssertEqual(session.sessionId, "0b1c2d3e-4f50-4617-8293-a4b5c6d7e8f9")
         XCTAssertEqual(session.sessionNumber, number)
-    }
-
-    func testInvalidExternalIdIsIgnored() {
-        let session = launch()
-        let id = session.sessionId
-
-        for value in ["", "not-a-uuid", " e621e1f8-c36c-495a-93fc-0c247a3e6e5f", "e621e1f8c36c495a93fc0c247a3e6e5f"] {
-            session.setExternalSessionId(value)
-            XCTAssertEqual(session.sessionId, id, "\"\(value)\" must be ignored")
-        }
-
-        // Still in default mode: the SDK keeps its own boundaries.
-        background(session, for: 30 * 60 + 1)
-        XCTAssertNotEqual(session.sessionId, id)
     }
 
     // MARK: Threads
@@ -294,6 +281,7 @@ final class ApphudSessionTests: XCTestCase {
 
     func testConcurrentExternalIdsAndReads() {
         let session = launch()
+        let launchId = session.sessionId
         let hostIds = (0..<8).map { _ in UUID().uuidString }
         let lock = NSLock()
         var ids: [String] = []
@@ -309,8 +297,10 @@ final class ApphudSessionTests: XCTestCase {
             }
         }
 
-        ids.forEach { assertLowercaseUUID($0) }
-        XCTAssertTrue(hostIds.map { $0.lowercased() }.contains(session.sessionId))
+        let expected = Set(hostIds + [launchId])
+        XCTAssertEqual(ids.count, 1000)
+        XCTAssertTrue(ids.allSatisfy { expected.contains($0) })
+        XCTAssertTrue(hostIds.contains(session.sessionId))
     }
 
     func testHostReadingSessionInsideDefaultsNotificationDoesNotHang() {
@@ -491,11 +481,11 @@ final class ApphudSessionHeaderTests: XCTestCase {
     func testSetSessionIdBeforeFirstRequestReachesRegistration() {
         Apphud.setSessionId("E621E1F8-C36C-495A-93FC-0C247A3E6E5F")
 
-        XCTAssertEqual(Apphud.sessionId, "e621e1f8-c36c-495a-93fc-0c247a3e6e5f")
+        XCTAssertEqual(Apphud.sessionId, "E621E1F8-C36C-495A-93FC-0C247A3E6E5F")
 
         send(.customers, method: .post)
 
-        XCTAssertEqual(SessionStubProtocol.recorded.first?.sessionHeader, "e621e1f8-c36c-495a-93fc-0c247a3e6e5f")
+        XCTAssertEqual(SessionStubProtocol.recorded.first?.sessionHeader, "E621E1F8-C36C-495A-93FC-0C247A3E6E5F")
     }
 
     func testNonApphudRequestsDoNotCarrySessionHeader() async {
