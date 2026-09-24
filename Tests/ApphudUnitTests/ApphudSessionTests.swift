@@ -332,7 +332,7 @@ final class ApphudSessionTests: XCTestCase {
 
     func testLaunchDoesNotWriteDefaultsOnTheCallingThread() {
         // A write inside init would post didChangeNotification inside `ApphudSession.shared`'s
-        // initializer, where a host observer reading `Apphud.sessionId` would re-enter it.
+        // initializer, where a host observer calling into the SDK would re-enter it.
         let caller = Thread.current
         let lock = NSLock()
         var posted = 0
@@ -486,7 +486,7 @@ final class ApphudSessionHeaderTests: XCTestCase {
     func testSetSessionIdBeforeFirstRequestReachesRegistration() {
         Apphud.setSessionId("E621E1F8-C36C-495A-93FC-0C247A3E6E5F")
 
-        XCTAssertEqual(Apphud.sessionId, "E621E1F8-C36C-495A-93FC-0C247A3E6E5F")
+        XCTAssertEqual(ApphudSession.shared.sessionId, "E621E1F8-C36C-495A-93FC-0C247A3E6E5F")
 
         send(.customers, method: .post)
 

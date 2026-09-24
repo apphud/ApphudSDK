@@ -43,8 +43,8 @@ internal final class ApphudSession: @unchecked Sendable {
 
     private let lock = NSLock()
     // UserDefaults posts didChangeNotification synchronously inside set(), and a host
-    // observer may read `Apphud.sessionId` there: writes never run under `lock`. They are
-    // queued while holding it, so they reach UserDefaults in order.
+    // observer may call into the SDK there (every request reads the id): writes never run
+    // under `lock`. They are queued while holding it, so they reach UserDefaults in order.
     private let writeQueue = DispatchQueue(label: "com.apphud.session.defaults")
     private let defaults: UserDefaults
     private let now: () -> Date
