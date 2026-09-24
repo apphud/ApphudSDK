@@ -101,6 +101,28 @@ s
     @MainActor @objc public static func deviceID() -> String {
         return ApphudInternal.shared.currentDeviceID
     }
+
+    /**
+     Returns the current session ID: the value the SDK puts in the `X-Apphud-Session-Id` header of API requests it builds from now on.
+
+     After `setSessionId(_:)` is called, returns the ID from the latest call in this app process; otherwise returns the SDK's own ID, which changes on app launch, when the app returns to the foreground after more than 30 minutes in the background (in AppKit macOS apps: after more than 30 minutes inactive; Mac Catalyst apps follow the background rule), and on `logout()`.
+     */
+    @objc public static var sessionId: String {
+        return ApphudSession.shared.sessionId
+    }
+
+    /**
+     Sets the session ID for a host SDK that owns the session. Every subsequent API request the SDK makes to Apphud carries this ID.
+
+     After the first call, the SDK stops starting sessions on its own: neither background nor `logout()` changes the ID until this method is called again. The ID is not saved; after the app is relaunched the SDK starts its own sessions again until this method is called.
+
+     Call it before `Apphud.start(...)` so that customer registration already carries this ID; a later call affects only subsequent requests.
+
+     - parameter sessionId: The session ID, sent exactly as given.
+     */
+    @objc public static func setSessionId(_ sessionId: String) {
+        ApphudSession.shared.setExternalSessionId(sessionId)
+    }
     
     /**
      Returns an instance of the current user.
