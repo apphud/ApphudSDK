@@ -493,6 +493,19 @@ final class ApphudSessionHeaderTests: XCTestCase {
         XCTAssertEqual(SessionStubProtocol.recorded.first?.sessionHeader, "E621E1F8-C36C-495A-93FC-0C247A3E6E5F")
     }
 
+    func testPublicSessionIdMatchesRequestHeaderInBothModes() {
+        // Default mode: the SDK's own id.
+        send(.customers, method: .post)
+        assertLowercaseUUID(Apphud.sessionId)
+        XCTAssertEqual(SessionStubProtocol.recorded.last?.sessionHeader, Apphud.sessionId)
+
+        // External mode: the host's value.
+        Apphud.setSessionId("host-session-1")
+        send(.customers, method: .post)
+        XCTAssertEqual(Apphud.sessionId, "host-session-1")
+        XCTAssertEqual(SessionStubProtocol.recorded.last?.sessionHeader, Apphud.sessionId)
+    }
+
     func testNonApphudRequestsDoNotCarrySessionHeader() async {
         URLProtocol.registerClass(SessionStubProtocol.self)
         defer { URLProtocol.unregisterClass(SessionStubProtocol.self) }
