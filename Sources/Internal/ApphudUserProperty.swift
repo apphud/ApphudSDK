@@ -13,6 +13,7 @@ struct ApphudUserProperty {
     let increment: Bool
     let setOnce: Bool
     let type: String
+    var attributes: [String: String] = [:]
     func toJSON() -> [String: Any?]? {
 
         if increment && value == nil {return nil}
@@ -33,6 +34,11 @@ struct ApphudUserProperty {
 
         if increment {
             jsonParams["increment"] = increment
+        }
+
+        // Attributes never replace the fields set above
+        for (name, attribute) in attributes where !jsonParams.keys.contains(name) {
+            jsonParams[name] = attribute
         }
 
         return jsonParams
