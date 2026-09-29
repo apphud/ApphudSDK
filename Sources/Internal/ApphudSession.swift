@@ -109,11 +109,17 @@ internal final class ApphudSession: @unchecked Sendable {
         startNewSession()
     }
 
-    /// Host-owned session id, sent exactly as given.
+    /// Host-owned session id. A blank value or one that can't be an HTTP header value is
+    /// ignored: the session stays as it is.
     internal func setExternalSessionId(_ value: String) {
+        let hostId = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !hostId.isEmpty, hostId.unicodeScalars.allSatisfy({ (0x20...0x7E).contains($0.value) }) else {
+            apphudLog("setSessionId ignored: invalid session id", forceDisplay: true)
+            return
+        }
         lock.lock(); defer { lock.unlock() }
         isExternal = true
-        id = value
+        id = hostId
     }
 
     /// An app launched straight into the background (background fetch, silent push) has

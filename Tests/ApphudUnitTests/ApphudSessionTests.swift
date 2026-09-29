@@ -228,8 +228,8 @@ final class ApphudSessionTests: XCTestCase {
 
     // MARK: External mode
 
-    func testAnyExternalIdIsKeptExactlyAsGivenAndEntersExternalMode() {
-        for value in ["E621E1F8-C36C-495A-93FC-0C247A3E6E5F", "not-a-uuid", ""] {
+    func testAnyValidExternalIdIsKeptAsGivenAndEntersExternalMode() {
+        for value in ["E621E1F8-C36C-495A-93FC-0C247A3E6E5F", "not-a-uuid", "Host Session-1"] {
             let session = launch()
             session.setExternalSessionId(value)
             let number = session.sessionNumber
@@ -240,6 +240,43 @@ final class ApphudSessionTests: XCTestCase {
             XCTAssertEqual(session.sessionId, value, "\"\(value)\"")
             XCTAssertEqual(session.sessionNumber, number, "\"\(value)\"")
         }
+    }
+
+    func testExternalIdWithSurroundingWhitespaceIsTrimmed() {
+        let session = launch()
+
+        session.setExternalSessionId("  host-1 \t\n")
+
+        XCTAssertEqual(session.sessionId, "host-1")
+    }
+
+    func testInvalidExternalIdIsIgnored() {
+        for value in ["", "   ", "line\nbreak", "сессия"] {
+            let session = launch()
+            let id = session.sessionId
+
+            session.setExternalSessionId(value)
+
+            XCTAssertEqual(session.sessionId, id, "\"\(value)\"")
+        }
+    }
+
+    func testInvalidExternalIdKeepsSDKBoundaries() {
+        let session = launch()
+        session.setExternalSessionId("   ")
+
+        background(session, for: 30 * 60 + 1)
+
+        XCTAssertEqual(session.sessionNumber, 2)
+    }
+
+    func testInvalidExternalIdKeepsHostId() {
+        let session = launch()
+        session.setExternalSessionId("host")
+
+        session.setExternalSessionId("")
+
+        XCTAssertEqual(session.sessionId, "host")
     }
 
     func testExternalModeIgnoresBackgroundAndLogout() {
@@ -491,6 +528,14 @@ final class ApphudSessionHeaderTests: XCTestCase {
         send(.customers, method: .post)
 
         XCTAssertEqual(SessionStubProtocol.recorded.first?.sessionHeader, "E621E1F8-C36C-495A-93FC-0C247A3E6E5F")
+    }
+
+    func testBlankSetSessionIdKeepsSessionId() {
+        let id = Apphud.sessionId
+
+        Apphud.setSessionId("  ")
+
+        XCTAssertEqual(Apphud.sessionId, id)
     }
 
     func testPublicSessionIdMatchesRequestHeaderInBothModes() {
