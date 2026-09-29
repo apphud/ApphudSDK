@@ -349,7 +349,8 @@ extension ApphudInternal {
         return false
     }
 
-    internal func setUserProperty(key: ApphudUserPropertyKey, value: Any?, setOnce: Bool, increment: Bool = false) {
+    internal func setUserProperty(key: ApphudUserPropertyKey, value: Any?, setOnce: Bool, increment: Bool = false,
+                                  attributes: [String: String] = [:]) {
 
         guard let typeString = getType(value: value) else {
             let givenType = type(of: value)
@@ -364,7 +365,8 @@ extension ApphudInternal {
         }
 
         Task { @MainActor in
-            let property = ApphudUserProperty(key: key.key, value: value, increment: increment, setOnce: setOnce, type: typeString)
+            let property = ApphudUserProperty(key: key.key, value: value, increment: increment, setOnce: setOnce,
+                                              type: typeString, attributes: attributes)
             await ApphudDataActor.shared.addPendingUserProperty(property)
         }
 
