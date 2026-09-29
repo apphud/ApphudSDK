@@ -114,7 +114,7 @@ s
     /**
      Sets the session ID for a host SDK that owns the session. Every subsequent API request the SDK makes to Apphud carries this ID.
 
-     Once an ID is accepted, the SDK stops starting sessions on its own: neither background nor `logout()` changes the ID until this method is called again. The ID is not saved; after the app is relaunched the SDK starts its own sessions again until this method is called.
+     Once an ID is accepted, the SDK stops starting sessions on its own: neither background nor `logout()` changes the ID until another ID is accepted. The ID is not saved; after the app is relaunched the SDK starts its own sessions again until an ID is accepted.
 
      Call it before `Apphud.start(...)` so that customer registration already carries this ID; a later call affects only subsequent requests.
 
