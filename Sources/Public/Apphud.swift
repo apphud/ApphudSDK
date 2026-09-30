@@ -14,7 +14,7 @@ import Foundation
 import UserNotifications
 import SwiftUI
 
-internal let apphud_sdk_version = "4.5.1"
+internal let apphud_sdk_version = "4.6.0"
 
 public enum ApphudDeeplinkAttributionKind {
     case direct
