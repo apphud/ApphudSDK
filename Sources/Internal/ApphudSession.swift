@@ -21,7 +21,7 @@ import WatchKit
 ///
 /// Default mode: a new session starts on launch (the first access in the process), on
 /// return to the foreground after more than 30 minutes in the background, and on
-/// `logout()`. External mode (`Apphud.setSessionId(_:)`): the host owns every boundary
+/// `logout()`. External mode (`Apphud.platform.setSessionId(_:)`): the host owns every boundary
 /// until the process ends.
 ///
 /// Guarded by a lock rather than an actor: `requestInstance(url:)` reads the id
