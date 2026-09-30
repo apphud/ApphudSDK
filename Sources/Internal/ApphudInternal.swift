@@ -284,6 +284,9 @@ final class ApphudInternal: NSObject {
     @MainActor
     internal func initialize(apiKey: String, inputUserID: String?, inputDeviceID: String? = nil, observerMode: Bool) {
 
+        // The session's launch rule and lifecycle observers start here, not at the first request.
+        ApphudSession.shared.takeForeground(ifActive: ApphudSession.isAppActive())
+
         #if os(iOS) || os(tvOS)
         if !ApphudKeychain.canUseKeychain && !ApphudKeychain.hasLocalStorageData && UIApplication.shared.applicationState != .active {
             setupObservers()
