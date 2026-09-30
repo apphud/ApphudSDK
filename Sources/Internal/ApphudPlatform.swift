@@ -21,20 +21,12 @@ internal protocol PlatformProtocol {
     func setUserProperty(key: some PlatformUserPropertyKeyDescribing, value: Any?, setOnce: Bool)
 
     /**
-     Returns the current session ID: the value the SDK puts in the `X-Apphud-Session-Id` header of API requests it builds from now on.
-
-     After `setSessionId(_:)` accepts an ID, returns the ID from the latest accepted call in this app process; otherwise returns the SDK's own ID, which changes on app launch, when the app returns to the foreground after more than 30 minutes in the background (in AppKit macOS apps: after more than 30 minutes inactive; Mac Catalyst apps follow the background rule), and on `Apphud.logout()`.
+     Current session ID sent in the `X-Apphud-Session-Id` header: the one from `setSessionId(_:)`, or the SDK's own.
      */
     var sessionId: String { get }
 
     /**
-     Sets the session ID for a host SDK that owns the session. Every subsequent API request the SDK makes to Apphud carries this ID.
-
-     Once an ID is accepted, the SDK stops starting sessions on its own: neither background nor `Apphud.logout()` changes the ID until another ID is accepted. The ID is not saved; after the app is relaunched the SDK starts its own sessions again until an ID is accepted.
-
-     Call it before `Apphud.start(...)` so that customer registration already carries this ID; a later call affects only subsequent requests.
-
-     - parameter sessionId: The session ID; surrounding whitespace is trimmed. A blank value or one with characters outside printable ASCII (line breaks, non-ASCII) is ignored and logged: the current session stays.
+     Sets the session ID for all subsequent requests; the SDK stops rotating sessions until the app restarts.
      */
     func setSessionId(_ sessionId: String)
 }
