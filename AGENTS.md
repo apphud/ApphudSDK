@@ -69,7 +69,10 @@ xcodebuild test -workspace Examples/ApphudDemoSwift/ApphudSDKDemo.xcworkspace \
 - **State lives on the main actor** — `ApphudInternal` user/paywall state is
   `@MainActor`, as are `submittingTransaction` and the per-transaction single-flight
   map; HTTP and StoreKit callbacks hop to main before touching it. Off-main data goes
-  through `ApphudDataActor` / `ApphudProductsStorage`, not new locks.
+  through `ApphudDataActor` / `ApphudProductsStorage`, not new locks. One exception:
+  `ApphudSession` keeps its id under an `NSLock`, because `ApphudHttpClient.requestInstance(url:)`
+  and `PlatformProtocol.sessionId` read it synchronously off the main actor; its UserDefaults
+  writes go through its own serial queue, never under the lock.
 - **Identity is two ids** — `userID` and `deviceID` are persisted in Keychain and
   UserDefaults by `ApphudKeychain`; `logout()` blanks both and the next `start` mints a
   new device id. Read the Identity section of architecture.md before touching
