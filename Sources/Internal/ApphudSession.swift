@@ -19,12 +19,20 @@ import WatchKit
 /// Client-side session. Its id is sent as the `X-Apphud-Session-Id` header on every
 /// request built by `ApphudHttpClient.requestInstance(url:)`.
 ///
-/// Default mode, one rule for every launch (the user's or a background one) and every
-/// return to the foreground: the session continues if the app went to the background at most
-/// 30 minutes ago, otherwise a new one starts. The launch rule runs at `Apphud.start`; a session
-/// it starts counts as being in the background since then, until the app is in the foreground
-/// (at once when `Apphud.start` runs in an active app). `logout()` starts a new session. External mode (`Apphud.platform.setSessionId(_:)`): the host owns every boundary
-/// until the process ends, and nothing is saved.
+/// Default mode:
+/// - The first time the app is in the foreground in a process, a new session starts, even
+///   within 30 minutes of the last background: a launch by the user can't be told from a
+///   background one at launch time (scene-based apps start in the background state), so the
+///   first foreground stands for it.
+/// - Before that (at `Apphud.start`, or in a launch straight into the background: silent push,
+///   background fetch) the saved session continues if the app went to the background at most
+///   30 minutes ago, otherwise a new one starts, in the background since then. Requests sent
+///   before the first foreground carry this session; the registration from `Apphud.start` on a
+///   cold launch runs asynchronously and may go out before or after it.
+/// - Back from the background after more than 30 minutes: a new session; `logout()`: a new
+///   session.
+/// External mode (`Apphud.platform.setSessionId(_:)`): the host owns every boundary until the
+/// process ends, and nothing is saved.
 ///
 /// Guarded by a lock rather than an actor: `requestInstance(url:)` and
 /// `PlatformProtocol.sessionId` read the id synchronously and off the main actor.
@@ -54,6 +62,7 @@ internal final class ApphudSession: @unchecked Sendable {
 
     private var id: String
     private var isExternal = false
+    private var foregroundSeen = false
     // When the app went to the background, while it is there.
     private var backgroundStartDate: Date?
 
@@ -73,12 +82,12 @@ internal final class ApphudSession: @unchecked Sendable {
            let lastBackground = defaults.object(forKey: Self.lastBackgroundDateKey) as? Date,
            case let elapsed = launchDate.timeIntervalSince(lastBackground),
            elapsed >= 0, elapsed <= Self.backgroundTimeout {
-            // Continues the saved session and keeps its background time, so launches never
-            // extend it.
+            // Continues the saved session and keeps its background time, so background
+            // launches never extend it.
             self.id = savedId
             self.backgroundStartDate = lastBackground
         } else {
-            // A new session, in the background since launch until the app becomes active.
+            // A new session, in the background since launch.
             let id = Self.makeId()
             self.id = id
             self.backgroundStartDate = launchDate
@@ -103,12 +112,20 @@ internal final class ApphudSession: @unchecked Sendable {
         persist(id: id, backgroundDate: date)
     }
 
-    /// The app is coming to the foreground or became active; the first signal after the
-    /// background wins.
+    /// The app is coming to the foreground or became active. The first signal in the process
+    /// starts a new session; after that, the first signal after the background wins.
     internal func willEnterForeground() {
         let date = now()
         let persistable = canPersist()
         lock.lock(); defer { lock.unlock() }
+        if !foregroundSeen {
+            // The first foreground in the process stands for a launch by the user.
+            foregroundSeen = true
+            backgroundStartDate = nil
+            guard !isExternal else { return }
+            startNewSession(persistable: persistable)
+            return
+        }
         guard let start = backgroundStartDate else { return }
         backgroundStartDate = nil
         guard !isExternal, date.timeIntervalSince(start) > Self.backgroundTimeout else { return }

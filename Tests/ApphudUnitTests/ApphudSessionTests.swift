@@ -65,8 +65,8 @@ final class ApphudSessionTests: XCTestCase {
     }
 
     /// A new process over the same storage: writes of the previous ones have landed. An
-    /// `activated` launch becomes active right away, like a user launch; otherwise it stays
-    /// in the background, like a silent push.
+    /// `activated` launch comes to the foreground right away, like a user launch; otherwise it
+    /// stays in the background, like a silent push.
     private func launch(activated: Bool = true, canPersist: @escaping () -> Bool = { true }) -> ApphudSession {
         launched.forEach { flush($0) }
         let clock = self.clock!
@@ -104,12 +104,31 @@ final class ApphudSessionTests: XCTestCase {
         XCTAssertEqual(savedBackgroundDate, launchDate)
     }
 
-    func testLaunchWithinThirtyMinutesOfBackgroundContinuesSession() {
+    func testBackgroundLaunchWithinThirtyMinutesContinuesSession() {
         let id = sessionSentToBackground()
         clock.date.addTimeInterval(10 * 60)
 
-        XCTAssertEqual(launch().sessionId, id)
         XCTAssertEqual(launch(activated: false).sessionId, id)
+    }
+
+    func testUserLaunchWithinThirtyMinutesStartsNewSession() {
+        let id = sessionSentToBackground()
+        clock.date.addTimeInterval(10 * 60)
+
+        XCTAssertNotEqual(launch().sessionId, id)
+    }
+
+    func testRequestsBeforeTheFirstForegroundCarryTheStartSession() {
+        // A cold launch by the user: a request sent before the first foreground signal, such as
+        // the registration from `Apphud.start` when it goes out first, carries the start session.
+        let id = sessionSentToBackground()
+        clock.date.addTimeInterval(10 * 60)
+        let session = launch(activated: false)
+        XCTAssertEqual(session.sessionId, id)
+
+        session.willEnterForeground()
+
+        XCTAssertNotEqual(session.sessionId, id)
     }
 
     func testLaunchAtExactlyThirtyMinutesContinuesSession() {
@@ -137,7 +156,7 @@ final class ApphudSessionTests: XCTestCase {
         let id = sessionSentToBackground()
         clock.date.addTimeInterval(-60)
 
-        XCTAssertNotEqual(launch().sessionId, id)
+        XCTAssertNotEqual(launch(activated: false).sessionId, id)
     }
 
     func testLaunchesDoNotExtendSession() {
@@ -157,41 +176,31 @@ final class ApphudSessionTests: XCTestCase {
 
         clock.date.addTimeInterval(10 * 60)
 
-        XCTAssertEqual(launch().sessionId, id)
+        XCTAssertEqual(launch(activated: false).sessionId, id)
     }
 
-    func testForegroundAfterBackgroundLaunchCountsFromTheSavedBackground() {
+    func testUserOpenAfterBackgroundLaunchStartsNewSession() {
         let id = sessionSentToBackground()
         clock.date.addTimeInterval(10 * 60)
         let session = launch(activated: false)
 
-        clock.date.addTimeInterval(15 * 60)
-        session.willEnterForeground()
-        XCTAssertEqual(session.sessionId, id)
-
-        background(session, for: 30 * 60 + 1)
-        XCTAssertNotEqual(session.sessionId, id)
-    }
-
-    func testForegroundLongAfterBackgroundLaunchStartsNewSession() {
-        let id = sessionSentToBackground()
-        clock.date.addTimeInterval(10 * 60)
-        let session = launch(activated: false)
-
-        clock.date.addTimeInterval(20 * 60 + 1)
+        clock.date.addTimeInterval(5 * 60)
         session.willEnterForeground()
 
         XCTAssertNotEqual(session.sessionId, id)
     }
 
-    func testNewSessionAtLaunchCountsFromLaunchUntilActive() {
+    func testFirstForegroundSignalsStartOneSession() {
+        let names = ApphudSession.lifecycleNotificationNames.foreground
         let session = launch(activated: false)
+        let startId = session.sessionId
+
+        center.post(name: names.first!, object: nil)
         let id = session.sessionId
+        center.post(name: names.last!, object: nil)
 
-        clock.date.addTimeInterval(30 * 60 + 1)
-        session.willEnterForeground()
-
-        XCTAssertNotEqual(session.sessionId, id)
+        XCTAssertNotEqual(id, startId)
+        XCTAssertEqual(session.sessionId, id)
     }
 
     func testActiveAppIsNotInTheBackground() {
@@ -209,25 +218,29 @@ final class ApphudSessionTests: XCTestCase {
         XCTAssertNotEqual(savedBackgroundDate, date)
     }
 
-    func testBecomingActiveAtLaunchCountsAsForeground() {
+    func testBecomingActiveAtLaunchCountsAsTheFirstForeground() {
         // A cold launch may post only didBecomeActive (a separate observer on iOS, the only
-        // foreground signal on macOS); a later foreground signal without a background in
-        // between must not rotate.
+        // foreground signal on macOS): it starts the session, and a later foreground signal
+        // without a background in between doesn't rotate it.
         let foreground = ApphudSession.lifecycleNotificationNames.foreground
         let session = launch(activated: false)
-        let id = session.sessionId
+        let startId = session.sessionId
 
         center.post(name: foreground.last!, object: nil)
+        let id = session.sessionId
         clock.date.addTimeInterval(2 * 3600)
         center.post(name: foreground.first!, object: nil)
 
+        XCTAssertNotEqual(id, startId)
         XCTAssertEqual(session.sessionId, id)
     }
 
     func testStartInAnActiveAppTakesTheForegroundAtOnce() {
         let session = launch(activated: false)
-        let id = session.sessionId
+        let startId = session.sessionId
         session.takeForeground(ifActive: true)
+        let id = session.sessionId
+        XCTAssertNotEqual(id, startId)
 
         clock.date.addTimeInterval(40 * 60)
         session.didEnterBackground()
@@ -243,11 +256,11 @@ final class ApphudSessionTests: XCTestCase {
     func testStartInAnInactiveAppWaitsForTheForegroundSignal() {
         let session = launch(activated: false)
         let id = session.sessionId
+
         session.takeForeground(ifActive: false)
+        XCTAssertEqual(session.sessionId, id)
 
-        clock.date.addTimeInterval(30 * 60 + 1)
         session.willEnterForeground()
-
         XCTAssertNotEqual(session.sessionId, id)
     }
 
@@ -463,6 +476,19 @@ final class ApphudSessionTests: XCTestCase {
         session.setExternalSessionId("0b1c2d3e-4f50-4617-8293-a4b5c6d7e8f9")
 
         XCTAssertEqual(session.sessionId, "0b1c2d3e-4f50-4617-8293-a4b5c6d7e8f9")
+    }
+
+    func testFirstForegroundKeepsTheHostId() {
+        let session = launch(activated: false)
+        flush(session)
+        let ownId = savedId
+        session.setExternalSessionId("host")
+
+        session.willEnterForeground()
+        flush(session)
+
+        XCTAssertEqual(session.sessionId, "host")
+        XCTAssertEqual(savedId, ownId)
     }
 
     func testExternalModeSavesNothing() {
@@ -708,6 +734,27 @@ final class ApphudSessionHeaderTests: XCTestCase {
         XCTAssertEqual(recorded.map(\.idempotencyKey), ["initial-registration", "initial-registration"])
         XCTAssertNotEqual(recorded[0].sessionHeader, recorded[1].sessionHeader)
         XCTAssertEqual(recorded[1].sessionHeader, ApphudSession.shared.sessionId)
+    }
+
+    func testRegistrationBeforeTheFirstForegroundCarriesTheStartSession() {
+        // A cold launch by the user where the registration from `Apphud.start` goes out before
+        // the first foreground signal: it carries the session the process started with; later
+        // requests carry the session the first foreground started.
+        flush(ApphudSession.shared)
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.set("saved-session", forKey: "ApphudSessionId")
+        defaults.set(Date().addingTimeInterval(-10 * 60), forKey: "ApphudSessionLastBackgroundDate")
+        ApphudSession.shared = ApphudSession(defaults: defaults, notificationCenter: NotificationCenter(), canPersist: { true })
+
+        send(.customers, method: .post)
+        ApphudSession.shared.willEnterForeground()
+        send(.customers, method: .post)
+
+        let headers = SessionStubProtocol.recorded.map(\.sessionHeader)
+        XCTAssertEqual(headers.count, 2)
+        XCTAssertEqual(headers.first, "saved-session")
+        XCTAssertNotEqual(headers.last, "saved-session")
+        XCTAssertEqual(headers.last, ApphudSession.shared.sessionId)
     }
 
     func testSetSessionIdBeforeFirstRequestReachesRegistration() {
