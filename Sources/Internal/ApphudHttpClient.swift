@@ -178,6 +178,8 @@ public class ApphudHttpClient {
     internal func requestInstance(url: URL) -> URLRequest? {
         var request = URLRequest(url: url)
         request.setValue(apiKey, forHTTPHeaderField: "APPHUD-API-KEY")
+        // Read once, when the request is built: its retries keep this id.
+        request.setValue(ApphudSession.shared.sessionId, forHTTPHeaderField: ApphudSession.headerName)
         return request
     }
 
