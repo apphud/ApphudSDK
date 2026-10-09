@@ -385,6 +385,16 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         let betterUUID = (userIDIsUUID != nil) ? userID : ApphudInternal.shared.currentDeviceID
         return betterUUID
     }
+
+    /// The `appAccountToken` sent with StoreKit 2 purchases: the application username when it is a UUID.
+    /// `/sign_offer` uses the same rule to sign a UUID username in lowercase.
+    static func appAccountToken(from applicationUsername: String?) -> UUID? {
+        applicationUsername.flatMap { UUID(uuidString: $0) }
+    }
+
+    internal func appAccountToken() -> UUID? {
+        Self.appAccountToken(from: appropriateApplicationUsername())
+    }
 }
 
 /*
