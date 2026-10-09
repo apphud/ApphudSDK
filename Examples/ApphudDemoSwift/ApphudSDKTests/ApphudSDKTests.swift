@@ -323,6 +323,70 @@ final class ApphudSDKTests: XCTestCase {
         XCTAssertFalse(storeProduct.displayPrice.isEmpty, "Product must carry a display price")
     }
 
+    // MARK: 8. Promo offer signature covers what StoreKit 2 sends (PLT-1151)
+
+    // StoreKit 2 sends the application username as appAccountToken only when it is a
+    // UUID, and Apple checks the token's lowercase string. The hosted user/device id is
+    // "unit_test_user_…" — not a UUID — so no token is sent and /sign_offer must sign "".
+    // The stub answers /sign_offer without a signature, so no StoreKit purchase starts.
+    @MainActor
+    func test8PromoOfferSignRequestSignsWhatStoreKitSends() async throws {
+        await startSDKIfNeeded()
+
+        // The payment queue is swizzled (and a username exists) once paywalls are prepared.
+        let deadline = Date().addingTimeInterval(15)
+        while ApphudStoreKitWrapper.shared.appropriateApplicationUsername() == nil && Date() < deadline {
+            try await Task.sleep(nanoseconds: 200_000_000)
+        }
+        let username = try XCTUnwrap(ApphudStoreKitWrapper.shared.appropriateApplicationUsername(),
+                                     "the payment queue must be swizzled for a username to be sent")
+        XCTAssertNil(UUID(uuidString: username), "precondition: the hosted id is not a UUID")
+        ApphudStubURLProtocol.reset()
+
+        let returned = expectation(description: "purchasePromo returns")
+        ApphudInternal.shared.purchasePromo(productId: "com.apphud.monthly_promo", apphudProduct: nil,
+                                            discountID: "com.apphud.monthly_promo_skidos", fromScreen: false) { _ in
+            returned.fulfill()
+        }
+        await fulfillment(of: [returned], timeout: 15)
+
+        let sign = try XCTUnwrap(ApphudStubURLProtocol.requests(to: "/sign_offer").last, "no /sign_offer request")
+        XCTAssertEqual(sign.body["application_username"] as? String, "")
+        XCTAssertEqual(sign.body["offer_id"] as? String, "com.apphud.monthly_promo_skidos")
+        XCTAssertEqual(sign.body["product_id"] as? String, "com.apphud.monthly_promo")
+    }
+
+    // MARK: 8b. An uppercase UUID id is signed in the lowercase form Apple checks (PLT-1151)
+
+    // The hosted user id is not a UUID, so the SDK falls back to the device id. Making the
+    // device id an uppercase UUID reproduces the client's uppercase value (NSUUID().uuidString)
+    // through the device-id fallback; in the client case the user id itself carries it.
+    @MainActor
+    func test8bPromoOfferSignRequestLowercasesUUID() async throws {
+        await startSDKIfNeeded()
+        let deadline = Date().addingTimeInterval(15)
+        while ApphudStoreKitWrapper.shared.appropriateApplicationUsername() == nil && Date() < deadline {
+            try await Task.sleep(nanoseconds: 200_000_000)
+        }
+        XCTAssertNotNil(ApphudStoreKitWrapper.shared.appropriateApplicationUsername(), "the payment queue must be swizzled")
+        XCTAssertNil(UUID(uuidString: ApphudInternal.shared.currentUserID), "precondition: the hosted user id is not a UUID")
+
+        let originalDeviceID = ApphudInternal.shared.currentDeviceID
+        defer { ApphudInternal.shared.currentDeviceID = originalDeviceID }
+        ApphudInternal.shared.currentDeviceID = "2F8AE6A1-B7C5-4966-8DF8-89F750012506"
+        ApphudStubURLProtocol.reset()
+
+        let returned = expectation(description: "purchasePromo returns")
+        ApphudInternal.shared.purchasePromo(productId: "com.apphud.monthly_promo", apphudProduct: nil,
+                                            discountID: "com.apphud.monthly_promo_skidos", fromScreen: false) { _ in
+            returned.fulfill()
+        }
+        await fulfillment(of: [returned], timeout: 15)
+
+        let sign = try XCTUnwrap(ApphudStubURLProtocol.requests(to: "/sign_offer").last, "no /sign_offer request")
+        XCTAssertEqual(sign.body["application_username"] as? String, "2f8ae6a1-b7c5-4966-8df8-89f750012506")
+    }
+
     // MARK: 7. Restore returns control when registration can never succeed
 
     // Like the purchase path, a restore must not wait forever for a user registration

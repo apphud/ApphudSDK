@@ -775,8 +775,17 @@ extension ApphudInternal {
         let timestamp: Int
     }
 
+    /// Parameters of the `/sign_offer` request.
+    /// `application_username` must equal what Apple verifies: the purchase's `appAccountToken`
+    /// as a lowercase string, or an empty string when the purchase sends no token (PLT-1151).
+    static func promoOfferSignParams(productID: String, discountID: String, appAccountToken: UUID?, deviceID: String, userID: String) -> [String: Any] {
+        ["product_id": productID, "offer_id": discountID, "application_username": appAccountToken?.uuidString.lowercased() ?? "", "device_id": deviceID, "user_id": userID]
+    }
+
     private func signPromoOffer(productID: String, discountID: String, callback: ((ApphudSignedPromoOffer?, Error?) -> Void)?) {
-        let params: [String: Any] = ["product_id": productID, "offer_id": discountID, "application_username": ApphudStoreKitWrapper.shared.appropriateApplicationUsername() ?? "", "device_id": currentDeviceID, "user_id": currentUserID ]
+        let params = Self.promoOfferSignParams(productID: productID, discountID: discountID,
+                                               appAccountToken: ApphudStoreKitWrapper.shared.appAccountToken(),
+                                               deviceID: currentDeviceID, userID: currentUserID)
         httpClient?.startRequest(path: .signOffer, params: params, method: .post) { (result, dict, _, error, _, _, _) in
             if result, let responseDict = dict, let dataDict = responseDict["data"] as? [String: Any], let resultsDict = dataDict["results"] as? [String: Any] {
 

@@ -98,8 +98,8 @@ internal class ApphudAsyncStoreKit {
             }
         }
 
-        if let uuidString = ApphudStoreKitWrapper.shared.appropriateApplicationUsername(), let uuid = UUID(uuidString: uuidString) {
-            options.insert(.appAccountToken(uuid))
+        if let token = ApphudStoreKitWrapper.shared.appAccountToken() {
+            options.insert(.appAccountToken(token))
         }
 
         do {
