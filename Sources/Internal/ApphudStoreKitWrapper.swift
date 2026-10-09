@@ -387,8 +387,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
     }
 
     /// The `appAccountToken` sent with StoreKit 2 purchases: the application username when it is a UUID.
-    /// A promo offer signature must cover exactly this token (PLT-1151), so purchases and
-    /// `/sign_offer` both take it from here.
+    /// `/sign_offer` uses the same rule to sign a UUID username in lowercase.
     static func appAccountToken(from applicationUsername: String?) -> UUID? {
         applicationUsername.flatMap { UUID(uuidString: $0) }
     }

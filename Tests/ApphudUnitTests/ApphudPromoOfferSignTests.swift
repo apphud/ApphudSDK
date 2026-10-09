@@ -1,17 +1,16 @@
 import XCTest
 @testable import ApphudSDK
 
-/// PLT-1151: StoreKit 2 sends the application username to Apple as `appAccountToken` only
-/// when it is a UUID, and Apple checks the signature against the token's lowercase string.
-/// The value `/sign_offer` signs must be that lowercase token, or an empty string when the
-/// purchase sends no token.
+/// StoreKit 2 sends a UUID application username to Apple as `appAccountToken`,
+/// and Apple checks the signature against the token's lowercase string, so `/sign_offer`
+/// signs a UUID username in lowercase. Any other username is sent unchanged.
 final class ApphudPromoOfferSignTests: XCTestCase {
 
     private let upperUUID = "2F8AE6A1-B7C5-4966-8DF8-89F750012506"
 
     private func signedUsername(for username: String?) -> String? {
         let params = ApphudInternal.promoOfferSignParams(productID: "p", discountID: "o",
-                                                         appAccountToken: ApphudStoreKitWrapper.appAccountToken(from: username),
+                                                         applicationUsername: username,
                                                          deviceID: "D", userID: "U")
         return params["application_username"] as? String
     }
@@ -20,10 +19,9 @@ final class ApphudPromoOfferSignTests: XCTestCase {
         XCTAssertEqual(signedUsername(for: upperUUID), "2f8ae6a1-b7c5-4966-8df8-89f750012506")
     }
 
-    func testNonUUIDUsernameSignsEmptyString() {
-        // A custom non-UUID user/device id is never sent as appAccountToken.
-        XCTAssertNil(ApphudStoreKitWrapper.appAccountToken(from: "custom-device-42"))
-        XCTAssertEqual(signedUsername(for: "custom-device-42"), "")
+    func testNonUUIDUsernameIsSentUnchanged() {
+        XCTAssertNil(ApphudStoreKitWrapper.appAccountToken(from: "Custom-Device-42"))
+        XCTAssertEqual(signedUsername(for: "Custom-Device-42"), "Custom-Device-42")
     }
 
     func testMissingUsernameIsEmptyString() {
@@ -37,7 +35,7 @@ final class ApphudPromoOfferSignTests: XCTestCase {
 
     func testOtherFieldsAreSentUnchanged() {
         let params = ApphudInternal.promoOfferSignParams(productID: "com.app.Year", discountID: "Offer_7D",
-                                                         appAccountToken: UUID(uuidString: upperUUID),
+                                                         applicationUsername: upperUUID,
                                                          deviceID: "DEV-ID", userID: "User-ID")
         XCTAssertEqual(params["product_id"] as? String, "com.app.Year")
         XCTAssertEqual(params["offer_id"] as? String, "Offer_7D")

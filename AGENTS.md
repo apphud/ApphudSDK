@@ -23,7 +23,7 @@ visionOS 1+ declared identically in `Package.swift` and the podspec. StoreKit on
 framework dependency; no third-party packages. Distributed via `Package.swift` and
 `ApphudSDK.podspec`. `.swiftlint.yml` exists but nothing runs it. Tests:
 `Tests/ApphudUnitTests` (SPM test target, 13 XCTests, pure logic + seams, runs with
-`swift test` on macOS), `Examples/ApphudDemoSwift/ApphudSDKTests` (14 StoreKitTest
+`swift test` on macOS), `Examples/ApphudDemoSwift/ApphudSDKTests` (13 StoreKitTest
 integration tests with a stubbed backend, hosted by the demo app), and
 `Examples/ApphudDemoVisionOS/ApphudSDKTests` (three XCTests against a hard-coded live API key).
 
