@@ -22,6 +22,9 @@ internal class ApphudAsyncStoreKit {
     var purchaseIntentsListener = ApphudPurchaseIntentsObserver()
     var productsLoaded = false
 
+    /// The options of the last StoreKit 2 purchase, kept for tests.
+    internal var lastPurchaseOptions = Set<Product.PurchaseOption>()
+
     /// Touching this method forces the lazy singleton (and both listeners) to start.
     func startObserving() {}
 
@@ -82,8 +85,10 @@ internal class ApphudAsyncStoreKit {
         }
     }
 
+    /// - parameter addsCurrentAppAccountToken: `false` when `extraOptions` already holds the token the
+    ///   purchase must send (or deliberately none): a promotional offer is signed for one token.
     @MainActor
-    internal func purchaseResult(product: Product, _ scene: Any? = nil, commitmentPlan: Bool, apphudProduct: ApphudProduct?, fromScreen: Bool = false, isPurchasing: Binding<Bool>? = nil, extraOptions: Set<Product.PurchaseOption> = []) async -> ApphudAsyncPurchaseResult {
+    internal func purchaseResult(product: Product, _ scene: Any? = nil, commitmentPlan: Bool, apphudProduct: ApphudProduct?, fromScreen: Bool = false, isPurchasing: Binding<Bool>? = nil, extraOptions: Set<Product.PurchaseOption> = [], addsCurrentAppAccountToken: Bool = true) async -> ApphudAsyncPurchaseResult {
         self.isPurchasing = true
         await productsStorage.append(product)
         isPurchasing?.wrappedValue = true
@@ -98,9 +103,10 @@ internal class ApphudAsyncStoreKit {
             }
         }
 
-        if let uuidString = ApphudStoreKitWrapper.shared.appropriateApplicationUsername(), let uuid = UUID(uuidString: uuidString) {
-            options.insert(.appAccountToken(uuid))
+        if addsCurrentAppAccountToken, let token = ApphudStoreKitWrapper.shared.appAccountToken() {
+            options.insert(.appAccountToken(token))
         }
+        lastPurchaseOptions = options
 
         do {
 
@@ -226,13 +232,13 @@ internal class ApphudAsyncStoreKit {
 
     #if os(iOS) || os(tvOS) || os(macOS) || os(watchOS)
     @MainActor
-    func purchase(product: Product, commitmentPlan: Bool = false, apphudProduct: ApphudProduct?, fromScreen: Bool = false, isPurchasing: Binding<Bool>? = nil, extraOptions: Set<Product.PurchaseOption> = []) async -> ApphudAsyncPurchaseResult {
-        return await purchaseResult(product: product, commitmentPlan: commitmentPlan, apphudProduct: apphudProduct, fromScreen: fromScreen, isPurchasing: isPurchasing, extraOptions: extraOptions)
+    func purchase(product: Product, commitmentPlan: Bool = false, apphudProduct: ApphudProduct?, fromScreen: Bool = false, isPurchasing: Binding<Bool>? = nil, extraOptions: Set<Product.PurchaseOption> = [], addsCurrentAppAccountToken: Bool = true) async -> ApphudAsyncPurchaseResult {
+        return await purchaseResult(product: product, commitmentPlan: commitmentPlan, apphudProduct: apphudProduct, fromScreen: fromScreen, isPurchasing: isPurchasing, extraOptions: extraOptions, addsCurrentAppAccountToken: addsCurrentAppAccountToken)
     }
     #else
     @MainActor
-    func purchase(product: Product, scene: UIScene, apphudProduct: ApphudProduct?, fromScreen: Bool = false, isPurchasing: Binding<Bool>? = nil, extraOptions: Set<Product.PurchaseOption> = []) async -> ApphudAsyncPurchaseResult {
-        return await purchaseResult(product: product, scene, commitmentPlan: false, apphudProduct: apphudProduct, fromScreen: fromScreen, isPurchasing: isPurchasing, extraOptions: extraOptions)
+    func purchase(product: Product, scene: UIScene, apphudProduct: ApphudProduct?, fromScreen: Bool = false, isPurchasing: Binding<Bool>? = nil, extraOptions: Set<Product.PurchaseOption> = [], addsCurrentAppAccountToken: Bool = true) async -> ApphudAsyncPurchaseResult {
+        return await purchaseResult(product: product, scene, commitmentPlan: false, apphudProduct: apphudProduct, fromScreen: fromScreen, isPurchasing: isPurchasing, extraOptions: extraOptions, addsCurrentAppAccountToken: addsCurrentAppAccountToken)
     }
     #endif
 }

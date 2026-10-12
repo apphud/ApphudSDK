@@ -58,6 +58,10 @@ final class ApphudStubURLProtocol: URLProtocol {
     /// failure paths (where purchases are lost) are exercisable.
     static var subscriptionsFailureStatus: Int?
 
+    /// Artificial latency for POST /v1/sign_offer, so a test can change the user state
+    /// between signing a promotional offer and purchasing it.
+    static var signOfferResponseDelay: TimeInterval = 0
+
     override class func canInit(with request: URLRequest) -> Bool {
         guard let host = request.url?.host else { return false }
         return host.contains("apphud.com") || host.contains("aphd.cc")
@@ -84,7 +88,7 @@ final class ApphudStubURLProtocol: URLProtocol {
             self.client?.urlProtocolDidFinishLoading(self)
         }
 
-        let delay = isSubscriptions ? Self.subscriptionsResponseDelay : 0
+        let delay = isSubscriptions ? Self.subscriptionsResponseDelay : (path.hasSuffix("/sign_offer") ? Self.signOfferResponseDelay : 0)
         if delay > 0 {
             DispatchQueue.global().asyncAfter(deadline: .now() + delay, execute: deliver)
         } else {
@@ -124,6 +128,13 @@ final class ApphudStubURLProtocol: URLProtocol {
         if path.hasSuffix("/subscriptions") {
             let productId = purchasedProductId(from: requestBody) ?? "com.apphud.weekly"
             return userResponse(subscriptions: [subscriptionFixture(productId: productId)])
+        }
+        if path.hasSuffix("/sign_offer") {
+            // Well-formed but not a real signature: StoreKitTest does not verify it.
+            return ["data": ["results": ["key_id": "STUBKEYID",
+                                         "data": ["nonce": UUID().uuidString.lowercased(),
+                                                  "signature": Data("stub-signature".utf8).base64EncodedString(),
+                                                  "timestamp": Int(Date().timeIntervalSince1970 * 1000)]]]]
         }
         // Generic empty payload for auxiliary endpoints (events, logs, products, paywalls...).
         return ["data": ["results": [:]]]
@@ -258,6 +269,7 @@ final class ApphudSDKTests: XCTestCase {
         ApphudUtils.shared.storeKitObserverMode = false
         ApphudStubURLProtocol.subscriptionsResponseDelay = 0
         ApphudStubURLProtocol.subscriptionsFailureStatus = nil
+        ApphudStubURLProtocol.signOfferResponseDelay = 0
     }
 
     @MainActor
@@ -321,6 +333,119 @@ final class ApphudSDKTests: XCTestCase {
         let storeProduct = try XCTUnwrap(resolvedProduct, "ApphudProduct must resolve to a StoreKit 2 Product")
         XCTAssertGreaterThan(storeProduct.price, 0, "Product must carry a real price")
         XCTAssertFalse(storeProduct.displayPrice.isEmpty, "Product must carry a display price")
+    }
+
+    // MARK: 8. A promotional offer purchase sends exactly the appAccountToken it signed
+
+    // Apple checks the offer signature against the purchase's appAccountToken in lowercase,
+    // or against "" when the purchase sends none, so the signed `application_username` and the
+    // token in the StoreKit purchase options must be the same value. StoreKitTest rejects the
+    // stub signature (StoreKitError.unknown), so the tests check the options the SDK passed to
+    // `Product.purchase`, not a transaction. The hosted user id is not a UUID, so the SDK falls
+    // back to the installation id; each test sets the installation id it needs. An uppercase UUID
+    // reproduces the client's value (NSUUID().uuidString).
+    @MainActor
+    private func purchasePromoOffer(deviceID: String, whileSigning: (() -> Void)? = nil) async throws -> (signed: String?, options: Set<Product.PurchaseOption>) {
+        let session = try XCTUnwrap(Self.storeKitSession)
+        session.clearTransactions()
+        defer { session.clearTransactions() }
+
+        await startSDKIfNeeded()
+        let deadline = Date().addingTimeInterval(15)
+        while ApphudStoreKitWrapper.shared.appropriateApplicationUsername() == nil && Date() < deadline {
+            try await Task.sleep(nanoseconds: 200_000_000)
+        }
+        XCTAssertNotNil(ApphudStoreKitWrapper.shared.appropriateApplicationUsername(), "the payment queue must be swizzled")
+        XCTAssertNil(UUID(uuidString: ApphudInternal.shared.currentUserID), "precondition: the hosted user id is not a UUID")
+
+        let originalDeviceID = ApphudInternal.shared.currentInstallationID
+        defer { ApphudInternal.shared.currentInstallationID = originalDeviceID }
+        ApphudInternal.shared.currentInstallationID = deviceID
+        ApphudAsyncStoreKit.shared.lastPurchaseOptions = []
+        ApphudStubURLProtocol.reset()
+
+        let purchase = Task { @MainActor in
+            await withCheckedContinuation { continuation in
+                ApphudInternal.shared.purchasePromo(productId: "com.apphud.monthly_promo", apphudProduct: nil,
+                                                    discountID: "com.apphud.monthly_promo_skidos", fromScreen: false) { _ in
+                    continuation.resume()
+                }
+            }
+        }
+        if let whileSigning {
+            let signDeadline = Date().addingTimeInterval(10)
+            while ApphudStubURLProtocol.requests(to: "/sign_offer").isEmpty && Date() < signDeadline {
+                try await Task.sleep(nanoseconds: 50_000_000)
+            }
+            whileSigning()
+        }
+        await purchase.value
+
+        let sign = try XCTUnwrap(ApphudStubURLProtocol.requests(to: "/sign_offer").last, "no /sign_offer request")
+        return (sign.body["application_username"] as? String, ApphudAsyncStoreKit.shared.lastPurchaseOptions)
+    }
+
+    private let signedUUID = UUID(uuidString: "2F8AE6A1-B7C5-4966-8DF8-89F750012506")!
+
+    /// The appAccountToken values in purchase options, lowercase. `Product.PurchaseOption`
+    /// equality ignores the value (`.appAccountToken(a) == .appAccountToken(b)`), so the
+    /// tokens are read from the options' descriptions: `"appAccountToken": "<uuid>"`.
+    private func appAccountTokens(in options: Set<Product.PurchaseOption>) -> [String] {
+        let prefix = "\"appAccountToken\": \""
+        return options.map { String(reflecting: $0) }.filter { $0.hasPrefix(prefix) }.map { String($0.dropFirst(prefix.count).dropLast()) }
+    }
+
+    @MainActor
+    func test8PromoOfferPurchaseSendsTheSignedUUIDToken() async throws {
+        let (signed, options) = try await purchasePromoOffer(deviceID: signedUUID.uuidString)
+
+        XCTAssertEqual(signed, "2f8ae6a1-b7c5-4966-8df8-89f750012506", "Apple checks the token in lowercase")
+        XCTAssertEqual(appAccountTokens(in: options), [signed], "the purchase must send the signed token")
+        XCTAssertEqual(options.count, 2, "the promotional offer and the token")
+    }
+
+    // MARK: 8b. A non-UUID id: the purchase sends no token, so the empty string is signed
+
+    @MainActor
+    func test8bPromoOfferWithNonUUIDIdSignsEmptyString() async throws {
+        let (signed, options) = try await purchasePromoOffer(deviceID: "Custom-Device-42")
+
+        XCTAssertEqual(signed, "", "with no appAccountToken on the purchase Apple checks an empty string")
+        XCTAssertEqual(appAccountTokens(in: options), [], "no token on the purchase")
+        XCTAssertEqual(options.count, 1, "only the promotional offer")
+    }
+
+    // MARK: 8c. An id change while the offer is being signed does not change the purchase token
+
+    @MainActor
+    func test8cPromoOfferTokenIsReadOnceForSignatureAndPurchase() async throws {
+        let changedUUID = UUID(uuidString: "7C1D0E52-9B3A-4F6E-A2D8-5E4B3C2A1F90")!
+        ApphudStubURLProtocol.signOfferResponseDelay = 1
+        let (signed, options) = try await purchasePromoOffer(deviceID: signedUUID.uuidString) {
+            ApphudInternal.shared.currentInstallationID = changedUUID.uuidString
+        }
+
+        XCTAssertEqual(signed, "2f8ae6a1-b7c5-4966-8df8-89f750012506")
+        XCTAssertEqual(appAccountTokens(in: options), [signed], "the purchase must send the token that was signed")
+        XCTAssertEqual(options.count, 2, "the promotional offer and the token")
+    }
+
+    // MARK: 8d. A token that appears while the offer is being signed is not added to the purchase
+
+    // The cold-start case: the offer is signed with no token (the payment queue is not swizzled
+    // yet, or the id is not a UUID), then a token becomes available before the purchase starts.
+    // Not a duplicate of 8c: only this test fails if the promo purchase lets `purchaseResult` add
+    // the current token, because Set<Product.PurchaseOption> keeps an already present token.
+    @MainActor
+    func test8dPromoOfferSignedWithoutTokenIsPurchasedWithoutToken() async throws {
+        ApphudStubURLProtocol.signOfferResponseDelay = 1
+        let (signed, options) = try await purchasePromoOffer(deviceID: "Custom-Device-42") {
+            ApphudInternal.shared.currentInstallationID = "7C1D0E52-9B3A-4F6E-A2D8-5E4B3C2A1F90"
+        }
+
+        XCTAssertEqual(signed, "")
+        XCTAssertEqual(appAccountTokens(in: options), [], "the purchase must not send a token the offer was not signed for")
+        XCTAssertEqual(options.count, 1, "only the promotional offer")
     }
 
     // MARK: 7. Restore returns control when registration can never succeed

@@ -654,7 +654,11 @@ extension ApphudInternal {
             return
         }
 
-        self.signPromoOffer(productID: productId, discountID: discountID) { signedOffer, _ in
+        // Read once: the offer is signed for this token and the purchase must send the same one,
+        // even if the user id or the payment queue swizzle changes while the offer is being signed.
+        let appAccountToken = ApphudStoreKitWrapper.shared.appAccountToken()
+
+        self.signPromoOffer(productID: productId, discountID: discountID, appAccountToken: appAccountToken) { signedOffer, _ in
             guard let signedOffer else {
                 callback?(ApphudPurchaseResult(nil, nil, nil, ApphudError(message: "Could not sign offer id: \(discountID), product id: \(productId)")))
                 return
@@ -662,12 +666,15 @@ extension ApphudInternal {
 
             Task { @MainActor in
                 self.purchasingProduct = apphudProduct
-                let option = Product.PurchaseOption.promotionalOffer(offerID: signedOffer.offerID,
-                                                                     keyID: signedOffer.keyID,
-                                                                     nonce: signedOffer.nonce,
-                                                                     signature: signedOffer.signature,
-                                                                     timestamp: signedOffer.timestamp)
-                await self.purchaseAsync(apphudProduct: apphudProduct, productId: productId, commitmentPlan: false, fromScreen: fromScreen, extraOptions: [option], callback: callback)
+                var options: Set<Product.PurchaseOption> = [.promotionalOffer(offerID: signedOffer.offerID,
+                                                                              keyID: signedOffer.keyID,
+                                                                              nonce: signedOffer.nonce,
+                                                                              signature: signedOffer.signature,
+                                                                              timestamp: signedOffer.timestamp)]
+                if let appAccountToken {
+                    options.insert(.appAccountToken(appAccountToken))
+                }
+                await self.purchaseAsync(apphudProduct: apphudProduct, productId: productId, commitmentPlan: false, fromScreen: fromScreen, extraOptions: options, addsCurrentAppAccountToken: false, callback: callback)
             }
         }
     }
@@ -675,7 +682,7 @@ extension ApphudInternal {
     // MARK: - Private purchase methods
 
     @MainActor
-    private func purchaseAsync(apphudProduct: ApphudProduct?, productId: String?, commitmentPlan: Bool, fromScreen: Bool, value: Double? = nil, extraOptions: Set<Product.PurchaseOption> = [], callback: ((ApphudPurchaseResult) -> Void)?) async {
+    private func purchaseAsync(apphudProduct: ApphudProduct?, productId: String?, commitmentPlan: Bool, fromScreen: Bool, value: Double? = nil, extraOptions: Set<Product.PurchaseOption> = [], addsCurrentAppAccountToken: Bool = true, callback: ((ApphudPurchaseResult) -> Void)?) async {
         var product = try? await apphudProduct?.product()
         if product == nil, let productId {
             product = try? await ApphudAsyncStoreKit.shared.fetchProduct(productId)
@@ -702,9 +709,9 @@ extension ApphudInternal {
             callback?(ApphudPurchaseResult(nil, nil, nil, ApphudError(message: "Failed to retrieve UIScene for purchase confirmation")))
             return
         }
-        let result: ApphudAsyncPurchaseResult = await ApphudAsyncStoreKit.shared.purchase(product: product, scene: scene, apphudProduct: apphudProduct, fromScreen: fromScreen, extraOptions: extraOptions)
+        let result: ApphudAsyncPurchaseResult = await ApphudAsyncStoreKit.shared.purchase(product: product, scene: scene, apphudProduct: apphudProduct, fromScreen: fromScreen, extraOptions: extraOptions, addsCurrentAppAccountToken: addsCurrentAppAccountToken)
         #else
-        let result: ApphudAsyncPurchaseResult = await ApphudAsyncStoreKit.shared.purchase(product: product, commitmentPlan: commitmentPlan, apphudProduct: apphudProduct, fromScreen: fromScreen, extraOptions: extraOptions)
+        let result: ApphudAsyncPurchaseResult = await ApphudAsyncStoreKit.shared.purchase(product: product, commitmentPlan: commitmentPlan, apphudProduct: apphudProduct, fromScreen: fromScreen, extraOptions: extraOptions, addsCurrentAppAccountToken: addsCurrentAppAccountToken)
         #endif
         let resultV2 = ApphudPurchaseResult(result.subscription, result.nonRenewingPurchase, nil, result.error, transactionV2: result.transaction)
         resultV2.isPending = result.isPending
@@ -773,11 +780,23 @@ extension ApphudInternal {
         let timestamp: Int
     }
 
-    private func signPromoOffer(productID: String, discountID: String, callback: ((ApphudSignedPromoOffer?, Error?) -> Void)?) {
-        var params: [String: Any] = identityParams(includeUserID: true)
+    /// Parameters of the `/sign_offer` request for a purchase that sends `appAccountToken`.
+    /// Apple checks the signature against that token in lowercase, or against an empty string
+    /// when the purchase sends no token.
+    static func promoOfferSignParams(productID: String, discountID: String, appAccountToken: UUID?, identity: ApphudIdentity) -> [String: Any] {
+        var params: [String: Any] = identity.requestParams
+        if let userID = identity.userID {
+            params["user_id"] = userID
+        }
         params["product_id"] = productID
         params["offer_id"] = discountID
-        params["application_username"] = ApphudStoreKitWrapper.shared.appropriateApplicationUsername() ?? ""
+        params["application_username"] = appAccountToken?.uuidString.lowercased() ?? ""
+        return params
+    }
+
+    private func signPromoOffer(productID: String, discountID: String, appAccountToken: UUID?, callback: ((ApphudSignedPromoOffer?, Error?) -> Void)?) {
+        let params = Self.promoOfferSignParams(productID: productID, discountID: discountID, appAccountToken: appAccountToken,
+                                               identity: identity)
         httpClient?.startRequest(path: .signOffer, params: params, method: .post) { (result, dict, _, error, _, _, _) in
             if result, let responseDict = dict, let dataDict = responseDict["data"] as? [String: Any], let resultsDict = dataDict["results"] as? [String: Any] {
 
