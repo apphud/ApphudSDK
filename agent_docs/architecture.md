@@ -204,11 +204,14 @@ user's restore will merge both under the subscriber's account.
 `ApphudStoreKitWrapper.appropriateApplicationUsername()` returns `currentUserID` when it
 parses as a `UUID`, otherwise `currentDeviceID`, and only when the payment queue has been
 swizzled (`hasSwizzledPaymentQueue`, set from `preparePaywalls` after the first user
-load). That value goes into `Product.PurchaseOption.appAccountToken(UUID)` on every SDK
-purchase (`ApphudAsyncStoreKit.purchaseResult`), into `SKMutablePayment.applicationUsername`
-for the host app's own StoreKit 1 payments (swizzle), and into `application_username` in
-the `/v1/sign_offer` request. A non-UUID user id silently falls back to the device id; a
-purchase made before the swizzle is enabled carries no `appAccountToken`.
+load). When that value is a UUID (`ApphudStoreKitWrapper.appAccountToken()`) it goes into
+`Product.PurchaseOption.appAccountToken(UUID)` on every SDK purchase
+(`ApphudAsyncStoreKit.purchaseResult`). The value itself goes into
+`SKMutablePayment.applicationUsername` for the host app's own StoreKit 1 payments (swizzle),
+unless the host already set a UUID there (a host UUID is kept; a non-UUID one is overwritten).
+A non-UUID user id silently falls back to the device id; a purchase made before the swizzle is
+enabled carries no `appAccountToken`.
+A promo offer purchase reads the token once and signs exactly that token (see Promo offers).
 
 ## Paywalls, placements, products
 
@@ -287,12 +290,12 @@ Apphud.purchase(ApphudProduct, callback:) / purchase(productId, callback:)      
 Apphud.purchase(ApphudProduct) async / purchase(ApphudProduct, value:)
   └─> ApphudInternal.purchase(productId:product:validate:purchasingFromScreen:value:callback:)   @MainActor
       ├─> purchasingProduct = product; commitmentPlan = product.isCommitmentPlanPreferred()
-      └─> purchaseAsync(apphudProduct:productId:commitmentPlan:fromScreen:value:extraOptions:)   (private)
+      └─> purchaseAsync(apphudProduct:productId:commitmentPlan:fromScreen:value:extraOptions:addsCurrentAppAccountToken:)   (private)
           ├─> product = apphudProduct.product() ?? ApphudAsyncStoreKit.fetchProduct(id)   (Product.products(for:))
           │     nil → callback(ApphudPurchaseResult(error: "product identifier is invalid"))
           ├─> wrapper.purchasingValue = (id, value) or nil          (setCustomPurchaseValue / value:)
           ├─> visionOS: resolve the foreground UIScene (error if none)
-          └─> ApphudAsyncStoreKit.purchase(product:commitmentPlan:apphudProduct:fromScreen:extraOptions:)
+          └─> ApphudAsyncStoreKit.purchase(product:commitmentPlan:apphudProduct:fromScreen:extraOptions:addsCurrentAppAccountToken:)
               └─> ApphudAsyncPurchaseResult → ApphudPurchaseResult(subscription, purchase, nil, error,
                     transactionV2: trx) with isPending copied; callback(resultV2)
 
@@ -304,7 +307,8 @@ Apphud.purchase(Product, prefersCommitmentPlan:isPurchasing:) async             
 
 ```
 isPurchasing = true; productsStorage.append(product)
-options = extraOptions ∪ .appAccountToken(UUID from appropriateApplicationUsername())
+options = extraOptions ∪ .appAccountToken(ApphudStoreKitWrapper.appAccountToken())
+          (the token only when addsCurrentAppAccountToken; promo passes false)
         ∪ .billingPlanType(.monthly) on iOS 26.4+ when commitmentPlan && isCommitmentPlanSupported()
 LoggerService.paywallCheckoutInitiated → event paywall_checkout_initiated
 product.purchase(options:)   (visionOS: purchase(confirmIn: scene, options:))
@@ -325,10 +329,14 @@ asyncPurchaseResult(product:transaction:error:isPending:) → ApphudAsyncPurchas
 for the user's other subscriptions); `success` = `transaction != nil`.
 `ApphudPurchaseResult.success` = no error and an active subscription/purchase.
 
-Promo offers: `purchasePromo(productId:apphudProduct:discountID:fromScreen:)` →
-`POST /v1/sign_offer` (`signPromoOffer`, with `application_username`) →
+Promo offers: `purchasePromo(productId:apphudProduct:discountID:fromScreen:)` reads
+`ApphudStoreKitWrapper.appAccountToken()` once →
+`POST /v1/sign_offer` (`signPromoOffer`, `application_username` = that token in lowercase, or ""
+with no token: Apple checks the signature against the purchase's `appAccountToken` that way) →
 `ApphudSignedPromoOffer` → `Product.PurchaseOption.promotionalOffer(offerID:keyID:nonce:signature:timestamp:)`
-passed as `extraOptions` into the same `purchaseAsync` path. No `SKPaymentDiscount`.
+plus `.appAccountToken(token)` when there is one, passed as `extraOptions` with
+`addsCurrentAppAccountToken: false` into the same `purchaseAsync` path, so a user id or swizzle
+change during signing cannot make the purchase send a different token. No `SKPaymentDiscount`.
 
 ### Transaction handling (single-flight per transaction id)
 
