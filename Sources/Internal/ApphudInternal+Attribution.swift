@@ -122,11 +122,9 @@ extension ApphudInternal {
                 }
 
                 // Create Request params with raw_data
-                var params: [String: Any] = [
-                    "device_id": self.currentDeviceID,
-                    "provider": provider.toString(),
-                    "raw_data": dict
-                ]
+                var params: [String: Any] = self.identityParams()
+                params["provider"] = provider.toString()
+                params["raw_data"] = dict
 
                 var attributionDict: [String: any Sendable] = [:]
 
@@ -301,10 +299,8 @@ extension ApphudInternal {
     }
     
     private func startDeeplinkAttributionRequest(url: URL?, visitorId: String?, completion: @escaping ([String: Any]?) -> Void) {
-        var params: [String: Any] = [
-            "device_id": self.currentDeviceID,
-            "bundle_id": Bundle.main.bundleIdentifier ?? ""
-        ]
+        var params: [String: Any] = self.identityParams()
+        params["bundle_id"] = Bundle.main.bundleIdentifier ?? ""
         if let url {
             params["url"] = url.absoluteString
         }
@@ -329,35 +325,59 @@ extension ApphudInternal {
             return
         }
 
-        if email.isEmpty && currentUser?.userId == userId {
+        if !userId.isEmpty && identifiedUserID == userId {
             apphudLog("Already web2web user, skipping")
             completion(true, currentUser)
             return
         }
 
-        var params: [String: Any] = ["from_web2web": true]
-        if !userId.isEmpty {
-            params["user_id"] = userId
-        }
-        if !email.isEmpty {
-            params["email"] = email
-        }
-
         apphudLog("Found a match from web click, updating User ID to \(userId)", forceDisplay: true)
         self.performWhenUserRegistered {
-            self.updateUser(fields: params) { (result, _, data, _, _, _, _) in
-                if result {
-                    Task {
-                        let changes = await self.parseUser(data: data)
-
-                        Task { @MainActor in
-                            self.notifyAboutUpdates(changes)
-                            completion(true, self.currentUser)
-                        }
-                    }
-                } else {
-                    completion(false, self.currentUser)
+            if !userId.isEmpty {
+                // The web user's id is known: a plain identify, no from_web2web.
+                self.applyIdentify(userID: userId)
+                self.updateUser(fields: [:]) { (result, _, data, _, _, _, _) in
+                    self.finishWebAttribution(result: result, data: data, adoptFromCustomer: nil, completion: completion)
                 }
+            } else {
+                // Email only: the old request shape; the response names the web user.
+                let params: [String: Any] = ["from_web2web": true, "email": email]
+                // In fallback mode the local user is made up: no customer id to compare against.
+                let customerBefore: String?? = self.fallbackMode ? nil : .some(self.currentUser?.internalId)
+                self.updateUser(fields: params, legacyWeb2Web: true) { (result, _, data, _, _, _, _) in
+                    self.finishWebAttribution(result: result, data: data, adoptFromCustomer: customerBefore, completion: completion)
+                }
+            }
+        }
+    }
+
+    /// The web user an email-only web-to-web request found: the response is another customer than
+    /// before. Without a match the backend returns the same customer, possibly with another
+    /// install's id as its user_id, which is no user to adopt.
+    internal static func webUserToAdopt(customerBefore: String?, response: ApphudUser?, anonymousID: String) -> String? {
+        guard let response, !response.userId.isEmpty, response.userId != anonymousID,
+              !response.internalId.isEmpty, response.internalId != customerBefore else { return nil }
+        return response.userId
+    }
+
+    /// `adoptFromCustomer`: the customer id before an email-only request, `nil` for a request with the user id.
+    private func finishWebAttribution(result: Bool, data: Data?, adoptFromCustomer customerBefore: String??, completion: @escaping (Bool, ApphudUser?) -> Void) {
+        guard result else {
+            Task { @MainActor in completion(false, self.currentUser) }
+            return
+        }
+        Task {
+            let changes = await self.parseUser(data: data)
+
+            Task { @MainActor in
+                // The web user found by email becomes the SDK's user, as an identify would; the
+                // anonymous customer merges into it on the next request.
+                if let customerBefore,
+                   let webUserID = Self.webUserToAdopt(customerBefore: customerBefore, response: self.currentUser, anonymousID: self.currentAnonymousID) {
+                    self.applyIdentify(userID: webUserID)
+                }
+                self.notifyAboutUpdates(changes)
+                completion(true, self.currentUser)
             }
         }
     }

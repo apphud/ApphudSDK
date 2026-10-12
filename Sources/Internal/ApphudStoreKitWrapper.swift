@@ -382,7 +382,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         if !hasSwizzledPaymentQueue { return nil }
         let userID = ApphudInternal.shared.currentUserID
         let userIDIsUUID = UUID(uuidString: userID)
-        let betterUUID = (userIDIsUUID != nil) ? userID : ApphudInternal.shared.currentDeviceID
+        let betterUUID = (userIDIsUUID != nil) ? userID : ApphudInternal.shared.currentInstallationID
         return betterUUID
     }
 }

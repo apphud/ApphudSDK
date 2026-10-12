@@ -42,40 +42,48 @@ final public class Apphud: NSObject {
     /**
      Initializes Apphud SDK. Call this during the app's launch.
 
+     Every id is optional: the SDK generates only what is missing and never generates over or rotates an id you pass. Pass `installationID` and `anonymousID` together when your app owns the ids; the SDK then stores what it was given and takes `isReinstall` from you instead of detecting it.
+
      - parameter apiKey: Required. Your API key.
-     - parameter userID: Optional. Provide your own unique user identifier, or if `nil`, a UUID will be generated.
+     - parameter userID: Optional. Your own user identifier, once the user is identified. Without it the user stays anonymous.
+     - parameter anonymousID: Optional. The anonymous person's id. Generated if `nil`.
+     - parameter installationID: Optional. The id of this app install. Generated if `nil`.
+     - parameter isReinstall: Optional. Whether this install is a reinstall, when your app passes the ids itself.
      - parameter observerMode: Optional. Sets SDK to Observer (Analytics) mode. Pass `true` if you handle product purchases with your own code, or `false` if you use the `Apphud.purchase(..)` method. The default value is `false`. This mode influences analytics and data collection behaviors.
      - parameter callback: Optional. Called when the user is successfully registered in Apphud [or retrieved from cache]. Use this to fetch raw placements or paywalls.
      - parameter deeplinkHandler: Optional. A callback that receives deep link attribution updates. It may be called multiple times for both direct and deferred attribution flows.
      */
     @MainActor
-    public static func start(apiKey: String, userID: String? = nil, observerMode: Bool = false, callback: ((ApphudUser) -> Void)? = nil, deeplinkHandler: ApphudDeeplinkHandler? = nil) {
+    public static func start(apiKey: String, userID: String? = nil, anonymousID: String? = nil, installationID: String? = nil, isReinstall: Bool? = nil, observerMode: Bool = false, callback: ((ApphudUser) -> Void)? = nil, deeplinkHandler: ApphudDeeplinkHandler? = nil) {
         ApphudInternal.shared.setDeeplinkAttributionHandler(deeplinkHandler)
-        ApphudInternal.shared.initialize(apiKey: apiKey, inputUserID: userID, observerMode: observerMode)
+        let supplied = ApphudSuppliedIDs(userID: userID, anonymousID: anonymousID, installationID: installationID, isReinstall: isReinstall)
+        ApphudInternal.shared.initialize(apiKey: apiKey, supplied: supplied, observerMode: observerMode)
         ApphudInternal.shared.performWhenUserRegistered { callback?(ApphudInternal.shared.currentUser!) }
     }
 
     /**
-    Initializes Apphud SDK with User ID & Device ID pair. Not recommended for use unless you know what you are doing.
+    Initializes Apphud SDK with User ID & Device ID pair. The device ID is now the installation ID.
 
     - parameter apiKey: Required. Your api key.
-    - parameter userID: Optional. You can provide your own unique user identifier. If `nil` passed then UUID will be generated instead.
-    - parameter deviceID: Optional. You can provide your own unique device identifier. If `nil` passed then UUID will be generated instead.
+    - parameter userID: Optional. Your own user identifier, once the user is identified.
+    - parameter deviceID: Optional. Used as the installation ID. Generated if `nil`.
     - parameter observerMode: Optional. Sets SDK to Observer (Analytics) mode. If you purchase products by your own code, then pass `true`. If you purchase products using `Apphud.purchase(product)` method, then pass `false`. Default value is `false`.
     - parameter callback: Optional. Called when user is successfully registered in Apphud [or used from cache]. Use this to fetch raw placements or paywalls.
     - parameter deeplinkHandler: Optional. A callback that receives deep link attribution updates. It may be called multiple times for both direct and deferred attribution flows.
     */
+    @available(*, deprecated, message: "Use start(apiKey:userID:anonymousID:installationID:...) and pass the device ID as installationID.")
     @MainActor
     public static func startManually(apiKey: String, userID: String? = nil, deviceID: String? = nil, observerMode: Bool = false, callback: ((ApphudUser) -> Void)? = nil, deeplinkHandler: ApphudDeeplinkHandler? = nil) {
         ApphudInternal.shared.setDeeplinkAttributionHandler(deeplinkHandler)
-        ApphudInternal.shared.initialize(apiKey: apiKey, inputUserID: userID, inputDeviceID: deviceID, observerMode: observerMode)
+        let supplied = ApphudSuppliedIDs(userID: userID, installationID: deviceID)
+        ApphudInternal.shared.initialize(apiKey: apiKey, supplied: supplied, observerMode: observerMode)
         ApphudInternal.shared.performWhenUserRegistered { callback?(ApphudInternal.shared.currentUser!) }
     }
 
     /**
-     Updates the user ID. Use this when you need to change the user identifier during the app's runtime.
-s
-     - parameter userID: Required. The new user ID value.
+     Identifies the user. While the user is anonymous, they become this user; if the id belongs to an existing customer, the anonymous one merges into it. The same id again does nothing. To switch to another user, call `logout()` first.
+
+     - parameter userID: Required. The user ID.
      - parameter callback: A closure that gets called with the updated `ApphudUser` object. The user object may be nil
                           if user registering fails.
      */
@@ -85,7 +93,7 @@ s
     }
 
     /**
-     Returns the current userID that identifies the user across multiple devices.
+     Returns the current user identity: the user ID once the user is identified, the anonymous ID before.
 
      Note: This value may change during runtime. Observe the `apphudDidChangeUserID(_ userID: String)` delegate method for changes.
      */
@@ -94,14 +102,36 @@ s
     }
 
     /**
-     Returns the current device ID. Use this method if you need to implement a custom logout/login flow by saving a User ID & Device ID pair for each app user. This allows for a more controlled management of user sessions and device associations.
-
-     - Returns: A string representing the current device ID.
+     Returns the ID of this app install. It is new after a reinstall and is kept across logout.
      */
-    @MainActor @objc public static func deviceID() -> String {
-        return ApphudInternal.shared.currentDeviceID
+    @MainActor @objc public static func installationID() -> String {
+        return ApphudInternal.shared.currentInstallationID
     }
-    
+
+    /**
+     Returns the anonymous ID. It changes on logout and after a reinstall, and is kept when the user is identified.
+     */
+    @MainActor @objc public static func anonymousID() -> String {
+        return ApphudInternal.shared.currentAnonymousID
+    }
+
+    /**
+     Whether this install is a reinstall on the same device: `true` for a reinstall, `false` for a first install. `nil` while not known yet (the Keychain was locked at the install's first launch), and for an install updated in place from an older SDK version.
+     */
+    @MainActor public static func isReinstall() -> Bool? {
+        return ApphudInternal.shared.isReinstall
+    }
+
+    /**
+     Returns the installation ID, which replaced the device ID.
+
+     - Returns: A string representing the installation ID.
+     */
+    @available(*, deprecated, renamed: "installationID()")
+    @MainActor @objc public static func deviceID() -> String {
+        return installationID()
+    }
+
     /**
      Returns an instance of the current user.
 
@@ -120,6 +150,13 @@ s
      */
     @objc public static func logout() async {
         await ApphudInternal.shared.logout()
+    }
+
+    /**
+     Logs out the current user like `logout()`. The supplied anonymous ID replaces the current one; without one the SDK generates it. The installation ID is kept.
+     */
+    @objc public static func logout(anonymousID: String?) async {
+        await ApphudInternal.shared.logout(anonymousID: anonymousID)
     }
 
     /**

@@ -451,9 +451,9 @@ extension ApphudInternal {
 
         let environment = Apphud.isSandbox() ? ApphudEnvironment.sandbox.rawValue : ApphudEnvironment.production.rawValue
 
-        var params: [String: Any] = ["device_id": self.currentDeviceID,
-                                     "environment": environment,
-                                     "observer_mode": ApphudUtils.shared.storeKitObserverMode]
+        var params: [String: Any] = self.identityParams(includeUserID: true)
+        params["environment"] = environment
+        params["observer_mode"] = ApphudUtils.shared.storeKitObserverMode
 
         // Send the receipt whenever it is readable from disk: apps without an
         // App Store Server API key in the Apphud dashboard can only be validated
@@ -475,8 +475,6 @@ extension ApphudInternal {
         }
 
         let hasMadePurchase = transactionState == .purchased
-
-        params["user_id"] = currentUserID
 
         if let info = productInfo {
             params["product_info"] = info
@@ -776,7 +774,10 @@ extension ApphudInternal {
     }
 
     private func signPromoOffer(productID: String, discountID: String, callback: ((ApphudSignedPromoOffer?, Error?) -> Void)?) {
-        let params: [String: Any] = ["product_id": productID, "offer_id": discountID, "application_username": ApphudStoreKitWrapper.shared.appropriateApplicationUsername() ?? "", "device_id": currentDeviceID, "user_id": currentUserID ]
+        var params: [String: Any] = identityParams(includeUserID: true)
+        params["product_id"] = productID
+        params["offer_id"] = discountID
+        params["application_username"] = ApphudStoreKitWrapper.shared.appropriateApplicationUsername() ?? ""
         httpClient?.startRequest(path: .signOffer, params: params, method: .post) { (result, dict, _, error, _, _, _) in
             if result, let responseDict = dict, let dataDict = responseDict["data"] as? [String: Any], let resultsDict = dataDict["results"] as? [String: Any] {
 

@@ -13,7 +13,7 @@ an unmodified clone of `apphud/ApphudSDK` at tag `4.5.0`; the docs describe that
 
 | Topic | Doc |
 | --- | --- |
-| Init/registration flow, identity (userID/deviceID/logout), purchase paths, HTTP + retry, persistence, swizzling, ApphudUI, threading | [agent_docs/architecture.md](agent_docs/architecture.md) |
+| Init/registration flow, identity (installation/anonymous/user ids, logout), purchase paths, HTTP + retry, persistence, swizzling, ApphudUI, threading | [agent_docs/architecture.md](agent_docs/architecture.md) |
 | Directory layout, where new code goes, naming | [agent_docs/structure.md](agent_docs/structure.md) |
 
 ## Tech stack
@@ -73,10 +73,11 @@ xcodebuild test -workspace Examples/ApphudDemoSwift/ApphudSDKDemo.xcworkspace \
   `ApphudSession` keeps its id under an `NSLock`, because `ApphudHttpClient.requestInstance(url:)`
   and `PlatformProtocol.sessionId` read it synchronously off the main actor; its UserDefaults
   writes go through its own serial queue, never under the lock.
-- **Identity is two ids** — `userID` and `deviceID` are persisted in Keychain and
-  UserDefaults by `ApphudKeychain`; `logout()` blanks both and the next `start` mints a
-  new device id. Read the Identity section of architecture.md before touching
-  `identify`, `checkUserID`, `updateUserID` or `logout`.
+- **Identity is three ids** — `installation_id` (backup-excluded file, kept across
+  logout), `anonymous_id` (UserDefaults, new on logout) and `user_id` (set only by
+  identify); the Keychain keeps only the reinstall key. `ApphudIdentityStore` resolves and
+  persists them. Read the Identity section of architecture.md before touching
+  `identify`, `updateUserID`, `tryWebAttribution` or `logout`.
 - **UIKit/WebKit code is compile-guarded** — `ApphudUI/` and
   `Public/ApphudPaywallScreenController.swift` sit in `#if os(iOS)` (per-file details in
   [agent_docs/structure.md](agent_docs/structure.md)); keep macOS/watchOS/tvOS/visionOS

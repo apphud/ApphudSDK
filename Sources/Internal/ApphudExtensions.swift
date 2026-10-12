@@ -289,11 +289,23 @@ internal func apphudIdentifierForAdvertising() -> String? {
     return nil
 }
 
+/// The IDFV passed with `setDeviceIdentifiers`, otherwise the system one. It may be nil before the
+/// first unlock; it is read again for the next request.
+@MainActor
 internal func apphudIdentifierForVendor() -> String? {
-    if let idfv = ApphudInternal.shared.deviceIdentifiers.1, idfv != "00000000-0000-0000-0000-000000000000" {
+    let zero = "00000000-0000-0000-0000-000000000000"
+    if let idfv = ApphudInternal.shared.deviceIdentifiers.1, idfv != zero {
         return idfv
     }
-    return nil
+    #if os(iOS) || os(tvOS) || os(visionOS)
+    let systemIDFV = UIDevice.current.identifierForVendor?.uuidString
+    #elseif os(watchOS)
+    let systemIDFV = WKInterfaceDevice.current().identifierForVendor?.uuidString
+    #else
+    let systemIDFV: String? = nil
+    #endif
+    guard let systemIDFV, systemIDFV != zero else { return nil }
+    return systemIDFV
 }
 
 internal func apphudReceiptDataString() -> String? {

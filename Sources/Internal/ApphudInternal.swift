@@ -21,7 +21,6 @@ internal let ApphudPlacementsCacheKey = "ApphudPlacements"
 internal let ApphudPaywallsCacheKey = "ApphudPaywalls"
 internal let ApphudProductGroupsCacheKey = "ApphudProductGroups"
 internal let ApphudUserPropertiesCacheKey = "ApphudUserPropertiesCache"
-internal let ApphudFlagString = "ApphudReinstallFlag"
 
 internal let ApphudInitializeGuardText = "Attempted to use Apphud SDK method earlier than initialization. You should initialize SDK first."
 
@@ -75,8 +74,39 @@ final class ApphudInternal: NSObject {
     internal var observerModePurchaseIdentifiers: (paywall: String, placement: String?)?
 
     // MARK: - User registering properties
-    internal var currentDeviceID: String = ""
-    internal var currentUserID: String = ""
+    internal var identityStore = ApphudIdentityStore()
+    /// One per install: new after a reinstall, kept across logout. Replaces the old device id.
+    internal var currentInstallationID: String = ""
+    /// The anonymous person: new after logout or a reinstall.
+    internal var currentAnonymousID: String = ""
+    /// The app's own user id, set by identify; `nil` while anonymous.
+    internal var identifiedUserID: String?
+    /// `true` reinstall, `false` first install, `nil` not known.
+    internal var isReinstall: Bool?
+    /// The user once identified, the anonymous person before.
+    internal var currentUserID: String { identifiedUserID ?? currentAnonymousID }
+
+    internal var identity: ApphudIdentity {
+        get {
+            ApphudIdentity(installationID: currentInstallationID, anonymousID: currentAnonymousID,
+                           userID: identifiedUserID, isReinstall: isReinstall)
+        }
+        set {
+            currentInstallationID = newValue.installationID
+            currentAnonymousID = newValue.anonymousID
+            identifiedUserID = newValue.userID
+            isReinstall = newValue.isReinstall
+        }
+    }
+
+    /// Identity fields for a request; `user_id` only once the app identified the user.
+    internal func identityParams(includeUserID: Bool = false) -> [String: String] {
+        var params = identity.requestParams
+        if includeUserID, let identifiedUserID {
+            params["user_id"] = identifiedUserID
+        }
+        return params
+    }
     /// Nonisolated mirror of `currentUser?.internalId` for use from HTTP client (non-MainActor).
     internal var currentCustomerID: String = ""
     internal var storefrontCurrency: ApphudCurrency?
@@ -94,8 +124,7 @@ final class ApphudInternal: NSObject {
     @MainActor internal var placements = [ApphudPlacement]()
     @MainActor internal var permissionGroups: [ApphudGroup]?
 
-    internal var reinstallTracked: Bool = false
-    internal var delayedInitilizationParams: (apiKey: String, userID: String?, device: String?, observerMode: Bool)?
+    internal var delayedInitilizationParams: (apiKey: String, supplied: ApphudSuppliedIDs, observerMode: Bool)?
     internal var setNeedsToUpdateUser: Bool = false {
         didSet {
             DispatchQueue.main.async {
@@ -282,16 +311,17 @@ final class ApphudInternal: NSObject {
     // MARK: - Initialization
 
     @MainActor
-    internal func initialize(apiKey: String, inputUserID: String?, inputDeviceID: String? = nil, observerMode: Bool) {
+    internal func initialize(apiKey: String, supplied: ApphudSuppliedIDs, observerMode: Bool) {
 
         // The session's launch rule and lifecycle observers start here, not at the first request.
         ApphudSession.shared.takeForeground(ifActive: ApphudSession.isAppActive())
 
         #if os(iOS) || os(tvOS)
-        if !ApphudKeychain.canUseKeychain && !ApphudKeychain.hasLocalStorageData && UIApplication.shared.applicationState != .active {
+        // Before the first unlock nothing stored can be read; a new install also needs the Keychain.
+        if !UIApplication.shared.isProtectedDataAvailable && !identityStore.hasInstallRecord && UIApplication.shared.applicationState != .active {
             setupObservers()
             apphudLog("Unable to initialize right now, will wait until app becomes active", forceDisplay: true)
-            self.delayedInitilizationParams = (apiKey, inputUserID, inputDeviceID, observerMode)
+            self.delayedInitilizationParams = (apiKey, supplied, observerMode)
             return
         }
         #endif
@@ -315,46 +345,33 @@ final class ApphudInternal: NSObject {
         }
         allowIdentifyUser = false
 
-        identify(inputUserID: inputUserID, inputDeviceID: inputDeviceID, observerMode: observerMode)
+        identify(apiKey: apiKey, supplied: supplied, observerMode: observerMode)
     }
 
     @MainActor
-    internal func identify(inputUserID: String?, inputDeviceID: String? = nil, observerMode: Bool) {
+    internal func identify(apiKey: String, supplied: ApphudSuppliedIDs, observerMode: Bool) {
         ApphudUtils.shared.storeKitObserverMode = observerMode
 
-        var deviceID = ApphudKeychain.loadDeviceID()
-        let userIDFromKeychain = ApphudKeychain.loadUserID()
-
-        isFreshInstall = deviceID == nil
-        isRedownload = deviceID != nil && UserDefaults.standard.string(forKey: ApphudFlagString) == nil
-        UserDefaults.standard.set(ApphudFlagString, forKey: ApphudFlagString)
-
-        if inputDeviceID?.count ?? 0 > 0 {
-            deviceID = inputDeviceID
+        guard let resolution = identityStore.resolve(supplied) else {
+            // The stored ids can't be read yet (before the first unlock): never mint new ones over them.
+            apphudLog("Unable to read the stored ids right now, will wait until app becomes active", forceDisplay: true)
+            setupObservers()
+            allowIdentifyUser = true
+            delayedInitilizationParams = (apiKey, supplied, observerMode)
+            return
         }
 
-        let generatedUUID: String = ApphudKeychain.generateUUID()
-
-        if deviceID == nil {
-            deviceID = generatedUUID
-            ApphudKeychain.saveDeviceID(deviceID: deviceID!)
+        identity = resolution.identity
+        (isFreshInstall, isRedownload) = Self.launchFlags(resolution)
+        #if DEBUG
+        if resolution.switchedUser {
+            apphudLog("Started with another user without logout. Call Apphud.logout() before a different user signs in.", forceDisplay: true)
         }
-
-        self.currentDeviceID = deviceID!
+        #endif
 
         setupObservers()
 
         let cachedUser = ApphudUser.fromCacheV2()
-
-        if inputUserID?.count ?? 0 > 0 {
-            self.currentUserID = inputUserID!
-        } else if let existingUserID = cachedUser?.userId {
-            self.currentUserID = existingUserID
-        } else if userIDFromKeychain != nil {
-            self.currentUserID = userIDFromKeychain!
-        } else {
-            self.currentUserID = generatedUUID
-        }
 
         self.currentUser = cachedUser
 
@@ -367,13 +384,9 @@ final class ApphudInternal: NSObject {
 
         Task(priority: .userInitiated) {
 
-            var isIdenticalUserIds = true
-            if self.currentUserID != userIDFromKeychain {
-                isIdenticalUserIds = false
-                Task { @MainActor in
-                    ApphudKeychain.saveUserID(userID: self.currentUserID)
-                }
-            }
+            // Ids the backend hasn't seen yet (a new install, an upgrade, an identify whose request
+            // failed) must reach it: registration is not skipped then.
+            let isIdenticalUserIds = !self.identityStore.isSyncPending
 
             let cachedPwls = await cachedPaywalls()
             let cachedPlacements = await cachedPlacements()
@@ -390,6 +403,13 @@ final class ApphudInternal: NSObject {
 
             self.continueToRegisteringUser(skipRegistration: self.skipRegistration(isIdenticalUserIds: isIdenticalUserIds, hasCashedUser: self.currentUser != nil, hasCachedPaywalls: !cachedPwls.expired))
         }
+    }
+
+    /// `is_new` and the first-launch metrics: only the install's first launch counts, so later
+    /// launches of a reinstall don't.
+    internal static func launchFlags(_ resolution: ApphudIdentityResolution) -> (isFreshInstall: Bool, isRedownload: Bool) {
+        let firstLaunch = resolution.launch == .newInstall
+        return (firstLaunch, firstLaunch && resolution.identity.isReinstall == true)
     }
 
     @MainActor private func skipRegistration(isIdenticalUserIds: Bool, hasCashedUser: Bool, hasCachedPaywalls: Bool) -> Bool {
@@ -570,8 +590,9 @@ final class ApphudInternal: NSObject {
         apphudLog("App did become active")
 
         if let delayedParams = delayedInitilizationParams {
-            initialize(apiKey: delayedParams.apiKey, inputUserID: delayedParams.userID, inputDeviceID: delayedParams.device, observerMode: delayedParams.observerMode)
+            // Cleared first: a start that still can't read the stored ids delays itself again.
             delayedInitilizationParams = nil
+            initialize(apiKey: delayedParams.apiKey, supplied: delayedParams.supplied, observerMode: delayedParams.observerMode)
         }
 
         checkPendingRules()
@@ -649,7 +670,8 @@ final class ApphudInternal: NSObject {
                 callback?(true)
                 return
             }
-            let params: [String: String] = ["device_id": self.currentDeviceID, "push_token": tokenString]
+            var params = self.identityParams()
+            params["push_token"] = tokenString
             self.httpClient?.startRequest(path: .push, params: params, method: .put) { (result, _, _, _, _, _, _) in
                 if result {
                     self.submittedPushToken = tokenString
@@ -663,10 +685,9 @@ final class ApphudInternal: NSObject {
 
     internal func trackDurationLogs(params: [[String: AnyHashable]], callback: @escaping () -> Void) {
         performWhenUserRegistered {
-            var final_params: [String: AnyHashable] = ["device_id": self.currentDeviceID,
-                                                       "user_id": self.currentUserID,
-                                                       "bundle_id": Bundle.main.bundleIdentifier,
-                                                       "data": params]
+            var final_params: [String: AnyHashable] = self.identityParams(includeUserID: true)
+            final_params["bundle_id"] = Bundle.main.bundleIdentifier
+            final_params["data"] = params
 
             #if os(iOS)
             final_params["connection_type"] = self.currentReachabilityStatus.rawValue
@@ -680,7 +701,8 @@ final class ApphudInternal: NSObject {
 
     internal func trackEvent(params: [String: AnyHashable], callback: @escaping () -> Void) {
         performWhenUserRegistered {
-            let final_params: [String: AnyHashable] = ["device_id": self.currentDeviceID].merging(params, uniquingKeysWith: {(current, _) in current})
+            let identityParams: [String: AnyHashable] = self.identityParams()
+            let final_params = identityParams.merging(params, uniquingKeysWith: {(current, _) in current})
             self.httpClient?.startRequest(path: .events, apiVersion: .APIV2, params: final_params, method: .post) { (_, _, _, _, _, _, _) in
                 callback()
             }
@@ -702,10 +724,10 @@ final class ApphudInternal: NSObject {
     internal func submitPaywallEvent(params: [String: AnyHashable], callback: @escaping ApphudHTTPResponseCallback) {
         performWhenUserRegistered {
             let environment = Apphud.isSandbox() ? ApphudEnvironment.sandbox.rawValue : ApphudEnvironment.production.rawValue
-            let final_params: [String: AnyHashable] = ["device_id": self.currentDeviceID,
-                                                       "user_id": self.currentUserID,
-                                                       "timestamp": Date().currentTimestamp,
-                                                       "environment": environment].merging(params, uniquingKeysWith: {(current, _) in current})
+            var eventParams: [String: AnyHashable] = self.identityParams(includeUserID: true)
+            eventParams["timestamp"] = Date().currentTimestamp
+            eventParams["environment"] = environment
+            let final_params = eventParams.merging(params, uniquingKeysWith: {(current, _) in current})
 
             self.httpClient?.startRequest(path: .events, apiVersion: .APIV2, params: final_params, method: .post, retry: true, callback: callback)
         }
@@ -714,7 +736,7 @@ final class ApphudInternal: NSObject {
     internal func checkForUnreadNotifications() {
         #if os(iOS)
         performWhenUserRegistered {
-            let params = ["device_id": self.currentDeviceID] as [String: String]
+            let params = self.identityParams()
             self.httpClient?.startRequest(path: .notifications, apiVersion: .APIV2, params: params, method: .get, callback: { (result, response, _, _, _, _, _) in
 
                 if result, let dataDict = response?["data"] as? [String: Any], let notifArray = dataDict["results"] as? [[String: Any]], let notifDict = notifArray.first, var ruleDict = notifDict["rule"] as? [String: Any] {
@@ -732,7 +754,8 @@ final class ApphudInternal: NSObject {
 
     internal func readAllNotifications(for ruleID: String) {
         performWhenUserRegistered {
-            let params = ["device_id": self.currentDeviceID, "rule_id": ruleID] as [String: String]
+            var params = self.identityParams()
+            params["rule_id"] = ruleID
         self.httpClient?.startRequest(path: .readNotifications, apiVersion: .APIV2, params: params, method: .post, callback: { (_, _, _, _, _, _, _) in
             })
         }
@@ -750,14 +773,20 @@ final class ApphudInternal: NSObject {
         }
     }
 
-    internal func logout() async {
+    internal func logout(anonymousID: String? = nil) async {
+
+        // A new anonymous person (the supplied id, or a fresh one), no user; the installation and
+        // the Keychain reinstall key stay. Saved first, so a kill during logout doesn't bring the
+        // previous user back.
+        let newIdentity = await MainActor.run {
+            var identity = self.identity
+            identityStore.logout(anonymousID: anonymousID, &identity)
+            return identity
+        }
 
         await ApphudDataActor.shared.clear()
-        await ApphudKeychain.resetValues()
 
         await ApphudUser.clearCache()
-        currentUserID = ""
-        currentDeviceID = ""
 
         /** Permissions groups never change, no need to clear from cache.
         apphudDataClearCache(key: ApphudProductGroupsCacheKey)
@@ -772,6 +801,9 @@ final class ApphudInternal: NSObject {
             paywalls.removeAll()
             placements.removeAll()
             currentUser = nil
+            // In the same step as `currentUser`: no request pairs the new ids with the previous customer id.
+            self.identity = newIdentity
+            identityStore.save(newIdentity)
             isPremium = false
             hasActiveSubscription = false
             // Answer everyone still waiting before clearing: a dropped callback leaves
@@ -799,7 +831,6 @@ final class ApphudInternal: NSObject {
         submitReceiptRetries = (0, 0)
         lastUploadedPaywallEvent.removeAll()
         lastUploadedPaywallEventDate = nil
-        reinstallTracked = false
         delayedInitilizationParams = nil
         setNeedsToUpdateUser = false
         setNeedsToUpdateUserProperties = false

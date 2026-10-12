@@ -307,8 +307,10 @@ public class ApphudHttpClient {
 
     internal func makeScreenRequest(screenID: String) -> URLRequest? {
 
-        let deviceID: String = ApphudInternal.shared.currentDeviceID
-        var urlString = "\(domainUrlString)/preview_screen/\(screenID)?api_key=\(apiKey)&locale=\(Locale.current.identifier)&device_id=\(deviceID)&v=2"
+        let identity = ApphudInternal.shared.identity
+        let installationID = identity.installationID.addingPercentEncoding(withAllowedCharacters: .apphudQueryValueAllowed) ?? identity.installationID
+        let anonymousID = identity.anonymousID.addingPercentEncoding(withAllowedCharacters: .apphudQueryValueAllowed) ?? identity.anonymousID
+        var urlString = "\(domainUrlString)/preview_screen/\(screenID)?api_key=\(apiKey)&locale=\(Locale.current.identifier)&installation_id=\(installationID)&anonymous_id=\(anonymousID)&v=2"
         let customerId = ApphudInternal.shared.currentCustomerID
         if !customerId.isEmpty {
             urlString += "&customer_id=\(customerId)"

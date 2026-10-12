@@ -54,9 +54,7 @@ extension ApphudInternal {
 
         await currentUser?.toCacheV2()
 
-        Task { @MainActor in
-            checkUserID(tellDelegate: true)
-        }
+        // The response never changes who is logged in: the SDK's own state does.
 
         /**
          If user previously didn't have subscriptions or subscriptions states don't match, or subscription product identifiers don't match
@@ -79,15 +77,21 @@ extension ApphudInternal {
         hasActiveSubscription = hasActiveSub
     }
 
-    @MainActor private func checkUserID(tellDelegate: Bool) {
-        guard let userID = self.currentUser?.userId else {return}
-        if self.currentUserID != userID {
-            self.currentUserID = userID
-            ApphudKeychain.saveUserID(userID: self.currentUserID)
-            if tellDelegate {
-                self.delegate?.apphudDidChangeUserID(userID)
-            }
+    /// An identify the host requested (`updateUserID`, web-to-web). Returns false for the same id.
+    @MainActor
+    @discardableResult
+    internal func applyIdentify(userID: String) -> Bool {
+        var identity = self.identity
+        let outcome = identityStore.identify(userID, &identity)
+        guard outcome != .unchanged else { return false }
+        #if DEBUG
+        if outcome == .switched {
+            apphudLog("Switched to another user without logout. Call Apphud.logout() before a different user signs in.", forceDisplay: true)
         }
+        #endif
+        self.identity = identity
+        delegate?.apphudDidChangeUserID(userID)
+        return true
     }
 
     @MainActor
@@ -101,7 +105,7 @@ extension ApphudInternal {
             return (self.currentUser != nil, 0)
         }
 
-        let fields = initialCall ? ["user_id": self.currentUserID, "initial_call": true] : [:]
+        let fields: [String: Any] = initialCall ? ["initial_call": true] : [:]
 
         return await withUnsafeContinuation { continuation in
             updateUser(fields: fields, delay: delay) { (result, _, data, error, code, duration, _) in
@@ -166,13 +170,18 @@ extension ApphudInternal {
     internal func updateUserID(userID: String, callback: ((ApphudUser?) -> Void)? = nil) {
         performWhenUserRegistered {
 
-            guard self.currentUserID != userID else {
+            guard !userID.isEmpty else {
+                apphudLog("Will not update User ID: it is empty")
+                callback?(self.currentUser)
+                return
+            }
+            guard self.applyIdentify(userID: userID) else {
                 apphudLog("Will not update User ID to \(userID), because current value is the same")
                 callback?(self.currentUser)
                 return
             }
 
-            self.updateUser(fields: ["user_id": userID]) { (result, _, data, _, _, _, _) in
+            self.updateUser(fields: [:]) { (result, _, data, _, _, _, _) in
                 if result {
                     Task {
                         await self.parseUser(data: data)
@@ -202,10 +211,8 @@ extension ApphudInternal {
     }
 
     @MainActor private func grantPromotional(_ duration: Int, _ permissionGroup: ApphudGroup?, productId: String?, callback: @escaping ApphudHTTPResponseCallback) {
-        var params: [String: Any] = [:]
+        var params: [String: Any] = identityParams(includeUserID: true)
         params["duration"] = duration
-        params["user_id"] = currentUserID
-        params["device_id"] = currentDeviceID
 
         if let productId = productId {
             params["product_id"] = productId
@@ -216,8 +223,38 @@ extension ApphudInternal {
         httpClient?.startRequest(path: .promotions, params: params, method: .post, callback: callback)
     }
 
+    /// Identity fields of `POST /v1/customers`. The web-to-web email request keeps the old shape —
+    /// `device_id` holding the installation id, no `anonymous_id` — because the backend accepts
+    /// `from_web2web` only there.
+    internal static func customerIdentityParams(_ identity: ApphudIdentity, legacyWeb2Web: Bool, serverUserID: String?) -> [String: Any] {
+        var params: [String: Any]
+        if legacyWeb2Web {
+            params = ["device_id": identity.installationID]
+            if let serverUserID {
+                params["user_id"] = serverUserID
+            }
+        } else {
+            params = identity.requestParams
+            if let userID = identity.userID {
+                params["user_id"] = userID
+            }
+        }
+        // Every registration of a reinstalled install carries it; the backend records it once.
+        if identity.isReinstall == true {
+            params["reinstall"] = true
+        }
+        return params
+    }
+
+    /// The backend has seen the current ids: a successful request in the new shape, sent with the
+    /// ids still current (they may change while it is out).
+    internal static func shouldMarkSynced(done: Bool, legacyWeb2Web: Bool, sent: ApphudIdentity, current: ApphudIdentity) -> Bool {
+        done && !legacyWeb2Web && sent == current
+    }
+
+    /// The body of `POST /v1/customers`.
     @MainActor
-    internal func updateUser(fields: [String: Any], delay: Double = 0, callback: @escaping ApphudHTTPResponseCallback) {
+    internal func customerRequestParams(fields: [String: Any], legacyWeb2Web: Bool) -> [String: Any] {
 
         //  Requires @MainActor since it collects data from UIDevice
         #if os(macOS)
@@ -228,22 +265,13 @@ extension ApphudInternal {
         var params = apphudCurrentDeviceiOSParameters() as [String: Any]
         #endif
 
-        if isRedownload && !reinstallTracked {
-           params["reinstall"] = true
-           reinstallTracked = true
-        }
-
         params.merge(fields) { (current, _) in current}
-        params["device_id"] = self.currentDeviceID
+        params.merge(Self.customerIdentityParams(identity, legacyWeb2Web: legacyWeb2Web, serverUserID: currentUser?.userId)) { (_, new) in new }
         params["is_debug"] = apphudIsSandbox()
         params["is_new"] = isFreshInstall && currentUser == nil
         params["need_paywalls"] = false
         params["need_placements"] = !didPreparePaywalls && !deferPlacements
         params["opt_out"] = ApphudUtils.shared.optOutOfTracking
-
-        if params["user_id"] == nil, let userId = currentUser?.userId {
-            params["user_id"] = userId
-        }
 
         if let currency = storefrontCurrency, currentUser?.currency?.countryCode != currency.countryCode || currentUser?.currency?.countryCodeAlpha3 != currency.countryCodeAlpha3 {
 
@@ -256,13 +284,20 @@ extension ApphudInternal {
             }
         }
 
+        appInstallationDate.map { params["first_seen"] = $0 }
+        Bundle.main.bundleIdentifier.map { params["bundle_id"] = $0 }
+        return params
+    }
+
+    @MainActor
+    internal func updateUser(fields: [String: Any], delay: Double = 0, legacyWeb2Web: Bool = false, callback: @escaping ApphudHTTPResponseCallback) {
+
+        let params = customerRequestParams(fields: fields, legacyWeb2Web: legacyWeb2Web)
+        let sentIdentity = identity
+
         // retry on http level only if setNeedsToUpdateUser = true, otherwise let retry on initial launch level
         let initialCall = params["initial_call"] != nil
         setNeedsToUpdateUser = false
-
-        appInstallationDate.map { params["first_seen"] = $0 }
-        Bundle.main.bundleIdentifier.map { params["bundle_id"] = $0 }
-        // do not automatically pass currentUserID here,because we have separate method updateUserID
 
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [self] in
             httpClient?.startRequest(path: .customers, params: params, method: .post, useDecoder: true, retry: !initialCall, requestID: initialCall ? initialRequestID : nil) { done, response, data, error, errorCode, duration, attempts in
@@ -274,6 +309,11 @@ extension ApphudInternal {
                 if  errorCode == 401 {
                     apphudLog("Unable to perform API requests, because your API Key is invalid.", forceDisplay: true)
                     ApphudHttpClient.shared.invalidAPiKey = true
+                }
+                Task { @MainActor in
+                    if Self.shouldMarkSynced(done: done, legacyWeb2Web: legacyWeb2Web, sent: sentIdentity, current: self.identity) {
+                        self.identityStore.markSynced()
+                    }
                 }
                 callback(done, response, data, error, errorCode, duration, attempts)
             }
@@ -418,8 +458,7 @@ extension ApphudInternal {
     private func preparePropertiesParams(isAudience: Bool = false) async -> ([String: Any]?, [[String: Any?]]?, Bool) {
         setNeedsToUpdateUserProperties = false
         guard await ApphudDataActor.shared.pendingUserProps.count > 0 else { return (nil, nil, false) }
-        var params = [String: Any]()
-        params["device_id"] = self.currentDeviceID
+        var params: [String: Any] = identityParams()
         params["force"] = isAudience
 
         var canSaveToCache = true

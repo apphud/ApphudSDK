@@ -8,143 +8,94 @@
 
 import Security
 import Foundation
-#if canImport(UIKit)
-import UIKit
-#endif
 
-// Constant Identifiers
-let userAccount = "ApphudUser"
-let accessGroup = "SecuritySerivice"
-let deviceIdKey: NSString = "ApphudDeviceID"
-let userIdKey: NSString = "ApphudUserID"
-
-let defaultsDeviceIdKey = "com.apphud.device_id"
-let defaultsUserIdKey = "com.apphud.user_id"
-
-// Arguments for the keychain queries
-let kSecClassValue = NSString(format: kSecClass)
-let kSecAttrAccountValue = NSString(format: kSecAttrAccount)
-let kSecValueDataValue = NSString(format: kSecValueData)
-let kSecClassGenericPasswordValue = NSString(format: kSecClassGenericPassword)
-let kSecAttrServiceValue = NSString(format: kSecAttrService)
-let kSecMatchLimitValue = NSString(format: kSecMatchLimit)
-let kSecReturnDataValue = NSString(format: kSecReturnData)
-let kSecMatchLimitOneValue = NSString(format: kSecMatchLimitOne)
 /**
- Class for storing user data
+ Kept for source compatibility. The SDK no longer keeps ids in the Keychain: the only item it
+ writes is the reinstall key, see `ApphudKeychainKey.reinstall`.
  */
+public class ApphudKeychain: NSObject {}
 
-public class ApphudKeychain: NSObject {
+/// Keychain items the SDK reads or writes.
+internal enum ApphudKeychainKey: String, CaseIterable {
+    /// "This app was installed on this device before". Holds no id, survives a reinstall on the
+    /// same device, never travels to another one, never removed on logout.
+    case reinstall = "com.apphud.reinstall"
+    /// Written by old SDK versions. Read once to tell a reinstall, never to adopt an id, then deleted.
+    case legacyDeviceID = "ApphudDeviceID"
+    case legacyUserID = "ApphudUserID"
+}
 
-    @MainActor
-    internal static var canUseKeychain: Bool {
-    #if os(iOS) || os(tvOS)
-        return UIApplication.shared.isProtectedDataAvailable
-    #elseif os(macOS)
+/// One Keychain read. Any failure other than "no such item" is `unavailable`: a value that can't
+/// be read must never pass for an absent one.
+internal enum ApphudKeychainRead: Equatable {
+    case found(String)
+    case notFound
+    case unavailable
+
+    var isFound: Bool {
+        if case .found = self { return true }
         return false
-    #else
+    }
+}
+
+internal protocol ApphudKeychainStoring {
+    func read(_ key: ApphudKeychainKey) -> ApphudKeychainRead
+    @discardableResult func write(_ key: ApphudKeychainKey, value: String) -> Bool
+    func delete(_ key: ApphudKeychainKey)
+}
+
+internal struct ApphudSystemKeychain: ApphudKeychainStoring {
+
+    // The account old SDK versions used; kept for every item.
+    private static let account = "ApphudUser"
+
+    private func query(_ key: ApphudKeychainKey) -> [CFString: Any] {
+        [kSecClass: kSecClassGenericPassword,
+         kSecAttrService: key.rawValue,
+         kSecAttrAccount: Self.account]
+    }
+
+    func read(_ key: ApphudKeychainKey) -> ApphudKeychainRead {
+        #if os(macOS)
+        // Old SDK versions never used the Keychain on macOS.
+        return .notFound
+        #else
+        var query = query(key)
+        query[kSecReturnData] = kCFBooleanTrue
+        query[kSecMatchLimit] = kSecMatchLimitOne
+
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        switch status {
+        case errSecSuccess:
+            // An old item blanked by logout holds "": it still counts as present.
+            let value = (result as? Data).flatMap { String(data: $0, encoding: .utf8) } ?? ""
+            return .found(value)
+        case errSecItemNotFound:
+            return .notFound
+        default:
+            return .unavailable
+        }
+        #endif
+    }
+
+    @discardableResult
+    func write(_ key: ApphudKeychainKey, value: String) -> Bool {
+        #if os(macOS)
         return true
-    #endif
+        #else
+        guard let data = value.data(using: .utf8) else { return false }
+        SecItemDelete(query(key) as CFDictionary)
+        var item = query(key)
+        item[kSecValueData] = data
+        item[kSecAttrAccessible] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        return SecItemAdd(item as CFDictionary, nil) == errSecSuccess
+        #endif
     }
 
-    @MainActor
-    internal static var hasLocalStorageData: Bool {
-        loadDeviceID(onlyFromDefaults: true) != nil && loadUserID(onlyFromDefaults: true) != nil
-    }
-
-    internal class func generateUUID() -> String {
-        let uuid = NSUUID.init().uuidString
-        return uuid
-    }
-
-    @MainActor
-    internal class func loadDeviceID(onlyFromDefaults: Bool = false) -> String? {
-        if let deviceID = UserDefaults.standard.value(forKey: defaultsDeviceIdKey) as? String, deviceID.count > 0 {
-            return deviceID
-        }
-
-        if canUseKeychain && !onlyFromDefaults {
-            return self.load(deviceIdKey)
-        } else {
-            return nil
-        }
-    }
-
-    @MainActor
-    internal class func loadUserID(onlyFromDefaults: Bool = false) -> String? {
-        if let userID = UserDefaults.standard.value(forKey: defaultsUserIdKey) as? String, userID.count > 0 {
-            return userID
-        }
-        if canUseKeychain && !onlyFromDefaults {
-            return self.load(userIdKey)
-        } else {
-            return nil
-        }
-    }
-
-    @MainActor
-    internal class func resetValues() {
-        if canUseKeychain {
-            saveUserID(userID: "")
-            saveDeviceID(deviceID: "")
-        }
-    }
-
-    @MainActor
-    internal class func saveUserID(userID: String) {
-        UserDefaults.standard.set(userID, forKey: defaultsUserIdKey)
-        if canUseKeychain {
-            self.save(userIdKey, data: userID)
-        }
-    }
-
-    @MainActor
-    internal class func saveDeviceID(deviceID: String) {
-        UserDefaults.standard.set(deviceID, forKey: defaultsDeviceIdKey)
-        if canUseKeychain {
-            self.save(deviceIdKey, data: deviceID)
-        }
-    }
-
-    private class func save(_ service: NSString, data: String) {
-        if let dataFromString = data.data(using: .utf8, allowLossyConversion: false) {
-
-            let keychainQuery: NSDictionary = [
-                kSecClassValue: kSecClassGenericPasswordValue,
-                kSecAttrServiceValue: service,
-                kSecAttrAccountValue: userAccount,
-                kSecValueDataValue: dataFromString,
-                NSString(format: kSecAttrAccessible): NSString(format: kSecAttrAccessibleAfterFirstUnlock)
-            ]
-
-            SecItemDelete(keychainQuery as CFDictionary)
-            SecItemAdd(keychainQuery as CFDictionary, nil)
-        }
-    }
-
-    private class func load(_ service: NSString) -> String? {
-
-        let keychainQuery: NSDictionary = [
-            kSecClassValue: kSecClassGenericPasswordValue,
-            kSecAttrServiceValue: service,
-            kSecAttrAccountValue: userAccount,
-            kSecReturnDataValue: kCFBooleanTrue!,
-            kSecMatchLimitValue: kSecMatchLimitOneValue
-        ]
-
-        var dataTypeRef: AnyObject?
-
-        let status: OSStatus = SecItemCopyMatching(keychainQuery, &dataTypeRef)
-        var contentsOfKeychain: String?
-
-        if status == errSecSuccess {
-            if let retrievedData = dataTypeRef as? Data {
-                contentsOfKeychain = String(data: retrievedData, encoding: .utf8)
-            }
-        }
-
-        guard contentsOfKeychain?.count ?? 0 > 0 else {return nil}
-
-        return contentsOfKeychain
+    func delete(_ key: ApphudKeychainKey) {
+        #if !os(macOS)
+        SecItemDelete(query(key) as CFDictionary)
+        #endif
     }
 }

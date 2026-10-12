@@ -463,7 +463,9 @@ final class ApphudSDKTests: XCTestCase {
         XCTAssertEqual(body["observer_mode"] as? Bool, false)
         XCTAssertEqual(body["environment"] as? String, "sandbox")
         XCTAssertEqual((body["product_info"] as? [String: Any])?["product_id"] as? String, ApphudTestConstants.weeklyProductId)
-        XCTAssertNotNil(body["device_id"] as? String)
+        XCTAssertNotNil(body["installation_id"] as? String)
+        XCTAssertNotNil(body["anonymous_id"] as? String)
+        XCTAssertNil(body["device_id"], "the new shape never sends device_id")
         XCTAssertEqual(body["user_id"] as? String, ApphudTestConstants.userId)
     }
 

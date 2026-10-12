@@ -54,7 +54,10 @@ class ApphudWebController: NSObject, WKNavigationDelegate {
         readinessRetryTask?.cancel()
         readinessRetryTask = nil
 
-        let urlString = "\(ApphudHttpClient.shared.connectDomainUrl)?api_key=\(ApphudHttpClient.shared.apiKey)&device_id=\(ApphudInternal.shared.currentDeviceID)&host=\(ApphudHttpClient.shared.host)"
+        // The page reads only `device_id`; the backend matches the value against installation ids.
+        let installationID = ApphudInternal.shared.currentInstallationID
+        let deviceIDValue = installationID.addingPercentEncoding(withAllowedCharacters: .apphudQueryValueAllowed) ?? installationID
+        let urlString = "\(ApphudHttpClient.shared.connectDomainUrl)?api_key=\(ApphudHttpClient.shared.apiKey)&device_id=\(deviceIDValue)&host=\(ApphudHttpClient.shared.host)"
         guard let url = URL(string: urlString) else {
             complete(with: nil)
             return
