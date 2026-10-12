@@ -8,6 +8,9 @@
 //
 
 import XCTest
+#if os(iOS)
+import UIKit
+#endif
 @testable import ApphudSDK
 
 /// The Keychain: survives deleting the app on the same phone, never travels to another one.
@@ -552,6 +555,29 @@ final class ApphudIdentityTests: XCTestCase {
         XCTAssertNil(ApphudInternal.webUserToAdopt(customerBefore: "cust-1", response: ApphudUser(userID: "anon-1"), anonymousID: "anon-1"))
         XCTAssertNil(ApphudInternal.webUserToAdopt(customerBefore: "cust-1", response: nil, anonymousID: "anon-1"))
     }
+
+    #if os(iOS)
+    /// "IDFV is sent automatically as a separate field, respecting `optOutOfTracking`."
+    @MainActor
+    func testIDFVIsSentWithoutTheHostUnlessOptedOut() throws {
+        let sdk = ApphudInternal.shared
+        let savedIdentifiers = sdk.deviceIdentifiers
+        let savedOptOut = ApphudUtils.shared.optOutOfTracking
+        defer {
+            sdk.deviceIdentifiers = savedIdentifiers
+            ApphudUtils.shared.optOutOfTracking = savedOptOut
+        }
+        sdk.deviceIdentifiers = (nil, nil)
+        let systemIDFV = try XCTUnwrap(UIDevice.current.identifierForVendor?.uuidString)
+
+        ApphudUtils.shared.optOutOfTracking = false
+        XCTAssertEqual(sdk.customerRequestParams(fields: [:], legacyWeb2Web: false)["idfv"] as? String, systemIDFV,
+                       "POST /v1/customers carries the IDFV the host never passed")
+
+        ApphudUtils.shared.optOutOfTracking = true
+        XCTAssertNil(sdk.customerRequestParams(fields: [:], legacyWeb2Web: false)["idfv"])
+    }
+    #endif
 
     // MARK: - Embedded mode (amendment)
 
