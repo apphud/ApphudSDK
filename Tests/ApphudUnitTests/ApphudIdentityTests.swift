@@ -607,19 +607,19 @@ final class ApphudIdentityTests: XCTestCase {
     }
     #endif
 
-    // MARK: - Embedded mode
+    // MARK: - Ids supplied by the app
 
-    func testEmbeddedModeTakesIsReinstallFromHostAndNeverTouchesKeychain() {
+    func testSuppliedIDsTakeIsReinstallFromTheAppAndNeverTouchKeychain() {
         keychain.items[.legacyDeviceID] = "HOST-OLD"
 
         let identity = launch(ApphudSuppliedIDs(anonymousID: "host-anon", installationID: "host-inst", isReinstall: true)).identity
 
         XCTAssertEqual(identity.isReinstall, true)
-        XCTAssertEqual(keychain.accessCount, 0, "the embedded SDK runs no detection of its own")
-        XCTAssertEqual(keychain.items[.legacyDeviceID], "HOST-OLD", "the host's old key stays for its own migration")
+        XCTAssertEqual(keychain.accessCount, 0, "no detection of its own when the app supplies the ids")
+        XCTAssertEqual(keychain.items[.legacyDeviceID], "HOST-OLD", "the old key is left alone")
     }
 
-    func testEmbeddedModeUnknownReinstallFromHostSendsNoParam() {
+    func testSuppliedIDsUnknownReinstallFromTheAppSendsNoParam() {
         let identity = launch(ApphudSuppliedIDs(anonymousID: "host-anon", installationID: "host-inst", isReinstall: nil)).identity
 
         XCTAssertNil(identity.isReinstall)
@@ -627,7 +627,7 @@ final class ApphudIdentityTests: XCTestCase {
         XCTAssertEqual(keychain.accessCount, 0)
     }
 
-    func testEmbeddedModeNoUserIDMeansNoUser() {
+    func testSuppliedIDsNoUserIDMeansNoUser() {
         launch(ApphudSuppliedIDs(userID: "Alice", anonymousID: "host-anon", installationID: "host-inst"))
 
         let identity = launch(ApphudSuppliedIDs(anonymousID: "host-anon-2", installationID: "host-inst")).identity
@@ -944,9 +944,9 @@ final class ApphudIdentityTests: XCTestCase {
         XCTAssertEqual(makeStore().identify("Alice", &identity), .identified)
         XCTAssertEqual(launch(ApphudSuppliedIDs(userID: "OLD-DEVICE")).identity.userID, "Alice")
 
-        // Embedded mode: the host's anonymous id passed as its user id too.
-        let embedded = launch(ApphudSuppliedIDs(userID: "host-anon", anonymousID: "host-anon", installationID: "host-inst")).identity
-        XCTAssertNil(embedded.userID)
+        // Every id supplied by the app, its anonymous id passed as its user id too.
+        let allSupplied = launch(ApphudSuppliedIDs(userID: "host-anon", anonymousID: "host-anon", installationID: "host-inst")).identity
+        XCTAssertNil(allSupplied.userID)
     }
 
     func testUpgradeKilledDuringTheKeychainCleanupKeepsTheGeneratedUserIDAnonymous() throws {

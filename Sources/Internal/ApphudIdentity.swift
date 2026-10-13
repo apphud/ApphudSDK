@@ -44,9 +44,9 @@ internal struct ApphudSuppliedIDs: Equatable {
         self.isReinstall = isReinstall
     }
 
-    /// Embedded mode: every id is supplied by the host, which also runs reinstall
-    /// detection itself. The SDK stores what it was given and never generates its own.
-    var isEmbedded: Bool { installationID != nil && anonymousID != nil }
+    /// The app supplies every id and decides the reinstall flag itself. The SDK stores what it
+    /// was given and never generates its own.
+    var suppliesAllIDs: Bool { installationID != nil && anonymousID != nil }
 }
 
 internal enum ApphudLaunchKind: Equatable {
@@ -256,8 +256,8 @@ internal final class ApphudIdentityStore {
         let storedAnonymousID = defaults.string(forKey: Self.anonymousIDKey).apphudNonEmpty
         let storedUserID = defaults.string(forKey: Self.userIDKey).apphudNonEmpty
 
-        if supplied.isEmbedded {
-            return resolveEmbedded(supplied, stored: stored, storedAnonymousID: storedAnonymousID, storedUserID: storedUserID)
+        if supplied.suppliesAllIDs {
+            return resolveSupplied(supplied, stored: stored, storedAnonymousID: storedAnonymousID, storedUserID: storedUserID)
         }
 
         var anonymousID = storedAnonymousID
@@ -368,9 +368,9 @@ internal final class ApphudIdentityStore {
 
     // MARK: - Private
 
-    /// Embedded mode: the host owns every id and the reinstall flag. No Keychain item is read or
-    /// written, and no old key is touched.
-    private func resolveEmbedded(_ supplied: ApphudSuppliedIDs, stored: ApphudInstallRecord?,
+    /// Every id supplied by the app: the app owns the ids and the reinstall flag. No Keychain item
+    /// is read or written, and no old key is touched.
+    private func resolveSupplied(_ supplied: ApphudSuppliedIDs, stored: ApphudInstallRecord?,
                                  storedAnonymousID: String?, storedUserID: String?) -> ApphudIdentityResolution {
         let installationID = supplied.installationID!
         let anonymousID = supplied.anonymousID!

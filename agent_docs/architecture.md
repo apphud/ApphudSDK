@@ -152,9 +152,9 @@ Requests send `installation_id` and `anonymous_id` wherever `device_id` was;
 
 ### Resolution at `start` (`ApphudIdentityStore.resolve`)
 
-Embedded mode — the host supplied both `installationID` and `anonymousID`:
+Ids supplied by the app — the app passed both `installationID` and `anonymousID`:
 the SDK stores what it was given, `userID == nil` means no user, `isReinstall` comes from
-the host, and no Keychain item is read, written or deleted.
+the app, and no Keychain item is read, written or deleted.
 
 Otherwise:
 
