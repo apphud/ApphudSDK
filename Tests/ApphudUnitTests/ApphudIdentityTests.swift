@@ -3,8 +3,7 @@
 //  ApphudUnitTests
 //
 //  installation_id, anonymous_id and user_id, and reinstall detection.
-//  One test per row of the ticket's identity model table, of the amendment's launch-flow
-//  table and of the amendment's test list.
+//  One test per row of the identity model and of the launch flow, plus the reinstall cases.
 //
 
 import XCTest
@@ -19,15 +18,19 @@ private final class FakeKeychain: ApphudKeychainStoring {
     var locked = false
     /// Reads fail while writes still go through.
     var readsFail = false
+    /// Called before every access, e.g. to see what was on disk at that moment.
+    var onAccess: (() -> Void)?
     private(set) var accessCount = 0
 
     func read(_ key: ApphudKeychainKey) -> ApphudKeychainRead {
+        onAccess?()
         accessCount += 1
         if locked || readsFail { return .unavailable }
         return items[key].map { .found($0) } ?? .notFound
     }
 
     func write(_ key: ApphudKeychainKey, value: String) -> Bool {
+        onAccess?()
         accessCount += 1
         if locked { return false }
         items[key] = value
@@ -35,6 +38,7 @@ private final class FakeKeychain: ApphudKeychainStoring {
     }
 
     func delete(_ key: ApphudKeychainKey) {
+        onAccess?()
         accessCount += 1
         if !locked { items[key] = nil }
     }
@@ -46,6 +50,8 @@ private final class FakeInstallRecords: ApphudInstallRecordStoring {
     var unreadable = false
     var damaged = false
     var failWrites = false
+    /// Called before every write, e.g. to see what was on disk at that moment.
+    var onWrite: (() -> Void)?
 
     func read() -> ApphudInstallRecordRead {
         if unreadable { return .unreadable }
@@ -54,6 +60,7 @@ private final class FakeInstallRecords: ApphudInstallRecordStoring {
     }
 
     func write(_ record: ApphudInstallRecord) -> Bool {
+        onWrite?()
         if failWrites { return false }
         self.record = record
         return true
@@ -133,7 +140,7 @@ final class ApphudIdentityTests: XCTestCase {
         ApphudInternal.customerIdentityParams(identity, legacyWeb2Web: false, serverUserID: nil)
     }
 
-    // MARK: - Identity model table (ticket description)
+    // MARK: - Identity model
 
     func testModelFreshInstall_MintsInstallationAndAnonymousIds_NoUser() {
         let identity = launch().identity
@@ -217,7 +224,7 @@ final class ApphudIdentityTests: XCTestCase {
         XCTAssertNil(reinstalled.userID)
     }
 
-    // MARK: - Launch-flow table (amendment)
+    // MARK: - Launch flow
 
     func testFlowInstallationIDExists_NormalLaunch_WritesMissingReinstallKey() {
         installRecords.record = ApphudInstallRecord(installationID: "inst-1", isReinstall: false, reinstallDecided: true)
@@ -328,9 +335,9 @@ final class ApphudIdentityTests: XCTestCase {
         XCTAssertNil(makeStore().resolve(ApphudSuppliedIDs()), "never mint over ids that can't be read")
     }
 
-    // MARK: - Amendment test list
+    // MARK: - Reinstall detection
 
-    func testAmendmentDeleteReinstall_TrueAndRegistrationsCarryReinstall() {
+    func testReinstallFlagDeleteReinstall_TrueAndRegistrationsCarryReinstall() {
         launch()
         deleteAndReinstallApp()
 
@@ -343,14 +350,14 @@ final class ApphudIdentityTests: XCTestCase {
         XCTAssertEqual(relaunch.launch, .normal, "only the install's first launch counts as new")
     }
 
-    func testAmendmentFreshInstall_FalseAndNoParam() {
+    func testReinstallFlagFreshInstall_FalseAndNoParam() {
         let identity = launch().identity
 
         XCTAssertEqual(identity.isReinstall, false)
         XCTAssertNil(customerParams(identity)["reinstall"])
     }
 
-    func testAmendmentBackupRestoredOntoAnotherPhone_False() {
+    func testReinstallFlagBackupRestoredOntoAnotherPhone_False() {
         // Made after the upgrade: the old keys are gone by then.
         seedOldSDK(deviceID: "OLD-DEVICE", userID: "OLD-DEVICE")
         let original = launch().identity
@@ -362,7 +369,7 @@ final class ApphudIdentityTests: XCTestCase {
         XCTAssertNotEqual(restored.installationID, original.installationID, "the installation id is new on another phone")
     }
 
-    func testAmendmentLogoutDeleteReinstall_True() {
+    func testReinstallFlagLogoutDeleteReinstall_True() {
         var identity = launch().identity
         makeStore().logout(anonymousID: nil, &identity)
 
@@ -371,13 +378,13 @@ final class ApphudIdentityTests: XCTestCase {
         XCTAssertEqual(launch().identity.isReinstall, true, "logout never removes the key")
     }
 
-    func testAmendmentReinstallStraightFromOldSDK_True() {
+    func testReinstallFlagReinstallStraightFromOldSDK_True() {
         seedOldSDK(deviceID: "OLD-DEVICE", userID: "OLD-DEVICE", inUserDefaults: false)
 
         XCTAssertEqual(launch().identity.isReinstall, true)
     }
 
-    func testAmendmentUpdatedThenDeletedAndReinstalled_True() {
+    func testReinstallFlagUpdatedThenDeletedAndReinstalled_True() {
         seedOldSDK(deviceID: "OLD-DEVICE", userID: "OLD-DEVICE")
         launch()
 
@@ -386,7 +393,7 @@ final class ApphudIdentityTests: XCTestCase {
         XCTAssertEqual(launch().identity.isReinstall, true)
     }
 
-    func testAmendmentKeychainUnreadableAtFirstLaunch_NilNoParam_ResolvedLater() {
+    func testReinstallFlagKeychainUnreadableAtFirstLaunch_NilNoParam_ResolvedLater() {
         keychain.locked = true
         let first = launch().identity
         XCTAssertNil(first.isReinstall)
@@ -396,7 +403,7 @@ final class ApphudIdentityTests: XCTestCase {
         XCTAssertEqual(launch().identity.isReinstall, false)
     }
 
-    // MARK: - Ticket acceptance
+    // MARK: - Supplied ids, upgrade, deprecated API
 
     func testSuppliedIDsSurviveRelaunch_NeverRotated() {
         let supplied = ApphudSuppliedIDs(userID: "Alice", anonymousID: "anon-host", installationID: "inst-host")
@@ -472,7 +479,7 @@ final class ApphudIdentityTests: XCTestCase {
         _ = compileCheck
     }
 
-    // MARK: - Request fields (backend contract)
+    // MARK: - Request fields
 
     func testCustomersRequestCarriesNewIDsOnly() {
         var identity = launch().identity
@@ -545,15 +552,36 @@ final class ApphudIdentityTests: XCTestCase {
         XCTAssertEqual(params["reinstall"] as? Bool, true, "every POST /v1/customers of a reinstalled install carries it")
     }
 
-    func testWeb2WebByEmailAdoptsOnlyAnotherCustomer() {
-        let webUser = ApphudUser(userID: "web-user")
-        let sameCustomer = ApphudUser(userID: "cust-1")
+    func testWeb2WebByEmailAdoptsOnlyAnotherCustomerFromItsOwnResponse() {
+        func response(customerID: String, userID: String) -> Data {
+            Data(#"{"data":{"results":{"id":"\#(customerID)","user_id":"\#(userID)"}}}"#.utf8)
+        }
 
-        XCTAssertEqual(ApphudInternal.webUserToAdopt(customerBefore: "cust-1", response: webUser, anonymousID: "anon-1"), "web-user")
-        XCTAssertNil(ApphudInternal.webUserToAdopt(customerBefore: "cust-1", response: sameCustomer, anonymousID: "anon-1"),
+        let sent = ApphudIdentity(installationID: "inst-1", anonymousID: "anon-1")
+        func adopt(_ data: Data?, current: ApphudIdentity = sent) -> String? {
+            ApphudInternal.webUserToAdopt(customerBefore: "cust-1", sent: sent, current: current, responseData: data)
+        }
+
+        XCTAssertEqual(adopt(response(customerID: "cust-web", userID: "web-user")), "web-user")
+        XCTAssertNil(adopt(response(customerID: "cust-1", userID: "other-install")),
                      "no match: the same customer comes back, its user_id may be another install's id")
-        XCTAssertNil(ApphudInternal.webUserToAdopt(customerBefore: "cust-1", response: ApphudUser(userID: "anon-1"), anonymousID: "anon-1"))
-        XCTAssertNil(ApphudInternal.webUserToAdopt(customerBefore: "cust-1", response: nil, anonymousID: "anon-1"))
+        XCTAssertNil(adopt(response(customerID: "cust-web", userID: "anon-1")))
+        XCTAssertNil(adopt(nil))
+        XCTAssertNil(adopt(response(customerID: "cust-web", userID: "web-user"), current: ApphudIdentity(installationID: "inst-1", anonymousID: "anon-2")),
+                     "a logout while the request was out: the new anonymous person is not the web user")
+    }
+
+    func testAppAccountTokenIsTheInstallationIDUnlessTheUserIDIsAUUID() {
+        let installationID = "6F9619FF-8B86-D011-B42D-00C04FC964FF"
+        let anonymousID = "0C1D2E3F-4A5B-4C6D-8E7F-9A0B1C2D3E4F"
+        let userUUID = "2F8AE6A1-B7C5-4966-8DF8-89F750012506"
+        func username(_ userID: String?) -> String {
+            ApphudStoreKitWrapper.applicationUsername(for: ApphudIdentity(installationID: installationID, anonymousID: anonymousID, userID: userID))
+        }
+
+        XCTAssertEqual(username(nil), installationID, "anonymous: the backend loses the anonymous id after identify and merge")
+        XCTAssertEqual(username("alice@example.com"), installationID)
+        XCTAssertEqual(username(userUUID), userUUID)
     }
 
     #if os(iOS)
@@ -579,7 +607,7 @@ final class ApphudIdentityTests: XCTestCase {
     }
     #endif
 
-    // MARK: - Embedded mode (amendment)
+    // MARK: - Embedded mode
 
     func testEmbeddedModeTakesIsReinstallFromHostAndNeverTouchesKeychain() {
         keychain.items[.legacyDeviceID] = "HOST-OLD"
@@ -608,7 +636,7 @@ final class ApphudIdentityTests: XCTestCase {
         XCTAssertEqual(identity.anonymousID, "host-anon-2")
     }
 
-    // MARK: - Review fixes
+    // MARK: - Sync and persistence
 
     func testIdentifyWhoseRequestFailedIsStillSentOnNextLaunch() {
         let store = makeStore()
@@ -781,7 +809,7 @@ final class ApphudIdentityTests: XCTestCase {
         XCTAssertTrue(sdk.identityStore.isSyncPending)
     }
 
-    // MARK: - Review round 2
+    // MARK: - Read errors, launch flags, sync
 
     func testPermissionErrorMeansUnreadableNotDamaged() {
         let noPermission = NSError(domain: NSCocoaErrorDomain, code: NSFileReadNoPermissionError)
@@ -836,7 +864,7 @@ final class ApphudIdentityTests: XCTestCase {
         XCTAssertEqual(escaped, "a%26b%3Dc%2Bd%3Fe%23f")
     }
 
-    // MARK: - Review round 3
+    // MARK: - Logout, crash safety, escaping
 
     func testRealPermissionErrorIsRecognised() throws {
         try XCTSkipIf(getuid() == 0, "root reads a chmod-000 file")
@@ -855,21 +883,114 @@ final class ApphudIdentityTests: XCTestCase {
         }
     }
 
-    func testSaveAfterLogoutRestoresTheLogoutStateAndMarksPending() {
-        var identity = launch().identity
-        let store = makeStore()
-        store.logout(anonymousID: "anon-new", &identity)
-        // An identify that ran with the old ids while logout awaited.
-        var stale = ApphudIdentity(installationID: identity.installationID, anonymousID: "anon-old", userID: "Bob")
-        _ = store.identify("Bob", &stale)
-        store.markSynced()
+    @MainActor
+    func testLogoutKeepsInstallationRotatesAnonymousClearsUserInOneStep() async {
+        let sdk = ApphudInternal.shared
+        let savedIdentity = sdk.identity
+        let savedStore = sdk.identityStore
+        let savedSession = ApphudSession.shared
+        defer {
+            sdk.identity = savedIdentity
+            sdk.identityStore = savedStore
+            ApphudSession.shared = savedSession
+        }
+        ApphudSession.shared = ApphudSession(defaults: defaults, notificationCenter: NotificationCenter(), canPersist: { true })
+        sdk.identityStore = makeStore()
+        var identity = ApphudIdentity(installationID: "inst-1", anonymousID: "anon-1", isReinstall: true)
+        _ = sdk.identityStore.identify("Alice", &identity)
+        sdk.identity = identity
+        sdk.identityStore.markSynced()
+        sdk.currentUser = ApphudUser(userID: "Alice")
+        XCTAssertEqual(defaults.string(forKey: "com.apphud.user_id"), "Alice", "precondition: Alice is saved")
 
-        store.save(identity)
+        let logout = Task { await sdk.logout(anonymousID: "anon-2") }
+        // Nothing on the main actor may see the new ids saved but the old ones still in use.
+        var savedButNotSwitched = false
+        var spins = 0
+        while sdk.currentAnonymousID != "anon-2" && spins < 100_000 {
+            if defaults.string(forKey: "com.apphud.anonymous_id") == "anon-2" { savedButNotSwitched = true }
+            spins += 1
+            await Task.yield()
+        }
+        XCTAssertNil(sdk.currentUser, "the previous customer goes in the same step as the ids")
+        await logout.value
 
-        let relaunched = launch().identity
-        XCTAssertEqual(relaunched.anonymousID, "anon-new")
-        XCTAssertNil(relaunched.userID)
-        XCTAssertTrue(makeStore().isSyncPending)
+        XCTAssertFalse(savedButNotSwitched, "the ids are saved and switched in one step")
+        XCTAssertEqual(sdk.currentInstallationID, "inst-1")
+        XCTAssertEqual(sdk.currentAnonymousID, "anon-2")
+        XCTAssertNil(sdk.identifiedUserID)
+        XCTAssertEqual(sdk.isReinstall, true, "the installation's reinstall verdict stays")
+        XCTAssertNil(sdk.currentUser)
+        XCTAssertEqual(defaults.string(forKey: "com.apphud.anonymous_id"), "anon-2")
+        XCTAssertNil(defaults.string(forKey: "com.apphud.user_id"))
+        XCTAssertTrue(sdk.identityStore.isSyncPending)
+    }
+
+    func testAnonymousIDIsNeverTheUser() {
+        // A host that kept its old `Apphud.userID()`, the SDK-generated id, passes it to start.
+        seedOldSDK(deviceID: "OLD-DEVICE", userID: "OLD-DEVICE")
+        var identity = launch(ApphudSuppliedIDs(userID: "OLD-DEVICE")).identity
+
+        XCTAssertNil(identity.userID)
+        XCTAssertEqual(identity.anonymousID, "OLD-DEVICE")
+        XCTAssertNil(customerParams(identity)["user_id"])
+        XCTAssertNil(launch().identity.userID, "nor stored as one")
+
+        // `updateUserID(Apphud.userID())` while anonymous.
+        XCTAssertEqual(makeStore().identify("OLD-DEVICE", &identity), .unchanged)
+        XCTAssertNil(identity.userID)
+
+        // Once identified, a start with the anonymous id keeps the user: only logout clears it.
+        XCTAssertEqual(makeStore().identify("Alice", &identity), .identified)
+        XCTAssertEqual(launch(ApphudSuppliedIDs(userID: "OLD-DEVICE")).identity.userID, "Alice")
+
+        // Embedded mode: the host's anonymous id passed as its user id too.
+        let embedded = launch(ApphudSuppliedIDs(userID: "host-anon", anonymousID: "host-anon", installationID: "host-inst")).identity
+        XCTAssertNil(embedded.userID)
+    }
+
+    func testUpgradeKilledDuringTheKeychainCleanupKeepsTheGeneratedUserIDAnonymous() throws {
+        seedOldSDK(deviceID: "OLD-DEVICE", userID: "OLD-DEVICE")
+        var onDisk: (defaults: [String: Any], record: ApphudInstallRecord?)?
+        keychain.onAccess = { [unowned self] in
+            if onDisk == nil { onDisk = (self.defaults.dictionaryRepresentation(), self.installRecords.record) }
+        }
+        launch()
+        keychain.onAccess = nil
+
+        // The process is killed at the first Keychain call of the upgrade launch.
+        let killed = try XCTUnwrap(onDisk)
+        installApp()
+        killed.defaults.forEach { defaults.set($0.value, forKey: $0.key) }
+        installRecords.record = killed.record
+        let identity = launch().identity
+
+        XCTAssertNil(identity.userID, "an SDK-generated id never becomes a user")
+        XCTAssertEqual(identity.anonymousID, "OLD-DEVICE")
+        XCTAssertEqual(identity.installationID, "OLD-DEVICE")
+        XCTAssertTrue(makeStore().isSyncPending, "the adoption request is still sent")
+    }
+
+    func testStartManuallyHostUpgradeKilledBeforeTheRecordIsStillAnUpgrade() throws {
+        // startManually(deviceID:) never stored device_id; the SDK stored a user_id. The old
+        // Keychain item is there too.
+        defaults.set("GENERATED-USER", forKey: "com.apphud.user_id")
+        keychain.items[.legacyDeviceID] = "HOST-DEVICE"
+        var onDisk: [String: Any]?
+        installRecords.onWrite = { [unowned self] in
+            if onDisk == nil { onDisk = self.defaults.dictionaryRepresentation() }
+        }
+        launch(ApphudSuppliedIDs(installationID: "HOST-DEVICE"))
+        installRecords.onWrite = nil
+
+        // The process is killed right before the installation record is first written.
+        let killed = try XCTUnwrap(onDisk)
+        installApp()
+        killed.forEach { defaults.set($0.value, forKey: $0.key) }
+        let resolution = launch(ApphudSuppliedIDs(installationID: "HOST-DEVICE"))
+
+        XCTAssertEqual(resolution.launch, .upgrade)
+        XCTAssertNil(resolution.identity.isReinstall, "an install updated in place is no reinstall")
     }
 
     @MainActor

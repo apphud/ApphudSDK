@@ -75,7 +75,7 @@ Sources/
     ApphudStoreKit2Extensions.swift  # Product.apphudSubmittableParameters / apphudPromoIdentifiers / currency+country
                                      # (priceFormatStyle, SK1 fallback); SKProduct + Locale legacy helpers
     ApphudIdentity.swift             # installation_id / anonymous_id / user_id: ApphudIdentityStore, installation record
-    ApphudKeychain.swift             # the Keychain reinstall key (and the old items, read once and deleted)
+    ApphudKeychain.swift             # the Keychain reinstall key (old ApphudDeviceID read for the reinstall verdict; both old items deleted)
     ApphudUserProperty.swift         # ApphudUserProperty → JSON
     ApphudLoggerService.swift        # paywall_* events, load-time metrics
     ApphudWebController.swift        # iOS: hidden WKWebView for deferred deep-link visitor id

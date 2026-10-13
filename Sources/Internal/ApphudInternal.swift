@@ -776,34 +776,17 @@ final class ApphudInternal: NSObject {
     internal func logout(anonymousID: String? = nil) async {
 
         // A new anonymous person (the supplied id, or a fresh one), no user; the installation and
-        // the Keychain reinstall key stay. Saved first, so a kill during logout doesn't bring the
-        // previous user back.
-        let newIdentity = await MainActor.run {
+        // the Keychain reinstall key stay. Saved and switched in one main-actor step together with
+        // `currentUser` and the waiting callbacks, so a kill during logout doesn't bring the previous
+        // user back.
+        await MainActor.run {
             var identity = self.identity
             identityStore.logout(anonymousID: anonymousID, &identity)
-            return identity
-        }
-
-        await ApphudDataActor.shared.clear()
-
-        await ApphudUser.clearCache()
-
-        /** Permissions groups never change, no need to clear from cache.
-        apphudDataClearCache(key: ApphudProductGroupsCacheKey)
-        permissionGroups = nil
-        */
-
-        await ApphudDataActor.shared.apphudDataClearCache(key: ApphudPaywallsCacheKey)
-        await ApphudDataActor.shared.apphudDataClearCache(key: ApphudPlacementsCacheKey)
-
-        await MainActor.run {
+            self.identity = identity
             currencyTaskFinished = false
             paywalls.removeAll()
             placements.removeAll()
             currentUser = nil
-            // In the same step as `currentUser`: no request pairs the new ids with the previous customer id.
-            self.identity = newIdentity
-            identityStore.save(newIdentity)
             isPremium = false
             hasActiveSubscription = false
             // Answer everyone still waiting before clearing: a dropped callback leaves
@@ -825,6 +808,21 @@ final class ApphudInternal: NSObject {
             restorePurchasesCallback?(nil, nil, logoutError)
             restorePurchasesCallback = nil
         }
+
+        await ApphudDataActor.shared.clear()
+
+        await ApphudUser.clearCache()
+
+        /** Permissions groups never change, no need to clear from cache.
+        apphudDataClearCache(key: ApphudProductGroupsCacheKey)
+        permissionGroups = nil
+        */
+
+        await ApphudDataActor.shared.apphudDataClearCache(key: ApphudPaywallsCacheKey)
+        await ApphudDataActor.shared.apphudDataClearCache(key: ApphudPlacementsCacheKey)
+
+        // A response that was in flight when logout started may have brought the previous customer back.
+        await MainActor.run { currentUser = nil }
 
         didPreparePaywalls = false
 

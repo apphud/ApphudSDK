@@ -380,10 +380,15 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     internal func appropriateApplicationUsername() -> String? {
         if !hasSwizzledPaymentQueue { return nil }
-        let userID = ApphudInternal.shared.currentUserID
+        return Self.applicationUsername(for: ApphudInternal.shared.identity)
+    }
+
+    /// The identified user's id when it is a UUID, otherwise the installation id, as the old device id
+    /// was. Never the anonymous id: the backend stops finding its customer after identify and merge.
+    static func applicationUsername(for identity: ApphudIdentity) -> String {
+        let userID = identity.userID ?? ""
         let userIDIsUUID = UUID(uuidString: userID)
-        let betterUUID = (userIDIsUUID != nil) ? userID : ApphudInternal.shared.currentInstallationID
-        return betterUUID
+        return (userIDIsUUID != nil) ? userID : identity.installationID
     }
 
     /// The `appAccountToken` sent with StoreKit 2 purchases: the application username when it is a UUID.

@@ -337,15 +337,15 @@ extension ApphudInternal {
                 // The web user's id is known: a plain identify, no from_web2web.
                 self.applyIdentify(userID: userId)
                 self.updateUser(fields: [:]) { (result, _, data, _, _, _, _) in
-                    self.finishWebAttribution(result: result, data: data, adoptFromCustomer: nil, completion: completion)
+                    self.finishWebAttribution(result: result, data: data, adoptFrom: nil, completion: completion)
                 }
             } else {
                 // Email only: the old request shape; the response names the web user.
                 let params: [String: Any] = ["from_web2web": true, "email": email]
                 // In fallback mode the local user is made up: no customer id to compare against.
-                let customerBefore: String?? = self.fallbackMode ? nil : .some(self.currentUser?.internalId)
+                let adoptFrom: (customer: String?, identity: ApphudIdentity)? = self.fallbackMode ? nil : (self.currentUser?.internalId, self.identity)
                 self.updateUser(fields: params, legacyWeb2Web: true) { (result, _, data, _, _, _, _) in
-                    self.finishWebAttribution(result: result, data: data, adoptFromCustomer: customerBefore, completion: completion)
+                    self.finishWebAttribution(result: result, data: data, adoptFrom: adoptFrom, completion: completion)
                 }
             }
         }
@@ -353,15 +353,21 @@ extension ApphudInternal {
 
     /// The web user an email-only web-to-web request found: the response is another customer than
     /// before. Without a match the backend returns the same customer, possibly with another
-    /// install's id as its user_id, which is no user to adopt.
-    internal static func webUserToAdopt(customerBefore: String?, response: ApphudUser?, anonymousID: String) -> String? {
-        guard let response, !response.userId.isEmpty, response.userId != anonymousID,
-              !response.internalId.isEmpty, response.internalId != customerBefore else { return nil }
-        return response.userId
+    /// install's id as its user_id, which is no user to adopt. Read from this request's response,
+    /// not `currentUser`, which another request may have replaced meanwhile; and only while the ids
+    /// are those the request was sent with (no logout or identify in between).
+    internal static func webUserToAdopt(customerBefore: String?, sent: ApphudIdentity, current: ApphudIdentity, responseData: Data?) -> String? {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        guard sent == current, let responseData,
+              let response = try? decoder.decode(ApphudUserResponse<ApphudResponseCustomer>.self, from: responseData).data.results,
+              let userID = response.userId, !userID.isEmpty, userID != current.anonymousID,
+              let customerID = response.id, !customerID.isEmpty, customerID != customerBefore else { return nil }
+        return userID
     }
 
-    /// `adoptFromCustomer`: the customer id before an email-only request, `nil` for a request with the user id.
-    private func finishWebAttribution(result: Bool, data: Data?, adoptFromCustomer customerBefore: String??, completion: @escaping (Bool, ApphudUser?) -> Void) {
+    /// `adoptFrom`: the customer id and the ids an email-only request was sent with, `nil` for a request with the user id.
+    private func finishWebAttribution(result: Bool, data: Data?, adoptFrom: (customer: String?, identity: ApphudIdentity)?, completion: @escaping (Bool, ApphudUser?) -> Void) {
         guard result else {
             Task { @MainActor in completion(false, self.currentUser) }
             return
@@ -372,8 +378,8 @@ extension ApphudInternal {
             Task { @MainActor in
                 // The web user found by email becomes the SDK's user, as an identify would; the
                 // anonymous customer merges into it on the next request.
-                if let customerBefore,
-                   let webUserID = Self.webUserToAdopt(customerBefore: customerBefore, response: self.currentUser, anonymousID: self.currentAnonymousID) {
+                if let adoptFrom,
+                   let webUserID = Self.webUserToAdopt(customerBefore: adoptFrom.customer, sent: adoptFrom.identity, current: self.identity, responseData: data) {
                     self.applyIdentify(userID: webUserID)
                 }
                 self.notifyAboutUpdates(changes)
@@ -381,4 +387,10 @@ extension ApphudInternal {
             }
         }
     }
+}
+
+/// The customer a `POST /v1/customers` response is about: only what the web-user check needs.
+internal struct ApphudResponseCustomer: Decodable {
+    let id: String?
+    let userId: String?
 }

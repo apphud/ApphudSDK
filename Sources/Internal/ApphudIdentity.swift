@@ -307,10 +307,27 @@ internal final class ApphudIdentityStore {
         if let suppliedAnonymousID = supplied.anonymousID {
             anonymousID = suppliedAnonymousID
         }
-        if let suppliedUserID = supplied.userID {
+        let resolvedAnonymousID = anonymousID ?? makeID()
+        // The anonymous id is never a user: a supplied one is ignored (the stored user stays), a
+        // stored one is dropped.
+        if let suppliedUserID = supplied.userID, suppliedUserID != resolvedAnonymousID {
             userID = suppliedUserID
         }
-        let resolvedAnonymousID = anonymousID ?? makeID()
+        if userID == resolvedAnonymousID {
+            userID = nil
+        }
+
+        let changed = record.installationID != stored?.installationID || record.isReinstall != stored?.isReinstall
+            || resolvedAnonymousID != storedAnonymousID || userID != storedUserID
+        if changed {
+            markSyncPending()
+        }
+        // An upgrade adopts the ids before the old device_id is deleted: a crash in between must
+        // not leave an SDK-generated user_id behind as a real user. Other launches save them after
+        // the record, so a crash in between never makes an old install look like a new one.
+        if legacyDeviceID != nil {
+            persist(anonymousID: resolvedAnonymousID, userID: userID)
+        }
 
         // The record is saved before the Keychain changes: a crash in between must not leave our
         // own key behind for a launch that has no record.
@@ -327,30 +344,18 @@ internal final class ApphudIdentityStore {
 
         let identity = ApphudIdentity(installationID: record.installationID, anonymousID: resolvedAnonymousID,
                                       userID: userID, isReinstall: record.isReinstall)
-        let changed = record.installationID != stored?.installationID || record.isReinstall != stored?.isReinstall
-            || resolvedAnonymousID != storedAnonymousID || userID != storedUserID
-        if changed {
-            markSyncPending()
-        }
         return ApphudIdentityResolution(identity: identity, launch: launch, changed: changed,
                                         switchedUser: Self.isSwitch(from: userBeforeSupplied, to: userID))
     }
 
     /// `updateUserID`: identify while anonymous, a switch while identified, a no-op for the same id.
     func identify(_ userID: String, _ identity: inout ApphudIdentity) -> ApphudIdentifyOutcome {
-        guard identity.userID != userID else { return .unchanged }
+        guard identity.userID != userID, userID != identity.anonymousID else { return .unchanged }
         let outcome: ApphudIdentifyOutcome = identity.userID == nil ? .identified : .switched
         identity.userID = userID
         persist(anonymousID: identity.anonymousID, userID: userID)
         markSyncPending()
         return outcome
-    }
-
-    /// Saves the ids again, unsent: logout ends with it, since an identify or a finished request
-    /// may have run while it awaited.
-    func save(_ identity: ApphudIdentity) {
-        persist(anonymousID: identity.anonymousID, userID: identity.userID)
-        markSyncPending()
     }
 
     /// Logout: a new anonymous id (the supplied one, or a fresh one), no user; the installation stays.
@@ -369,8 +374,8 @@ internal final class ApphudIdentityStore {
                                  storedAnonymousID: String?, storedUserID: String?) -> ApphudIdentityResolution {
         let installationID = supplied.installationID!
         let anonymousID = supplied.anonymousID!
-        // The host passes a user id when it has one: none means no user.
-        let userID = supplied.userID
+        // The host passes a user id when it has one: none means no user. The anonymous id is never one.
+        let userID = supplied.userID == anonymousID ? nil : supplied.userID
 
         var record = stored ?? ApphudInstallRecord(installationID: installationID, isReinstall: nil, reinstallDecided: true)
         record.installationID = installationID
