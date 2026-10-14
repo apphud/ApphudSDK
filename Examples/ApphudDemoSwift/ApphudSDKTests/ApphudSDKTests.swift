@@ -362,6 +362,40 @@ final class ApphudSDKTests: XCTestCase {
         XCTAssertNil(second?.body["legacy_device_id"], "not after a registration succeeded")
     }
 
+    // MARK: 1d. The first launch after an update: the registration first, the rest after it
+
+    @MainActor
+    func test1dHeldRequestsGoAfterTheFirstRegistration() async throws {
+        await startSDKIfNeeded()
+        let sdk = ApphudInternal.shared
+        let settle = Date().addingTimeInterval(10)
+        while sdk.isRegisteringUser && Date() < settle {
+            try await Task.sleep(nanoseconds: 100_000_000)
+        }
+        try await Task.sleep(nanoseconds: 300_000_000)
+        let client = ApphudHttpClient.shared
+        let hold = client.firstRegistrationHold
+        defer { hold.open() }
+        ApphudStubURLProtocol.reset()
+        hold.close()
+
+        client.startRequest(path: .events, params: ["name": "held_event"], method: .post, callback: nil)
+        client.startRequest(path: .subscriptions, params: ["environment": "sandbox"], method: .post, callback: nil)
+        try await Task.sleep(nanoseconds: 300_000_000)
+        XCTAssertTrue(ApphudStubURLProtocol.requests(to: "/events").isEmpty, "held until the first registration answers")
+        XCTAssertFalse(ApphudStubURLProtocol.requests(to: "/subscriptions").isEmpty, "purchases carry legacy_device_id and go on")
+
+        sdk.updateUser(fields: ["test_probe": 4]) { _, _, _, _, _, _, _ in }
+        let deadline = Date().addingTimeInterval(5)
+        while ApphudStubURLProtocol.requests(to: "/events").isEmpty && Date() < deadline {
+            try await Task.sleep(nanoseconds: 100_000_000)
+        }
+        let paths = ApphudStubURLProtocol.requests.map(\.path)
+        let registration = try XCTUnwrap(paths.firstIndex(of: "/v4/customers"), "the registration went out")
+        let event = try XCTUnwrap(paths.firstIndex(of: "/v4/events"), "the held event went out")
+        XCTAssertLessThan(registration, event, "the registration went first")
+    }
+
     // MARK: 1b. Placements, paywalls and priced products are available after start
 
     /// Core-functionality contract: after SDK start the backend's placements arrive with

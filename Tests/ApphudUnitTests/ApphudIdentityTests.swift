@@ -524,43 +524,86 @@ final class ApphudIdentityTests: XCTestCase {
         XCTAssertNil(legacy())
     }
 
-    func testLogoutBeforeTheOldCustomerIsAdoptedForgetsTheLegacyDeviceID() {
+    func testTheOldDeviceIDGoesUntilARegistrationSucceeds_LogoutAndSwitchesIncluded() {
+        // The contract: sent until the first registration succeeds; the backend decides who adopts.
         seedOldSDK(deviceID: "OLD-DEVICE", userID: "alice@example.com")
         var identity = launch().identity
-
-        makeStore().logout(anonymousID: nil, &identity)
-
-        XCTAssertNil(customerParams(identity)["legacy_device_id"], "the old customer is the logged-out user's")
-        XCTAssertNil(customerParams(launch().identity)["legacy_device_id"])
-    }
-
-    func testSwitchBeforeTheOldCustomerIsAdoptedForgetsTheLegacyDeviceID_IdentifyKeepsIt() {
-        seedOldSDK(deviceID: "OLD-DEVICE", userID: "OLD-DEVICE")
-        var identity = launch().identity
-
-        _ = makeStore().identify("Alice", &identity)
-        XCTAssertEqual(customerParams(identity)["legacy_device_id"] as? String, "OLD-DEVICE", "the anonymous person becomes Alice")
 
         _ = makeStore().identify("Bob", &identity)
-        XCTAssertNil(customerParams(identity)["legacy_device_id"], "the old customer is not Bob's")
+        XCTAssertEqual(customerParams(identity)["legacy_device_id"] as? String, "OLD-DEVICE", "after a switch")
+        makeStore().logout(anonymousID: nil, &identity)
+        XCTAssertEqual(customerParams(identity)["legacy_device_id"] as? String, "OLD-DEVICE", "after a logout")
+        XCTAssertEqual(customerParams(launch(ApphudSuppliedIDs(userID: "carol")).identity)["legacy_device_id"] as? String, "OLD-DEVICE",
+                       "started with another user")
     }
 
-    func testUpgradeStartedWithAnotherUserSendsNoLegacyDeviceID() {
+    func testTheOldDeviceIDGoesWhenStartResolvesAnotherUserThanTheStoredOne() {
         seedOldSDK(deviceID: "OLD-DEVICE", userID: "alice@example.com")
 
-        let identity = launch(ApphudSuppliedIDs(userID: "bob")).identity
+        let resolution = launch(ApphudSuppliedIDs(userID: "bob"))
+        XCTAssertTrue(resolution.switchedUser)
+        XCTAssertEqual(customerParams(resolution.identity)["legacy_device_id"] as? String, "OLD-DEVICE")
 
-        XCTAssertEqual(identity.userID, "bob")
-        XCTAssertNil(customerParams(identity)["legacy_device_id"], "the old customer is Alice's")
+        let supplied = launch(ApphudSuppliedIDs(userID: "dave", anonymousID: "host-anon", installationID: "OLD-DEVICE"))
+        XCTAssertTrue(supplied.switchedUser)
+        XCTAssertEqual(customerParams(supplied.identity)["legacy_device_id"] as? String, "OLD-DEVICE", "every id supplied")
     }
 
-    func testIDsSuppliedForAnotherUserBeforeTheOldCustomerIsAdoptedSendNoLegacyDeviceID() {
+    func testUpgradeTheOldGeneratedIDThatTheAppPassesBackIsNoUser() {
+        // The old SDK took a user id the server returned; the app kept the generated id it was given.
         seedOldSDK(deviceID: "OLD-DEVICE", userID: "alice@example.com")
-        launch()
 
-        let identity = launch(ApphudSuppliedIDs(userID: "bob", anonymousID: "host-anon", installationID: "OLD-DEVICE")).identity
+        let resolution = launch(ApphudSuppliedIDs(userID: "OLD-DEVICE"))
 
-        XCTAssertNil(customerParams(identity)["legacy_device_id"], "the old customer is Alice's")
+        XCTAssertEqual(resolution.identity.userID, "alice@example.com")
+        XCTAssertFalse(resolution.switchedUser, "the app passed the old SDK's own id: no switch")
+        let params = customerParams(resolution.identity)
+        XCTAssertEqual(params["user_id"] as? String, "alice@example.com", "never the generated id")
+        XCTAssertEqual(params["legacy_device_id"] as? String, "OLD-DEVICE", "the old customer is adopted")
+
+        let later = launch(ApphudSuppliedIDs(userID: "OLD-DEVICE"))
+        XCTAssertEqual(later.identity.userID, "alice@example.com", "on later launches too")
+        XCTAssertFalse(later.switchedUser)
+    }
+
+    func testUpgradeWithTheAppsOwnInstallationIDTheOldGeneratedIDIsStillNoUser() {
+        seedOldSDK(deviceID: "OLD-DEVICE", userID: "alice@example.com")
+
+        let identity = launch(ApphudSuppliedIDs(userID: "OLD-DEVICE", installationID: "host-inst")).identity
+
+        XCTAssertEqual(identity.installationID, "host-inst")
+        XCTAssertEqual(identity.userID, "alice@example.com")
+        let later = launch(ApphudSuppliedIDs(userID: "OLD-DEVICE", installationID: "host-inst"))
+        XCTAssertEqual(later.identity.userID, "alice@example.com", "on later launches too, with the old key gone")
+        XCTAssertFalse(later.switchedUser)
+    }
+
+    func testTheOldGeneratedIDIsNeverAUser_OnIdentifyAndWithEveryIDSupplied() {
+        seedOldSDK(deviceID: "OLD-DEVICE", userID: "alice@example.com")
+        let store = makeStore()
+        var identity = store.resolve(ApphudSuppliedIDs())!.identity
+
+        XCTAssertEqual(store.identify("OLD-DEVICE", &identity), .unchanged)
+        XCTAssertEqual(identity.userID, "alice@example.com")
+
+        let supplied = launch(ApphudSuppliedIDs(userID: "OLD-DEVICE", anonymousID: "host-anon", installationID: "host-inst")).identity
+        XCTAssertNil(supplied.userID)
+    }
+
+    func testOldGeneratedIDRestoredOntoAnotherPhoneIsStillNoUser() {
+        seedOldSDK(deviceID: "OLD-DEVICE", userID: "alice@example.com")
+        launch(ApphudSuppliedIDs(userID: "OLD-DEVICE"))
+        restoreBackupOntoAnotherPhone()
+
+        let identity = launch(ApphudSuppliedIDs(userID: "OLD-DEVICE")).identity
+
+        XCTAssertEqual(identity.userID, "alice@example.com")
+    }
+
+    func testAUserIDTheAppChoseStaysAUserEvenWhenItIsTheInstallationID() {
+        XCTAssertEqual(launch(ApphudSuppliedIDs(userID: "U", installationID: "U")).identity.userID, "U")
+        installApp()
+        XCTAssertEqual(launch(ApphudSuppliedIDs(userID: "U", anonymousID: "host-anon", installationID: "U")).identity.userID, "U")
     }
 
     func testUpgradeSDKGeneratedLegacyUserIDBecomesAnonymousID() {
@@ -750,6 +793,31 @@ final class ApphudIdentityTests: XCTestCase {
 
         sdk.registrationFinished(done: true, params: sdk.customerRequestParams(fields: [:]), sent: sdk.identity)
         XCTAssertFalse(store.isSyncPending)
+    }
+
+    @MainActor
+    func testTheFirstLaunchAfterAnUpdateHoldsRequestsUntilARegistrationAnswers() {
+        let sdk = ApphudInternal.shared
+        let saved = (sdk.identity, sdk.identityStore)
+        let hold = ApphudHttpClient.shared.firstRegistrationHold
+        defer {
+            sdk.identity = saved.0
+            sdk.identityStore = saved.1
+            hold.open()
+        }
+        sdk.identityStore = makeStore()
+        sdk.identity = ApphudIdentity(installationID: "inst-1", anonymousID: "anon-1")
+
+        sdk.holdRequestsIfTheBackendDoesNotKnowThisInstallation()
+        XCTAssertFalse(hold.isClosed, "an installation the backend knows")
+
+        installRecords.record = ApphudInstallRecord(installationID: "OLD-DEVICE", isReinstall: nil, reinstallDecided: true,
+                                                    legacyDeviceID: "OLD-DEVICE")
+        sdk.holdRequestsIfTheBackendDoesNotKnowThisInstallation()
+        XCTAssertTrue(hold.isClosed, "the first launch after an update")
+
+        sdk.registrationFinished(done: false, params: [:], sent: sdk.identity)
+        XCTAssertFalse(hold.isClosed, "a registration that failed releases them too")
     }
 
     @MainActor

@@ -250,6 +250,8 @@ extension ApphudInternal {
     /// carried are synced if still current.
     @MainActor
     internal func registrationFinished(done: Bool, params: [String: Any], sent: ApphudIdentity) {
+        // Requests held for the first registration go on, whatever it answered.
+        ApphudHttpClient.shared.firstRegistrationHold.open()
         if done {
             identityStore.markRegistered(reinstallSent: params["reinstall"] as? Bool == true,
                                          legacyDeviceIDSent: params["legacy_device_id"] != nil)

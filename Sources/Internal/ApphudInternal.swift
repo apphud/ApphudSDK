@@ -363,6 +363,7 @@ final class ApphudInternal: NSObject {
 
         identity = resolution.identity
         (isFreshInstall, isRedownload) = Self.launchFlags(resolution)
+        holdRequestsIfTheBackendDoesNotKnowThisInstallation()
         #if DEBUG
         if resolution.switchedUser {
             apphudLog("Started with another user without logout. Call Apphud.logout() before a different user signs in.", forceDisplay: true)
@@ -631,6 +632,14 @@ final class ApphudInternal: NSObject {
 
                 self.userRegisteredCallbacks.append((callback, allowFailure))
             }
+        }
+    }
+
+    /// `legacy_device_id` still to be sent (the first launch after an update): requests wait until the
+    /// backend knows this installation.
+    internal func holdRequestsIfTheBackendDoesNotKnowThisInstallation() {
+        if identityStore.registrationReport(for: identity).legacyDeviceID != nil {
+            ApphudHttpClient.shared.firstRegistrationHold.close()
         }
     }
 

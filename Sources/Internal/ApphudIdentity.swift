@@ -221,6 +221,9 @@ internal final class ApphudIdentityStore {
     static let userIDKey = "com.apphud.user_id"
     /// Old versions only. Read once on upgrade, then removed.
     static let legacyDeviceIDKey = "com.apphud.device_id"
+    /// The old version's generated device_id, kept for good after an upgrade: apps that saved it as
+    /// their user id pass it back, and it is never a user.
+    static let oldDeviceIDKey = "com.apphud.old_device_id"
     /// Set while the backend hasn't seen the current ids; cleared by a successful registration.
     static let syncPendingKey = "com.apphud.identity_sync_pending"
 
@@ -325,20 +328,20 @@ internal final class ApphudIdentityStore {
             anonymousID = suppliedAnonymousID
         }
         let resolvedAnonymousID = anonymousID ?? makeID()
-        // The anonymous id is never a user: a supplied one is ignored (the stored user stays), a
-        // stored one is dropped.
-        if let suppliedUserID = supplied.userID, suppliedUserID != resolvedAnonymousID {
+        if let legacyDeviceID, oldDeviceID == nil {
+            defaults.set(legacyDeviceID, forKey: Self.oldDeviceIDKey)
+        }
+        // Generated ids are never a user: a supplied one is ignored (the stored user stays), a stored
+        // one is dropped.
+        let generatedIDs = Set([resolvedAnonymousID, oldDeviceID].compactMap { $0 })
+        if let suppliedUserID = supplied.userID, !generatedIDs.contains(suppliedUserID) {
             userID = suppliedUserID
         }
-        if userID == resolvedAnonymousID {
+        if let current = userID, generatedIDs.contains(current) {
             userID = nil
         }
 
         let switchedUser = Self.isSwitch(from: userBeforeSupplied, to: userID)
-        if switchedUser {
-            // The old customer belongs to the user before.
-            record.legacyDeviceID = nil
-        }
 
         let changed = record.installationID != stored?.installationID || record.isReinstall != stored?.isReinstall
             || resolvedAnonymousID != storedAnonymousID || userID != storedUserID
@@ -396,14 +399,11 @@ internal final class ApphudIdentityStore {
 
     /// `updateUserID`: identify while anonymous, a switch while identified, a no-op for the same id.
     func identify(_ userID: String, _ identity: inout ApphudIdentity) -> ApphudIdentifyOutcome {
-        guard identity.userID != userID, userID != identity.anonymousID else { return .unchanged }
+        guard identity.userID != userID, userID != identity.anonymousID, userID != oldDeviceID else { return .unchanged }
         let outcome: ApphudIdentifyOutcome = identity.userID == nil ? .identified : .switched
         identity.userID = userID
         persist(anonymousID: identity.anonymousID, userID: userID)
         markSyncPending()
-        if outcome == .switched {
-            forgetLegacyDeviceID()
-        }
         return outcome
     }
 
@@ -413,7 +413,6 @@ internal final class ApphudIdentityStore {
         identity.userID = nil
         persist(anonymousID: identity.anonymousID, userID: nil)
         markSyncPending()
-        forgetLegacyDeviceID()
     }
 
     // MARK: - Private
@@ -424,16 +423,11 @@ internal final class ApphudIdentityStore {
                                  storedAnonymousID: String?, storedUserID: String?) -> ApphudIdentityResolution {
         let installationID = supplied.installationID!
         let anonymousID = supplied.anonymousID!
-        // The host passes a user id when it has one: none means no user. The anonymous id is never one.
-        let userID = supplied.userID == anonymousID ? nil : supplied.userID
+        // The host passes a user id when it has one: none means no user. Generated ids are never one.
+        let userID = supplied.userID == anonymousID || supplied.userID == oldDeviceID ? nil : supplied.userID
 
         var record = stored ?? ApphudInstallRecord(installationID: installationID, isReinstall: nil, reinstallDecided: true)
         record.installationID = installationID
-        let switchedUser = Self.isSwitch(from: storedUserID, to: userID)
-        if switchedUser {
-            // The old customer belongs to the user before.
-            record.legacyDeviceID = nil
-        }
         if record != stored {
             installRecords.write(record)
         }
@@ -446,15 +440,7 @@ internal final class ApphudIdentityStore {
             markSyncPending()
         }
         return ApphudIdentityResolution(identity: identity, launch: stored == nil ? .newInstall : .normal,
-                                        changed: changed, switchedUser: switchedUser)
-    }
-
-    /// The person changed before a registration adopted the old customer: it belongs to the one before.
-    private func forgetLegacyDeviceID() {
-        setUnsavedLegacyDeviceID(nil)
-        guard case .found(var record) = installRecords.read(), record.legacyDeviceID != nil else { return }
-        record.legacyDeviceID = nil
-        installRecords.write(record)
+                                        changed: changed, switchedUser: Self.isSwitch(from: storedUserID, to: userID))
     }
 
     private func unsavedLegacyDeviceIDValue() -> String? {
@@ -466,6 +452,8 @@ internal final class ApphudIdentityStore {
         lock.lock(); defer { lock.unlock() }
         unsavedLegacyDeviceID = value
     }
+
+    private var oldDeviceID: String? { defaults.string(forKey: Self.oldDeviceIDKey).apphudNonEmpty }
 
     private static func isSwitch(from storedUserID: String?, to userID: String?) -> Bool {
         guard let storedUserID, let userID else { return false }

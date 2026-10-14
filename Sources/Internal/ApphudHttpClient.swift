@@ -117,6 +117,7 @@ public class ApphudHttpClient {
     public var sdkVersion: String = apphud_sdk_version
 
     public static let shared = ApphudHttpClient()
+    internal let firstRegistrationHold = ApphudFirstRegistrationHold()
     public var domainUrlString = productionEndpoint
 
     // Gateway host fallback state. The related logic lives in `ApphudInternal+Fallback.swift`.
@@ -200,6 +201,15 @@ public class ApphudHttpClient {
             Task { @MainActor in
                 callback?(false, nil, nil, ApphudError(message: message), NSURLErrorUnknown, 0, 0)
             }
+            return
+        }
+
+        // Registrations and purchases carry legacy_device_id and go on; the rest waits for the first one
+        // to answer, then is built and sent.
+        if path != .customers && path != .subscriptions, firstRegistrationHold.holdIfClosed({ [weak self] in
+            self?.startRequest(path: path, apiVersion: apiVersion, params: params, method: method, useDecoder: useDecoder,
+                               retry: retry, requestID: requestID, callback: callback)
+        }) {
             return
         }
 
@@ -540,5 +550,59 @@ extension URLRequest {
         cURL += method + url + header + data
 
         return cURL
+    }
+}
+
+/// While `legacy_device_id` is still to be sent (the first launch after an update): on v4 the backend
+/// finds this installation only once a registration has carried it, so other requests wait for the
+/// launch's first registration to finish, successfully or not, for `limit` at most.
+internal final class ApphudFirstRegistrationHold {
+    static let limit: TimeInterval = 10
+
+    private let lock = NSLock()
+    private var closed = false
+    private var generation = 0
+    private var waiting: [() -> Void] = []
+
+    var isClosed: Bool {
+        lock.lock(); defer { lock.unlock() }
+        return closed
+    }
+
+    func close(limit: TimeInterval = ApphudFirstRegistrationHold.limit) {
+        lock.lock()
+        closed = true
+        generation += 1
+        let current = generation
+        lock.unlock()
+        DispatchQueue.global().asyncAfter(deadline: .now() + limit) { [weak self] in
+            self?.open(generation: current)
+        }
+    }
+
+    func open() {
+        open(generation: nil)
+    }
+
+    /// Keeps `request` for later while closed: true when it was kept.
+    func holdIfClosed(_ request: @escaping () -> Void) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        guard closed else { return false }
+        waiting.append(request)
+        return true
+    }
+
+    /// `generation`: the close a limit belongs to; a later close keeps its own.
+    private func open(generation expected: Int?) {
+        lock.lock()
+        guard closed, expected == nil || expected == generation else {
+            lock.unlock()
+            return
+        }
+        closed = false
+        let released = waiting
+        waiting.removeAll()
+        lock.unlock()
+        released.forEach { $0() }
     }
 }
