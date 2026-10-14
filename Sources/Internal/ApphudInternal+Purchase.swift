@@ -166,7 +166,7 @@ extension ApphudInternal {
                     // Submits only — finishing a transaction belongs to whoever owns it
                     // (the purchase call or the updates listener). In observer mode the
                     // host finishes its own transactions and this must not interfere.
-                    await handleTransaction(latestTransaction, jws: latestResult.jwsRepresentation)
+                    await handleTransaction(latestTransaction, jws: latestResult.jwsRepresentation, automatic: true)
                 }
             }
         }
@@ -175,8 +175,30 @@ extension ApphudInternal {
     /// Compatibility wrapper over `handleTransactionResult`: `true` when the
     /// transaction needs no further delivery — the caller may finish it.
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
-    @discardableResult internal func handleTransaction(_ transaction: StoreKit.Transaction, jws: String? = nil, fromScreen: Bool = false) async -> Bool {
-        await handleTransactionResult(transaction, jws: jws, fromScreen: fromScreen) == nil
+    @discardableResult internal func handleTransaction(_ transaction: StoreKit.Transaction, jws: String? = nil, fromScreen: Bool = false, automatic: Bool = false) async -> Bool {
+        await handleTransactionResult(transaction, jws: jws, fromScreen: fromScreen, automatic: automatic) == nil
+    }
+
+    /// An automatic path skips another account's transaction: it moves only with a restore.
+    @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
+    private func isAnotherAccountsTransaction(_ transaction: StoreKit.Transaction) -> Bool {
+        ApphudStoreKitWrapper.belongsToAnotherAccount(transaction.appAccountToken, identity: identity,
+                                                      purchaseUserTokens: ApphudStoreKitWrapper.purchaseUserTokens())
+    }
+
+    /// The legacy queue twin's StoreKit 2 transaction when it is another account's. Mostly the
+    /// product's latest transaction; otherwise one from the history, which has no finished consumables.
+    @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
+    internal func anotherAccountsTransaction(id: UInt64, productID: String) async -> StoreKit.Transaction? {
+        if case .verified(let latest) = await StoreKit.Transaction.latest(for: productID), latest.id == id {
+            return isAnotherAccountsTransaction(latest) ? latest : nil
+        }
+        for await result in StoreKit.Transaction.all {
+            if case .verified(let transaction) = result, transaction.id == id {
+                return isAnotherAccountsTransaction(transaction) ? transaction : nil
+            }
+        }
+        return nil
     }
 
     /// Returns `nil` when the transaction needs no further delivery (already tracked,
@@ -186,7 +208,7 @@ extension ApphudInternal {
     /// can surface WHY the purchase is not confirmed (master parity: clients gating
     /// on `result.error` must see a failed submission).
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
-    internal func handleTransactionResult(_ transaction: StoreKit.Transaction, jws: String? = nil, fromScreen: Bool = false) async -> Error? {
+    internal func handleTransactionResult(_ transaction: StoreKit.Transaction, jws: String? = nil, fromScreen: Bool = false, automatic: Bool = false) async -> Error? {
         let transactionId = transaction.id
         let refundDate = transaction.revocationDate
         let expirationDate = transaction.expirationDate
@@ -210,6 +232,16 @@ extension ApphudInternal {
         let transactions = await self.lastUploadedTransactions
         if transactions.contains(transactionId) {
             return nil
+        }
+
+        // Another account's purchase waits unfinished for its owner, as the backend may not have it
+        // yet. A later transaction of a subscription (a renewal, an upgrade) may be finished: the backend
+        // knows the subscription by its original transaction.
+        if automatic, isAnotherAccountsTransaction(transaction) {
+            apphudLog("Transaction \(transactionId) belongs to another account, skipping", logLevel: .debug)
+            return transaction.originalID == transactionId
+                ? ApphudError(message: "Transaction \(transactionId) belongs to another account")
+                : nil
         }
 
         var isActive = false
@@ -690,6 +722,7 @@ extension ApphudInternal {
                                                                               timestamp: signedOffer.timestamp)]
                 if let appAccountToken {
                     options.insert(.appAccountToken(appAccountToken))
+                    ApphudStoreKitWrapper.rememberPurchaseToken(appAccountToken, identity: self.identity)
                 }
                 await self.purchaseAsync(apphudProduct: apphudProduct, productId: productId, commitmentPlan: false, fromScreen: fromScreen, extraOptions: options, addsCurrentAppAccountToken: false, callback: callback)
             }

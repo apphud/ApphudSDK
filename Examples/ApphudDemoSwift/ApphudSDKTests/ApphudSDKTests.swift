@@ -520,8 +520,8 @@ final class ApphudSDKTests: XCTestCase {
 
     // MARK: 8d. A token that appears while the offer is being signed is not added to the purchase
 
-    // The cold-start case: the offer is signed with no token (the payment queue is not swizzled
-    // yet, or the id is not a UUID), then a token becomes available before the purchase starts.
+    // The offer is signed with no token (the ids are not UUIDs), then a token becomes available
+    // before the purchase starts.
     // Not a duplicate of 8c: only this test fails if the promo purchase lets `purchaseResult` add
     // the current token, because Set<Product.PurchaseOption> keeps an already present token.
     @MainActor
@@ -853,6 +853,213 @@ final class ApphudSDKTests: XCTestCase {
         XCTAssertEqual(submits.count, 1, "Redelivery must upload the transaction")
         XCTAssertTrue(ApphudInternal.shared.lastUploadedTransactions.contains(verified.unsafePayloadValue.id),
                       "A successful upload must record the transaction as delivered")
+    }
+
+    // MARK: 2b. A purchase carries the user's token, and the install remembers who bought
+
+    @MainActor
+    func test2bPurchaseOfAUUIDUserCarriesAndRemembersItsToken() async throws {
+        let session = try XCTUnwrap(Self.storeKitSession)
+        session.clearTransactions()
+        defer { session.clearTransactions() }
+        await startSDKIfNeeded()
+        ApphudStubURLProtocol.reset()
+        ApphudInternal.shared.lastUploadedTransactions = []
+
+        let user = UUID()
+        let tokensKey = ApphudStoreKitWrapper.purchaseUserTokensKey
+        let saved = ApphudInternal.shared.identity
+        UserDefaults.standard.removeObject(forKey: tokensKey)
+        defer {
+            ApphudInternal.shared.identity = saved
+            UserDefaults.standard.removeObject(forKey: tokensKey)
+        }
+        ApphudInternal.shared.identity.userID = user.uuidString
+
+        let result: ApphudPurchaseResult = await withCheckedContinuation { continuation in
+            ApphudInternal.shared.purchase(productId: ApphudTestConstants.weeklyProductId, product: nil, validate: true,
+                                           purchasingFromScreen: false) { result in
+                continuation.resume(returning: result)
+            }
+        }
+
+        XCTAssertNil(result.error)
+        let latestResult = await StoreKit.Transaction.latest(for: ApphudTestConstants.weeklyProductId)
+        guard case .verified(let transaction) = try XCTUnwrap(latestResult) else { return XCTFail("verified transaction expected") }
+        XCTAssertEqual(transaction.appAccountToken, user, "the purchase carries the user's token")
+        XCTAssertEqual(ApphudStoreKitWrapper.purchaseUserTokens(), [user], "the install remembers who bought")
+    }
+
+    // MARK: 3e. Automatic paths skip another account's transaction; a restore sends it
+
+    /// Alice bought through the SDK on this install, so her UUID user id is the purchase's token;
+    /// someone else is current now. The legacy queue twin, the updates listener and the launch
+    /// check leave her transaction alone and unfinished; the restore the user asks for submits it.
+    @MainActor
+    func test3eAutomaticPathsSkipAnotherAccountsTransaction() async throws {
+        guard #available(iOS 17.0, *) else { throw XCTSkip("buyProduct(identifier:options:) needs iOS 17") }
+        let session = try XCTUnwrap(Self.storeKitSession)
+        session.clearTransactions()
+        defer { session.clearTransactions() }
+        await startSDKIfNeeded()
+
+        let alice = UUID()
+        let tokensKey = ApphudStoreKitWrapper.purchaseUserTokensKey
+        UserDefaults.standard.removeObject(forKey: tokensKey)
+        defer { UserDefaults.standard.removeObject(forKey: tokensKey) }
+        var aliceIdentity = ApphudInternal.shared.identity
+        aliceIdentity.userID = alice.uuidString
+        ApphudStoreKitWrapper.rememberPurchaseToken(alice, identity: aliceIdentity)
+        ApphudStubURLProtocol.reset()
+        ApphudInternal.shared.lastUploadedTransactions = []
+
+        func submissions(after seconds: UInt64) async throws -> Int {
+            try await Task.sleep(nanoseconds: seconds * 1_000_000_000)
+            return ApphudStubURLProtocol.requests(to: "/subscriptions").filter { $0.method == "POST" }.count
+        }
+
+        // Bought outside the SDK: observer mode, the legacy queue twin and the updates listener.
+        let transaction = try await session.buyProduct(identifier: "com.apphud.lifetime", options: [.appAccountToken(alice)])
+        let observed = try await submissions(after: 8)
+        XCTAssertEqual(observed, 0, "the legacy queue twin and the updates listener submit nothing for another account")
+
+        // The updates listener of an SDK that finishes transactions, and the launch check.
+        let latestResult = await StoreKit.Transaction.latest(for: "com.apphud.lifetime")
+        let latest = try XCTUnwrap(latestResult)
+        ApphudUtils.shared.storeKitObserverMode = false
+        ApphudAsyncStoreKit.shared.transactionsListener.handle(updatedTransaction: latest)
+        ApphudInternal.shared.checkTransactionsNow()
+        let checked = try await submissions(after: 4)
+        XCTAssertEqual(checked, 0, "the updates listener and the launch check submit nothing for another account")
+        var unfinished = false
+        for await result in StoreKit.Transaction.unfinished where result.unsafePayloadValue.id == transaction.id {
+            unfinished = true
+        }
+        XCTAssertTrue(unfinished, "left unfinished for its owner: the backend may not have it yet")
+
+        // The restore the user asked for.
+        let result: ApphudPurchaseResult = await withCheckedContinuation { continuation in
+            Task { @MainActor in
+                ApphudInternal.shared.restorePurchases { result in
+                    continuation.resume(returning: result)
+                }
+            }
+        }
+        XCTAssertNil(result.error)
+        let submits = ApphudStubURLProtocol.requests(to: "/subscriptions").filter { $0.method == "POST" }
+        XCTAssertEqual(submits.count, 1)
+        XCTAssertEqual(submits.last?.body["transaction_id"] as? String, String(transaction.id))
+        XCTAssertEqual(submits.last?.body["restore"] as? Bool, true, "moves only with the restore")
+    }
+
+    // MARK: 3f. Once someone with a UUID id bought here, a purchase of nobody's account is still tracked
+
+    @MainActor
+    func test3fForeignPurchaseIsTrackedOnceAUUIDUserBoughtHere() async throws {
+        let session = try XCTUnwrap(Self.storeKitSession)
+        session.clearTransactions()
+        defer { session.clearTransactions() }
+        await startSDKIfNeeded()
+
+        let tokensKey = ApphudStoreKitWrapper.purchaseUserTokensKey
+        let alice = UUID()
+        var aliceIdentity = ApphudInternal.shared.identity
+        aliceIdentity.userID = alice.uuidString
+        UserDefaults.standard.removeObject(forKey: tokensKey)
+        defer { UserDefaults.standard.removeObject(forKey: tokensKey) }
+        ApphudStoreKitWrapper.rememberPurchaseToken(alice, identity: aliceIdentity)
+        ApphudStubURLProtocol.reset()
+        ApphudInternal.shared.lastUploadedTransactions = []
+        // Only the legacy queue twin's submission tells the delegate about an observed purchase.
+        let observer = ObservedPurchases()
+        let savedDelegate = ApphudInternal.shared.delegate
+        ApphudInternal.shared.delegate = observer
+        defer { ApphudInternal.shared.delegate = savedDelegate }
+
+        try session.buyProduct(productIdentifier: "com.apphud.lifetime")
+
+        let deadline = Date().addingTimeInterval(30)
+        while observer.count == 0 && Date() < deadline {
+            try await Task.sleep(nanoseconds: 200_000_000)
+        }
+        XCTAssertGreaterThan(observer.count, 0, "the legacy queue twin of a purchase without a token is submitted")
+        let tracked = ApphudStubURLProtocol.requests(to: "/subscriptions").filter { $0.method == "POST" }
+        XCTAssertFalse(tracked.isEmpty)
+        XCTAssertEqual(tracked.last?.body["restore"] as? Bool, false)
+    }
+
+    private final class ObservedPurchases: ApphudDelegate {
+        var count = 0
+        func apphudDidObservePurchase(result: ApphudPurchaseResult) -> Bool {
+            count += 1
+            return false
+        }
+    }
+
+    // MARK: 3g. Another account's renewal is finished; its first purchase waits for the owner
+
+    @MainActor
+    func test3gAnotherAccountsRenewalIsFinishedItsPurchaseKept() async throws {
+        guard #available(iOS 17.0, *) else { throw XCTSkip("buyProduct(identifier:options:) needs iOS 17") }
+        let session = try XCTUnwrap(Self.storeKitSession)
+        session.clearTransactions()
+        defer { session.clearTransactions() }
+        await startSDKIfNeeded()
+
+        let tokensKey = ApphudStoreKitWrapper.purchaseUserTokensKey
+        let alice = UUID()
+        var aliceIdentity = ApphudInternal.shared.identity
+        aliceIdentity.userID = alice.uuidString
+        UserDefaults.standard.removeObject(forKey: tokensKey)
+        defer { UserDefaults.standard.removeObject(forKey: tokensKey) }
+        ApphudStoreKitWrapper.rememberPurchaseToken(alice, identity: aliceIdentity)
+
+        let purchase = try await session.buyProduct(identifier: ApphudTestConstants.weeklyProductId, options: [.appAccountToken(alice)])
+        try session.forceRenewalOfSubscription(productIdentifier: ApphudTestConstants.weeklyProductId)
+        let deadline = Date().addingTimeInterval(10)
+        var renewal: StoreKit.Transaction?
+        while renewal == nil && Date() < deadline {
+            if case .verified(let latest) = await StoreKit.Transaction.latest(for: ApphudTestConstants.weeklyProductId),
+               latest.id != purchase.id {
+                renewal = latest
+            }
+            try await Task.sleep(nanoseconds: 200_000_000)
+        }
+        let renewed = try XCTUnwrap(renewal, "StoreKitTest renews the subscription")
+        XCTAssertEqual(renewed.appAccountToken, alice, "a renewal keeps the purchase's token")
+        try await Task.sleep(nanoseconds: 3_000_000_000)
+        ApphudStubURLProtocol.reset()
+        ApphudInternal.shared.lastUploadedTransactions = []
+
+        let renewalResult = await ApphudInternal.shared.handleTransactionResult(renewed, automatic: true)
+        let purchaseResult = await ApphudInternal.shared.handleTransactionResult(purchase, automatic: true)
+
+        XCTAssertNil(renewalResult, "a renewal of another account's subscription may be finished")
+        XCTAssertNotNil(purchaseResult, "another account's purchase waits unfinished for its owner")
+        XCTAssertEqual(ApphudStubURLProtocol.requests(to: "/subscriptions").filter { $0.method == "POST" }.count, 0)
+
+        // The legacy queue twin finds both, also the older one once something finished it.
+        await purchase.finish()
+        var stillUnfinished = false
+        for await result in StoreKit.Transaction.unfinished where result.unsafePayloadValue.id == purchase.id {
+            stillUnfinished = true
+        }
+        XCTAssertFalse(stillUnfinished, "precondition: the first purchase is finished")
+        let weekly = ApphudTestConstants.weeklyProductId
+        let renewalOwner = await ApphudInternal.shared.anotherAccountsTransaction(id: renewed.id, productID: weekly)
+        let purchaseOwner = await ApphudInternal.shared.anotherAccountsTransaction(id: purchase.id, productID: weekly)
+        let unknown = await ApphudInternal.shared.anotherAccountsTransaction(id: renewed.id + 1000, productID: weekly)
+        XCTAssertEqual(renewalOwner?.id, renewed.id)
+        XCTAssertEqual(purchaseOwner?.id, purchase.id, "a finished transaction older than the latest one")
+        XCTAssertNil(unknown)
+
+        let saved = ApphudInternal.shared.identity
+        defer { ApphudInternal.shared.identity = saved }
+        ApphudInternal.shared.identity = aliceIdentity
+        let alicesOwn = await ApphudInternal.shared.anotherAccountsTransaction(id: purchase.id, productID: weekly)
+        let alicesOwnRenewal = await ApphudInternal.shared.anotherAccountsTransaction(id: renewed.id, productID: weekly)
+        XCTAssertNil(alicesOwn, "alice's own transaction while she is current")
+        XCTAssertNil(alicesOwnRenewal, "alice's own latest transaction while she is current")
     }
 
     // MARK: 5. Restore submits the newest entitlement
