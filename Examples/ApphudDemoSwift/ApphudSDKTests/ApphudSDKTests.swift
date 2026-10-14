@@ -8,7 +8,7 @@
 //  purchases run against the local StoreKit.storekit configuration via SKTestSession.
 //
 //  These tests pin the CURRENT behavior of the purchase pipeline (baseline before
-//  the StoreKit 2 migration): what gets sent to POST /v1/subscriptions and what
+//  the StoreKit 2 migration): what gets sent to POST /v4/subscriptions and what
 //  the purchase callback returns.
 //
 
@@ -41,24 +41,40 @@ final class ApphudStubURLProtocol: URLProtocol {
         _requests.removeAll()
     }
 
+    /// Paths of every request outside `/v4` since the suite started; `reset()` keeps them.
+    private static var _unversionedPaths: [String] = []
+
+    static var unversionedPaths: [String] {
+        lock.lock(); defer { lock.unlock() }
+        return _unversionedPaths
+    }
+
+    static func clearUnversionedPaths() {
+        lock.lock(); defer { lock.unlock() }
+        _unversionedPaths.removeAll()
+    }
+
     static func record(_ request: RecordedRequest) {
         lock.lock(); defer { lock.unlock() }
         _requests.append(request)
+        if !request.path.hasPrefix("/v4/") {
+            _unversionedPaths.append(request.path)
+        }
     }
 
     static func requests(to pathSuffix: String) -> [RecordedRequest] {
         requests.filter { $0.path.hasSuffix(pathSuffix) }
     }
 
-    /// Artificial latency for POST /v1/subscriptions, so a test can keep a submission
+    /// Artificial latency for POST /v4/subscriptions, so a test can keep a submission
     /// in flight and exercise concurrent delivery of the same transaction.
     static var subscriptionsResponseDelay: TimeInterval = 0
 
-    /// When set, POST /v1/subscriptions answers with this status instead of 200, so the
+    /// When set, POST /v4/subscriptions answers with this status instead of 200, so the
     /// failure paths (where purchases are lost) are exercisable.
     static var subscriptionsFailureStatus: Int?
 
-    /// Artificial latency for POST /v1/sign_offer, so a test can change the user state
+    /// Artificial latency for POST /v4/sign_offer, so a test can change the user state
     /// between signing a promotional offer and purchasing it.
     static var signOfferResponseDelay: TimeInterval = 0
 
@@ -263,6 +279,8 @@ final class ApphudSDKTests: XCTestCase {
     }
 
     override func tearDown() {
+        XCTAssertEqual(ApphudStubURLProtocol.unversionedPaths, [], "every request goes to /v4")
+        ApphudStubURLProtocol.clearUnversionedPaths()
         super.tearDown()
         // Tracking a foreign purchase force-enables observer mode process-wide; reset it
         // so test order (or running a single test) can't change what other tests observe.
@@ -304,8 +322,44 @@ final class ApphudSDKTests: XCTestCase {
             if !registrations.isEmpty { break }
             try await Task.sleep(nanoseconds: 100_000_000)
         }
-        XCTAssertFalse(registrations.isEmpty, "SDK must register the user via POST /v1/customers")
+        XCTAssertFalse(registrations.isEmpty, "SDK must register the user via POST /v4/customers")
         XCTAssertEqual(registrations.last?.method, "POST")
+        XCTAssertEqual(registrations.last?.path, "/v4/customers")
+    }
+
+    // MARK: 1c. The old device_id goes until a registration succeeds
+
+    @MainActor
+    func test1cRegistrationSendsTheOldDeviceIDUntilOneSucceeds() async throws {
+        await startSDKIfNeeded()
+        let file = ApphudInstallRecordFile.standard
+        guard case .found(let saved) = file.read() else { return XCTFail("the SDK keeps an install record") }
+        defer { _ = file.write(saved) }
+        var record = saved
+        record.legacyDeviceID = "OLD-DEVICE"
+        XCTAssertTrue(file.write(record))
+
+        // Tagged: the launch registration may still be on its way.
+        func register(_ probe: Int) async throws -> ApphudStubURLProtocol.RecordedRequest? {
+            ApphudInternal.shared.updateUser(fields: ["test_probe": probe]) { _, _, _, _, _, _, _ in }
+            let deadline = Date().addingTimeInterval(10)
+            var mine: ApphudStubURLProtocol.RecordedRequest?
+            while mine == nil && Date() < deadline {
+                try await Task.sleep(nanoseconds: 100_000_000)
+                mine = ApphudStubURLProtocol.requests(to: "/customers").last { $0.body["test_probe"] as? Int == probe }
+            }
+            return mine
+        }
+
+        let first = try await register(1)
+        XCTAssertEqual(first?.body["legacy_device_id"] as? String, "OLD-DEVICE")
+        let deadline = Date().addingTimeInterval(5)
+        while case .found(let current) = file.read(), current.legacyDeviceID != nil, Date() < deadline {
+            try await Task.sleep(nanoseconds: 100_000_000)
+        }
+        let second = try await register(2)
+        XCTAssertNotNil(second, "a second registration went out")
+        XCTAssertNil(second?.body["legacy_device_id"], "not after a registration succeeded")
     }
 
     // MARK: 1b. Placements, paywalls and priced products are available after start
@@ -592,6 +646,7 @@ final class ApphudSDKTests: XCTestCase {
         XCTAssertNotNil(body["anonymous_id"] as? String)
         XCTAssertNil(body["device_id"], "the new shape never sends device_id")
         XCTAssertEqual(body["user_id"] as? String, ApphudTestConstants.userId)
+        XCTAssertEqual(body["restore"] as? Bool, false, "a purchase never takes a subscription from another customer")
     }
 
     // MARK: 3. Foreign (observer-mode) purchase tracking baseline
@@ -621,8 +676,9 @@ final class ApphudSDKTests: XCTestCase {
             try await Task.sleep(nanoseconds: 200_000_000)
         }
 
-        XCTAssertFalse(tracked.isEmpty, "Foreign purchase must be auto-tracked via POST /v1/subscriptions")
+        XCTAssertFalse(tracked.isEmpty, "Foreign purchase must be auto-tracked via POST /v4/subscriptions")
         XCTAssertNotNil(tracked.last?.body["receipt_data"] as? String)
+        XCTAssertEqual(tracked.last?.body["restore"] as? Bool, false, "automatic tracking is no restore")
     }
 
     // MARK: 3b. Concurrent delivery of one transaction must upload it once
@@ -810,6 +866,7 @@ final class ApphudSDKTests: XCTestCase {
                                        "Restore must carry a decodable signed transaction")
         XCTAssertEqual(jwsPayload["transactionId"] as? String, String(entitlementTrx.id),
                        "Restore's jws must be signed for the entitlement's transaction")
+        XCTAssertEqual(body["restore"] as? Bool, true, "the restore the user asked for")
     }
 
     // MARK: 6. Restore piggybacks on an in-flight submission

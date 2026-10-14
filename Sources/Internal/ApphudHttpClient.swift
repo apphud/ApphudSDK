@@ -44,10 +44,9 @@ public class ApphudHttpClient {
         case put = "PUT"
     }
 
+    /// The SDK sends the anonymous identity (`installation_id`, `anonymous_id`), which only v4 accepts.
     enum ApphudApiVersion: String {
-        case APIV1 = "v1"
-        case APIV2 = "v2"
-        case APIV3 = "v3"
+        case APIV4 = "v4"
     }
 
     enum ApphudEndpoint: Equatable {
@@ -191,7 +190,7 @@ public class ApphudHttpClient {
         }
     }
 
-    internal func startRequest(path: ApphudEndpoint, apiVersion: ApphudApiVersion = .APIV1, params: [String: Any]?, method: ApphudHttpMethod, useDecoder: Bool = false, retry: Bool = false, requestID: String? = nil, callback: ApphudHTTPResponseCallback?) {
+    internal func startRequest(path: ApphudEndpoint, apiVersion: ApphudApiVersion = .APIV4, params: [String: Any]?, method: ApphudHttpMethod, useDecoder: Bool = false, retry: Bool = false, requestID: String? = nil, callback: ApphudHTTPResponseCallback?) {
 
         let timeout = path == .customers ? POST_CUSTOMERS_TIMEOUT : nil
 

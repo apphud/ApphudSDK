@@ -137,7 +137,7 @@ final class ApphudIdentityTests: XCTestCase {
     }
 
     private func customerParams(_ identity: ApphudIdentity) -> [String: Any] {
-        ApphudInternal.customerIdentityParams(identity, legacyWeb2Web: false, serverUserID: nil)
+        ApphudInternal.customerIdentityParams(identity, report: makeStore().registrationReport(for: identity))
     }
 
     // MARK: - Identity model
@@ -346,8 +346,39 @@ final class ApphudIdentityTests: XCTestCase {
         XCTAssertEqual(identity.isReinstall, true)
         XCTAssertEqual(customerParams(identity)["reinstall"] as? Bool, true)
         let relaunch = launch()
-        XCTAssertEqual(relaunch.identity.isReinstall, true, "every registration of this install carries it")
+        XCTAssertEqual(relaunch.identity.isReinstall, true)
+        XCTAssertEqual(customerParams(relaunch.identity)["reinstall"] as? Bool, true, "sent until a registration succeeds")
         XCTAssertEqual(relaunch.launch, .normal, "only the install's first launch counts as new")
+    }
+
+    func testReinstallSentUntilARegistrationCarryingItSucceeds_ThenNeverAgainForTheInstall() {
+        launch()
+        deleteAndReinstallApp()
+        var identity = launch().identity
+
+        makeStore().markRegistered(reinstallSent: true, legacyDeviceIDSent: false)
+
+        XCTAssertNil(customerParams(identity)["reinstall"])
+        _ = makeStore().identify("Alice", &identity)
+        XCTAssertNil(customerParams(identity)["reinstall"], "not after an identify")
+        makeStore().logout(anonymousID: nil, &identity)
+        XCTAssertNil(customerParams(identity)["reinstall"], "not after a logout: the backend records it on every customer it goes to")
+        XCTAssertNil(customerParams(launch().identity)["reinstall"], "not on later launches")
+        XCTAssertEqual(installRecords.record?.isReinstall, true, "the install is still a reinstall")
+
+        deleteAndReinstallApp()
+        XCTAssertEqual(customerParams(launch().identity)["reinstall"] as? Bool, true, "the next reinstall is a new install: sent again")
+    }
+
+    func testReinstallNotReportedByARegistrationThatDidNotCarryIt() {
+        keychain.items[.reinstall] = "1"
+        keychain.locked = true
+        launch()
+
+        makeStore().markRegistered(reinstallSent: false, legacyDeviceIDSent: false)
+        keychain.locked = false
+
+        XCTAssertEqual(customerParams(launch().identity)["reinstall"] as? Bool, true, "decided on a later launch, then sent")
     }
 
     func testReinstallFlagFreshInstall_FalseAndNoParam() {
@@ -434,6 +465,104 @@ final class ApphudIdentityTests: XCTestCase {
         XCTAssertNil(params["device_id"])
     }
 
+    func testUpgradeSendsTheOldDeviceIDAsLegacyUntilARegistrationSucceeds() {
+        seedOldSDK(deviceID: "OLD-DEVICE", userID: "OLD-DEVICE")
+
+        XCTAssertEqual(customerParams(launch().identity)["legacy_device_id"] as? String, "OLD-DEVICE")
+        XCTAssertEqual(customerParams(launch().identity)["legacy_device_id"] as? String, "OLD-DEVICE",
+                       "a later launch still sends it: the old key is gone from UserDefaults by then")
+
+        makeStore().markRegistered(reinstallSent: false, legacyDeviceIDSent: true)
+
+        let identity = launch().identity
+        XCTAssertNil(customerParams(identity)["legacy_device_id"])
+        XCTAssertEqual(identity.installationID, "OLD-DEVICE", "installation_id stays the old device_id")
+    }
+
+    func testLegacyDeviceIDKeptByARegistrationThatDidNotCarryIt() {
+        seedOldSDK(deviceID: "OLD-DEVICE", userID: "alice@example.com")
+        launch()
+
+        makeStore().markRegistered(reinstallSent: true, legacyDeviceIDSent: false)
+
+        XCTAssertEqual(customerParams(launch().identity)["legacy_device_id"] as? String, "OLD-DEVICE")
+    }
+
+    func testNoLegacyDeviceIDOnAFreshInstallOrAReinstall() {
+        XCTAssertNil(customerParams(launch().identity)["legacy_device_id"])
+        deleteAndReinstallApp()
+        XCTAssertNil(customerParams(launch().identity)["legacy_device_id"])
+    }
+
+    func testOldSDKDeletedThenThisOneInstalledSendsNoLegacyDeviceID() {
+        seedOldSDK(deviceID: "OLD-DEVICE", userID: "OLD-DEVICE", inUserDefaults: false)
+
+        XCTAssertNil(customerParams(launch().identity)["legacy_device_id"], "the Keychain's old device_id is never sent")
+    }
+
+    func testOldSDKBackupRestoredOntoAnotherPhoneSendsTheLegacyDeviceID() {
+        seedOldSDK(deviceID: "OLD-DEVICE", userID: "OLD-DEVICE")
+        restoreBackupOntoAnotherPhone()
+
+        XCTAssertEqual(customerParams(launch().identity)["legacy_device_id"] as? String, "OLD-DEVICE")
+    }
+
+    func testUpgradeWhoseRecordCouldNotBeSavedStillSendsTheLegacyDeviceIDThisLaunch() throws {
+        seedOldSDK(deviceID: "OLD-DEVICE", userID: "OLD-DEVICE")
+        installRecords.failWrites = true
+        let store = makeStore()
+        let identity = try XCTUnwrap(store.resolve(ApphudSuppliedIDs()))
+        func legacy() -> String? {
+            ApphudInternal.customerIdentityParams(identity.identity, report: store.registrationReport(for: identity.identity))["legacy_device_id"] as? String
+        }
+
+        XCTAssertEqual(identity.identity.installationID, "OLD-DEVICE")
+        XCTAssertEqual(legacy(), "OLD-DEVICE", "installation_id alone adopts nothing")
+        XCTAssertEqual(defaults.string(forKey: "com.apphud.device_id"), "OLD-DEVICE", "the next launch upgrades again")
+
+        store.markRegistered(reinstallSent: false, legacyDeviceIDSent: true)
+        XCTAssertNil(legacy())
+    }
+
+    func testLogoutBeforeTheOldCustomerIsAdoptedForgetsTheLegacyDeviceID() {
+        seedOldSDK(deviceID: "OLD-DEVICE", userID: "alice@example.com")
+        var identity = launch().identity
+
+        makeStore().logout(anonymousID: nil, &identity)
+
+        XCTAssertNil(customerParams(identity)["legacy_device_id"], "the old customer is the logged-out user's")
+        XCTAssertNil(customerParams(launch().identity)["legacy_device_id"])
+    }
+
+    func testSwitchBeforeTheOldCustomerIsAdoptedForgetsTheLegacyDeviceID_IdentifyKeepsIt() {
+        seedOldSDK(deviceID: "OLD-DEVICE", userID: "OLD-DEVICE")
+        var identity = launch().identity
+
+        _ = makeStore().identify("Alice", &identity)
+        XCTAssertEqual(customerParams(identity)["legacy_device_id"] as? String, "OLD-DEVICE", "the anonymous person becomes Alice")
+
+        _ = makeStore().identify("Bob", &identity)
+        XCTAssertNil(customerParams(identity)["legacy_device_id"], "the old customer is not Bob's")
+    }
+
+    func testUpgradeStartedWithAnotherUserSendsNoLegacyDeviceID() {
+        seedOldSDK(deviceID: "OLD-DEVICE", userID: "alice@example.com")
+
+        let identity = launch(ApphudSuppliedIDs(userID: "bob")).identity
+
+        XCTAssertEqual(identity.userID, "bob")
+        XCTAssertNil(customerParams(identity)["legacy_device_id"], "the old customer is Alice's")
+    }
+
+    func testIDsSuppliedForAnotherUserBeforeTheOldCustomerIsAdoptedSendNoLegacyDeviceID() {
+        seedOldSDK(deviceID: "OLD-DEVICE", userID: "alice@example.com")
+        launch()
+
+        let identity = launch(ApphudSuppliedIDs(userID: "bob", anonymousID: "host-anon", installationID: "OLD-DEVICE")).identity
+
+        XCTAssertNil(customerParams(identity)["legacy_device_id"], "the old customer is Alice's")
+    }
+
     func testUpgradeSDKGeneratedLegacyUserIDBecomesAnonymousID() {
         seedOldSDK(deviceID: "OLD-DEVICE", userID: "OLD-DEVICE")
 
@@ -497,6 +626,32 @@ final class ApphudIdentityTests: XCTestCase {
     }
 
     @MainActor
+    func testSubscriptionsRequestCarriesRestoreAndTheLegacyDeviceIDUntilARegistrationSucceeds() {
+        let sdk = ApphudInternal.shared
+        let saved = sdk.identity
+        let savedStore = sdk.identityStore
+        defer {
+            sdk.identity = saved
+            sdk.identityStore = savedStore
+        }
+        seedOldSDK(deviceID: "OLD-DEVICE", userID: "alice@example.com")
+        sdk.identityStore = makeStore()
+        sdk.identity = launch().identity
+
+        let params = sdk.subscriptionIdentityParams(restore: false)
+        XCTAssertEqual(params["restore"] as? Bool, false, "sent on every submission")
+        XCTAssertEqual(params["legacy_device_id"] as? String, "OLD-DEVICE")
+        XCTAssertEqual(params["installation_id"] as? String, "OLD-DEVICE")
+        XCTAssertEqual(params["user_id"] as? String, "alice@example.com")
+        XCTAssertNil(params["device_id"])
+        XCTAssertEqual(sdk.subscriptionIdentityParams(restore: true)["restore"] as? Bool, true)
+
+        sdk.identityStore.markRegistered(reinstallSent: false, legacyDeviceIDSent: true)
+
+        XCTAssertNil(sdk.subscriptionIdentityParams(restore: false)["legacy_device_id"])
+    }
+
+    @MainActor
     func testEveryRequestSendsInstallationAndAnonymousIDsInsteadOfDeviceID() {
         let saved = ApphudInternal.shared.identity
         defer { ApphudInternal.shared.identity = saved }
@@ -515,12 +670,17 @@ final class ApphudIdentityTests: XCTestCase {
 
     @MainActor
     func testCustomersRequestBody() {
-        let saved = ApphudInternal.shared.identity
-        defer { ApphudInternal.shared.identity = saved }
         let sdk = ApphudInternal.shared
+        let saved = sdk.identity
+        let savedStore = sdk.identityStore
+        defer {
+            sdk.identity = saved
+            sdk.identityStore = savedStore
+        }
+        sdk.identityStore = makeStore()
 
         sdk.identity = ApphudIdentity(installationID: "inst-1", anonymousID: "anon-1", userID: nil, isReinstall: true)
-        var body = sdk.customerRequestParams(fields: ["initial_call": true], legacyWeb2Web: false)
+        var body = sdk.customerRequestParams(fields: ["initial_call": true])
         XCTAssertEqual(body["installation_id"] as? String, "inst-1")
         XCTAssertEqual(body["anonymous_id"] as? String, "anon-1")
         XCTAssertEqual(body["reinstall"] as? Bool, true)
@@ -529,27 +689,88 @@ final class ApphudIdentityTests: XCTestCase {
         XCTAssertNotNil(body["first_seen"], "sent with reinstall")
 
         sdk.identity = ApphudIdentity(installationID: "inst-1", anonymousID: "anon-1", userID: "Alice", isReinstall: false)
-        body = sdk.customerRequestParams(fields: [:], legacyWeb2Web: false)
+        body = sdk.customerRequestParams(fields: [:])
         XCTAssertEqual(body["user_id"] as? String, "Alice")
         XCTAssertNil(body["reinstall"])
-
-        body = sdk.customerRequestParams(fields: ["from_web2web": true, "email": "a@b.c"], legacyWeb2Web: true)
-        XCTAssertEqual(body["device_id"] as? String, "inst-1")
-        XCTAssertNil(body["installation_id"])
-        XCTAssertNil(body["anonymous_id"])
-        XCTAssertEqual(body["from_web2web"] as? Bool, true)
     }
 
-    func testWeb2WebByEmailKeepsTheOldShape() {
-        let identity = ApphudIdentity(installationID: "inst-1", anonymousID: "anon-1", userID: nil, isReinstall: true)
+    @MainActor
+    func testWeb2WebByEmailGoesWithTheUsualIDs() {
+        let sdk = ApphudInternal.shared
+        let saved = sdk.identity
+        let savedStore = sdk.identityStore
+        defer {
+            sdk.identity = saved
+            sdk.identityStore = savedStore
+        }
+        sdk.identityStore = makeStore()
+        sdk.identity = ApphudIdentity(installationID: "inst-1", anonymousID: "anon-1", userID: nil, isReinstall: true)
 
-        let params = ApphudInternal.customerIdentityParams(identity, legacyWeb2Web: true, serverUserID: "anon-1")
+        let body = sdk.customerRequestParams(fields: ["from_web2web": true, "email": "a@b.c"])
 
-        XCTAssertEqual(params["device_id"] as? String, "inst-1", "device_id holds the installation id")
-        XCTAssertNil(params["anonymous_id"], "the backend rejects from_web2web with the new ids")
-        XCTAssertNil(params["installation_id"])
-        XCTAssertEqual(params["user_id"] as? String, "anon-1", "user_id as old SDKs sent it")
-        XCTAssertEqual(params["reinstall"] as? Bool, true, "every POST /v1/customers of a reinstalled install carries it")
+        XCTAssertEqual(body["installation_id"] as? String, "inst-1")
+        XCTAssertEqual(body["anonymous_id"] as? String, "anon-1")
+        XCTAssertNil(body["device_id"], "v4 refuses device_id")
+        XCTAssertNil(body["user_id"], "an anonymous person has none")
+        XCTAssertEqual(body["from_web2web"] as? Bool, true)
+        XCTAssertEqual(body["email"] as? String, "a@b.c")
+        XCTAssertEqual(body["reinstall"] as? Bool, true, "a registration like any other")
+    }
+
+    @MainActor
+    func testRegistrationFinished_SuccessStopsWhatItReported_FailureKeepsIt() {
+        let sdk = ApphudInternal.shared
+        let saved = sdk.identity
+        let savedStore = sdk.identityStore
+        defer {
+            sdk.identity = saved
+            sdk.identityStore = savedStore
+        }
+        let store = makeStore()
+        sdk.identityStore = store
+        installRecords.record = ApphudInstallRecord(installationID: "inst-1", isReinstall: true, reinstallDecided: true,
+                                                    legacyDeviceID: "OLD-DEVICE")
+        defaults.set(true, forKey: ApphudIdentityStore.syncPendingKey)
+        let sent = ApphudIdentity(installationID: "inst-1", anonymousID: "anon-1", isReinstall: true)
+        sdk.identity = sent
+        let params = sdk.customerRequestParams(fields: [:])
+        XCTAssertEqual(params["reinstall"] as? Bool, true)
+        XCTAssertEqual(params["legacy_device_id"] as? String, "OLD-DEVICE")
+
+        sdk.registrationFinished(done: false, params: params, sent: sent)
+        XCTAssertEqual(store.registrationReport(for: sent), ApphudRegistrationReport(reinstall: true, legacyDeviceID: "OLD-DEVICE"),
+                       "a failed registration reported nothing")
+        XCTAssertTrue(store.isSyncPending)
+
+        sdk.identity.userID = "Alice"
+        sdk.registrationFinished(done: true, params: params, sent: sent)
+        XCTAssertEqual(store.registrationReport(for: sdk.identity), ApphudRegistrationReport(reinstall: false, legacyDeviceID: nil),
+                       "reported though an identify happened while it was out")
+        XCTAssertTrue(store.isSyncPending, "the identify is still unsent")
+
+        sdk.registrationFinished(done: true, params: sdk.customerRequestParams(fields: [:]), sent: sdk.identity)
+        XCTAssertFalse(store.isSyncPending)
+    }
+
+    @MainActor
+    func testRegistrationFinished_ASuccessThatCarriedNeitherReportsNeither() {
+        let sdk = ApphudInternal.shared
+        let saved = sdk.identity
+        let savedStore = sdk.identityStore
+        defer {
+            sdk.identity = saved
+            sdk.identityStore = savedStore
+        }
+        let store = makeStore()
+        sdk.identityStore = store
+        installRecords.record = ApphudInstallRecord(installationID: "inst-1", isReinstall: true, reinstallDecided: true,
+                                                    legacyDeviceID: "OLD-DEVICE")
+        let sent = ApphudIdentity(installationID: "inst-1", anonymousID: "anon-1", isReinstall: true)
+        sdk.identity = sent
+
+        sdk.registrationFinished(done: true, params: ["installation_id": "inst-1", "anonymous_id": "anon-1"], sent: sent)
+
+        XCTAssertEqual(store.registrationReport(for: sent), ApphudRegistrationReport(reinstall: true, legacyDeviceID: "OLD-DEVICE"))
     }
 
     func testWeb2WebByEmailAdoptsOnlyAnotherCustomerFromItsOwnResponse() {
@@ -599,11 +820,11 @@ final class ApphudIdentityTests: XCTestCase {
         let systemIDFV = try XCTUnwrap(UIDevice.current.identifierForVendor?.uuidString)
 
         ApphudUtils.shared.optOutOfTracking = false
-        XCTAssertEqual(sdk.customerRequestParams(fields: [:], legacyWeb2Web: false)["idfv"] as? String, systemIDFV,
-                       "POST /v1/customers carries the IDFV the host never passed")
+        XCTAssertEqual(sdk.customerRequestParams(fields: [:])["idfv"] as? String, systemIDFV,
+                       "POST /v4/customers carries the IDFV the host never passed")
 
         ApphudUtils.shared.optOutOfTracking = true
-        XCTAssertNil(sdk.customerRequestParams(fields: [:], legacyWeb2Web: false)["idfv"])
+        XCTAssertNil(sdk.customerRequestParams(fields: [:])["idfv"])
     }
     #endif
 
@@ -759,6 +980,22 @@ final class ApphudIdentityTests: XCTestCase {
         XCTAssertEqual(try directory.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup, true)
     }
 
+    func testRecordFileKeepsWhatRegistrationsReported_AndReadsARecordWrittenBeforeIt() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("ApphudIdentityTests-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = ApphudInstallRecordFile(directory: directory)
+
+        var record = ApphudInstallRecord(installationID: "inst-1", isReinstall: true, reinstallDecided: true, legacyDeviceID: "OLD-DEVICE")
+        record.reinstallReported = true
+        XCTAssertTrue(file.write(record))
+        XCTAssertEqual(file.read(), .found(record))
+
+        try Data(#"{"installationID":"inst-2","isReinstall":true,"reinstallDecided":true,"keychainUpdated":true}"#.utf8).write(to: file.fileURL)
+        var before = ApphudInstallRecord(installationID: "inst-2", isReinstall: true, reinstallDecided: true)
+        before.keychainUpdated = true
+        XCTAssertEqual(file.read(), .found(before), "a record saved by the previous build: nothing reported yet")
+    }
+
     func testRecordFileDamagedOrUnreadable() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("ApphudIdentityTests-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -845,16 +1082,14 @@ final class ApphudIdentityTests: XCTestCase {
         XCTAssertTrue(flags(.upgrade, nil) == (false, false))
     }
 
-    func testMarkSyncedOnlyForASuccessfulNewShapeRequestWithCurrentIDs() {
+    func testMarkSyncedOnlyForASuccessfulRequestWithCurrentIDs() {
         let sent = ApphudIdentity(installationID: "i", anonymousID: "a")
         var identified = sent
         identified.userID = "Alice"
 
-        XCTAssertTrue(ApphudInternal.shouldMarkSynced(done: true, legacyWeb2Web: false, sent: sent, current: sent))
-        XCTAssertFalse(ApphudInternal.shouldMarkSynced(done: false, legacyWeb2Web: false, sent: sent, current: sent))
-        XCTAssertFalse(ApphudInternal.shouldMarkSynced(done: true, legacyWeb2Web: true, sent: sent, current: sent),
-                       "the old web-to-web shape carries no anonymous_id")
-        XCTAssertFalse(ApphudInternal.shouldMarkSynced(done: true, legacyWeb2Web: false, sent: sent, current: identified),
+        XCTAssertTrue(ApphudInternal.shouldMarkSynced(done: true, sent: sent, current: sent))
+        XCTAssertFalse(ApphudInternal.shouldMarkSynced(done: false, sent: sent, current: sent))
+        XCTAssertFalse(ApphudInternal.shouldMarkSynced(done: true, sent: sent, current: identified),
                        "an identify while the request was out is still unsent")
     }
 

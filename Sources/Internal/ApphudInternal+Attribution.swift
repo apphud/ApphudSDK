@@ -142,7 +142,7 @@ extension ApphudInternal {
 
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
 
-                self.startAttributionRequest(params: params, apiVersion: .APIV2, provider: provider, identifer: identifer) { result in
+                self.startAttributionRequest(params: params, apiVersion: .APIV4, provider: provider, identifer: identifer) { result in
                     Task {
                         if result {
                             switch provider {
@@ -182,7 +182,7 @@ extension ApphudInternal {
         return !dictionary1.isEqual(to: dictionary2 as! [AnyHashable: Any])
     }
 
-    func startAttributionRequest(params: [String: Any], apiVersion: ApphudHttpClient.ApphudApiVersion = .APIV1, provider: ApphudAttributionProvider, identifer: String?, callback: ((Bool) -> Void)?) {
+    func startAttributionRequest(params: [String: Any], apiVersion: ApphudHttpClient.ApphudApiVersion = .APIV4, provider: ApphudAttributionProvider, identifer: String?, callback: ((Bool) -> Void)?) {
         self.httpClient?.startRequest(path: .attribution, apiVersion: apiVersion, params: params, method: .post, retry: true) { (result, _, _, _, _, _, _) in
             switch provider {
             case .adjust:
@@ -308,7 +308,7 @@ extension ApphudInternal {
             params["visitor_id"] = visitorId
         }
         
-        self.httpClient?.startRequest(path: .attributionDeeplink, apiVersion: .APIV2, params: params, method: .post, useDecoder: false, retry: false, requestID: nil) { _, response, _, _, _, _, _ in
+        self.httpClient?.startRequest(path: .attributionDeeplink, apiVersion: .APIV4, params: params, method: .post, useDecoder: false, retry: false, requestID: nil) { _, response, _, _, _, _, _ in
             apphudLog("response: \(String(describing: response))")
             completion(response)
         }
@@ -340,11 +340,11 @@ extension ApphudInternal {
                     self.finishWebAttribution(result: result, data: data, adoptFrom: nil, completion: completion)
                 }
             } else {
-                // Email only: the old request shape; the response names the web user.
+                // Email only: a registration with the email and the usual ids; the response names the web user.
                 let params: [String: Any] = ["from_web2web": true, "email": email]
                 // In fallback mode the local user is made up: no customer id to compare against.
                 let adoptFrom: (customer: String?, identity: ApphudIdentity)? = self.fallbackMode ? nil : (self.currentUser?.internalId, self.identity)
-                self.updateUser(fields: params, legacyWeb2Web: true) { (result, _, data, _, _, _, _) in
+                self.updateUser(fields: params) { (result, _, data, _, _, _, _) in
                     self.finishWebAttribution(result: result, data: data, adoptFrom: adoptFrom, completion: completion)
                 }
             }
@@ -389,7 +389,7 @@ extension ApphudInternal {
     }
 }
 
-/// The customer a `POST /v1/customers` response is about: only what the web-user check needs.
+/// The customer a `POST /v4/customers` response is about: only what the web-user check needs.
 internal struct ApphudResponseCustomer: Decodable {
     let id: String?
     let userId: String?

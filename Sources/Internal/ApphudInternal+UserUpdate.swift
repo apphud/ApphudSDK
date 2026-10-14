@@ -223,38 +223,45 @@ extension ApphudInternal {
         httpClient?.startRequest(path: .promotions, params: params, method: .post, callback: callback)
     }
 
-    /// Identity fields of `POST /v1/customers`. The web-to-web email request keeps the old shape —
-    /// `device_id` holding the installation id, no `anonymous_id` — because the backend accepts
-    /// `from_web2web` only there.
-    internal static func customerIdentityParams(_ identity: ApphudIdentity, legacyWeb2Web: Bool, serverUserID: String?) -> [String: Any] {
-        var params: [String: Any]
-        if legacyWeb2Web {
-            params = ["device_id": identity.installationID]
-            if let serverUserID {
-                params["user_id"] = serverUserID
-            }
-        } else {
-            params = identity.requestParams
-            if let userID = identity.userID {
-                params["user_id"] = userID
-            }
+    /// Identity fields of `POST /v4/customers`, a web-to-web match by email included.
+    internal static func customerIdentityParams(_ identity: ApphudIdentity, report: ApphudRegistrationReport) -> [String: Any] {
+        var params: [String: Any] = identity.requestParams
+        if let userID = identity.userID {
+            params["user_id"] = userID
         }
-        // Every registration of a reinstalled install carries it; the backend records it once.
-        if identity.isReinstall == true {
+        // A reinstall goes until a registration reports it; the backend records it on that customer.
+        if report.reinstall {
             params["reinstall"] = true
+        }
+        // The old SDK's device_id adopts its customer, until a registration has done it.
+        if let legacyDeviceID = report.legacyDeviceID {
+            params["legacy_device_id"] = legacyDeviceID
         }
         return params
     }
 
-    /// The backend has seen the current ids: a successful request in the new shape, sent with the
-    /// ids still current (they may change while it is out).
-    internal static func shouldMarkSynced(done: Bool, legacyWeb2Web: Bool, sent: ApphudIdentity, current: ApphudIdentity) -> Bool {
-        done && !legacyWeb2Web && sent == current
+    /// The backend has seen the current ids: a successful request sent with the ids still current
+    /// (they may change while it is out).
+    internal static func shouldMarkSynced(done: Bool, sent: ApphudIdentity, current: ApphudIdentity) -> Bool {
+        done && sent == current
     }
 
-    /// The body of `POST /v1/customers`.
+    /// A registration came back: on success what it reported is not sent again, and the ids it
+    /// carried are synced if still current.
     @MainActor
-    internal func customerRequestParams(fields: [String: Any], legacyWeb2Web: Bool) -> [String: Any] {
+    internal func registrationFinished(done: Bool, params: [String: Any], sent: ApphudIdentity) {
+        if done {
+            identityStore.markRegistered(reinstallSent: params["reinstall"] as? Bool == true,
+                                         legacyDeviceIDSent: params["legacy_device_id"] != nil)
+        }
+        if Self.shouldMarkSynced(done: done, sent: sent, current: identity) {
+            identityStore.markSynced()
+        }
+    }
+
+    /// The body of `POST /v4/customers`.
+    @MainActor
+    internal func customerRequestParams(fields: [String: Any]) -> [String: Any] {
 
         //  Requires @MainActor since it collects data from UIDevice
         #if os(macOS)
@@ -266,7 +273,7 @@ extension ApphudInternal {
         #endif
 
         params.merge(fields) { (current, _) in current}
-        params.merge(Self.customerIdentityParams(identity, legacyWeb2Web: legacyWeb2Web, serverUserID: currentUser?.userId)) { (_, new) in new }
+        params.merge(Self.customerIdentityParams(identity, report: identityStore.registrationReport(for: identity))) { (_, new) in new }
         params["is_debug"] = apphudIsSandbox()
         params["is_new"] = isFreshInstall && currentUser == nil
         params["need_paywalls"] = false
@@ -290,9 +297,9 @@ extension ApphudInternal {
     }
 
     @MainActor
-    internal func updateUser(fields: [String: Any], delay: Double = 0, legacyWeb2Web: Bool = false, callback: @escaping ApphudHTTPResponseCallback) {
+    internal func updateUser(fields: [String: Any], delay: Double = 0, callback: @escaping ApphudHTTPResponseCallback) {
 
-        let params = customerRequestParams(fields: fields, legacyWeb2Web: legacyWeb2Web)
+        let params = customerRequestParams(fields: fields)
         let sentIdentity = identity
 
         // retry on http level only if setNeedsToUpdateUser = true, otherwise let retry on initial launch level
@@ -311,9 +318,7 @@ extension ApphudInternal {
                     ApphudHttpClient.shared.invalidAPiKey = true
                 }
                 Task { @MainActor in
-                    if Self.shouldMarkSynced(done: done, legacyWeb2Web: legacyWeb2Web, sent: sentIdentity, current: self.identity) {
-                        self.identityStore.markSynced()
-                    }
+                    self.registrationFinished(done: done, params: params, sent: sentIdentity)
                 }
                 callback(done, response, data, error, errorCode, duration, attempts)
             }

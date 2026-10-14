@@ -693,7 +693,7 @@ final class ApphudInternal: NSObject {
             final_params["connection_type"] = self.currentReachabilityStatus.rawValue
             #endif
 
-            self.httpClient?.startRequest(path: .logs, apiVersion: .APIV3, params: final_params, method: .post) { (_, _, _, _, _, _, _) in
+            self.httpClient?.startRequest(path: .logs, apiVersion: .APIV4, params: final_params, method: .post) { (_, _, _, _, _, _, _) in
                 callback()
             }
         }
@@ -703,7 +703,7 @@ final class ApphudInternal: NSObject {
         performWhenUserRegistered {
             let identityParams: [String: AnyHashable] = self.identityParams()
             let final_params = identityParams.merging(params, uniquingKeysWith: {(current, _) in current})
-            self.httpClient?.startRequest(path: .events, apiVersion: .APIV2, params: final_params, method: .post) { (_, _, _, _, _, _, _) in
+            self.httpClient?.startRequest(path: .events, apiVersion: .APIV4, params: final_params, method: .post) { (_, _, _, _, _, _, _) in
                 callback()
             }
         }
@@ -729,7 +729,7 @@ final class ApphudInternal: NSObject {
             eventParams["environment"] = environment
             let final_params = eventParams.merging(params, uniquingKeysWith: {(current, _) in current})
 
-            self.httpClient?.startRequest(path: .events, apiVersion: .APIV2, params: final_params, method: .post, retry: true, callback: callback)
+            self.httpClient?.startRequest(path: .events, apiVersion: .APIV4, params: final_params, method: .post, retry: true, callback: callback)
         }
     }
 
@@ -737,7 +737,7 @@ final class ApphudInternal: NSObject {
         #if os(iOS)
         performWhenUserRegistered {
             let params = self.identityParams()
-            self.httpClient?.startRequest(path: .notifications, apiVersion: .APIV2, params: params, method: .get, callback: { (result, response, _, _, _, _, _) in
+            self.httpClient?.startRequest(path: .notifications, apiVersion: .APIV4, params: params, method: .get, callback: { (result, response, _, _, _, _, _) in
 
                 if result, let dataDict = response?["data"] as? [String: Any], let notifArray = dataDict["results"] as? [[String: Any]], let notifDict = notifArray.first, var ruleDict = notifDict["rule"] as? [String: Any] {
                     let properties = notifDict["properties"] as? [String: Any]
@@ -756,14 +756,14 @@ final class ApphudInternal: NSObject {
         performWhenUserRegistered {
             var params = self.identityParams()
             params["rule_id"] = ruleID
-        self.httpClient?.startRequest(path: .readNotifications, apiVersion: .APIV2, params: params, method: .post, callback: { (_, _, _, _, _, _, _) in
+        self.httpClient?.startRequest(path: .readNotifications, apiVersion: .APIV4, params: params, method: .post, callback: { (_, _, _, _, _, _, _) in
             })
         }
     }
 
     internal func getActiveRuleScreens(_ callback: @escaping ([String]) -> Void) {
         performWhenUserRegistered {
-            self.httpClient?.startRequest(path: .screens, apiVersion: .APIV2, params: nil, method: .get) { result, response, _, _, _, _, _ in
+            self.httpClient?.startRequest(path: .screens, apiVersion: .APIV4, params: nil, method: .get) { result, response, _, _, _, _, _ in
                 if result, let dataDict = response?["data"] as? [String: Any], let screensIdsArray = dataDict["results"] as? [String] {
                     callback(screensIdsArray)
                 } else {

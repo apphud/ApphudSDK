@@ -3,7 +3,7 @@
 //  ApphudSDK
 //
 //  StoreKit 2 counterparts of the SKProduct-based helpers: builds the
-//  `product_info` payload for POST /v1/subscriptions from a StoreKit 2 Product.
+//  `product_info` payload for POST /v4/subscriptions from a StoreKit 2 Product.
 //  Field set mirrors SKProduct.apphudSubmittableParameters(_:) byte for byte.
 //
 

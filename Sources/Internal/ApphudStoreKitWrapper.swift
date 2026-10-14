@@ -263,7 +263,8 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
                      Will not finish transaction, because we didn't start it. Developer should finish transaction manually.
                      */
                     self.isPurchasing = false
-                    ApphudInternal.shared.submitReceiptRestore(transaction: trx.original ?? trx)
+                    // Restored transactions come only from a restore someone asked for.
+                    ApphudInternal.shared.submitReceiptRestore(transaction: trx.original ?? trx, restore: true)
                     if !ApphudUtils.shared.storeKitObserverMode {
                         // force finish transaction; not ours, so the custom value of a
                         // purchase in flight must survive it

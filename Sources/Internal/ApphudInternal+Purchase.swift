@@ -43,7 +43,7 @@ extension ApphudInternal {
                 await restoreUsingStoreKit2()
             }
         } else {
-            self.submitReceiptRestore(transaction: nil)
+            self.submitReceiptRestore(transaction: nil, restore: true)
         }
     }
 
@@ -110,6 +110,7 @@ extension ApphudInternal {
                                          receiptString: receiptString,
                                          transactionJws: jws,
                                          notifyDelegate: true,
+                                         restore: true,
                                          fromScreen: false) { error in
                     Task { @MainActor in
                         self.restorePurchasesCallback?(self.currentUser?.subscriptions, self.currentUser?.purchases, error)
@@ -325,12 +326,13 @@ extension ApphudInternal {
             if #available(iOS 15.0, tvOS 15.0, watchOS 8.0, macOS 12.0, *) {
                 checkTransactionsNow()
             } else {
-                submitReceiptRestore(transaction: nil)
+                submitReceiptRestore(transaction: nil, restore: false)
             }
         }
     }
 
-    @MainActor internal func submitReceiptRestore(transaction: SKPaymentTransaction?) {
+    /// [restore]: only the restore someone asked for.
+    @MainActor internal func submitReceiptRestore(transaction: SKPaymentTransaction?, restore: Bool) {
 
         let receiptString = apphudReceiptDataString()
 
@@ -355,14 +357,14 @@ extension ApphudInternal {
                 return
             }
 
-            self.submitReceipt(product: nil, apphudProduct: nil, transaction: transaction, receiptString: receiptString, notifyDelegate: true, fromScreen: false) { error in
+            self.submitReceipt(product: nil, apphudProduct: nil, transaction: transaction, receiptString: receiptString, notifyDelegate: true, restore: restore, fromScreen: false) { error in
                 self.restorePurchasesCallback?(self.currentUser?.subscriptions, self.currentUser?.purchases, error)
                 self.restorePurchasesCallback = nil
             }
         }
     }
 
-    internal func submitReceipt(product: SKProduct?, apphudProduct: ApphudProduct?, transaction: SKPaymentTransaction?, receiptString: String?, notifyDelegate: Bool, eligibilityCheck: Bool = false, ownsTransaction: Bool = false, fromScreen: Bool, callback: ApphudNSErrorCallback?) {
+    internal func submitReceipt(product: SKProduct?, apphudProduct: ApphudProduct?, transaction: SKPaymentTransaction?, receiptString: String?, notifyDelegate: Bool, eligibilityCheck: Bool = false, ownsTransaction: Bool = false, restore: Bool = false, fromScreen: Bool, callback: ApphudNSErrorCallback?) {
 
         let productId = product?.productIdentifier ?? transaction?.payment.productIdentifier
         let finalProduct = product ?? ApphudStoreKitWrapper.shared.products.first(where: { $0.productIdentifier == productId })
@@ -379,6 +381,7 @@ extension ApphudInternal {
                                    notifyDelegate: notifyDelegate,
                                    eligibilityCheck: eligibilityCheck,
                                    ownsTransaction: ownsTransaction,
+                                   restore: restore,
                                    fromScreen: fromScreen,
                                    callback: callback)
             }
@@ -393,6 +396,17 @@ extension ApphudInternal {
         }
     }
 
+    /// Identity fields of `POST /v4/subscriptions`.
+    internal func subscriptionIdentityParams(restore: Bool) -> [String: Any] {
+        var params: [String: Any] = identityParams(includeUserID: true)
+        params["restore"] = restore
+        // The old SDK's device_id adopts its customer, until a registration has done it.
+        if let legacyDeviceID = identityStore.registrationReport(for: identity).legacyDeviceID {
+            params["legacy_device_id"] = legacyDeviceID
+        }
+        return params
+    }
+
     internal func submitReceipt(productInfo: [String: Any]?,
                                 apphudProduct: ApphudProduct?,
                                 transactionIdentifier: String?,
@@ -405,6 +419,9 @@ extension ApphudInternal {
                                 // True only for the submission that owns a StoreKit 2
                                 // transaction and decides whether it may be finished.
                                 ownsTransaction: Bool = false,
+                                // True only for the restore the user asked for: it moves a purchase
+                                // another customer owns. Purchases and automatic checks send false.
+                                restore: Bool = false,
                                 fromScreen: Bool,
                                 callback: ApphudNSErrorCallback?) async {
 
@@ -451,7 +468,7 @@ extension ApphudInternal {
 
         let environment = Apphud.isSandbox() ? ApphudEnvironment.sandbox.rawValue : ApphudEnvironment.production.rawValue
 
-        var params: [String: Any] = self.identityParams(includeUserID: true)
+        var params = subscriptionIdentityParams(restore: restore)
         params["environment"] = environment
         params["observer_mode"] = ApphudUtils.shared.storeKitObserverMode
 

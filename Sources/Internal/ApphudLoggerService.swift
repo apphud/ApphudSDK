@@ -20,10 +20,10 @@ class ApphudLoggerService {
     }
 
     enum DurationLog: String {
-        case customers = "/v1/customers"
-        case products = "/v2/products"
-        case paywallConfigs = "/v2/paywall_configs"
-        case subscriptions = "/v1/subscriptions"
+        case customers = "/v4/customers"
+        case products = "/v4/products"
+        case paywallConfigs = "/v4/paywall_configs"
+        case subscriptions = "/v4/subscriptions"
     }
 
     internal var customerLoadTime: Double = 0
