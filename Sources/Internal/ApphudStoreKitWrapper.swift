@@ -317,7 +317,7 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
             // StoreKit 2 twin carries the token, looked up only once a user with a UUID id bought here.
             if #available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *),
                let trxIdInt = transaction.transactionIdentifier.flatMap({ UInt64($0) }),
-               !ApphudStoreKitWrapper.purchaseUserTokens().isEmpty {
+               !ApphudInternal.shared.isIdentityV1, !ApphudStoreKitWrapper.purchaseUserTokens().isEmpty {
                 let productID = transaction.payment.productIdentifier
                 Task { @MainActor in
                     if let other = await ApphudInternal.shared.anotherAccountsTransaction(id: trxIdInt, productID: productID) {
@@ -406,7 +406,20 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     internal func appropriateApplicationUsername() -> String? {
         if !hasSwizzledPaymentQueue { return nil }
-        return Self.applicationUsername(for: ApphudInternal.shared.identity)
+        return Self.applicationUsername()
+    }
+
+    /// The current application username.
+    static func applicationUsername() -> String {
+        let sdk = ApphudInternal.shared
+        guard sdk.isIdentityV1 else { return applicationUsername(for: sdk.identity) }
+        return applicationUsernameV1(userID: sdk.currentUserID, deviceID: sdk.currentDeviceID)
+    }
+
+    /// Identity version 1: the user id when it is a UUID, otherwise the device id, as SDK 4.6 did.
+    static func applicationUsernameV1(userID: String, deviceID: String) -> String {
+        let userIDIsUUID = UUID(uuidString: userID)
+        return (userIDIsUUID != nil) ? userID : deviceID
     }
 
     /// The identified user's id when it is a UUID, otherwise the installation id, as the old device id
@@ -423,9 +436,11 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         applicationUsername.flatMap { UUID(uuidString: $0) }
     }
 
-    /// The token the SDK's own purchases carry, whether or not the StoreKit 1 swizzle is on.
+    /// The token the SDK's own purchases carry, whether or not the StoreKit 1 swizzle is on. Identity
+    /// version 1: only once the payment queue is swizzled, as SDK 4.6 did.
     internal func appAccountToken() -> UUID? {
-        Self.appAccountToken(from: Self.applicationUsername(for: ApphudInternal.shared.identity))
+        guard !ApphudInternal.shared.isIdentityV1 else { return Self.appAccountToken(from: appropriateApplicationUsername()) }
+        return Self.appAccountToken(from: Self.applicationUsername(for: ApphudInternal.shared.identity))
     }
 
     /// User ids this install's SDK purchases carried as `appAccountToken`. Logout keeps them: a

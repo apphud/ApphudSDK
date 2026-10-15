@@ -54,7 +54,13 @@ extension ApphudInternal {
 
         await currentUser?.toCacheV2()
 
-        // The response never changes who is logged in: the SDK's own state does.
+        // Version 2: the response never changes who is logged in, the SDK's own state does.
+        // Version 1 takes the user id the response names, as SDK 4.6 did.
+        if isIdentityV1 {
+            Task { @MainActor in
+                checkUserID(tellDelegate: true)
+            }
+        }
 
         /**
          If user previously didn't have subscriptions or subscriptions states don't match, or subscription product identifiers don't match
@@ -75,6 +81,18 @@ extension ApphudInternal {
 
         isPremium = premium
         hasActiveSubscription = hasActiveSub
+    }
+
+    /// Identity version 1: the user id of the response becomes the current one.
+    @MainActor private func checkUserID(tellDelegate: Bool) {
+        guard let userID = self.currentUser?.userId else {return}
+        if self.currentUserID != userID {
+            self.v1UserID = userID
+            ApphudKeychain.saveUserID(userID: self.currentUserID)
+            if tellDelegate {
+                self.delegate?.apphudDidChangeUserID(userID)
+            }
+        }
     }
 
     /// An identify the host requested (`updateUserID`, web-to-web). Returns false for the same id.
@@ -105,7 +123,12 @@ extension ApphudInternal {
             return (self.currentUser != nil, 0)
         }
 
-        let fields: [String: Any] = initialCall ? ["initial_call": true] : [:]
+        let fields: [String: Any]
+        if isIdentityV1 {
+            fields = initialCall ? ["user_id": self.currentUserID, "initial_call": true] : [:]
+        } else {
+            fields = initialCall ? ["initial_call": true] : [:]
+        }
 
         return await withUnsafeContinuation { continuation in
             updateUser(fields: fields, delay: delay) { (result, _, data, error, code, duration, _) in
@@ -168,6 +191,10 @@ extension ApphudInternal {
 
     @MainActor
     internal func updateUserID(userID: String, callback: ((ApphudUser?) -> Void)? = nil) {
+        if isIdentityV1 {
+            updateUserIDV1(userID: userID, callback: callback)
+            return
+        }
         performWhenUserRegistered {
 
             guard !userID.isEmpty else {
@@ -182,6 +209,32 @@ extension ApphudInternal {
             }
 
             self.updateUser(fields: [:]) { (result, _, data, _, _, _, _) in
+                if result {
+                    Task {
+                        await self.parseUser(data: data)
+                        Task { @MainActor in
+                            callback?(self.currentUser)
+                        }
+                    }
+                } else {
+                    callback?(self.currentUser)
+                }
+            }
+        }
+    }
+
+    /// Identity version 1: the request carries the new user id; the response decides it, as in SDK 4.6.
+    @MainActor
+    private func updateUserIDV1(userID: String, callback: ((ApphudUser?) -> Void)?) {
+        performWhenUserRegistered {
+
+            guard self.currentUserID != userID else {
+                apphudLog("Will not update User ID to \(userID), because current value is the same")
+                callback?(self.currentUser)
+                return
+            }
+
+            self.updateUser(fields: ["user_id": userID]) { (result, _, data, _, _, _, _) in
                 if result {
                     Task {
                         await self.parseUser(data: data)
@@ -243,7 +296,7 @@ extension ApphudInternal {
     /// The backend has seen the current ids: a successful request sent with the ids still current
     /// (they may change while it is out).
     internal static func shouldMarkSynced(done: Bool, sent: ApphudIdentity, current: ApphudIdentity) -> Bool {
-        done && sent == current
+        done && sent.hasSameIDs(as: current)
     }
 
     /// A registration came back: on success what it reported is not sent again, and the ids it
@@ -261,7 +314,7 @@ extension ApphudInternal {
         }
     }
 
-    /// The body of `POST /v4/customers`.
+    /// The body of `POST /v4/customers`; with identity version 1, of `POST /v1/customers` as SDK 4.6 sent it.
     @MainActor
     internal func customerRequestParams(fields: [String: Any]) -> [String: Any] {
 
@@ -274,13 +327,26 @@ extension ApphudInternal {
         var params = apphudCurrentDeviceiOSParameters() as [String: Any]
         #endif
 
-        params.merge(fields) { (current, _) in current}
-        params.merge(Self.customerIdentityParams(identity, report: identityStore.registrationReport(for: identity))) { (_, new) in new }
+        if isIdentityV1 {
+            if isRedownload && !reinstallTracked {
+               params["reinstall"] = true
+               reinstallTracked = true
+            }
+            params.merge(fields) { (current, _) in current}
+            params["device_id"] = self.currentDeviceID
+        } else {
+            params.merge(fields) { (current, _) in current}
+            params.merge(Self.customerIdentityParams(identity, report: identityStore.registrationReport(for: identity))) { (_, new) in new }
+        }
         params["is_debug"] = apphudIsSandbox()
         params["is_new"] = isFreshInstall && currentUser == nil
         params["need_paywalls"] = false
         params["need_placements"] = !didPreparePaywalls && !deferPlacements
         params["opt_out"] = ApphudUtils.shared.optOutOfTracking
+
+        if isIdentityV1, params["user_id"] == nil, let userId = currentUser?.userId {
+            params["user_id"] = userId
+        }
 
         if let currency = storefrontCurrency, currentUser?.currency?.countryCode != currency.countryCode || currentUser?.currency?.countryCodeAlpha3 != currency.countryCodeAlpha3 {
 
@@ -319,8 +385,12 @@ extension ApphudInternal {
                     apphudLog("Unable to perform API requests, because your API Key is invalid.", forceDisplay: true)
                     ApphudHttpClient.shared.invalidAPiKey = true
                 }
-                Task { @MainActor in
-                    self.registrationFinished(done: done, params: params, sent: sentIdentity)
+                if !self.isIdentityV1 {
+                    Task { @MainActor in
+                        self.registrationFinished(done: done, params: params, sent: sentIdentity)
+                    }
+                } else if done {
+                    self.identityStore.markVersion1Registered()
                 }
                 callback(done, response, data, error, errorCode, duration, attempts)
             }

@@ -182,7 +182,13 @@ extension ApphudInternal {
     /// An automatic path skips another account's transaction: it moves only with a restore.
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
     private func isAnotherAccountsTransaction(_ transaction: StoreKit.Transaction) -> Bool {
-        ApphudStoreKitWrapper.belongsToAnotherAccount(transaction.appAccountToken, identity: identity,
+        isAnotherAccountsToken(transaction.appAccountToken)
+    }
+
+    /// Identity version 2 only: version 1 sends every purchase, as SDK 4.6 did.
+    internal func isAnotherAccountsToken(_ token: UUID?) -> Bool {
+        guard !isIdentityV1 else { return false }
+        return ApphudStoreKitWrapper.belongsToAnotherAccount(token, identity: identity,
                                                       purchaseUserTokens: ApphudStoreKitWrapper.purchaseUserTokens())
     }
 
@@ -428,8 +434,10 @@ extension ApphudInternal {
         }
     }
 
-    /// Identity fields of `POST /v4/subscriptions`.
+    /// Identity fields of `POST /v4/subscriptions`. Identity version 1: `device_id` and `user_id`, no
+    /// `restore`, as SDK 4.6 sent them.
     internal func subscriptionIdentityParams(restore: Bool) -> [String: Any] {
+        guard !isIdentityV1 else { return identityParams(includeUserID: true) }
         var params: [String: Any] = identityParams(includeUserID: true)
         params["restore"] = restore
         // The old SDK's device_id adopts its customer, until a registration has done it.
@@ -722,7 +730,9 @@ extension ApphudInternal {
                                                                               timestamp: signedOffer.timestamp)]
                 if let appAccountToken {
                     options.insert(.appAccountToken(appAccountToken))
-                    ApphudStoreKitWrapper.rememberPurchaseToken(appAccountToken, identity: self.identity)
+                    if !self.isIdentityV1 {
+                        ApphudStoreKitWrapper.rememberPurchaseToken(appAccountToken, identity: self.identity)
+                    }
                 }
                 await self.purchaseAsync(apphudProduct: apphudProduct, productId: productId, commitmentPlan: false, fromScreen: fromScreen, extraOptions: options, addsCurrentAppAccountToken: false, callback: callback)
             }
@@ -833,6 +843,11 @@ extension ApphudInternal {
     /// Parameters of the `/sign_offer` request for a purchase that sends `appAccountToken`.
     /// Apple checks the signature against that token in lowercase, or against an empty string
     /// when the purchase sends no token.
+    /// Identity version 1: the parameters SDK 4.6 sent.
+    static func promoOfferSignParamsV1(productID: String, discountID: String, appAccountToken: UUID?, deviceID: String, userID: String) -> [String: Any] {
+        ["product_id": productID, "offer_id": discountID, "application_username": appAccountToken?.uuidString.lowercased() ?? "", "device_id": deviceID, "user_id": userID]
+    }
+
     static func promoOfferSignParams(productID: String, discountID: String, appAccountToken: UUID?, identity: ApphudIdentity) -> [String: Any] {
         var params: [String: Any] = identity.requestParams
         if let userID = identity.userID {
@@ -844,9 +859,17 @@ extension ApphudInternal {
         return params
     }
 
+    /// The `/sign_offer` parameters of the identity version this launch runs.
+    internal func signOfferParams(productID: String, discountID: String, appAccountToken: UUID?) -> [String: Any] {
+        isIdentityV1
+            ? Self.promoOfferSignParamsV1(productID: productID, discountID: discountID, appAccountToken: appAccountToken,
+                                          deviceID: currentDeviceID, userID: currentUserID)
+            : Self.promoOfferSignParams(productID: productID, discountID: discountID, appAccountToken: appAccountToken,
+                                        identity: identity)
+    }
+
     private func signPromoOffer(productID: String, discountID: String, appAccountToken: UUID?, callback: ((ApphudSignedPromoOffer?, Error?) -> Void)?) {
-        let params = Self.promoOfferSignParams(productID: productID, discountID: discountID, appAccountToken: appAccountToken,
-                                               identity: identity)
+        let params = signOfferParams(productID: productID, discountID: discountID, appAccountToken: appAccountToken)
         httpClient?.startRequest(path: .signOffer, params: params, method: .post) { (result, dict, _, error, _, _, _) in
             if result, let responseDict = dict, let dataDict = responseDict["data"] as? [String: Any], let resultsDict = dataDict["results"] as? [String: Any] {
 

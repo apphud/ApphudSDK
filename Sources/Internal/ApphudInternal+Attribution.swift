@@ -316,6 +316,10 @@ extension ApphudInternal {
     
     @MainActor
     internal func tryWebAttribution(attributionData: [AnyHashable: Any], completion: @escaping (Bool, ApphudUser?) -> Void) {
+        if isIdentityV1 {
+            tryWebAttributionV1(attributionData: attributionData, completion: completion)
+            return
+        }
 
         let userId = (attributionData["aph_user_id"] ?? attributionData["apphud_user_id"]) as? String ?? ""
         let email = (attributionData["email"] ?? attributionData["apphud_user_email"]) as? String ?? ""
@@ -351,6 +355,51 @@ extension ApphudInternal {
         }
     }
 
+    /// Identity version 1: web-to-web as SDK 4.6 did it, one registration with `from_web2web`.
+    @MainActor
+    private func tryWebAttributionV1(attributionData: [AnyHashable: Any], completion: @escaping (Bool, ApphudUser?) -> Void) {
+
+        let userId = (attributionData["aph_user_id"] ?? attributionData["apphud_user_id"]) as? String ?? ""
+        let email = (attributionData["email"] ?? attributionData["apphud_user_email"]) as? String ?? ""
+
+        if userId.isEmpty && email.isEmpty {
+            completion(false, currentUser)
+            return
+        }
+
+        if email.isEmpty && currentUser?.userId == userId {
+            apphudLog("Already web2web user, skipping")
+            completion(true, currentUser)
+            return
+        }
+
+        var params: [String: Any] = ["from_web2web": true]
+        if !userId.isEmpty {
+            params["user_id"] = userId
+        }
+        if !email.isEmpty {
+            params["email"] = email
+        }
+
+        apphudLog("Found a match from web click, updating User ID to \(userId)", forceDisplay: true)
+        self.performWhenUserRegistered {
+            self.updateUser(fields: params) { (result, _, data, _, _, _, _) in
+                if result {
+                    Task {
+                        let changes = await self.parseUser(data: data)
+
+                        Task { @MainActor in
+                            self.notifyAboutUpdates(changes)
+                            completion(true, self.currentUser)
+                        }
+                    }
+                } else {
+                    completion(false, self.currentUser)
+                }
+            }
+        }
+    }
+
     /// The web user an email-only web-to-web request found: the response is another customer than
     /// before. Without a match the backend returns the same customer, possibly with another
     /// install's id as its user_id, which is no user to adopt. Read from this request's response,
@@ -359,7 +408,7 @@ extension ApphudInternal {
     internal static func webUserToAdopt(customerBefore: String?, sent: ApphudIdentity, current: ApphudIdentity, responseData: Data?) -> String? {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
-        guard sent == current, let responseData,
+        guard sent.hasSameIDs(as: current), let responseData,
               let response = try? decoder.decode(ApphudUserResponse<ApphudResponseCustomer>.self, from: responseData).data.results,
               let userID = response.userId, !userID.isEmpty, userID != current.anonymousID,
               let customerID = response.id, !customerID.isEmpty, customerID != customerBefore else { return nil }

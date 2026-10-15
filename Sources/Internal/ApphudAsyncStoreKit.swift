@@ -105,7 +105,9 @@ internal class ApphudAsyncStoreKit {
 
         if addsCurrentAppAccountToken, let token = ApphudStoreKitWrapper.shared.appAccountToken() {
             options.insert(.appAccountToken(token))
-            ApphudStoreKitWrapper.rememberPurchaseToken(token, identity: ApphudInternal.shared.identity)
+            if !ApphudInternal.shared.isIdentityV1 {
+                ApphudStoreKitWrapper.rememberPurchaseToken(token, identity: ApphudInternal.shared.identity)
+            }
         }
         lastPurchaseOptions = options
 

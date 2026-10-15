@@ -33,7 +33,11 @@ public protocol ApphudDelegate {
     func apphudNonRenewingPurchasesUpdated(_ purchases: [ApphudNonRenewingPurchase])
 
     /**
-     Called when the user's ID changes through an identify you requested: `updateUserID(_:)`, or `attributeFromWeb(data:callback:)` when it finds the web user. A response from Apphud never changes the user ID on its own.
+     Called when the user's ID changes.
+
+     With `identityVersion: .v2`, only through an identify you requested: `updateUserID(_:)`, or `attributeFromWeb(data:callback:)` when it finds the web user. A response from Apphud never changes the user ID on its own.
+
+     With `.v1`, when Apphud returns another user ID: after merging two user accounts into one (a restore of purchases that belong to another account), or after `updateUserID(_:)`.
 
      - parameter userID: The new user ID assigned to the user.
      - Note: For more information on user ID changes and their implications, refer to Apphud's documentation on initialization and user merging: `https://docs.apphud.com/docs/initialization`

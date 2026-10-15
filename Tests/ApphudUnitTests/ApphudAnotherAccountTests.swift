@@ -13,13 +13,18 @@ final class ApphudAnotherAccountTests: XCTestCase {
     private var defaults: UserDefaults!
     private var suiteName = ""
 
+    private var savedIdentityVersion = ApphudIdentityVersion.v1
+
     override func setUp() {
         super.setUp()
         suiteName = "ApphudAnotherAccountTests.\(UUID().uuidString)"
         defaults = UserDefaults(suiteName: suiteName)
+        savedIdentityVersion = ApphudInternal.shared.identityVersion
+        ApphudInternal.shared.identityVersion = .v2
     }
 
     override func tearDown() {
+        ApphudInternal.shared.identityVersion = savedIdentityVersion
         UserDefaults().removePersistentDomain(forName: suiteName)
         super.tearDown()
     }

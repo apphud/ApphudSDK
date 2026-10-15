@@ -299,7 +299,8 @@ final class ApphudSDKTests: XCTestCase {
         await withCheckedContinuation { continuation in
             Apphud.startManually(apiKey: ApphudTestConstants.apiKey,
                                  userID: ApphudTestConstants.userId,
-                                 deviceID: ApphudTestConstants.userId) { _ in
+                                 deviceID: ApphudTestConstants.userId,
+                                 identityVersion: .v2) { _ in
                 continuation.resume()
             }
         }
@@ -1201,5 +1202,91 @@ final class ApphudSDKTests: XCTestCase {
                        "Ack list must persist as a plain [UInt64] array under the SK2 key")
         XCTAssertEqual(UserDefaults.standard.array(forKey: legacyKey) as? [UInt64], preAckLegacyIds,
                        "Legacy key must be left untouched")
+    }
+}
+
+// MARK: - The system Keychain
+
+/// The host app's Keychain, written by identity version 1's own code (as in SDK 4.6) and by a logout on
+/// version 2. Unit tests of the package have no Keychain on a simulator.
+final class ApphudKeychainVersionTests: XCTestCase {
+
+    private struct NoInstallRecord: ApphudInstallRecordStoring {
+        func read() -> ApphudInstallRecordRead { .missing }
+        func write(_ record: ApphudInstallRecord) -> Bool { true }
+    }
+
+    private let keychain = ApphudSystemKeychain()
+    private let suiteName = "ApphudKeychainVersionTests"
+
+    override func setUp() {
+        super.setUp()
+        clear()
+    }
+
+    override func tearDown() {
+        clear()
+        UserDefaults().removePersistentDomain(forName: suiteName)
+        super.tearDown()
+    }
+
+    private func clear() {
+        ApphudKeychainKey.allCases.forEach(keychain.delete)
+        UserDefaults.standard.removeObject(forKey: ApphudKeychain.defaultsDeviceIdKey)
+        UserDefaults.standard.removeObject(forKey: ApphudKeychain.defaultsUserIdKey)
+    }
+
+    private func protectionClass(_ key: ApphudKeychainKey) -> String? {
+        let query: NSDictionary = [kSecClass: kSecClassGenericPassword, kSecAttrService: key.rawValue,
+                                   kSecAttrAccount: "ApphudUser", kSecReturnAttributes: true,
+                                   kSecMatchLimit: kSecMatchLimitOne]
+        var result: AnyObject?
+        guard SecItemCopyMatching(query, &result) == errSecSuccess else { return nil }
+        return (result as? [String: Any])?[kSecAttrAccessible as String] as? String
+    }
+
+    private func logOutOnVersion2() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        var identity = ApphudIdentity(installationID: "inst", anonymousID: "anon", userID: "alice@example.com", isReinstall: false)
+        ApphudIdentityStore(defaults: defaults, keychain: keychain, installRecords: NoInstallRecord())
+            .logout(anonymousID: nil, &identity)
+    }
+
+    @MainActor
+    func testVersion1AfterAReinstallGetsNoIDsBackFromAVersion2Logout() throws {
+        try XCTSkipUnless(ApphudKeychain.canUseKeychain, "the Keychain is locked")
+        ApphudKeychain.saveDeviceID(deviceID: "OLD-DEVICE")
+        ApphudKeychain.saveUserID(userID: "alice@example.com")
+        XCTAssertEqual(keychain.read(.legacyDeviceID), .found("OLD-DEVICE"))
+
+        try logOutOnVersion2()
+        // A reinstall: UserDefaults are gone, the Keychain stays.
+        UserDefaults.standard.removeObject(forKey: ApphudKeychain.defaultsDeviceIdKey)
+        UserDefaults.standard.removeObject(forKey: ApphudKeychain.defaultsUserIdKey)
+
+        XCTAssertEqual(keychain.read(.legacyDeviceID), .found(""), "blanked, as SDK 4.6's own logout does")
+        XCTAssertNil(ApphudKeychain.loadDeviceID(), "version 1 makes a new device id")
+        XCTAssertNil(ApphudKeychain.loadUserID())
+    }
+
+    @MainActor
+    func testVersion1WritesItsKeychainItemsAgainAfterAVersion2Logout() throws {
+        try XCTSkipUnless(ApphudKeychain.canUseKeychain, "the Keychain is locked")
+        ApphudKeychain.saveDeviceID(deviceID: "OLD-DEVICE")
+        ApphudKeychain.saveUserID(userID: "alice@example.com")
+        try logOutOnVersion2()
+        XCTAssertEqual(protectionClass(.legacyDeviceID), kSecAttrAccessibleAfterFirstUnlock as String, "the class of SDK 4.6")
+
+        ApphudKeychain.saveDeviceID(deviceID: "NEW-DEVICE")
+        ApphudKeychain.saveUserID(userID: "bob")
+
+        XCTAssertEqual(keychain.read(.legacyDeviceID), .found("NEW-DEVICE"))
+        XCTAssertEqual(keychain.read(.legacyUserID), .found("bob"))
+    }
+
+    func testTheReinstallKeyNeverTravelsToAnotherDevice() throws {
+        try XCTSkipUnless(keychain.write(.reinstall, value: "1"), "the Keychain is locked")
+
+        XCTAssertEqual(protectionClass(.reinstall), kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly as String)
     }
 }

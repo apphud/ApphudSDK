@@ -289,14 +289,16 @@ internal func apphudIdentifierForAdvertising() -> String? {
     return nil
 }
 
-/// The IDFV passed with `setDeviceIdentifiers`, otherwise the system one. It may be nil before the
-/// first unlock; it is read again for the next request.
+/// The IDFV passed with `setDeviceIdentifiers`, otherwise (identity version 2) the system one. It may be
+/// nil before the first unlock; it is read again for the next request.
 @MainActor
 internal func apphudIdentifierForVendor() -> String? {
     let zero = "00000000-0000-0000-0000-000000000000"
     if let idfv = ApphudInternal.shared.deviceIdentifiers.1, idfv != zero {
         return idfv
     }
+    // Identity version 1 sends only the IDFV the app passed, as SDK 4.6 did.
+    guard !ApphudInternal.shared.isIdentityV1 else { return nil }
     #if os(iOS) || os(tvOS) || os(visionOS)
     let systemIDFV = UIDevice.current.identifierForVendor?.uuidString
     #elseif os(watchOS)

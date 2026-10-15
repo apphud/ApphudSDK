@@ -44,8 +44,12 @@ public class ApphudHttpClient {
         case put = "PUT"
     }
 
-    /// The SDK sends the anonymous identity (`installation_id`, `anonymous_id`), which only v4 accepts.
+    /// Identity version 2 sends the anonymous identity (`installation_id`, `anonymous_id`), which only v4
+    /// accepts. Version 1 sends `device_id` to each endpoint's version of SDK 4.6, see `ApphudEndpoint.v1APIVersion`.
     enum ApphudApiVersion: String {
+        case APIV1 = "v1"
+        case APIV2 = "v2"
+        case APIV3 = "v3"
         case APIV4 = "v4"
     }
 
@@ -94,6 +98,19 @@ public class ApphudHttpClient {
                 return "rules/\(ruleID)"
             case .renderProductProperties:
                 return "paywall_configs/items/render_properties"
+            }
+        }
+
+        /// The API version SDK 4.6 used for this endpoint: identity version 1 sends its requests there.
+        var v1APIVersion: ApphudApiVersion {
+            switch self {
+            case .events, .notifications, .readNotifications, .screens, .attribution, .attributionDeeplink,
+                 .renderProductProperties, .paywall:
+                return .APIV2
+            case .products, .logs:
+                return .APIV3
+            case .customers, .push, .subscriptions, .signOffer, .promotions, .properties, .receipt, .paywalls, .rule:
+                return .APIV1
             }
         }
 
@@ -204,16 +221,19 @@ public class ApphudHttpClient {
             return
         }
 
+        let identityV1 = ApphudInternal.shared.isIdentityV1
+
         // Registrations and purchases carry legacy_device_id and go on; the rest waits for the first one
-        // to answer, then is built and sent.
-        if path != .customers && path != .subscriptions, firstRegistrationHold.holdIfClosed({ [weak self] in
+        // to answer, then is built and sent. Identity version 2 only.
+        if !identityV1, path != .customers && path != .subscriptions, firstRegistrationHold.holdIfClosed({ [weak self] in
             self?.startRequest(path: path, apiVersion: apiVersion, params: params, method: method, useDecoder: useDecoder,
                                retry: retry, requestID: requestID, callback: callback)
         }) {
             return
         }
 
-        if let request = makeRequest(path: path.value, apiVersion: apiVersion, params: params, method: method, defaultTimeout: timeout, requestID: requestID) {
+        let version = identityV1 ? path.v1APIVersion : apiVersion
+        if let request = makeRequest(path: path.value, apiVersion: version, params: params, method: method, defaultTimeout: timeout, requestID: requestID) {
             Task(priority: .userInitiated) {
 
                 let retries: Int
@@ -316,10 +336,16 @@ public class ApphudHttpClient {
 
     internal func makeScreenRequest(screenID: String) -> URLRequest? {
 
-        let identity = ApphudInternal.shared.identity
-        let installationID = identity.installationID.addingPercentEncoding(withAllowedCharacters: .apphudQueryValueAllowed) ?? identity.installationID
-        let anonymousID = identity.anonymousID.addingPercentEncoding(withAllowedCharacters: .apphudQueryValueAllowed) ?? identity.anonymousID
-        var urlString = "\(domainUrlString)/preview_screen/\(screenID)?api_key=\(apiKey)&locale=\(Locale.current.identifier)&installation_id=\(installationID)&anonymous_id=\(anonymousID)&v=2"
+        var urlString: String
+        if ApphudInternal.shared.isIdentityV1 {
+            let deviceID: String = ApphudInternal.shared.currentDeviceID
+            urlString = "\(domainUrlString)/preview_screen/\(screenID)?api_key=\(apiKey)&locale=\(Locale.current.identifier)&device_id=\(deviceID)&v=2"
+        } else {
+            let identity = ApphudInternal.shared.identity
+            let installationID = identity.installationID.addingPercentEncoding(withAllowedCharacters: .apphudQueryValueAllowed) ?? identity.installationID
+            let anonymousID = identity.anonymousID.addingPercentEncoding(withAllowedCharacters: .apphudQueryValueAllowed) ?? identity.anonymousID
+            urlString = "\(domainUrlString)/preview_screen/\(screenID)?api_key=\(apiKey)&locale=\(Locale.current.identifier)&installation_id=\(installationID)&anonymous_id=\(anonymousID)&v=2"
+        }
         let customerId = ApphudInternal.shared.currentCustomerID
         if !customerId.isEmpty {
             urlString += "&customer_id=\(customerId)"
