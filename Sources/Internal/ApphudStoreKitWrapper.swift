@@ -263,7 +263,8 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
                      Will not finish transaction, because we didn't start it. Developer should finish transaction manually.
                      */
                     self.isPurchasing = false
-                    ApphudInternal.shared.submitReceiptRestore(transaction: trx.original ?? trx)
+                    // Restored transactions come only from a restore someone asked for.
+                    ApphudInternal.shared.submitReceiptRestore(transaction: trx.original ?? trx, restore: true)
                     if !ApphudUtils.shared.storeKitObserverMode {
                         // force finish transaction; not ours, so the custom value of a
                         // purchase in flight must survive it
@@ -312,33 +313,58 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         }
 
         if transaction.transactionState == .purchased {
-            if let trxId = transaction.transactionIdentifier, let trxIdInt = UInt64(trxId) {
-                // A StoreKit 2 submission for this transaction is still in flight: its
-                // owner decides whether it may be finished, so leave it alone and
-                // re-check afterwards.
-                if #available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *),
-                   ApphudAsyncStoreKit.isProcessing(transactionID: trxIdInt) {
-                    ApphudInternal.shared.setNeedToCheckTransactions()
-                    return
-                }
-
-                // Legacy queue twin of a transaction the backend already acknowledged via
-                // StoreKit 2. In observer mode the host owns finishing it, exactly like
-                // the other finish sites in this file.
-                if ApphudInternal.shared.lastUploadedTransactions.contains(trxIdInt) {
-                    if !ApphudUtils.shared.storeKitObserverMode {
-                        finishTransaction(transaction)
+            // Another account's transaction is left to StoreKit 2, which keeps it for its owner. Its
+            // StoreKit 2 twin carries the token, looked up only once a user with a UUID id bought here.
+            if #available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *),
+               let trxIdInt = transaction.transactionIdentifier.flatMap({ UInt64($0) }),
+               !ApphudInternal.shared.isIdentityV1, !ApphudStoreKitWrapper.purchaseUserTokens().isEmpty {
+                let productID = transaction.payment.productIdentifier
+                Task { @MainActor in
+                    if let other = await ApphudInternal.shared.anotherAccountsTransaction(id: trxIdInt, productID: productID) {
+                        apphudLog("Transaction \(trxIdInt) belongs to another account, skipping", logLevel: .debug)
+                        // As in StoreKit 2: a later transaction of a subscription may be finished, a
+                        // first purchase waits for its owner.
+                        if other.originalID != other.id && !ApphudUtils.shared.storeKitObserverMode {
+                            self.finishTransaction(transaction, clearsPurchasingValue: false)
+                        }
+                        return
                     }
-                    return
+                    self.handlePurchased(transaction)
                 }
+                return
+            }
+            handlePurchased(transaction)
+        }
+    }
+
+    @MainActor
+    private func handlePurchased(_ transaction: SKPaymentTransaction) {
+        if let trxId = transaction.transactionIdentifier, let trxIdInt = UInt64(trxId) {
+            // A StoreKit 2 submission for this transaction is still in flight: its
+            // owner decides whether it may be finished, so leave it alone and
+            // re-check afterwards.
+            if #available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *),
+               ApphudAsyncStoreKit.isProcessing(transactionID: trxIdInt) {
+                ApphudInternal.shared.setNeedToCheckTransactions()
+                return
             }
 
-            ApphudInternal.shared.submitReceiptAutomaticPurchaseTracking(transaction: transaction) { result in
-                if let finish = ApphudInternal.shared.delegate?.apphudDidObservePurchase(result: result), finish == true {
-                    self.finishTransaction(transaction)
-                } else if ApphudUtils.shared.storeKitObserverMode == false && result.success {
-                    self.finishTransaction(transaction)
+            // Legacy queue twin of a transaction the backend already acknowledged via
+            // StoreKit 2. In observer mode the host owns finishing it, exactly like
+            // the other finish sites in this file.
+            if ApphudInternal.shared.lastUploadedTransactions.contains(trxIdInt) {
+                if !ApphudUtils.shared.storeKitObserverMode {
+                    finishTransaction(transaction)
                 }
+                return
+            }
+        }
+
+        ApphudInternal.shared.submitReceiptAutomaticPurchaseTracking(transaction: transaction) { result in
+            if let finish = ApphudInternal.shared.delegate?.apphudDidObservePurchase(result: result), finish == true {
+                self.finishTransaction(transaction)
+            } else if ApphudUtils.shared.storeKitObserverMode == false && result.success {
+                self.finishTransaction(transaction)
             }
         }
     }
@@ -380,10 +406,28 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     internal func appropriateApplicationUsername() -> String? {
         if !hasSwizzledPaymentQueue { return nil }
-        let userID = ApphudInternal.shared.currentUserID
+        return Self.applicationUsername()
+    }
+
+    /// The current application username.
+    static func applicationUsername() -> String {
+        let sdk = ApphudInternal.shared
+        guard sdk.isIdentityV1 else { return applicationUsername(for: sdk.identity) }
+        return applicationUsernameV1(userID: sdk.currentUserID, deviceID: sdk.currentDeviceID)
+    }
+
+    /// Identity version 1: the user id when it is a UUID, otherwise the device id, as SDK 4.6 did.
+    static func applicationUsernameV1(userID: String, deviceID: String) -> String {
         let userIDIsUUID = UUID(uuidString: userID)
-        let betterUUID = (userIDIsUUID != nil) ? userID : ApphudInternal.shared.currentDeviceID
-        return betterUUID
+        return (userIDIsUUID != nil) ? userID : deviceID
+    }
+
+    /// The identified user's id when it is a UUID, otherwise the installation id, as the old device id
+    /// was. Never the anonymous id: the backend stops finding its customer after identify and merge.
+    static func applicationUsername(for identity: ApphudIdentity) -> String {
+        let userID = identity.userID ?? ""
+        let userIDIsUUID = UUID(uuidString: userID)
+        return (userIDIsUUID != nil) ? userID : identity.installationID
     }
 
     /// The `appAccountToken` sent with StoreKit 2 purchases: the application username when it is a UUID.
@@ -392,8 +436,34 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
         applicationUsername.flatMap { UUID(uuidString: $0) }
     }
 
+    /// The token the SDK's own purchases carry, whether or not the StoreKit 1 swizzle is on. Identity
+    /// version 1: only once the payment queue is swizzled, as SDK 4.6 did.
     internal func appAccountToken() -> UUID? {
-        Self.appAccountToken(from: appropriateApplicationUsername())
+        guard !ApphudInternal.shared.isIdentityV1 else { return Self.appAccountToken(from: appropriateApplicationUsername()) }
+        return Self.appAccountToken(from: Self.applicationUsername(for: ApphudInternal.shared.identity))
+    }
+
+    /// User ids this install's SDK purchases carried as `appAccountToken`. Logout keeps them: a
+    /// transaction with one of them stays that user's after someone else signs in.
+    static let purchaseUserTokensKey = "com.apphud.purchase_user_tokens"
+
+    /// Remembers a purchase's token when it is the user's id, not the installation id.
+    static func rememberPurchaseToken(_ token: UUID, identity: ApphudIdentity, defaults: UserDefaults = .standard) {
+        guard let userID = identity.userID, UUID(uuidString: userID) == token else { return }
+        let tokens = purchaseUserTokens(defaults: defaults)
+        guard !tokens.contains(token) else { return }
+        defaults.set((tokens + [token]).map(\.uuidString), forKey: purchaseUserTokensKey)
+    }
+
+    static func purchaseUserTokens(defaults: UserDefaults = .standard) -> [UUID] {
+        (defaults.stringArray(forKey: purchaseUserTokensKey) ?? []).compactMap { UUID(uuidString: $0) }
+    }
+
+    /// The token is the id of another user who bought on this install. A token the SDK never put
+    /// there (the app's own, another device's, an installation id) names no account.
+    static func belongsToAnotherAccount(_ token: UUID?, identity: ApphudIdentity, purchaseUserTokens: [UUID]) -> Bool {
+        guard let token, purchaseUserTokens.contains(token) else { return false }
+        return token != appAccountToken(from: applicationUsername(for: identity))
     }
 }
 

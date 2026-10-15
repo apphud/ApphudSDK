@@ -20,10 +20,21 @@ class ApphudLoggerService {
     }
 
     enum DurationLog: String {
-        case customers = "/v1/customers"
-        case products = "/v2/products"
-        case paywallConfigs = "/v2/paywall_configs"
-        case subscriptions = "/v1/subscriptions"
+        case customers = "/v4/customers"
+        case products = "/v4/products"
+        case paywallConfigs = "/v4/paywall_configs"
+        case subscriptions = "/v4/subscriptions"
+
+        /// The endpoint the log names: identity version 1 reports the paths SDK 4.6 called.
+        var endpoint: String {
+            guard ApphudInternal.shared.isIdentityV1 else { return rawValue }
+            switch self {
+            case .customers: return "/v1/customers"
+            case .products: return "/v2/products"
+            case .paywallConfigs: return "/v2/paywall_configs"
+            case .subscriptions: return "/v1/subscriptions"
+            }
+        }
     }
 
     internal var customerLoadTime: Double = 0
@@ -71,7 +82,7 @@ class ApphudLoggerService {
             }
             self.durationLogsTimer = Timer.scheduledTimer(timeInterval: 5.0, target: self, selector: #selector(self.durationTimerAction), userInfo: nil, repeats: false)
 
-            var params: [String: AnyHashable] = ["endpoint": key.rawValue, "duration": Double(round(100 * value) / 100)]
+            var params: [String: AnyHashable] = ["endpoint": key.endpoint, "duration": Double(round(100 * value) / 100)]
 
             params["retries"] = retryLog.count
             params["error_code"] = retryLog.errorCode

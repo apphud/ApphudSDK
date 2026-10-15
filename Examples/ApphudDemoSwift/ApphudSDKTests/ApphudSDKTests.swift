@@ -8,7 +8,7 @@
 //  purchases run against the local StoreKit.storekit configuration via SKTestSession.
 //
 //  These tests pin the CURRENT behavior of the purchase pipeline (baseline before
-//  the StoreKit 2 migration): what gets sent to POST /v1/subscriptions and what
+//  the StoreKit 2 migration): what gets sent to POST /v4/subscriptions and what
 //  the purchase callback returns.
 //
 
@@ -41,24 +41,40 @@ final class ApphudStubURLProtocol: URLProtocol {
         _requests.removeAll()
     }
 
+    /// Paths of every request outside `/v4` since the suite started; `reset()` keeps them.
+    private static var _unversionedPaths: [String] = []
+
+    static var unversionedPaths: [String] {
+        lock.lock(); defer { lock.unlock() }
+        return _unversionedPaths
+    }
+
+    static func clearUnversionedPaths() {
+        lock.lock(); defer { lock.unlock() }
+        _unversionedPaths.removeAll()
+    }
+
     static func record(_ request: RecordedRequest) {
         lock.lock(); defer { lock.unlock() }
         _requests.append(request)
+        if !request.path.hasPrefix("/v4/") {
+            _unversionedPaths.append(request.path)
+        }
     }
 
     static func requests(to pathSuffix: String) -> [RecordedRequest] {
         requests.filter { $0.path.hasSuffix(pathSuffix) }
     }
 
-    /// Artificial latency for POST /v1/subscriptions, so a test can keep a submission
+    /// Artificial latency for POST /v4/subscriptions, so a test can keep a submission
     /// in flight and exercise concurrent delivery of the same transaction.
     static var subscriptionsResponseDelay: TimeInterval = 0
 
-    /// When set, POST /v1/subscriptions answers with this status instead of 200, so the
+    /// When set, POST /v4/subscriptions answers with this status instead of 200, so the
     /// failure paths (where purchases are lost) are exercisable.
     static var subscriptionsFailureStatus: Int?
 
-    /// Artificial latency for POST /v1/sign_offer, so a test can change the user state
+    /// Artificial latency for POST /v4/sign_offer, so a test can change the user state
     /// between signing a promotional offer and purchasing it.
     static var signOfferResponseDelay: TimeInterval = 0
 
@@ -263,6 +279,8 @@ final class ApphudSDKTests: XCTestCase {
     }
 
     override func tearDown() {
+        XCTAssertEqual(ApphudStubURLProtocol.unversionedPaths, [], "every request goes to /v4")
+        ApphudStubURLProtocol.clearUnversionedPaths()
         super.tearDown()
         // Tracking a foreign purchase force-enables observer mode process-wide; reset it
         // so test order (or running a single test) can't change what other tests observe.
@@ -281,7 +299,8 @@ final class ApphudSDKTests: XCTestCase {
         await withCheckedContinuation { continuation in
             Apphud.startManually(apiKey: ApphudTestConstants.apiKey,
                                  userID: ApphudTestConstants.userId,
-                                 deviceID: ApphudTestConstants.userId) { _ in
+                                 deviceID: ApphudTestConstants.userId,
+                                 identityVersion: .v2) { _ in
                 continuation.resume()
             }
         }
@@ -304,8 +323,78 @@ final class ApphudSDKTests: XCTestCase {
             if !registrations.isEmpty { break }
             try await Task.sleep(nanoseconds: 100_000_000)
         }
-        XCTAssertFalse(registrations.isEmpty, "SDK must register the user via POST /v1/customers")
+        XCTAssertFalse(registrations.isEmpty, "SDK must register the user via POST /v4/customers")
         XCTAssertEqual(registrations.last?.method, "POST")
+        XCTAssertEqual(registrations.last?.path, "/v4/customers")
+    }
+
+    // MARK: 1c. The old device_id goes until a registration succeeds
+
+    @MainActor
+    func test1cRegistrationSendsTheOldDeviceIDUntilOneSucceeds() async throws {
+        await startSDKIfNeeded()
+        let file = ApphudInstallRecordFile.standard
+        guard case .found(let saved) = file.read() else { return XCTFail("the SDK keeps an install record") }
+        defer { _ = file.write(saved) }
+        var record = saved
+        record.legacyDeviceID = "OLD-DEVICE"
+        XCTAssertTrue(file.write(record))
+
+        // Tagged: the launch registration may still be on its way.
+        func register(_ probe: Int) async throws -> ApphudStubURLProtocol.RecordedRequest? {
+            ApphudInternal.shared.updateUser(fields: ["test_probe": probe]) { _, _, _, _, _, _, _ in }
+            let deadline = Date().addingTimeInterval(10)
+            var mine: ApphudStubURLProtocol.RecordedRequest?
+            while mine == nil && Date() < deadline {
+                try await Task.sleep(nanoseconds: 100_000_000)
+                mine = ApphudStubURLProtocol.requests(to: "/customers").last { $0.body["test_probe"] as? Int == probe }
+            }
+            return mine
+        }
+
+        let first = try await register(1)
+        XCTAssertEqual(first?.body["legacy_device_id"] as? String, "OLD-DEVICE")
+        let deadline = Date().addingTimeInterval(5)
+        while case .found(let current) = file.read(), current.legacyDeviceID != nil, Date() < deadline {
+            try await Task.sleep(nanoseconds: 100_000_000)
+        }
+        let second = try await register(2)
+        XCTAssertNotNil(second, "a second registration went out")
+        XCTAssertNil(second?.body["legacy_device_id"], "not after a registration succeeded")
+    }
+
+    // MARK: 1d. The first launch after an update: the registration first, the rest after it
+
+    @MainActor
+    func test1dHeldRequestsGoAfterTheFirstRegistration() async throws {
+        await startSDKIfNeeded()
+        let sdk = ApphudInternal.shared
+        let settle = Date().addingTimeInterval(10)
+        while sdk.isRegisteringUser && Date() < settle {
+            try await Task.sleep(nanoseconds: 100_000_000)
+        }
+        try await Task.sleep(nanoseconds: 300_000_000)
+        let client = ApphudHttpClient.shared
+        let hold = client.firstRegistrationHold
+        defer { hold.open() }
+        ApphudStubURLProtocol.reset()
+        hold.close()
+
+        client.startRequest(path: .events, params: ["name": "held_event"], method: .post, callback: nil)
+        client.startRequest(path: .subscriptions, params: ["environment": "sandbox"], method: .post, callback: nil)
+        try await Task.sleep(nanoseconds: 300_000_000)
+        XCTAssertTrue(ApphudStubURLProtocol.requests(to: "/events").isEmpty, "held until the first registration answers")
+        XCTAssertFalse(ApphudStubURLProtocol.requests(to: "/subscriptions").isEmpty, "purchases carry legacy_device_id and go on")
+
+        sdk.updateUser(fields: ["test_probe": 4]) { _, _, _, _, _, _, _ in }
+        let deadline = Date().addingTimeInterval(5)
+        while ApphudStubURLProtocol.requests(to: "/events").isEmpty && Date() < deadline {
+            try await Task.sleep(nanoseconds: 100_000_000)
+        }
+        let paths = ApphudStubURLProtocol.requests.map(\.path)
+        let registration = try XCTUnwrap(paths.firstIndex(of: "/v4/customers"), "the registration went out")
+        let event = try XCTUnwrap(paths.firstIndex(of: "/v4/events"), "the held event went out")
+        XCTAssertLessThan(registration, event, "the registration went first")
     }
 
     // MARK: 1b. Placements, paywalls and priced products are available after start
@@ -342,7 +431,7 @@ final class ApphudSDKTests: XCTestCase {
     // token in the StoreKit purchase options must be the same value. StoreKitTest rejects the
     // stub signature (StoreKitError.unknown), so the tests check the options the SDK passed to
     // `Product.purchase`, not a transaction. The hosted user id is not a UUID, so the SDK falls
-    // back to the device id; each test sets the device id it needs. An uppercase UUID device id
+    // back to the installation id; each test sets the installation id it needs. An uppercase UUID
     // reproduces the client's value (NSUUID().uuidString).
     @MainActor
     private func purchasePromoOffer(deviceID: String, whileSigning: (() -> Void)? = nil) async throws -> (signed: String?, options: Set<Product.PurchaseOption>) {
@@ -358,9 +447,9 @@ final class ApphudSDKTests: XCTestCase {
         XCTAssertNotNil(ApphudStoreKitWrapper.shared.appropriateApplicationUsername(), "the payment queue must be swizzled")
         XCTAssertNil(UUID(uuidString: ApphudInternal.shared.currentUserID), "precondition: the hosted user id is not a UUID")
 
-        let originalDeviceID = ApphudInternal.shared.currentDeviceID
-        defer { ApphudInternal.shared.currentDeviceID = originalDeviceID }
-        ApphudInternal.shared.currentDeviceID = deviceID
+        let originalDeviceID = ApphudInternal.shared.currentInstallationID
+        defer { ApphudInternal.shared.currentInstallationID = originalDeviceID }
+        ApphudInternal.shared.currentInstallationID = deviceID
         ApphudAsyncStoreKit.shared.lastPurchaseOptions = []
         ApphudStubURLProtocol.reset()
 
@@ -422,7 +511,7 @@ final class ApphudSDKTests: XCTestCase {
         let changedUUID = UUID(uuidString: "7C1D0E52-9B3A-4F6E-A2D8-5E4B3C2A1F90")!
         ApphudStubURLProtocol.signOfferResponseDelay = 1
         let (signed, options) = try await purchasePromoOffer(deviceID: signedUUID.uuidString) {
-            ApphudInternal.shared.currentDeviceID = changedUUID.uuidString
+            ApphudInternal.shared.currentInstallationID = changedUUID.uuidString
         }
 
         XCTAssertEqual(signed, "2f8ae6a1-b7c5-4966-8df8-89f750012506")
@@ -432,15 +521,15 @@ final class ApphudSDKTests: XCTestCase {
 
     // MARK: 8d. A token that appears while the offer is being signed is not added to the purchase
 
-    // The cold-start case: the offer is signed with no token (the payment queue is not swizzled
-    // yet, or the id is not a UUID), then a token becomes available before the purchase starts.
+    // The offer is signed with no token (the ids are not UUIDs), then a token becomes available
+    // before the purchase starts.
     // Not a duplicate of 8c: only this test fails if the promo purchase lets `purchaseResult` add
     // the current token, because Set<Product.PurchaseOption> keeps an already present token.
     @MainActor
     func test8dPromoOfferSignedWithoutTokenIsPurchasedWithoutToken() async throws {
         ApphudStubURLProtocol.signOfferResponseDelay = 1
         let (signed, options) = try await purchasePromoOffer(deviceID: "Custom-Device-42") {
-            ApphudInternal.shared.currentDeviceID = "7C1D0E52-9B3A-4F6E-A2D8-5E4B3C2A1F90"
+            ApphudInternal.shared.currentInstallationID = "7C1D0E52-9B3A-4F6E-A2D8-5E4B3C2A1F90"
         }
 
         XCTAssertEqual(signed, "")
@@ -588,8 +677,11 @@ final class ApphudSDKTests: XCTestCase {
         XCTAssertEqual(body["observer_mode"] as? Bool, false)
         XCTAssertEqual(body["environment"] as? String, "sandbox")
         XCTAssertEqual((body["product_info"] as? [String: Any])?["product_id"] as? String, ApphudTestConstants.weeklyProductId)
-        XCTAssertNotNil(body["device_id"] as? String)
+        XCTAssertNotNil(body["installation_id"] as? String)
+        XCTAssertNotNil(body["anonymous_id"] as? String)
+        XCTAssertNil(body["device_id"], "the new shape never sends device_id")
         XCTAssertEqual(body["user_id"] as? String, ApphudTestConstants.userId)
+        XCTAssertEqual(body["restore"] as? Bool, false, "a purchase never takes a subscription from another customer")
     }
 
     // MARK: 3. Foreign (observer-mode) purchase tracking baseline
@@ -619,8 +711,9 @@ final class ApphudSDKTests: XCTestCase {
             try await Task.sleep(nanoseconds: 200_000_000)
         }
 
-        XCTAssertFalse(tracked.isEmpty, "Foreign purchase must be auto-tracked via POST /v1/subscriptions")
+        XCTAssertFalse(tracked.isEmpty, "Foreign purchase must be auto-tracked via POST /v4/subscriptions")
         XCTAssertNotNil(tracked.last?.body["receipt_data"] as? String)
+        XCTAssertEqual(tracked.last?.body["restore"] as? Bool, false, "automatic tracking is no restore")
     }
 
     // MARK: 3b. Concurrent delivery of one transaction must upload it once
@@ -763,6 +856,213 @@ final class ApphudSDKTests: XCTestCase {
                       "A successful upload must record the transaction as delivered")
     }
 
+    // MARK: 2b. A purchase carries the user's token, and the install remembers who bought
+
+    @MainActor
+    func test2bPurchaseOfAUUIDUserCarriesAndRemembersItsToken() async throws {
+        let session = try XCTUnwrap(Self.storeKitSession)
+        session.clearTransactions()
+        defer { session.clearTransactions() }
+        await startSDKIfNeeded()
+        ApphudStubURLProtocol.reset()
+        ApphudInternal.shared.lastUploadedTransactions = []
+
+        let user = UUID()
+        let tokensKey = ApphudStoreKitWrapper.purchaseUserTokensKey
+        let saved = ApphudInternal.shared.identity
+        UserDefaults.standard.removeObject(forKey: tokensKey)
+        defer {
+            ApphudInternal.shared.identity = saved
+            UserDefaults.standard.removeObject(forKey: tokensKey)
+        }
+        ApphudInternal.shared.identity.userID = user.uuidString
+
+        let result: ApphudPurchaseResult = await withCheckedContinuation { continuation in
+            ApphudInternal.shared.purchase(productId: ApphudTestConstants.weeklyProductId, product: nil, validate: true,
+                                           purchasingFromScreen: false) { result in
+                continuation.resume(returning: result)
+            }
+        }
+
+        XCTAssertNil(result.error)
+        let latestResult = await StoreKit.Transaction.latest(for: ApphudTestConstants.weeklyProductId)
+        guard case .verified(let transaction) = try XCTUnwrap(latestResult) else { return XCTFail("verified transaction expected") }
+        XCTAssertEqual(transaction.appAccountToken, user, "the purchase carries the user's token")
+        XCTAssertEqual(ApphudStoreKitWrapper.purchaseUserTokens(), [user], "the install remembers who bought")
+    }
+
+    // MARK: 3e. Automatic paths skip another account's transaction; a restore sends it
+
+    /// Alice bought through the SDK on this install, so her UUID user id is the purchase's token;
+    /// someone else is current now. The legacy queue twin, the updates listener and the launch
+    /// check leave her transaction alone and unfinished; the restore the user asks for submits it.
+    @MainActor
+    func test3eAutomaticPathsSkipAnotherAccountsTransaction() async throws {
+        guard #available(iOS 17.0, *) else { throw XCTSkip("buyProduct(identifier:options:) needs iOS 17") }
+        let session = try XCTUnwrap(Self.storeKitSession)
+        session.clearTransactions()
+        defer { session.clearTransactions() }
+        await startSDKIfNeeded()
+
+        let alice = UUID()
+        let tokensKey = ApphudStoreKitWrapper.purchaseUserTokensKey
+        UserDefaults.standard.removeObject(forKey: tokensKey)
+        defer { UserDefaults.standard.removeObject(forKey: tokensKey) }
+        var aliceIdentity = ApphudInternal.shared.identity
+        aliceIdentity.userID = alice.uuidString
+        ApphudStoreKitWrapper.rememberPurchaseToken(alice, identity: aliceIdentity)
+        ApphudStubURLProtocol.reset()
+        ApphudInternal.shared.lastUploadedTransactions = []
+
+        func submissions(after seconds: UInt64) async throws -> Int {
+            try await Task.sleep(nanoseconds: seconds * 1_000_000_000)
+            return ApphudStubURLProtocol.requests(to: "/subscriptions").filter { $0.method == "POST" }.count
+        }
+
+        // Bought outside the SDK: observer mode, the legacy queue twin and the updates listener.
+        let transaction = try await session.buyProduct(identifier: "com.apphud.lifetime", options: [.appAccountToken(alice)])
+        let observed = try await submissions(after: 8)
+        XCTAssertEqual(observed, 0, "the legacy queue twin and the updates listener submit nothing for another account")
+
+        // The updates listener of an SDK that finishes transactions, and the launch check.
+        let latestResult = await StoreKit.Transaction.latest(for: "com.apphud.lifetime")
+        let latest = try XCTUnwrap(latestResult)
+        ApphudUtils.shared.storeKitObserverMode = false
+        ApphudAsyncStoreKit.shared.transactionsListener.handle(updatedTransaction: latest)
+        ApphudInternal.shared.checkTransactionsNow()
+        let checked = try await submissions(after: 4)
+        XCTAssertEqual(checked, 0, "the updates listener and the launch check submit nothing for another account")
+        var unfinished = false
+        for await result in StoreKit.Transaction.unfinished where result.unsafePayloadValue.id == transaction.id {
+            unfinished = true
+        }
+        XCTAssertTrue(unfinished, "left unfinished for its owner: the backend may not have it yet")
+
+        // The restore the user asked for.
+        let result: ApphudPurchaseResult = await withCheckedContinuation { continuation in
+            Task { @MainActor in
+                ApphudInternal.shared.restorePurchases { result in
+                    continuation.resume(returning: result)
+                }
+            }
+        }
+        XCTAssertNil(result.error)
+        let submits = ApphudStubURLProtocol.requests(to: "/subscriptions").filter { $0.method == "POST" }
+        XCTAssertEqual(submits.count, 1)
+        XCTAssertEqual(submits.last?.body["transaction_id"] as? String, String(transaction.id))
+        XCTAssertEqual(submits.last?.body["restore"] as? Bool, true, "moves only with the restore")
+    }
+
+    // MARK: 3f. Once someone with a UUID id bought here, a purchase of nobody's account is still tracked
+
+    @MainActor
+    func test3fForeignPurchaseIsTrackedOnceAUUIDUserBoughtHere() async throws {
+        let session = try XCTUnwrap(Self.storeKitSession)
+        session.clearTransactions()
+        defer { session.clearTransactions() }
+        await startSDKIfNeeded()
+
+        let tokensKey = ApphudStoreKitWrapper.purchaseUserTokensKey
+        let alice = UUID()
+        var aliceIdentity = ApphudInternal.shared.identity
+        aliceIdentity.userID = alice.uuidString
+        UserDefaults.standard.removeObject(forKey: tokensKey)
+        defer { UserDefaults.standard.removeObject(forKey: tokensKey) }
+        ApphudStoreKitWrapper.rememberPurchaseToken(alice, identity: aliceIdentity)
+        ApphudStubURLProtocol.reset()
+        ApphudInternal.shared.lastUploadedTransactions = []
+        // Only the legacy queue twin's submission tells the delegate about an observed purchase.
+        let observer = ObservedPurchases()
+        let savedDelegate = ApphudInternal.shared.delegate
+        ApphudInternal.shared.delegate = observer
+        defer { ApphudInternal.shared.delegate = savedDelegate }
+
+        try session.buyProduct(productIdentifier: "com.apphud.lifetime")
+
+        let deadline = Date().addingTimeInterval(30)
+        while observer.count == 0 && Date() < deadline {
+            try await Task.sleep(nanoseconds: 200_000_000)
+        }
+        XCTAssertGreaterThan(observer.count, 0, "the legacy queue twin of a purchase without a token is submitted")
+        let tracked = ApphudStubURLProtocol.requests(to: "/subscriptions").filter { $0.method == "POST" }
+        XCTAssertFalse(tracked.isEmpty)
+        XCTAssertEqual(tracked.last?.body["restore"] as? Bool, false)
+    }
+
+    private final class ObservedPurchases: ApphudDelegate {
+        var count = 0
+        func apphudDidObservePurchase(result: ApphudPurchaseResult) -> Bool {
+            count += 1
+            return false
+        }
+    }
+
+    // MARK: 3g. Another account's renewal is finished; its first purchase waits for the owner
+
+    @MainActor
+    func test3gAnotherAccountsRenewalIsFinishedItsPurchaseKept() async throws {
+        guard #available(iOS 17.0, *) else { throw XCTSkip("buyProduct(identifier:options:) needs iOS 17") }
+        let session = try XCTUnwrap(Self.storeKitSession)
+        session.clearTransactions()
+        defer { session.clearTransactions() }
+        await startSDKIfNeeded()
+
+        let tokensKey = ApphudStoreKitWrapper.purchaseUserTokensKey
+        let alice = UUID()
+        var aliceIdentity = ApphudInternal.shared.identity
+        aliceIdentity.userID = alice.uuidString
+        UserDefaults.standard.removeObject(forKey: tokensKey)
+        defer { UserDefaults.standard.removeObject(forKey: tokensKey) }
+        ApphudStoreKitWrapper.rememberPurchaseToken(alice, identity: aliceIdentity)
+
+        let purchase = try await session.buyProduct(identifier: ApphudTestConstants.weeklyProductId, options: [.appAccountToken(alice)])
+        try session.forceRenewalOfSubscription(productIdentifier: ApphudTestConstants.weeklyProductId)
+        let deadline = Date().addingTimeInterval(10)
+        var renewal: StoreKit.Transaction?
+        while renewal == nil && Date() < deadline {
+            if case .verified(let latest) = await StoreKit.Transaction.latest(for: ApphudTestConstants.weeklyProductId),
+               latest.id != purchase.id {
+                renewal = latest
+            }
+            try await Task.sleep(nanoseconds: 200_000_000)
+        }
+        let renewed = try XCTUnwrap(renewal, "StoreKitTest renews the subscription")
+        XCTAssertEqual(renewed.appAccountToken, alice, "a renewal keeps the purchase's token")
+        try await Task.sleep(nanoseconds: 3_000_000_000)
+        ApphudStubURLProtocol.reset()
+        ApphudInternal.shared.lastUploadedTransactions = []
+
+        let renewalResult = await ApphudInternal.shared.handleTransactionResult(renewed, automatic: true)
+        let purchaseResult = await ApphudInternal.shared.handleTransactionResult(purchase, automatic: true)
+
+        XCTAssertNil(renewalResult, "a renewal of another account's subscription may be finished")
+        XCTAssertNotNil(purchaseResult, "another account's purchase waits unfinished for its owner")
+        XCTAssertEqual(ApphudStubURLProtocol.requests(to: "/subscriptions").filter { $0.method == "POST" }.count, 0)
+
+        // The legacy queue twin finds both, also the older one once something finished it.
+        await purchase.finish()
+        var stillUnfinished = false
+        for await result in StoreKit.Transaction.unfinished where result.unsafePayloadValue.id == purchase.id {
+            stillUnfinished = true
+        }
+        XCTAssertFalse(stillUnfinished, "precondition: the first purchase is finished")
+        let weekly = ApphudTestConstants.weeklyProductId
+        let renewalOwner = await ApphudInternal.shared.anotherAccountsTransaction(id: renewed.id, productID: weekly)
+        let purchaseOwner = await ApphudInternal.shared.anotherAccountsTransaction(id: purchase.id, productID: weekly)
+        let unknown = await ApphudInternal.shared.anotherAccountsTransaction(id: renewed.id + 1000, productID: weekly)
+        XCTAssertEqual(renewalOwner?.id, renewed.id)
+        XCTAssertEqual(purchaseOwner?.id, purchase.id, "a finished transaction older than the latest one")
+        XCTAssertNil(unknown)
+
+        let saved = ApphudInternal.shared.identity
+        defer { ApphudInternal.shared.identity = saved }
+        ApphudInternal.shared.identity = aliceIdentity
+        let alicesOwn = await ApphudInternal.shared.anotherAccountsTransaction(id: purchase.id, productID: weekly)
+        let alicesOwnRenewal = await ApphudInternal.shared.anotherAccountsTransaction(id: renewed.id, productID: weekly)
+        XCTAssertNil(alicesOwn, "alice's own transaction while she is current")
+        XCTAssertNil(alicesOwnRenewal, "alice's own latest transaction while she is current")
+    }
+
     // MARK: 5. Restore submits the newest entitlement
 
     @MainActor
@@ -808,6 +1108,7 @@ final class ApphudSDKTests: XCTestCase {
                                        "Restore must carry a decodable signed transaction")
         XCTAssertEqual(jwsPayload["transactionId"] as? String, String(entitlementTrx.id),
                        "Restore's jws must be signed for the entitlement's transaction")
+        XCTAssertEqual(body["restore"] as? Bool, true, "the restore the user asked for")
     }
 
     // MARK: 6. Restore piggybacks on an in-flight submission
@@ -901,5 +1202,91 @@ final class ApphudSDKTests: XCTestCase {
                        "Ack list must persist as a plain [UInt64] array under the SK2 key")
         XCTAssertEqual(UserDefaults.standard.array(forKey: legacyKey) as? [UInt64], preAckLegacyIds,
                        "Legacy key must be left untouched")
+    }
+}
+
+// MARK: - The system Keychain
+
+/// The host app's Keychain, written by identity version 1's own code (as in SDK 4.6) and by a logout on
+/// version 2. Unit tests of the package have no Keychain on a simulator.
+final class ApphudKeychainVersionTests: XCTestCase {
+
+    private struct NoInstallRecord: ApphudInstallRecordStoring {
+        func read() -> ApphudInstallRecordRead { .missing }
+        func write(_ record: ApphudInstallRecord) -> Bool { true }
+    }
+
+    private let keychain = ApphudSystemKeychain()
+    private let suiteName = "ApphudKeychainVersionTests"
+
+    override func setUp() {
+        super.setUp()
+        clear()
+    }
+
+    override func tearDown() {
+        clear()
+        UserDefaults().removePersistentDomain(forName: suiteName)
+        super.tearDown()
+    }
+
+    private func clear() {
+        ApphudKeychainKey.allCases.forEach(keychain.delete)
+        UserDefaults.standard.removeObject(forKey: ApphudKeychain.defaultsDeviceIdKey)
+        UserDefaults.standard.removeObject(forKey: ApphudKeychain.defaultsUserIdKey)
+    }
+
+    private func protectionClass(_ key: ApphudKeychainKey) -> String? {
+        let query: NSDictionary = [kSecClass: kSecClassGenericPassword, kSecAttrService: key.rawValue,
+                                   kSecAttrAccount: "ApphudUser", kSecReturnAttributes: true,
+                                   kSecMatchLimit: kSecMatchLimitOne]
+        var result: AnyObject?
+        guard SecItemCopyMatching(query, &result) == errSecSuccess else { return nil }
+        return (result as? [String: Any])?[kSecAttrAccessible as String] as? String
+    }
+
+    private func logOutOnVersion2() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        var identity = ApphudIdentity(installationID: "inst", anonymousID: "anon", userID: "alice@example.com", isReinstall: false)
+        ApphudIdentityStore(defaults: defaults, keychain: keychain, installRecords: NoInstallRecord())
+            .logout(anonymousID: nil, &identity)
+    }
+
+    @MainActor
+    func testVersion1AfterAReinstallGetsNoIDsBackFromAVersion2Logout() throws {
+        try XCTSkipUnless(ApphudKeychain.canUseKeychain, "the Keychain is locked")
+        ApphudKeychain.saveDeviceID(deviceID: "OLD-DEVICE")
+        ApphudKeychain.saveUserID(userID: "alice@example.com")
+        XCTAssertEqual(keychain.read(.legacyDeviceID), .found("OLD-DEVICE"))
+
+        try logOutOnVersion2()
+        // A reinstall: UserDefaults are gone, the Keychain stays.
+        UserDefaults.standard.removeObject(forKey: ApphudKeychain.defaultsDeviceIdKey)
+        UserDefaults.standard.removeObject(forKey: ApphudKeychain.defaultsUserIdKey)
+
+        XCTAssertEqual(keychain.read(.legacyDeviceID), .found(""), "blanked, as SDK 4.6's own logout does")
+        XCTAssertNil(ApphudKeychain.loadDeviceID(), "version 1 makes a new device id")
+        XCTAssertNil(ApphudKeychain.loadUserID())
+    }
+
+    @MainActor
+    func testVersion1WritesItsKeychainItemsAgainAfterAVersion2Logout() throws {
+        try XCTSkipUnless(ApphudKeychain.canUseKeychain, "the Keychain is locked")
+        ApphudKeychain.saveDeviceID(deviceID: "OLD-DEVICE")
+        ApphudKeychain.saveUserID(userID: "alice@example.com")
+        try logOutOnVersion2()
+        XCTAssertEqual(protectionClass(.legacyDeviceID), kSecAttrAccessibleAfterFirstUnlock as String, "the class of SDK 4.6")
+
+        ApphudKeychain.saveDeviceID(deviceID: "NEW-DEVICE")
+        ApphudKeychain.saveUserID(userID: "bob")
+
+        XCTAssertEqual(keychain.read(.legacyDeviceID), .found("NEW-DEVICE"))
+        XCTAssertEqual(keychain.read(.legacyUserID), .found("bob"))
+    }
+
+    func testTheReinstallKeyNeverTravelsToAnotherDevice() throws {
+        try XCTSkipUnless(keychain.write(.reinstall, value: "1"), "the Keychain is locked")
+
+        XCTAssertEqual(protectionClass(.reinstall), kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly as String)
     }
 }

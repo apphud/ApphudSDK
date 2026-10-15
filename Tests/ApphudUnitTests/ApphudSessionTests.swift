@@ -804,7 +804,7 @@ final class ApphudSessionHeaderTests: XCTestCase {
     }
 
     #if os(iOS) && targetEnvironment(simulator)
-    // Simulator only: a full logout resets the Keychain, which on macOS is the login keychain.
+    // Simulator only: a full logout writes the new ids to the test host's own UserDefaults.
     func testLogoutStartsNewSession() async {
         let session = ApphudSession.shared
         let id = session.sessionId

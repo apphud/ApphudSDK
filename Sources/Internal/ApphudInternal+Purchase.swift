@@ -43,7 +43,7 @@ extension ApphudInternal {
                 await restoreUsingStoreKit2()
             }
         } else {
-            self.submitReceiptRestore(transaction: nil)
+            self.submitReceiptRestore(transaction: nil, restore: true)
         }
     }
 
@@ -110,6 +110,7 @@ extension ApphudInternal {
                                          receiptString: receiptString,
                                          transactionJws: jws,
                                          notifyDelegate: true,
+                                         restore: true,
                                          fromScreen: false) { error in
                     Task { @MainActor in
                         self.restorePurchasesCallback?(self.currentUser?.subscriptions, self.currentUser?.purchases, error)
@@ -165,7 +166,7 @@ extension ApphudInternal {
                     // Submits only — finishing a transaction belongs to whoever owns it
                     // (the purchase call or the updates listener). In observer mode the
                     // host finishes its own transactions and this must not interfere.
-                    await handleTransaction(latestTransaction, jws: latestResult.jwsRepresentation)
+                    await handleTransaction(latestTransaction, jws: latestResult.jwsRepresentation, automatic: true)
                 }
             }
         }
@@ -174,8 +175,36 @@ extension ApphudInternal {
     /// Compatibility wrapper over `handleTransactionResult`: `true` when the
     /// transaction needs no further delivery — the caller may finish it.
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
-    @discardableResult internal func handleTransaction(_ transaction: StoreKit.Transaction, jws: String? = nil, fromScreen: Bool = false) async -> Bool {
-        await handleTransactionResult(transaction, jws: jws, fromScreen: fromScreen) == nil
+    @discardableResult internal func handleTransaction(_ transaction: StoreKit.Transaction, jws: String? = nil, fromScreen: Bool = false, automatic: Bool = false) async -> Bool {
+        await handleTransactionResult(transaction, jws: jws, fromScreen: fromScreen, automatic: automatic) == nil
+    }
+
+    /// An automatic path skips another account's transaction: it moves only with a restore.
+    @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
+    private func isAnotherAccountsTransaction(_ transaction: StoreKit.Transaction) -> Bool {
+        isAnotherAccountsToken(transaction.appAccountToken)
+    }
+
+    /// Identity version 2 only: version 1 sends every purchase, as SDK 4.6 did.
+    internal func isAnotherAccountsToken(_ token: UUID?) -> Bool {
+        guard !isIdentityV1 else { return false }
+        return ApphudStoreKitWrapper.belongsToAnotherAccount(token, identity: identity,
+                                                      purchaseUserTokens: ApphudStoreKitWrapper.purchaseUserTokens())
+    }
+
+    /// The legacy queue twin's StoreKit 2 transaction when it is another account's. Mostly the
+    /// product's latest transaction; otherwise one from the history, which has no finished consumables.
+    @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
+    internal func anotherAccountsTransaction(id: UInt64, productID: String) async -> StoreKit.Transaction? {
+        if case .verified(let latest) = await StoreKit.Transaction.latest(for: productID), latest.id == id {
+            return isAnotherAccountsTransaction(latest) ? latest : nil
+        }
+        for await result in StoreKit.Transaction.all {
+            if case .verified(let transaction) = result, transaction.id == id {
+                return isAnotherAccountsTransaction(transaction) ? transaction : nil
+            }
+        }
+        return nil
     }
 
     /// Returns `nil` when the transaction needs no further delivery (already tracked,
@@ -185,7 +214,7 @@ extension ApphudInternal {
     /// can surface WHY the purchase is not confirmed (master parity: clients gating
     /// on `result.error` must see a failed submission).
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
-    internal func handleTransactionResult(_ transaction: StoreKit.Transaction, jws: String? = nil, fromScreen: Bool = false) async -> Error? {
+    internal func handleTransactionResult(_ transaction: StoreKit.Transaction, jws: String? = nil, fromScreen: Bool = false, automatic: Bool = false) async -> Error? {
         let transactionId = transaction.id
         let refundDate = transaction.revocationDate
         let expirationDate = transaction.expirationDate
@@ -209,6 +238,16 @@ extension ApphudInternal {
         let transactions = await self.lastUploadedTransactions
         if transactions.contains(transactionId) {
             return nil
+        }
+
+        // Another account's purchase waits unfinished for its owner, as the backend may not have it
+        // yet. A later transaction of a subscription (a renewal, an upgrade) may be finished: the backend
+        // knows the subscription by its original transaction.
+        if automatic, isAnotherAccountsTransaction(transaction) {
+            apphudLog("Transaction \(transactionId) belongs to another account, skipping", logLevel: .debug)
+            return transaction.originalID == transactionId
+                ? ApphudError(message: "Transaction \(transactionId) belongs to another account")
+                : nil
         }
 
         var isActive = false
@@ -325,12 +364,13 @@ extension ApphudInternal {
             if #available(iOS 15.0, tvOS 15.0, watchOS 8.0, macOS 12.0, *) {
                 checkTransactionsNow()
             } else {
-                submitReceiptRestore(transaction: nil)
+                submitReceiptRestore(transaction: nil, restore: false)
             }
         }
     }
 
-    @MainActor internal func submitReceiptRestore(transaction: SKPaymentTransaction?) {
+    /// [restore]: only the restore someone asked for.
+    @MainActor internal func submitReceiptRestore(transaction: SKPaymentTransaction?, restore: Bool) {
 
         let receiptString = apphudReceiptDataString()
 
@@ -355,14 +395,14 @@ extension ApphudInternal {
                 return
             }
 
-            self.submitReceipt(product: nil, apphudProduct: nil, transaction: transaction, receiptString: receiptString, notifyDelegate: true, fromScreen: false) { error in
+            self.submitReceipt(product: nil, apphudProduct: nil, transaction: transaction, receiptString: receiptString, notifyDelegate: true, restore: restore, fromScreen: false) { error in
                 self.restorePurchasesCallback?(self.currentUser?.subscriptions, self.currentUser?.purchases, error)
                 self.restorePurchasesCallback = nil
             }
         }
     }
 
-    internal func submitReceipt(product: SKProduct?, apphudProduct: ApphudProduct?, transaction: SKPaymentTransaction?, receiptString: String?, notifyDelegate: Bool, eligibilityCheck: Bool = false, ownsTransaction: Bool = false, fromScreen: Bool, callback: ApphudNSErrorCallback?) {
+    internal func submitReceipt(product: SKProduct?, apphudProduct: ApphudProduct?, transaction: SKPaymentTransaction?, receiptString: String?, notifyDelegate: Bool, eligibilityCheck: Bool = false, ownsTransaction: Bool = false, restore: Bool = false, fromScreen: Bool, callback: ApphudNSErrorCallback?) {
 
         let productId = product?.productIdentifier ?? transaction?.payment.productIdentifier
         let finalProduct = product ?? ApphudStoreKitWrapper.shared.products.first(where: { $0.productIdentifier == productId })
@@ -379,6 +419,7 @@ extension ApphudInternal {
                                    notifyDelegate: notifyDelegate,
                                    eligibilityCheck: eligibilityCheck,
                                    ownsTransaction: ownsTransaction,
+                                   restore: restore,
                                    fromScreen: fromScreen,
                                    callback: callback)
             }
@@ -393,6 +434,19 @@ extension ApphudInternal {
         }
     }
 
+    /// Identity fields of `POST /v4/subscriptions`. Identity version 1: `device_id` and `user_id`, no
+    /// `restore`, as SDK 4.6 sent them.
+    internal func subscriptionIdentityParams(restore: Bool) -> [String: Any] {
+        guard !isIdentityV1 else { return identityParams(includeUserID: true) }
+        var params: [String: Any] = identityParams(includeUserID: true)
+        params["restore"] = restore
+        // The old SDK's device_id adopts its customer, until a registration has done it.
+        if let legacyDeviceID = identityStore.registrationReport(for: identity).legacyDeviceID {
+            params["legacy_device_id"] = legacyDeviceID
+        }
+        return params
+    }
+
     internal func submitReceipt(productInfo: [String: Any]?,
                                 apphudProduct: ApphudProduct?,
                                 transactionIdentifier: String?,
@@ -405,6 +459,9 @@ extension ApphudInternal {
                                 // True only for the submission that owns a StoreKit 2
                                 // transaction and decides whether it may be finished.
                                 ownsTransaction: Bool = false,
+                                // True only for the restore the user asked for: it moves a purchase
+                                // another customer owns. Purchases and automatic checks send false.
+                                restore: Bool = false,
                                 fromScreen: Bool,
                                 callback: ApphudNSErrorCallback?) async {
 
@@ -451,9 +508,9 @@ extension ApphudInternal {
 
         let environment = Apphud.isSandbox() ? ApphudEnvironment.sandbox.rawValue : ApphudEnvironment.production.rawValue
 
-        var params: [String: Any] = ["device_id": self.currentDeviceID,
-                                     "environment": environment,
-                                     "observer_mode": ApphudUtils.shared.storeKitObserverMode]
+        var params = subscriptionIdentityParams(restore: restore)
+        params["environment"] = environment
+        params["observer_mode"] = ApphudUtils.shared.storeKitObserverMode
 
         // Send the receipt whenever it is readable from disk: apps without an
         // App Store Server API key in the Apphud dashboard can only be validated
@@ -475,8 +532,6 @@ extension ApphudInternal {
         }
 
         let hasMadePurchase = transactionState == .purchased
-
-        params["user_id"] = currentUserID
 
         if let info = productInfo {
             params["product_info"] = info
@@ -675,6 +730,9 @@ extension ApphudInternal {
                                                                               timestamp: signedOffer.timestamp)]
                 if let appAccountToken {
                     options.insert(.appAccountToken(appAccountToken))
+                    if !self.isIdentityV1 {
+                        ApphudStoreKitWrapper.rememberPurchaseToken(appAccountToken, identity: self.identity)
+                    }
                 }
                 await self.purchaseAsync(apphudProduct: apphudProduct, productId: productId, commitmentPlan: false, fromScreen: fromScreen, extraOptions: options, addsCurrentAppAccountToken: false, callback: callback)
             }
@@ -785,13 +843,33 @@ extension ApphudInternal {
     /// Parameters of the `/sign_offer` request for a purchase that sends `appAccountToken`.
     /// Apple checks the signature against that token in lowercase, or against an empty string
     /// when the purchase sends no token.
-    static func promoOfferSignParams(productID: String, discountID: String, appAccountToken: UUID?, deviceID: String, userID: String) -> [String: Any] {
+    /// Identity version 1: the parameters SDK 4.6 sent.
+    static func promoOfferSignParamsV1(productID: String, discountID: String, appAccountToken: UUID?, deviceID: String, userID: String) -> [String: Any] {
         ["product_id": productID, "offer_id": discountID, "application_username": appAccountToken?.uuidString.lowercased() ?? "", "device_id": deviceID, "user_id": userID]
     }
 
+    static func promoOfferSignParams(productID: String, discountID: String, appAccountToken: UUID?, identity: ApphudIdentity) -> [String: Any] {
+        var params: [String: Any] = identity.requestParams
+        if let userID = identity.userID {
+            params["user_id"] = userID
+        }
+        params["product_id"] = productID
+        params["offer_id"] = discountID
+        params["application_username"] = appAccountToken?.uuidString.lowercased() ?? ""
+        return params
+    }
+
+    /// The `/sign_offer` parameters of the identity version this launch runs.
+    internal func signOfferParams(productID: String, discountID: String, appAccountToken: UUID?) -> [String: Any] {
+        isIdentityV1
+            ? Self.promoOfferSignParamsV1(productID: productID, discountID: discountID, appAccountToken: appAccountToken,
+                                          deviceID: currentDeviceID, userID: currentUserID)
+            : Self.promoOfferSignParams(productID: productID, discountID: discountID, appAccountToken: appAccountToken,
+                                        identity: identity)
+    }
+
     private func signPromoOffer(productID: String, discountID: String, appAccountToken: UUID?, callback: ((ApphudSignedPromoOffer?, Error?) -> Void)?) {
-        let params = Self.promoOfferSignParams(productID: productID, discountID: discountID, appAccountToken: appAccountToken,
-                                               deviceID: currentDeviceID, userID: currentUserID)
+        let params = signOfferParams(productID: productID, discountID: discountID, appAccountToken: appAccountToken)
         httpClient?.startRequest(path: .signOffer, params: params, method: .post) { (result, dict, _, error, _, _, _) in
             if result, let responseDict = dict, let dataDict = responseDict["data"] as? [String: Any], let resultsDict = dataDict["results"] as? [String: Any] {
 

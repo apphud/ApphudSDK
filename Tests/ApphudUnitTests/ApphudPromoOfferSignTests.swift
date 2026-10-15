@@ -11,7 +11,7 @@ final class ApphudPromoOfferSignTests: XCTestCase {
     private func signedUsername(for token: UUID?) -> String? {
         let params = ApphudInternal.promoOfferSignParams(productID: "p", discountID: "o",
                                                          appAccountToken: token,
-                                                         deviceID: "D", userID: "U")
+                                                         identity: ApphudIdentity(installationID: "I", anonymousID: "A", userID: "U"))
         return params["application_username"] as? String
     }
 
@@ -32,11 +32,17 @@ final class ApphudPromoOfferSignTests: XCTestCase {
     func testOtherFieldsAreSentUnchanged() {
         let params = ApphudInternal.promoOfferSignParams(productID: "com.app.Year", discountID: "Offer_7D",
                                                          appAccountToken: UUID(uuidString: upperUUID),
-                                                         deviceID: "DEV-ID", userID: "User-ID")
+                                                         identity: ApphudIdentity(installationID: "INST-ID", anonymousID: "ANON-ID", userID: "User-ID"))
         XCTAssertEqual(params["product_id"] as? String, "com.app.Year")
         XCTAssertEqual(params["offer_id"] as? String, "Offer_7D")
-        XCTAssertEqual(params["device_id"] as? String, "DEV-ID")
+        XCTAssertEqual(params["installation_id"] as? String, "INST-ID")
+        XCTAssertEqual(params["anonymous_id"] as? String, "ANON-ID")
         XCTAssertEqual(params["user_id"] as? String, "User-ID")
-        XCTAssertEqual(params.count, 5)
+        XCTAssertNil(params["device_id"])
+        XCTAssertEqual(params.count, 6)
+
+        let anonymous = ApphudInternal.promoOfferSignParams(productID: "com.app.Year", discountID: "Offer_7D", appAccountToken: nil,
+                                                            identity: ApphudIdentity(installationID: "INST-ID", anonymousID: "ANON-ID"))
+        XCTAssertNil(anonymous["user_id"], "no user_id before identify")
     }
 }

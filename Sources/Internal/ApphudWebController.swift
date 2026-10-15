@@ -54,7 +54,16 @@ class ApphudWebController: NSObject, WKNavigationDelegate {
         readinessRetryTask?.cancel()
         readinessRetryTask = nil
 
-        let urlString = "\(ApphudHttpClient.shared.connectDomainUrl)?api_key=\(ApphudHttpClient.shared.apiKey)&device_id=\(ApphudInternal.shared.currentDeviceID)&host=\(ApphudHttpClient.shared.host)"
+        // The page reads only `device_id`; the backend matches the value against installation ids.
+        // Identity version 1 sends its device id as SDK 4.6 did.
+        let deviceIDValue: String
+        if ApphudInternal.shared.isIdentityV1 {
+            deviceIDValue = ApphudInternal.shared.currentDeviceID
+        } else {
+            let installationID = ApphudInternal.shared.currentInstallationID
+            deviceIDValue = installationID.addingPercentEncoding(withAllowedCharacters: .apphudQueryValueAllowed) ?? installationID
+        }
+        let urlString = "\(ApphudHttpClient.shared.connectDomainUrl)?api_key=\(ApphudHttpClient.shared.apiKey)&device_id=\(deviceIDValue)&host=\(ApphudHttpClient.shared.host)"
         guard let url = URL(string: urlString) else {
             complete(with: nil)
             return

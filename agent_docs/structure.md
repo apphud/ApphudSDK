@@ -25,6 +25,7 @@ Sources/
   Public/                 # Everything a host app imports
     Apphud.swift                     # `final class Apphud` — all static entry points; `apphud_sdk_version`
     ApphudDelegate.swift             # ApphudDelegate protocol + empty default impls
+    ApphudIdentityVersion.swift      # ApphudIdentityVersion (.v1 default = SDK 4.6.1, .v2 = three ids)
     ApphudUIDelegate.swift           # @objc ApphudUIDelegate (Rules/Screens hooks), ApphudScreenDismissAction
     ApphudUser.swift                 # ApphudUser (Codable, cache v2 + legacy migration), ApphudCurrency
     ApphudSubscription.swift         # ApphudSubscription + ApphudSubscriptionStatus; stub inits (SKProduct / Product)
@@ -74,7 +75,8 @@ Sources/
                                      # ApphudPurchaseIntentsObserver (PurchaseIntent.intents)
     ApphudStoreKit2Extensions.swift  # Product.apphudSubmittableParameters / apphudPromoIdentifiers / currency+country
                                      # (priceFormatStyle, SK1 fallback); SKProduct + Locale legacy helpers
-    ApphudKeychain.swift             # userID/deviceID in Keychain + UserDefaults
+    ApphudIdentity.swift             # installation_id / anonymous_id / user_id: ApphudIdentityStore, installation record, switching between identity versions
+    ApphudKeychain.swift             # identity version 1: device id / user id in Keychain + UserDefaults (as in 4.6.1); the Keychain reinstall key
     ApphudUserProperty.swift         # ApphudUserProperty → JSON
     ApphudLoggerService.swift        # paywall_* events, load-time metrics
     ApphudWebController.swift        # iOS: hidden WKWebView for deferred deep-link visitor id
@@ -122,7 +124,7 @@ LICENSE                   # MIT
   `canTriggerHostFallback` if it is critical), then a method on the matching
   `ApphudInternal+*.swift` extension that calls `httpClient?.startRequest(...)` and
   wraps it in `performWhenUserRegistered` when it needs a customer.
-- **Persisted value** — ids go through `ApphudKeychain`; blobs go through
+- **Persisted value** — ids go through `ApphudIdentityStore`; blobs go through
   `ApphudDataActor.apphudDataToCache(data:key:)` (Caches directory, timestamp-based
   expiry); small flags are `UserDefaults` computed properties on `ApphudInternal` with
   the key declared next to the other `*Key` constants. Add it to `logout()` if it is
