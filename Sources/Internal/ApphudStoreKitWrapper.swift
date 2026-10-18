@@ -339,6 +339,10 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
 
     @MainActor
     private func handlePurchased(_ transaction: SKPaymentTransaction) {
+        if !ApphudInternal.shared.isIdentityV1 {
+            handleObservedPurchaseV2(transaction)
+            return
+        }
         if let trxId = transaction.transactionIdentifier, let trxIdInt = UInt64(trxId) {
             // A StoreKit 2 submission for this transaction is still in flight: its
             // owner decides whether it may be finished, so leave it alone and
@@ -366,6 +370,50 @@ internal class ApphudStoreKitWrapper: NSObject, SKPaymentTransactionObserver, SK
             } else if ApphudUtils.shared.storeKitObserverMode == false && result.success {
                 self.finishTransaction(transaction)
             }
+        }
+    }
+
+    @MainActor
+    private func handleObservedPurchaseV2(_ transaction: SKPaymentTransaction) {
+        let sdk = ApphudInternal.shared
+        let identity = sdk.identity
+        let generation = sdk.observedTransactions.generation
+        guard let id = transaction.transactionIdentifier.flatMap(UInt64.init) else {
+            sdk.submitReceiptAutomaticPurchaseTracking(transaction: transaction) { result in
+                guard generation == sdk.observedTransactions.generation, identity.hasSameIDs(as: sdk.identity) else { return }
+                let finish = sdk.delegate?.apphudDidObservePurchase(result: result) == true
+                if result.error == nil && (finish || (!ApphudUtils.shared.storeKitObserverMode && result.success)) {
+                    self.finishTransaction(transaction)
+                }
+            }
+            return
+        }
+        guard !sdk.observedTransactions.isSDKPurchase(id) else { return }
+        if sdk.lastUploadedTransactions.contains(id), sdk.submittingTransaction != String(id),
+           !sdk.observedTransactions.hasAcknowledgement(id, identity: identity) {
+            // Historical acknowledgement: no new observed event, as before.
+            if !ApphudUtils.shared.storeKitObserverMode,
+               sdk.observedTransactions.claimFinish(id, generation: generation) { finishTransaction(transaction) }
+            return
+        }
+        guard let ticket = sdk.observedTransactions.beginObservation(id, identity: identity) else { return }
+        let complete: (ApphudPurchaseResult) -> Void = { result in
+            guard generation == sdk.observedTransactions.generation, identity.hasSameIDs(as: sdk.identity) else {
+                sdk.observedTransactions.cancelObservation(id, ticket: ticket)
+                return
+            }
+            guard sdk.observedTransactions.completeObservation(id, ticket: ticket, success: result.error == nil) else { return }
+            let finish = sdk.delegate?.apphudDidObservePurchase(result: result) == true
+            if result.error == nil && (finish || (!ApphudUtils.shared.storeKitObserverMode && result.success)),
+               sdk.observedTransactions.claimFinish(id, generation: generation) {
+                self.finishTransaction(transaction)
+            }
+        }
+        if sdk.submittingTransaction != String(id), sdk.observedTransactions.hasAcknowledgement(id, identity: identity) {
+            complete(sdk.purchaseResult(productId: transaction.payment.productIdentifier, transaction: transaction, error: nil))
+        } else {
+            // Same-id submissions join at submitReceipt, including while its response is parsed.
+            sdk.submitReceiptAutomaticPurchaseTracking(transaction: transaction, callback: complete)
         }
     }
 

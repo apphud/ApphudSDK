@@ -202,7 +202,8 @@ extension ApphudInternal {
                 callback?(self.currentUser)
                 return
             }
-            guard self.applyIdentify(userID: userID) else {
+            let changed = self.applyIdentify(userID: userID)
+            guard changed || (self.identifiedUserID == userID && self.identityStore.isSyncPending) else {
                 apphudLog("Will not update User ID to \(userID), because current value is the same")
                 callback?(self.currentUser)
                 return

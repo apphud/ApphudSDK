@@ -447,6 +447,7 @@ extension ApphudInternal {
         return params
     }
 
+    @MainActor
     internal func submitReceipt(productInfo: [String: Any]?,
                                 apphudProduct: ApphudProduct?,
                                 transactionIdentifier: String?,
@@ -463,31 +464,82 @@ extension ApphudInternal {
                                 // another customer owns. Purchases and automatic checks send false.
                                 restore: Bool = false,
                                 fromScreen: Bool,
+                                restoreContext: (generation: UUID, identity: ApphudIdentity)? = nil,
                                 callback: ApphudNSErrorCallback?) async {
 
         let newClaim = transactionIdentifier ?? transactionProductIdentifier ?? (productInfo?["product_id"] as? String) ?? "Restoration"
 
-        // Claim the single-flight slot atomically. A submission that OWNS a transaction
-        // must never be answered by another submission's result: its caller decides
-        // whether that transaction may be finished, and a foreign success would finish a
-        // transaction nobody uploaded. Every other caller (restore, eligibility checks,
-        // observer-mode tracking) still piggybacks on the in-flight upload as before.
-        let inFlight: String? = await MainActor.run {
-            let existing = self.submittingTransaction
+        // A product fetch may finish after the other StoreKit path. Reuse only this
+        // identity's completed acknowledgement of the exact transaction, never a restore.
+        if !isIdentityV1, ownsTransaction, !restore,
+           let id = transactionIdentifier.flatMap(UInt64.init), submittingTransaction != newClaim,
+           observedTransactions.hasAcknowledgement(id, identity: identity) {
+            callback?(nil)
+            return
+        }
 
+        // A V2 restore cannot use a false upload's answer: it must send true itself.
+        // Transaction-owning callers still only join an upload of their own transaction.
+        let claim: @MainActor () -> (String?, Bool, UUID?, Bool, Bool) = {
+            if let restoreContext,
+               restoreContext.generation != self.receiptSessionGeneration || !restoreContext.identity.hasSameIDs(as: self.identity) {
+                return (nil, false, nil, true, false)
+            }
+            let existing = self.submittingTransaction
+            let sameIdentity = self.isIdentityV1 || self.submittingReceiptIdentity?.hasSameIDs(as: self.identity) == true
+            let deferredRestore = !self.isIdentityV1 && restore && existing != nil && (!self.submittingReceiptRestore || !sameIdentity)
+            if existing != nil && !sameIdentity && !deferredRestore {
+                return (existing, false, self.submittingReceiptID, false, true)
+            }
             if existing == nil {
                 self.submittingTransaction = newClaim
+                self.submittingReceiptRestore = restore
+                self.submittingReceiptIdentity = self.isIdentityV1 ? nil : self.identity
+                self.submittingReceiptID = self.isIdentityV1 ? nil : UUID()
             }
 
-            if let callback, existing == nil || !ownsTransaction || existing == newClaim {
+            if deferredRestore {
+                let requestedIdentity = self.identity
+                let generation = self.receiptSessionGeneration
+                // This callback runs after the previous response has been processed, on either
+                // success or failure. Logout invalidates it before draining callbacks.
+                self.submitReceiptCallbacks.append { _ in
+                    Task { @MainActor in
+                        await self.submitReceipt(productInfo: productInfo, apphudProduct: apphudProduct,
+                                                 transactionIdentifier: transactionIdentifier,
+                                                 transactionProductIdentifier: transactionProductIdentifier,
+                                                 transactionState: transactionState, receiptString: receiptString,
+                                                 transactionJws: transactionJws, notifyDelegate: notifyDelegate,
+                                                 eligibilityCheck: eligibilityCheck, ownsTransaction: ownsTransaction,
+                                                 restore: restore, fromScreen: fromScreen,
+                                                 restoreContext: (generation, requestedIdentity), callback: callback)
+                    }
+                }
+            } else if let callback, existing == nil || !ownsTransaction || existing == newClaim {
                 if eligibilityCheck || self.submitReceiptCallbacks.count > 0 {
                     self.submitReceiptCallbacks.append(callback)
                 } else {
                     self.submitReceiptCallbacks = [callback]
                 }
             }
+            return (existing, deferredRestore, self.submittingReceiptID, false, false)
+        }
+        // V2 claims and snapshots request identity without yielding between them.
+        let (inFlight, deferredRestore, submissionID, canceledRestore, incompatibleIdentity) = isIdentityV1
+            ? await MainActor.run(body: claim) : claim()
 
-            return existing
+        if canceledRestore {
+            callback?(ApphudError(message: "Restore canceled because the user changed"))
+            return
+        }
+        if incompatibleIdentity {
+            setNeedToCheckTransactions()
+            callback?(ApphudError(message: "Receipt upload belongs to another user; transaction will be retried"))
+            return
+        }
+        if deferredRestore {
+            apphudLog("Explicit restore will submit after the current receipt upload")
+            return
         }
 
         if let inFlight {
@@ -506,6 +558,7 @@ extension ApphudInternal {
             return
         }
 
+        let sentIdentity = identity
         let environment = Apphud.isSandbox() ? ApphudEnvironment.sandbox.rawValue : ApphudEnvironment.production.rawValue
 
         var params = subscriptionIdentityParams(restore: restore)
@@ -615,15 +668,18 @@ extension ApphudInternal {
             self.lastUploadedTransactions = (self.lastUploadedTransactions + [trInt]).suffix(200)
         }
 
+        // Logout may have run during product/screen awaits. It already answered this upload's
+        // callbacks; do not send it after that boundary or answer them again.
+        if let submissionID, self.submittingReceiptID != submissionID { return }
         httpClient?.startRequest(path: .subscriptions, params: params, method: .post, useDecoder: true, retry: (hasMadePurchase && !fallbackMode)) { (result, _, data, error, errorCode, duration, _) in
             Task { @MainActor in
 
-                // Release the slot and take the callbacks in ONE synchronous step, before
-                // any await: a submission starting in between would otherwise inherit
-                // these callbacks and answer its caller with a foreign result.
-                self.submittingTransaction = nil
-                let pendingCallbacks = self.submitReceiptCallbacks
-                self.submitReceiptCallbacks.removeAll()
+                // A late response after logout must not drain a new session's upload.
+                // Each release takes its callbacks atomically; a new upload cannot inherit them.
+                if let submissionID, self.submittingReceiptID != submissionID { return }
+                // V1 keeps its original release timing. V2 includes response parsing in
+                // single-flight so a late SK1 twin joins the same completed result.
+                let version1Callbacks = self.isIdentityV1 ? self.takeReceiptCallbacks(submissionID: submissionID) : nil
 
                 if !result && hasMadePurchase && self.fallbackMode {
                     self.requiresReceiptSubmission = true
@@ -631,6 +687,7 @@ extension ApphudInternal {
                     let stubProductId = transactionProductIdentifier ?? (productInfo?["product_id"] as? String) ?? apphudProduct?.productId
                     let hasChanges = await self.stubPurchase(productId: stubProductId)
                     self.notifyAboutUpdates(hasChanges)
+                    let pendingCallbacks = version1Callbacks ?? self.takeReceiptCallbacks(submissionID: submissionID) ?? []
                     pendingCallbacks.forEach { $0?(error ?? ApphudError(message: "Failed to submit transaction in fallback mode")) }
                     return
                 }
@@ -652,6 +709,10 @@ extension ApphudInternal {
                     self.submitReceiptRetries = (0, 0)
                     self.requiresReceiptSubmission = false
                     let hasChanges = await self.parseUser(data: data)
+                    if let submissionID, self.submittingReceiptID != submissionID { return }
+                    if !self.isIdentityV1, let id = transactionId.flatMap(UInt64.init) {
+                        self.observedTransactions.acknowledge(id, identity: sentIdentity)
+                    }
                     if notifyDelegate {
                         self.notifyAboutUpdates(hasChanges)
                     }
@@ -662,9 +723,22 @@ extension ApphudInternal {
                 // A failure must answer with a guaranteed error — a nil error reads as
                 // backend acknowledgement and authorizes finishing the transaction.
                 let finalError = result ? error : (error ?? ApphudError(message: "Failed to submit transaction"))
+                let pendingCallbacks = version1Callbacks ?? self.takeReceiptCallbacks(submissionID: submissionID) ?? []
                 pendingCallbacks.forEach { $0?(finalError) }
             }
         }
+    }
+
+    @MainActor
+    private func takeReceiptCallbacks(submissionID: UUID?) -> [ApphudNSErrorCallback?]? {
+        if let submissionID, submittingReceiptID != submissionID { return nil }
+        submittingTransaction = nil
+        submittingReceiptID = nil
+        submittingReceiptIdentity = nil
+        submittingReceiptRestore = false
+        let callbacks = submitReceiptCallbacks
+        submitReceiptCallbacks.removeAll()
+        return callbacks
     }
 
     @MainActor
@@ -805,7 +879,7 @@ extension ApphudInternal {
         return ApphudAsyncPurchaseResult(subscription: subscription, nonRenewingPurchase: purchase, transaction: transaction, error: error, isPending: isPending)
     }
 
-    @MainActor private func purchaseResult(productId: String, transaction: SKPaymentTransaction?, error: Error?) -> ApphudPurchaseResult {
+    @MainActor internal func purchaseResult(productId: String, transaction: SKPaymentTransaction?, error: Error?) -> ApphudPurchaseResult {
 
         // 1. try to find in app purchase by product id
         var purchase: ApphudNonRenewingPurchase?

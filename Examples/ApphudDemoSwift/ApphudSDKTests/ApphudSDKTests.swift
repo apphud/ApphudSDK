@@ -278,16 +278,39 @@ final class ApphudSDKTests: XCTestCase {
         storeKitSession?.clearTransactions()
     }
 
-    override func tearDown() {
+    override func setUp() async throws {
+        try await super.setUp()
+        await MainActor.run {
+            // StoreKitTest resets transaction ids between scenarios; runtime SDK state must match it.
+            ApphudInternal.shared.observedTransactions.reset()
+        }
+    }
+
+    override func tearDown() async throws {
+        await MainActor.run {
+            // The host finishes observer-mode purchases after their assertions. StoreKitTest
+            // reuses transaction ids, so a leftover legacy twin must not enter the next test.
+            let queue = SKPaymentQueue.default()
+            for transaction in queue.transactions where [.purchased, .failed, .restored].contains(transaction.transactionState) {
+                queue.finishTransaction(transaction)
+            }
+            Self.storeKitSession?.clearTransactions()
+            NSObject.cancelPreviousPerformRequests(withTarget: ApphudInternal.shared, selector: #selector(ApphudInternal.submitAppStoreReceipt), object: nil)
+            NSObject.cancelPreviousPerformRequests(withTarget: ApphudInternal.shared, selector: #selector(ApphudInternal.checkTransactionsNow), object: nil)
+        }
+        let drained = await waitUntil { SKPaymentQueue.default().transactions.isEmpty && ApphudInternal.shared.submittingTransaction == nil }
+        XCTAssertTrue(drained, "StoreKit transactions and receipt callbacks must drain before the next scenario")
+        await MainActor.run {
+            NSObject.cancelPreviousPerformRequests(withTarget: ApphudInternal.shared, selector: #selector(ApphudInternal.submitAppStoreReceipt), object: nil)
+            NSObject.cancelPreviousPerformRequests(withTarget: ApphudInternal.shared, selector: #selector(ApphudInternal.checkTransactionsNow), object: nil)
+            ApphudUtils.shared.storeKitObserverMode = false
+        }
         XCTAssertEqual(ApphudStubURLProtocol.unversionedPaths, [], "every request goes to /v4")
         ApphudStubURLProtocol.clearUnversionedPaths()
-        super.tearDown()
-        // Tracking a foreign purchase force-enables observer mode process-wide; reset it
-        // so test order (or running a single test) can't change what other tests observe.
-        ApphudUtils.shared.storeKitObserverMode = false
         ApphudStubURLProtocol.subscriptionsResponseDelay = 0
         ApphudStubURLProtocol.subscriptionsFailureStatus = nil
         ApphudStubURLProtocol.signOfferResponseDelay = 0
+        try await super.tearDown()
     }
 
     @MainActor
@@ -971,6 +994,8 @@ final class ApphudSDKTests: XCTestCase {
         ApphudStoreKitWrapper.rememberPurchaseToken(alice, identity: aliceIdentity)
         ApphudStubURLProtocol.reset()
         ApphudInternal.shared.lastUploadedTransactions = []
+        // External purchases use observer mode: the host, not the SK2 listener, owns finishing.
+        ApphudUtils.shared.storeKitObserverMode = true
         // Only the legacy queue twin's submission tells the delegate about an observed purchase.
         let observer = ObservedPurchases()
         let savedDelegate = ApphudInternal.shared.delegate
@@ -989,11 +1014,160 @@ final class ApphudSDKTests: XCTestCase {
         XCTAssertEqual(tracked.last?.body["restore"] as? Bool, false)
     }
 
+    /// Real SK1 twin retained while the SDK's SK1 observer is disconnected. SK2 must win.
+    private final class LegacyCapture: NSObject, SKPaymentTransactionObserver {
+        var purchased: SKPaymentTransaction?
+        func paymentQueue(_ queue: SKPaymentQueue, updatedTransactions transactions: [SKPaymentTransaction]) {
+            if let transaction = transactions.first(where: { $0.transactionState == .purchased }) { purchased = transaction }
+        }
+    }
+
+    @MainActor
+    private func waitUntil(_ condition: @MainActor () -> Bool, timeout: TimeInterval = 10) async -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while !condition() && Date() < deadline { try? await Task.sleep(nanoseconds: 20_000_000) }
+        return condition()
+    }
+
+    @MainActor
+    func test3hSK2FirstExternalPurchaseNotifiesLegacyDelegateOnce() async throws {
+        let session = try XCTUnwrap(Self.storeKitSession)
+        session.clearTransactions()
+        await startSDKIfNeeded()
+        ApphudInternal.shared.lastUploadedTransactions = []
+        ApphudStubURLProtocol.reset()
+        ApphudUtils.shared.storeKitObserverMode = true
+        let queue = SKPaymentQueue.default()
+        let capture = LegacyCapture()
+        let observer = ObservedPurchases()
+        let previous = ApphudInternal.shared.delegate
+        ApphudInternal.shared.delegate = observer
+        queue.remove(ApphudStoreKitWrapper.shared)
+        queue.add(capture)
+        defer {
+            queue.remove(capture)
+            queue.add(ApphudStoreKitWrapper.shared)
+            ApphudInternal.shared.delegate = previous
+            session.clearTransactions()
+        }
+        try session.buyProduct(productIdentifier: "com.apphud.lifetime")
+        let captured = await waitUntil { capture.purchased != nil }
+        XCTAssertTrue(captured)
+        let transaction = try XCTUnwrap(capture.purchased)
+        let id = try XCTUnwrap(transaction.transactionIdentifier.flatMap(UInt64.init))
+        let acknowledged = await waitUntil {
+            ApphudInternal.shared.lastUploadedTransactions.contains(id) &&
+            ApphudInternal.shared.submittingTransaction == nil && !ApphudAsyncStoreKit.isProcessing(transactionID: id)
+        }
+        XCTAssertTrue(acknowledged)
+        XCTAssertEqual(ApphudStubURLProtocol.requests(to: "/subscriptions").count, 1)
+        // Deliver the real legacy transaction twice AFTER SK2's successful upload.
+        ApphudStoreKitWrapper.shared.paymentQueue(queue, updatedTransactions: [transaction, transaction])
+        let notified = await waitUntil { observer.count > 0 }
+        XCTAssertTrue(notified, "An acknowledged SK2 upload must not swallow its external SK1 notification")
+        XCTAssertEqual(observer.count, 1)
+        XCTAssertNil(observer.results.first?.error)
+        XCTAssertEqual(observer.results.first?.transaction?.transactionIdentifier, transaction.transactionIdentifier)
+        XCTAssertEqual(ApphudStubURLProtocol.requests(to: "/subscriptions").count, 1, "notification must not resubmit")
+        XCTAssertTrue(queue.transactions.contains { $0.transactionIdentifier == transaction.transactionIdentifier }, "observer false keeps host finish control")
+    }
+
+    @MainActor
+    func test3iSK1FirstExternalPurchaseNotifiesAndFinishesOnceAfterAcknowledgement() async throws {
+        try await checkLegacyFirstPurchase(failFirst: false)
+    }
+
+    @MainActor
+    func test3jFailedObservedPurchaseRemainsUnfinishedAndCanBeRetried() async throws {
+        try await checkLegacyFirstPurchase(failFirst: true)
+    }
+
+    @MainActor
+    func test3kObservedTwinJoiningPublicRestoreUsesItsExactAcknowledgement() async throws {
+        try await checkLegacyFirstPurchase(failFirst: false, restoreFirst: true)
+    }
+
+    @MainActor
+    private func checkLegacyFirstPurchase(failFirst: Bool, restoreFirst: Bool = false) async throws {
+        let session = try XCTUnwrap(Self.storeKitSession)
+        session.clearTransactions()
+        await startSDKIfNeeded()
+        let settled = await waitUntil { !ApphudInternal.shared.isRegisteringUser && ApphudInternal.shared.submittingTransaction == nil }
+        XCTAssertTrue(settled)
+        ApphudInternal.shared.lastUploadedTransactions = []
+        ApphudStubURLProtocol.reset()
+        ApphudUtils.shared.storeKitObserverMode = true
+        // Hold the native listener: this scenario must exercise SK1 as the first sender.
+        let listener = ApphudAsyncStoreKit.shared.transactionsListener
+        listener.updates?.cancel()
+        await listener.updates?.value
+        let queue = SKPaymentQueue.default()
+        let capture = LegacyCapture()
+        let observer = ObservedPurchases()
+        observer.finish = true
+        let previous = ApphudInternal.shared.delegate
+        ApphudInternal.shared.delegate = observer
+        queue.remove(ApphudStoreKitWrapper.shared)
+        queue.add(capture)
+        defer {
+            ApphudStubURLProtocol.subscriptionsFailureStatus = nil
+            ApphudStubURLProtocol.subscriptionsResponseDelay = 0
+            queue.remove(capture)
+            queue.add(ApphudStoreKitWrapper.shared)
+            ApphudInternal.shared.delegate = previous
+            session.clearTransactions()
+            ApphudAsyncStoreKit.shared.transactionsListener = ApphudAsyncTransactionObserver()
+        }
+        try session.buyProduct(productIdentifier: "com.apphud.lifetime")
+        let captured = await waitUntil { capture.purchased != nil }; XCTAssertTrue(captured)
+        let transaction = try XCTUnwrap(capture.purchased)
+        let id = try XCTUnwrap(transaction.transactionIdentifier.flatMap(UInt64.init))
+        XCTAssertTrue(ApphudStubURLProtocol.requests(to: "/subscriptions").isEmpty)
+        ApphudStubURLProtocol.subscriptionsResponseDelay = 0.5
+        if failFirst { ApphudStubURLProtocol.subscriptionsFailureStatus = 422 }
+        var restored = 0
+        if restoreFirst {
+            ApphudInternal.shared.restorePurchases { result in
+                XCTAssertNil(result.error)
+                restored += 1
+            }
+            let restoring = await waitUntil { !ApphudStubURLProtocol.requests(to: "/subscriptions").isEmpty }; XCTAssertTrue(restoring)
+        }
+        ApphudStoreKitWrapper.shared.paymentQueue(queue, updatedTransactions: [transaction, transaction])
+        let started = await waitUntil { !ApphudStubURLProtocol.requests(to: "/subscriptions").isEmpty }; XCTAssertTrue(started)
+        XCTAssertEqual(observer.count, 0, "no completion or finish before the server reply")
+        XCTAssertTrue(queue.transactions.contains { $0.transactionIdentifier == transaction.transactionIdentifier })
+        let completed = await waitUntil { observer.count == 1 }; XCTAssertTrue(completed)
+        if failFirst {
+            XCTAssertNotNil(observer.results.first?.error)
+            XCTAssertFalse(ApphudInternal.shared.lastUploadedTransactions.contains(id))
+            XCTAssertTrue(queue.transactions.contains { $0.transactionIdentifier == transaction.transactionIdentifier }, "even delegate true must not finish after a failed upload")
+            ApphudStubURLProtocol.subscriptionsFailureStatus = nil
+            ApphudStoreKitWrapper.shared.paymentQueue(queue, updatedTransactions: [transaction, transaction])
+            let recovered = await waitUntil { observer.count == 2 }; XCTAssertTrue(recovered)
+        }
+        let finished = await waitUntil { !queue.transactions.contains { $0.transactionIdentifier == transaction.transactionIdentifier } }; XCTAssertTrue(finished)
+        XCTAssertNil(observer.results.last?.error)
+        XCTAssertEqual(observer.results.last?.transaction?.transactionIdentifier, transaction.transactionIdentifier)
+        XCTAssertEqual(observer.count, failFirst ? 2 : 1)
+        XCTAssertEqual(ApphudStubURLProtocol.requests(to: "/subscriptions").count, failFirst ? 2 : 1)
+        XCTAssertEqual(ApphudStubURLProtocol.requests(to: "/subscriptions").first?.body["restore"] as? Bool, restoreFirst)
+        if restoreFirst { XCTAssertEqual(restored, 1) }
+        XCTAssertTrue(ApphudInternal.shared.lastUploadedTransactions.contains(id))
+        ApphudStoreKitWrapper.shared.paymentQueue(queue, updatedTransactions: [transaction])
+        try await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(observer.count, failFirst ? 2 : 1, "redelivery after success must not notify again")
+        XCTAssertEqual(ApphudStubURLProtocol.requests(to: "/subscriptions").count, failFirst ? 2 : 1)
+    }
+
     private final class ObservedPurchases: ApphudDelegate {
         var count = 0
+        var results: [ApphudPurchaseResult] = []
+        var finish = false
         func apphudDidObservePurchase(result: ApphudPurchaseResult) -> Bool {
             count += 1
-            return false
+            results.append(result)
+            return finish
         }
     }
 
@@ -1075,8 +1249,8 @@ final class ApphudSDKTests: XCTestCase {
         ApphudInternal.shared.lastUploadedTransactions = []
 
         // Give the device an entitlement outside of the SDK flow, and let the SDK's own
-        // background tracking of it fully finish — otherwise the restore below would
-        // piggyback on that in-flight submission instead of making its own.
+        // background tracking of it fully finish so this test isolates a standalone restore.
+        // Overlapping false/true submissions are covered separately below.
         try session.buyProduct(productIdentifier: ApphudTestConstants.weeklyProductId)
         let settleDeadline = Date().addingTimeInterval(10)
         repeat {
@@ -1111,12 +1285,11 @@ final class ApphudSDKTests: XCTestCase {
         XCTAssertEqual(body["restore"] as? Bool, true, "the restore the user asked for")
     }
 
-    // MARK: 6. Restore piggybacks on an in-flight submission
+    // MARK: 6. V2 Restore follows an in-flight automatic submission
 
-    /// A restore that arrives while another submission is in flight must receive that
-    /// submission's outcome — not an error and not an eternal wait.
+    /// V2 Restore must send true even when a false upload is already in flight.
     @MainActor
-    func test6RestorePiggybacksOnInflightSubmission() async throws {
+    func test6RestoreSendsTrueAfterInflightSubmission() async throws {
         let session = try XCTUnwrap(Self.storeKitSession)
         session.clearTransactions()
         defer { session.clearTransactions() }
@@ -1138,16 +1311,24 @@ final class ApphudSDKTests: XCTestCase {
             }
         }
 
-        // Give the purchase time to reach the network layer, then restore mid-flight.
-        try await Task.sleep(nanoseconds: 700_000_000)
+        // Wait for an actual false upload, rather than guessing StoreKit's timing.
+        let deadline = Date().addingTimeInterval(10)
+        while ApphudStubURLProtocol.requests(to: "/subscriptions").isEmpty && Date() < deadline {
+            try await Task.sleep(nanoseconds: 20_000_000)
+        }
+        XCTAssertNotNil(ApphudInternal.shared.submittingTransaction)
+        XCTAssertEqual(ApphudStubURLProtocol.requests(to: "/subscriptions").first?.body["restore"] as? Bool, false)
 
         // Bounded wait via XCTestExpectation: the known failure mode of this path is a
         // dropped callback that never resolves — the test must FAIL on that (unfulfilled
         // expectation), not hang the whole run. Task-group timeouts don't work here:
         // the group would still await the non-cancellable continuation on exit.
-        let restoreExpectation = XCTestExpectation(description: "restore completes while a submission is in flight")
+        let restoreExpectation = XCTestExpectation(description: "restore completes after its true submission")
+        restoreExpectation.assertForOverFulfill = true
+        var restoreCallbacks = 0
         let restoreBox = ApphudResultBox()
         ApphudInternal.shared.restorePurchases { result in
+            restoreCallbacks += 1
             restoreBox.result = result
             restoreExpectation.fulfill()
         }
@@ -1158,13 +1339,12 @@ final class ApphudSDKTests: XCTestCase {
 
         XCTAssertNil(purchaseResult.error, "The purchase itself must succeed")
         let restore = try XCTUnwrap(restoreBox.result, "Restore must complete while a submission is in flight — a hang means its callback was dropped")
-        XCTAssertNil(restore.error, "A restore during an in-flight submission must piggyback on its outcome, got: \(String(describing: restore.error))")
+        XCTAssertNil(restore.error, "The separate restore submission must succeed")
+        XCTAssertEqual(restoreCallbacks, 1)
 
-        // The piggyback itself: the restore must NOT have fired a second POST — both
-        // callers share the one in-flight submission. Without this, two independent
-        // stub-blessed submissions would also pass the error checks above.
         let submits = ApphudStubURLProtocol.requests(to: "/subscriptions").filter { $0.method == "POST" }
-        XCTAssertEqual(submits.count, 1, "Restore arriving mid-submission must piggyback, not fire its own request")
+        XCTAssertEqual(submits.count, 2, "V2 Restore needs a separate true upload after the automatic false one")
+        XCTAssertEqual(submits.map { $0.body["restore"] as? Bool }, [false, true])
     }
 
     // MARK: 4. Legacy transaction dedup storage is not trusted after upgrade

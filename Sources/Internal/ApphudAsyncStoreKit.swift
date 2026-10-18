@@ -131,6 +131,9 @@ internal class ApphudAsyncStoreKit {
             case .success(let verificationResult):
                 switch verificationResult {
                 case .verified(let trx):
+                    if !ApphudInternal.shared.isIdentityV1 {
+                        ApphudInternal.shared.observedTransactions.recordSDKPurchase(trx.id)
+                    }
                     transaction = trx
                     transactionJws = verificationResult.jwsRepresentation
                 case .unverified(let trx, let verificationError):
@@ -195,14 +198,21 @@ internal class ApphudAsyncStoreKit {
             return await inFlight.value
         }
 
+        let generation = ApphudInternal.shared.observedTransactions.generation
         let task = Task { @MainActor in
-            // Finish only after the transaction is handled: an unfinished transaction is
-            // redelivered by StoreKit on the next launch, so a submit that failed against
-            // the backend keeps the transaction alive for a retry.
-            let submitError = await ApphudInternal.shared.handleTransactionResult(transaction, jws: jws, fromScreen: fromScreen, automatic: automatic)
+            let sdk = ApphudInternal.shared
+            let submitError = await sdk.handleTransactionResult(transaction, jws: jws, fromScreen: fromScreen, automatic: automatic)
             if submitError == nil {
-                await transaction.finish()
+                if sdk.isIdentityV1 {
+                    await transaction.finish()
+                } else {
+                    let ownsFinish = !automatic || sdk.observedTransactions.isSDKPurchase(transaction.id) || !ApphudUtils.shared.storeKitObserverMode
+                    if ownsFinish && sdk.observedTransactions.claimFinish(transaction.id, generation: generation) {
+                        await transaction.finish()
+                    }
+                }
             }
+            if !sdk.isIdentityV1 { sdk.observedTransactions.processingEnded(transaction.id, generation: generation) }
             return submitError
         }
 

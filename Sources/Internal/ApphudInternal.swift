@@ -54,6 +54,12 @@ final class ApphudInternal: NSObject {
     // Single-flight slot for receipt submission. Main-actor isolated because it decides
     // whether a transaction may be finished — it must not be read or written concurrently.
     @MainActor internal var submittingTransaction: String?
+    // V2 restore waits for a false submission; its retry belongs to this session and upload.
+    @MainActor internal var submittingReceiptRestore = false
+    @MainActor internal var submittingReceiptID: UUID?
+    @MainActor internal var submittingReceiptIdentity: ApphudIdentity?
+    @MainActor internal var receiptSessionGeneration = UUID()
+    @MainActor internal var observedTransactions = ApphudObservedTransactions()
     // A transaction check that arrived while a purchase was in flight; it runs once that
     // purchase completes, so the check is neither dropped nor polled for.
     @MainActor internal var deferredTransactionCheck = false
@@ -999,6 +1005,11 @@ final class ApphudInternal: NSObject {
             userRegisteredCallbacks.removeAll()
             storeKitProductsFetchedCallbacks.forEach { $0(logoutError) }
             storeKitProductsFetchedCallbacks.removeAll()
+            receiptSessionGeneration = UUID()
+            observedTransactions.reset()
+            submittingReceiptID = nil
+            submittingReceiptIdentity = nil
+            submittingReceiptRestore = false
             submitReceiptCallbacks.forEach { $0?(logoutError) }
             submitReceiptCallbacks.removeAll()
             lastUploadedTransactions = []
@@ -1098,6 +1109,11 @@ final class ApphudInternal: NSObject {
             userRegisteredCallbacks.removeAll()
             storeKitProductsFetchedCallbacks.forEach { $0(logoutError) }
             storeKitProductsFetchedCallbacks.removeAll()
+            receiptSessionGeneration = UUID()
+            observedTransactions.reset()
+            submittingReceiptID = nil
+            submittingReceiptIdentity = nil
+            submittingReceiptRestore = false
             submitReceiptCallbacks.forEach { $0?(logoutError) }
             submitReceiptCallbacks.removeAll()
             lastUploadedTransactions = []
