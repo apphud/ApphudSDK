@@ -159,6 +159,44 @@ final class ApphudIdentityTests: XCTestCase {
 
     // MARK: - Identity model
 
+    func testDefaultIDFactoryCreatesLowercaseUUIDsForVersion2() throws {
+        let store = ApphudIdentityStore(defaults: defaults, keychain: keychain, installRecords: installRecords)
+        var identity = try XCTUnwrap(store.resolve(ApphudSuppliedIDs())).identity
+        let installationID = identity.installationID
+        let anonymousID = identity.anonymousID
+        store.logout(anonymousID: nil, &identity)
+        for id in [installationID, anonymousID, identity.anonymousID] {
+            XCTAssertNotNil(UUID(uuidString: id))
+            XCTAssertEqual(id, id.lowercased())
+        }
+        XCTAssertEqual(identity.installationID, installationID)
+        XCTAssertNotEqual(identity.anonymousID, anonymousID)
+        XCTAssertEqual(try XCTUnwrap(store.resolve(ApphudSuppliedIDs())).identity, identity)
+    }
+
+    func testDefaultIDFactoryPreservesStoredAndHostIDCase() throws {
+        let supplied = ApphudSuppliedIDs(userID: "Host-User-ABC", anonymousID: "AABBCCDD-AABB-CCDD-EEFF-AABBCCDDEEFF", installationID: "11223344-AABB-CCDD-EEFF-112233445566")
+        let store = ApphudIdentityStore(defaults: defaults, keychain: keychain, installRecords: installRecords)
+        var identity = try XCTUnwrap(store.resolve(supplied)).identity
+        XCTAssertEqual(identity.installationID, supplied.installationID)
+        XCTAssertEqual(identity.anonymousID, supplied.anonymousID)
+        XCTAssertEqual(identity.userID, supplied.userID)
+        let relaunched = ApphudIdentityStore(defaults: defaults, keychain: keychain, installRecords: installRecords)
+        XCTAssertEqual(try XCTUnwrap(relaunched.resolve(ApphudSuppliedIDs())).identity, identity)
+        relaunched.logout(anonymousID: "Host-New-Anonymous-ABC", &identity)
+        XCTAssertEqual(identity.anonymousID, "Host-New-Anonymous-ABC")
+        XCTAssertEqual(identity.installationID, supplied.installationID)
+    }
+
+    func testDefaultIDFactoryPreservesVersion1UUIDCaseAfterVersion2Logout() throws {
+        let store = ApphudIdentityStore(defaults: defaults, keychain: keychain, installRecords: installRecords)
+        var identity = try XCTUnwrap(store.resolve(ApphudSuppliedIDs())).identity
+        store.logout(anonymousID: nil, &identity)
+        let deviceID = try XCTUnwrap(store.idsForVersion1()?.deviceID)
+        XCTAssertNotNil(UUID(uuidString: deviceID))
+        XCTAssertEqual(deviceID, deviceID.uppercased(), "V1 keeps its existing UUID format")
+    }
+
     func testModelFreshInstall_MintsInstallationAndAnonymousIds_NoUser() {
         let identity = launch().identity
 
@@ -973,6 +1011,192 @@ final class ApphudIdentityTests: XCTestCase {
     }
     #endif
 
+    private func embeddedIDs(userID: String? = nil) -> ApphudSuppliedIDs {
+        ApphudSuppliedIDs(userID: userID, anonymousID: "host-anon", installationID: "host-install")
+    }
+
+    func testEmbeddedUpgradeSendsStoredLegacyIDWithoutReplacingHostIDs() {
+        seedOldSDK(deviceID: "OLD-DEVICE", userID: "old-real-user")
+        let before = keychain.items
+        let result = launch(embeddedIDs())
+        XCTAssertEqual(result.launch, .upgrade)
+        XCTAssertEqual(customerParams(result.identity)["legacy_device_id"] as? String, "OLD-DEVICE")
+        XCTAssertEqual(result.identity.installationID, "host-install")
+        XCTAssertEqual(result.identity.anonymousID, "host-anon")
+        XCTAssertNil(result.identity.userID)
+        XCTAssertEqual(defaults.string(forKey: "com.apphud.device_id"), "OLD-DEVICE")
+        XCTAssertEqual(keychain.accessCount, 0)
+        XCTAssertEqual(keychain.items, before)
+        XCTAssertEqual(idCounter, 0)
+    }
+
+    func testEmbeddedCoreUpgradeAlsoSendsLegacyIDWithoutDependingOnUserIDSearch() {
+        seedOldSDK(deviceID: "OLD-DEVICE", userID: "host-anon")
+        let result = launch(embeddedIDs())
+        XCTAssertEqual(customerParams(result.identity)["legacy_device_id"] as? String, "OLD-DEVICE")
+        XCTAssertNil(result.identity.userID)
+        XCTAssertFalse(result.switchedUser)
+    }
+
+    func testEmbeddedRealUserEqualToNewHostAnonymousIDStillSwitchesToAnotherRealUser() {
+        seedOldSDK(deviceID: "OLD-DEVICE", userID: "host-anon")
+        let result = launch(embeddedIDs(userID: "Bob"))
+        XCTAssertTrue(result.switchedUser)
+        XCTAssertEqual(result.identity.userID, "Bob")
+        XCTAssertNil(customerParams(result.identity)["legacy_device_id"], "Core's old real user must not be guessed to be generated")
+    }
+
+    func testEmbeddedFirstIdentifyOfOldGeneratedUserIsNotAnAccountSwitch() {
+        seedOldSDK(deviceID: "OLD-DEVICE", userID: "OLD-DEVICE")
+        let result = launch(embeddedIDs(userID: "Alice"))
+        XCTAssertFalse(result.switchedUser)
+        XCTAssertEqual(result.identity.userID, "Alice")
+        XCTAssertEqual(customerParams(result.identity)["legacy_device_id"] as? String, "OLD-DEVICE")
+    }
+
+    func testEmbeddedOldGeneratedIDPassedAsUserIsNotPromotedToRealUser() {
+        seedOldSDK(deviceID: "OLD-DEVICE", userID: "OLD-DEVICE")
+        let result = launch(embeddedIDs(userID: "OLD-DEVICE"))
+        XCTAssertNil(result.identity.userID)
+        XCTAssertFalse(result.switchedUser)
+        XCTAssertEqual(customerParams(result.identity)["legacy_device_id"] as? String, "OLD-DEVICE")
+    }
+
+    func testEmbeddedPendingLegacyIDSurvivesRelaunchUntilCarryingRegistrationSucceeds() {
+        seedOldSDK(deviceID: "OLD-DEVICE", userID: "old-real-user")
+        _ = launch(embeddedIDs())
+        var next = launch(embeddedIDs())
+        XCTAssertEqual(customerParams(next.identity)["legacy_device_id"] as? String, "OLD-DEVICE")
+        makeStore().markRegistered(reinstallSent: false, legacyDeviceIDSent: false, installationID: "host-install")
+        XCTAssertEqual(customerParams(next.identity)["legacy_device_id"] as? String, "OLD-DEVICE")
+        makeStore().markRegistered(reinstallSent: false, legacyDeviceIDSent: true, installationID: "host-install")
+        next = launch(embeddedIDs())
+        XCTAssertNil(customerParams(next.identity)["legacy_device_id"])
+        XCTAssertEqual(defaults.string(forKey: "com.apphud.device_id"), "OLD-DEVICE", "V1 rollback data stays")
+        let another = launch(ApphudSuppliedIDs(anonymousID: "host-anon", installationID: "another-host-install"))
+        XCTAssertNil(customerParams(another.identity)["legacy_device_id"], "retained V1 defaults are not a new migration")
+    }
+
+    func testEmbeddedFailedRecordWriteRetainsLegacyAcrossProcessRelaunch() {
+        seedOldSDK(deviceID: "OLD-DEVICE", userID: "old-real-user")
+        installRecords.failWrites = true
+        let store = makeStore()
+        let first = store.resolve(embeddedIDs())!
+        XCTAssertEqual(store.registrationReport(for: first.identity).legacyDeviceID, "OLD-DEVICE")
+        let restarted = makeStore()
+        let next = restarted.resolve(embeddedIDs())!
+        XCTAssertEqual(restarted.registrationReport(for: next.identity).legacyDeviceID, "OLD-DEVICE")
+        installRecords.failWrites = false
+        let saved = launch(embeddedIDs())
+        XCTAssertEqual(customerParams(saved.identity)["legacy_device_id"] as? String, "OLD-DEVICE")
+    }
+
+    func testEmbeddedVersion1ReturnWithFailedRecordWriteUsesCurrentLegacyDevice() {
+        let previous = launch(embeddedIDs()).identity
+        runVersion1(deviceID: "V1-DEVICE", userID: "V1-DEVICE")
+        installRecords.failWrites = true
+        let store = makeStore()
+        let result = store.resolve(embeddedIDs())!
+        XCTAssertEqual(result.identity.installationID, previous.installationID)
+        XCTAssertEqual(store.registrationReport(for: result.identity).legacyDeviceID, "V1-DEVICE")
+    }
+
+    func testEmbeddedAcknowledgementWithFailedRecordWriteStopsLegacyInThisProcess() {
+        seedOldSDK(deviceID: "OLD-DEVICE", userID: "old-real-user")
+        let store = makeStore()
+        let result = store.resolve(embeddedIDs())!
+        XCTAssertEqual(store.registrationReport(for: result.identity).legacyDeviceID, "OLD-DEVICE")
+        installRecords.failWrites = true
+        store.markRegistered(reinstallSent: false, legacyDeviceIDSent: true, installationID: "host-install")
+        XCTAssertNil(store.registrationReport(for: result.identity).legacyDeviceID)
+    }
+
+    func testEmbeddedSwitchWithFailedRecordWriteDoesNotAdoptPreviousUserOnRelaunch() {
+        seedOldSDK(deviceID: "OLD-DEVICE", userID: "Alice")
+        _ = launch(embeddedIDs(userID: "Alice"))
+        XCTAssertEqual(installRecords.record?.legacyDeviceID, "OLD-DEVICE")
+        installRecords.failWrites = true
+        let store = makeStore()
+        let other = store.resolve(embeddedIDs(userID: "Bob"))!
+        XCTAssertTrue(other.switchedUser)
+        XCTAssertNil(store.registrationReport(for: other.identity).legacyDeviceID)
+        let restarted = makeStore()
+        let again = restarted.resolve(embeddedIDs(userID: "Bob"))!
+        XCTAssertNil(restarted.registrationReport(for: again.identity).legacyDeviceID)
+    }
+
+    func testEmbeddedVersion1ReturnWithStableHostIDsStillRegistersNewLegacyMetadata() {
+        let first = launch(embeddedIDs()).identity
+        makeStore().markSynced()
+        runVersion1(deviceID: "V1-DEVICE", userID: first.anonymousID)
+        makeStore().markSynced()
+        let next = launch(embeddedIDs())
+        XCTAssertEqual(next.identity, first)
+        XCTAssertTrue(next.changed)
+        XCTAssertTrue(makeStore().isSyncPending)
+        XCTAssertEqual(customerParams(next.identity)["legacy_device_id"] as? String, "V1-DEVICE")
+        XCTAssertFalse(next.switchedUser)
+    }
+
+    func testEmbeddedReturnAfterVersion1LogoutAdoptsItsNewCurrentDeviceNotThePreviousPerson() {
+        _ = launch(embeddedIDs())
+        makeStore().markVersion1LoggedOut()
+        runVersion1(deviceID: "NEW-V1-PERSON", userID: "NEW-V1-PERSON", tookOverVersion2: false)
+        let supplied = ApphudSuppliedIDs(anonymousID: "new-host-anon", installationID: "host-install")
+        let result = launch(supplied)
+        XCTAssertFalse(result.switchedUser)
+        XCTAssertEqual(customerParams(result.identity)["legacy_device_id"] as? String, "NEW-V1-PERSON")
+        XCTAssertEqual(result.identity.anonymousID, "new-host-anon")
+        XCTAssertNil(result.identity.userID)
+        XCTAssertFalse(defaults.bool(forKey: ApphudIdentityStore.version1LoggedOutKey))
+        XCTAssertEqual(keychain.accessCount, 0)
+        XCTAssertEqual(customerParams(launch(supplied).identity)["legacy_device_id"] as? String, "NEW-V1-PERSON")
+    }
+
+    func testEmbeddedRealHostUserEqualToInstallationIDSurvivesVersion1RoundTrip() {
+        let first = launch(embeddedIDs(userID: "host-install")).identity
+        runVersion1(deviceID: first.installationID, userID: "host-install")
+        let next = launch(embeddedIDs(userID: "host-install"))
+        XCTAssertEqual(next.identity.userID, "host-install")
+        XCTAssertFalse(next.switchedUser)
+        makeStore().markRegistered(reinstallSent: false, legacyDeviceIDSent: true, installationID: first.installationID)
+        XCTAssertEqual(launch(embeddedIDs(userID: "host-install")).identity.userID, "host-install")
+    }
+
+    func testEmbeddedCurrentVersion1GeneratedIDIsNeverPromotedAfterAcknowledgementAndRelaunch() {
+        seedOldSDK(deviceID: "FIRST-DEVICE", userID: "FIRST-DEVICE")
+        _ = launch(embeddedIDs())
+        makeStore().markRegistered(reinstallSent: false, legacyDeviceIDSent: true, installationID: "host-install")
+        runVersion1(deviceID: "CURRENT-V1-DEVICE", userID: "CURRENT-V1-DEVICE")
+        let store = makeStore()
+        var current = store.resolve(embeddedIDs(userID: "CURRENT-V1-DEVICE"))!.identity
+        XCTAssertNil(current.userID)
+        store.markRegistered(reinstallSent: false, legacyDeviceIDSent: true, installationID: current.installationID)
+        XCTAssertEqual(store.identify("CURRENT-V1-DEVICE", &current), .unchanged)
+        XCTAssertNil(current.userID)
+        XCTAssertNil(launch(embeddedIDs(userID: "CURRENT-V1-DEVICE")).identity.userID)
+        XCTAssertNil(launch(embeddedIDs(userID: "FIRST-DEVICE")).identity.userID)
+    }
+
+    func testEmbeddedPreMarkerVersion2RecordNeverResurrectsRollbackDeviceID() {
+        _ = launch(embeddedIDs())
+        defaults.set("ROLLBACK-DEVICE", forKey: "com.apphud.device_id")
+        defaults.removeObject(forKey: "com.apphud.identity_version")
+        let next = launch(embeddedIDs())
+        XCTAssertEqual(next.launch, .normal)
+        XCTAssertNil(customerParams(next.identity)["legacy_device_id"])
+    }
+
+    func testEmbeddedHostReportedReinstallDropsPendingOldCustomer() {
+        seedOldSDK(deviceID: "OLD-DEVICE", userID: "old-real-user")
+        let first = launch(embeddedIDs())
+        XCTAssertEqual(customerParams(first.identity)["legacy_device_id"] as? String, "OLD-DEVICE")
+        let reinstall = ApphudSuppliedIDs(anonymousID: "host-anon", installationID: "host-install", isReinstall: true)
+        let next = launch(reinstall)
+        XCTAssertNil(customerParams(next.identity)["legacy_device_id"])
+        XCTAssertNil(customerParams(launch(reinstall).identity)["legacy_device_id"])
+    }
+
     // MARK: - Ids supplied by the app
 
     func testSuppliedIDsTakeIsReinstallFromTheAppAndNeverTouchKeychain() {
@@ -1113,6 +1337,76 @@ final class ApphudIdentityTests: XCTestCase {
 
         XCTAssertNil(other.identity.isReinstall)
         XCTAssertNil(customerParams(other.identity)["reinstall"])
+    }
+
+    func testReportedReinstallOnPreviousHostInstallationCannotSuppressNewInstallAtStart() {
+        _ = launch(ApphudSuppliedIDs(anonymousID: "host-anon", installationID: "inst-A", isReinstall: true))
+        makeStore().markRegistered(reinstallSent: true, legacyDeviceIDSent: false)
+        makeStore().markSynced()
+
+        let next = launch(ApphudSuppliedIDs(anonymousID: "host-anon", installationID: "inst-B", isReinstall: true))
+
+        XCTAssertEqual(customerParams(next.identity)["reinstall"] as? Bool, true)
+        XCTAssertTrue(makeStore().isSyncPending)
+        makeStore().markRegistered(reinstallSent: true, legacyDeviceIDSent: false)
+        makeStore().markSynced()
+        XCTAssertNil(customerParams(next.identity)["reinstall"], "ACK belongs to the new install now")
+        _ = launch(ApphudSuppliedIDs(anonymousID: "host-anon", installationID: "inst-B", isReinstall: true))
+        XCTAssertFalse(makeStore().isSyncPending, "same-install ACK still suppresses retries")
+    }
+
+    @MainActor
+    func testReportedReinstallOnPreviousHostInstallationCannotSuppressLateNewAnswer() {
+        let sdk = launchWithAppIDs(isReinstall: true)
+        sdk.identityStore.markRegistered(reinstallSent: true, legacyDeviceIDSent: false, installationID: sdk.currentInstallationID)
+        sdk.identityStore.markSynced()
+        sdk.identity = sdk.identityStore.resolve(ApphudSuppliedIDs(anonymousID: "host-anon", installationID: "next-host-inst"))!.identity
+        sdk.identityStore.markSynced()
+        XCTAssertNil(sdk.isReinstall)
+
+        sdk.setReinstall(true)
+
+        XCTAssertTrue(sdk.identityStore.isSyncPending)
+        XCTAssertTrue(sdk.identityStore.registrationReport(for: sdk.identity).reinstall)
+        XCTAssertNil(installRecords.record?.reinstallReported, "previous installation's ACK must be discarded")
+        let relaunch = launch(ApphudSuppliedIDs(anonymousID: "host-anon", installationID: "next-host-inst"))
+        XCTAssertEqual(customerParams(relaunch.identity)["reinstall"] as? Bool, true, "late answer survives relaunch")
+    }
+
+    @MainActor
+    func testPreviousHostInstallACKCannotSuppressNewAnswerWhenNewRecordWriteFails() {
+        let sdk = launchWithAppIDs(isReinstall: true)
+        sdk.identityStore.markRegistered(reinstallSent: true, legacyDeviceIDSent: false, installationID: sdk.currentInstallationID)
+        installRecords.failWrites = true
+        sdk.identity = sdk.identityStore.resolve(ApphudSuppliedIDs(anonymousID: "host-anon", installationID: "next-host-inst", isReinstall: true))!.identity
+        XCTAssertTrue(sdk.identityStore.registrationReport(for: sdk.identity).reinstall)
+        sdk.identityStore.markSynced()
+
+        sdk.setReinstall(true)
+
+        XCTAssertTrue(sdk.identityStore.isSyncPending)
+        XCTAssertTrue(sdk.identityStore.registrationReport(for: sdk.identity).reinstall)
+        XCTAssertEqual(installRecords.record?.installationID, "host-inst", "failed write retained the foreign record")
+    }
+
+    @MainActor
+    func testNewHostAnswerAndACKNeverUpdateThePreviousInstallRecordAfterFailedWrite() {
+        let sdk = launchWithAppIDs(isReinstall: false)
+        let previous = installRecords.record
+        installRecords.failWrites = true
+        sdk.identity = sdk.identityStore.resolve(ApphudSuppliedIDs(anonymousID: "host-anon", installationID: "next-host-inst"))!.identity
+        installRecords.failWrites = false
+
+        sdk.setReinstall(true)
+        XCTAssertEqual(installRecords.record, previous, "new host answer cannot edit another installation")
+        XCTAssertTrue(sdk.identityStore.registrationReport(for: sdk.identity).reinstall)
+        sdk.identityStore.markRegistered(reinstallSent: true, legacyDeviceIDSent: false, installationID: sdk.currentInstallationID)
+        sdk.identityStore.markSynced()
+
+        XCTAssertEqual(installRecords.record, previous, "new installation ACK cannot be written to the previous one")
+        XCTAssertFalse(sdk.identityStore.registrationReport(for: sdk.identity).reinstall, "accepted in-memory ACK still suppresses repeats")
+        sdk.setReinstall(true)
+        XCTAssertFalse(sdk.identityStore.isSyncPending)
     }
 
     @MainActor

@@ -17,6 +17,24 @@ import XCTest
 import StoreKit
 import StoreKitTest
 
+// StoreKitTest clearTransactions() reuses transaction IDs while SK1 can still deliver
+// a previous wrapper. Delete the history without resetting IDs between scenarios;
+// assertions about SDK finish run before this cleanup.
+private extension SKTestSession {
+    func removeTestTransactions(file: StaticString = #filePath, line: UInt = #line) {
+        do {
+            // Deleting an original subscription also deletes its renewals. Read the
+            // remaining history after each deletion instead of using stale identifiers.
+            while let transaction = allTransactions().first {
+                try deleteTransaction(identifier: transaction.identifier)
+            }
+            XCTAssertTrue(allTransactions().isEmpty, "StoreKitTest history did not drain", file: file, line: line)
+        } catch {
+            XCTFail("StoreKitTest cleanup failed: \(error)", file: file, line: line)
+        }
+    }
+}
+
 // MARK: - Network stub
 
 /// Intercepts all Apphud gateway traffic, records request payloads and serves fixtures.
@@ -281,7 +299,7 @@ final class ApphudSDKTests: XCTestCase {
     override func setUp() async throws {
         try await super.setUp()
         await MainActor.run {
-            // StoreKitTest resets transaction ids between scenarios; runtime SDK state must match it.
+            // Each scenario starts with an independent observer decision ledger.
             ApphudInternal.shared.observedTransactions.reset()
         }
     }
@@ -289,12 +307,12 @@ final class ApphudSDKTests: XCTestCase {
     override func tearDown() async throws {
         await MainActor.run {
             // The host finishes observer-mode purchases after their assertions. StoreKitTest
-            // reuses transaction ids, so a leftover legacy twin must not enter the next test.
+            // must not deliver a leftover legacy twin into the next test.
             let queue = SKPaymentQueue.default()
             for transaction in queue.transactions where [.purchased, .failed, .restored].contains(transaction.transactionState) {
                 queue.finishTransaction(transaction)
             }
-            Self.storeKitSession?.clearTransactions()
+            Self.storeKitSession?.removeTestTransactions()
             NSObject.cancelPreviousPerformRequests(withTarget: ApphudInternal.shared, selector: #selector(ApphudInternal.submitAppStoreReceipt), object: nil)
             NSObject.cancelPreviousPerformRequests(withTarget: ApphudInternal.shared, selector: #selector(ApphudInternal.checkTransactionsNow), object: nil)
         }
@@ -459,8 +477,8 @@ final class ApphudSDKTests: XCTestCase {
     @MainActor
     private func purchasePromoOffer(deviceID: String, whileSigning: (() -> Void)? = nil) async throws -> (signed: String?, options: Set<Product.PurchaseOption>) {
         let session = try XCTUnwrap(Self.storeKitSession)
-        session.clearTransactions()
-        defer { session.clearTransactions() }
+        session.removeTestTransactions()
+        defer { session.removeTestTransactions() }
 
         await startSDKIfNeeded()
         let deadline = Date().addingTimeInterval(15)
@@ -569,8 +587,8 @@ final class ApphudSDKTests: XCTestCase {
     @MainActor
     func test7RestoreDoesNotHangWhenRegistrationCannotSucceed() async throws {
         let session = try XCTUnwrap(Self.storeKitSession)
-        session.clearTransactions()
-        defer { session.clearTransactions() }
+        session.removeTestTransactions()
+        defer { session.removeTestTransactions() }
 
         await startSDKIfNeeded()
         ApphudInternal.shared.lastUploadedTransactions = []
@@ -620,8 +638,8 @@ final class ApphudSDKTests: XCTestCase {
     @MainActor
     func test9StoreKitFailureReturnsControlWithError() async throws {
         let session = try XCTUnwrap(Self.storeKitSession)
-        session.clearTransactions()
-        defer { session.clearTransactions() }
+        session.removeTestTransactions()
+        defer { session.removeTestTransactions() }
 
         await startSDKIfNeeded()
         ApphudInternal.shared.lastUploadedTransactions = []
@@ -647,7 +665,7 @@ final class ApphudSDKTests: XCTestCase {
     @MainActor
     func test2PurchaseSubmitsReceiptToBackend() async throws {
         let session = try XCTUnwrap(Self.storeKitSession)
-        session.clearTransactions()
+        session.removeTestTransactions()
 
         await startSDKIfNeeded()
         ApphudStubURLProtocol.reset()
@@ -712,10 +730,10 @@ final class ApphudSDKTests: XCTestCase {
     @MainActor
     func test3ForeignPurchaseIsTracked() async throws {
         let session = try XCTUnwrap(Self.storeKitSession)
-        session.clearTransactions()
+        session.removeTestTransactions()
         // Untracked foreign transactions stay unfinished in observer mode — drop them
         // so they don't leak into the next test run.
-        defer { session.clearTransactions() }
+        defer { session.removeTestTransactions() }
 
         await startSDKIfNeeded()
         ApphudStubURLProtocol.reset()
@@ -747,8 +765,8 @@ final class ApphudSDKTests: XCTestCase {
     @MainActor
     func test3bConcurrentDeliveryUploadsTransactionOnce() async throws {
         let session = try XCTUnwrap(Self.storeKitSession)
-        session.clearTransactions()
-        defer { session.clearTransactions() }
+        session.removeTestTransactions()
+        defer { session.removeTestTransactions() }
 
         await startSDKIfNeeded()
         ApphudInternal.shared.lastUploadedTransactions = []
@@ -792,8 +810,8 @@ final class ApphudSDKTests: XCTestCase {
     @MainActor
     func test3cFailedUploadDoesNotMarkTransactionAsUploaded() async throws {
         let session = try XCTUnwrap(Self.storeKitSession)
-        session.clearTransactions()
-        defer { session.clearTransactions() }
+        session.removeTestTransactions()
+        defer { session.removeTestTransactions() }
 
         await startSDKIfNeeded()
         ApphudInternal.shared.lastUploadedTransactions = []
@@ -837,8 +855,8 @@ final class ApphudSDKTests: XCTestCase {
     @MainActor
     func test3dFailedUploadIsRecoveredOnRedelivery() async throws {
         let session = try XCTUnwrap(Self.storeKitSession)
-        session.clearTransactions()
-        defer { session.clearTransactions() }
+        session.removeTestTransactions()
+        defer { session.removeTestTransactions() }
 
         await startSDKIfNeeded()
         ApphudInternal.shared.lastUploadedTransactions = []
@@ -884,8 +902,8 @@ final class ApphudSDKTests: XCTestCase {
     @MainActor
     func test2bPurchaseOfAUUIDUserCarriesAndRemembersItsToken() async throws {
         let session = try XCTUnwrap(Self.storeKitSession)
-        session.clearTransactions()
-        defer { session.clearTransactions() }
+        session.removeTestTransactions()
+        defer { session.removeTestTransactions() }
         await startSDKIfNeeded()
         ApphudStubURLProtocol.reset()
         ApphudInternal.shared.lastUploadedTransactions = []
@@ -923,8 +941,8 @@ final class ApphudSDKTests: XCTestCase {
     func test3eAutomaticPathsSkipAnotherAccountsTransaction() async throws {
         guard #available(iOS 17.0, *) else { throw XCTSkip("buyProduct(identifier:options:) needs iOS 17") }
         let session = try XCTUnwrap(Self.storeKitSession)
-        session.clearTransactions()
-        defer { session.clearTransactions() }
+        session.removeTestTransactions()
+        defer { session.removeTestTransactions() }
         await startSDKIfNeeded()
 
         let alice = UUID()
@@ -981,8 +999,8 @@ final class ApphudSDKTests: XCTestCase {
     @MainActor
     func test3fForeignPurchaseIsTrackedOnceAUUIDUserBoughtHere() async throws {
         let session = try XCTUnwrap(Self.storeKitSession)
-        session.clearTransactions()
-        defer { session.clearTransactions() }
+        session.removeTestTransactions()
+        defer { session.removeTestTransactions() }
         await startSDKIfNeeded()
 
         let tokensKey = ApphudStoreKitWrapper.purchaseUserTokensKey
@@ -1032,7 +1050,7 @@ final class ApphudSDKTests: XCTestCase {
     @MainActor
     func test3hSK2FirstExternalPurchaseNotifiesLegacyDelegateOnce() async throws {
         let session = try XCTUnwrap(Self.storeKitSession)
-        session.clearTransactions()
+        session.removeTestTransactions()
         await startSDKIfNeeded()
         ApphudInternal.shared.lastUploadedTransactions = []
         ApphudStubURLProtocol.reset()
@@ -1048,7 +1066,7 @@ final class ApphudSDKTests: XCTestCase {
             queue.remove(capture)
             queue.add(ApphudStoreKitWrapper.shared)
             ApphudInternal.shared.delegate = previous
-            session.clearTransactions()
+            session.removeTestTransactions()
         }
         try session.buyProduct(productIdentifier: "com.apphud.lifetime")
         let captured = await waitUntil { capture.purchased != nil }
@@ -1090,7 +1108,7 @@ final class ApphudSDKTests: XCTestCase {
     @MainActor
     private func checkLegacyFirstPurchase(failFirst: Bool, restoreFirst: Bool = false) async throws {
         let session = try XCTUnwrap(Self.storeKitSession)
-        session.clearTransactions()
+        session.removeTestTransactions()
         await startSDKIfNeeded()
         let settled = await waitUntil { !ApphudInternal.shared.isRegisteringUser && ApphudInternal.shared.submittingTransaction == nil }
         XCTAssertTrue(settled)
@@ -1115,7 +1133,7 @@ final class ApphudSDKTests: XCTestCase {
             queue.remove(capture)
             queue.add(ApphudStoreKitWrapper.shared)
             ApphudInternal.shared.delegate = previous
-            session.clearTransactions()
+            session.removeTestTransactions()
             ApphudAsyncStoreKit.shared.transactionsListener = ApphudAsyncTransactionObserver()
         }
         try session.buyProduct(productIdentifier: "com.apphud.lifetime")
@@ -1160,6 +1178,68 @@ final class ApphudSDKTests: XCTestCase {
         XCTAssertEqual(ApphudStubURLProtocol.requests(to: "/subscriptions").count, failFirst ? 2 : 1)
     }
 
+    @MainActor
+    func test3lNativePurchaseWaitingForRegistrationCannotCrossIdentify() async throws {
+        guard #available(iOS 17.0, *) else { throw XCTSkip("StoreKitTest purchase token options need iOS 17") }
+        let session = try XCTUnwrap(Self.storeKitSession)
+        session.removeTestTransactions()
+        await startSDKIfNeeded()
+        let sdk = ApphudInternal.shared
+        let settled = await waitUntil { !sdk.isRegisteringUser && sdk.submittingTransaction == nil }; XCTAssertTrue(settled)
+        let savedIdentity = sdk.identity
+        let savedUser = sdk.currentUser
+        let savedUploads = sdk.lastUploadedTransactions
+        let tokensKey = ApphudStoreKitWrapper.purchaseUserTokensKey
+        let savedTokens = UserDefaults.standard.object(forKey: tokensKey)
+        let queue = SKPaymentQueue.default()
+        let capture = LegacyCapture()
+        let listener = ApphudAsyncStoreKit.shared.transactionsListener
+        listener.updates?.cancel()
+        await listener.updates?.value
+        queue.remove(ApphudStoreKitWrapper.shared)
+        queue.add(capture)
+        addTeardownBlock { @MainActor in
+            if let transaction = capture.purchased { queue.finishTransaction(transaction) }
+            session.removeTestTransactions()
+            let drained = await self.waitUntil { queue.transactions.isEmpty }
+            XCTAssertTrue(drained)
+            sdk.identity = savedIdentity
+            sdk.currentUser = savedUser
+            sdk.lastUploadedTransactions = savedUploads
+            if let savedTokens { UserDefaults.standard.set(savedTokens, forKey: tokensKey) }
+            else { UserDefaults.standard.removeObject(forKey: tokensKey) }
+            queue.remove(capture)
+            queue.add(ApphudStoreKitWrapper.shared)
+            ApphudAsyncStoreKit.shared.transactionsListener = ApphudAsyncTransactionObserver()
+        }
+        let alice = UUID()
+        var identity = savedIdentity
+        identity.userID = alice.uuidString
+        sdk.identity = identity
+        ApphudStoreKitWrapper.rememberPurchaseToken(alice, identity: identity)
+        NSObject.cancelPreviousPerformRequests(withTarget: sdk, selector: #selector(ApphudInternal.checkTransactionsNow), object: nil)
+        let native = try await session.buyProduct(identifier: "com.apphud.lifetime", options: [.appAccountToken(alice)])
+        let latest = await StoreKit.Transaction.latest(for: "com.apphud.lifetime")
+        let verified = try XCTUnwrap(latest)
+        XCTAssertEqual(verified.unsafePayloadValue.id, native.id)
+        sdk.currentUser = nil
+        sdk.lastUploadedTransactions = []
+        ApphudStubURLProtocol.reset()
+        let processing = Task { await ApphudAsyncStoreKit.processTransaction(verified.unsafePayloadValue, jws: verified.jwsRepresentation, automatic: true) }
+        let queued = await waitUntil { sdk.pendingUserRegistrationCallbackCount > 0 }; XCTAssertTrue(queued)
+        identity.userID = UUID().uuidString
+        sdk.identity = identity
+        sdk.currentUser = savedUser
+        sdk.performAllUserRegisteredBlocks()
+        let error = await processing.value
+        XCTAssertNotNil(error)
+        XCTAssertTrue(ApphudStubURLProtocol.requests(to: "/subscriptions").isEmpty,
+                      "filtering Alice's purchase must not turn into an upload from the next identity")
+        var unfinished = false
+        for await result in StoreKit.Transaction.unfinished where result.unsafePayloadValue.id == native.id { unfinished = true }
+        XCTAssertTrue(unfinished, "an account-canceled submission cannot authorize native finish")
+    }
+
     private final class ObservedPurchases: ApphudDelegate {
         var count = 0
         var results: [ApphudPurchaseResult] = []
@@ -1177,8 +1257,8 @@ final class ApphudSDKTests: XCTestCase {
     func test3gAnotherAccountsRenewalIsFinishedItsPurchaseKept() async throws {
         guard #available(iOS 17.0, *) else { throw XCTSkip("buyProduct(identifier:options:) needs iOS 17") }
         let session = try XCTUnwrap(Self.storeKitSession)
-        session.clearTransactions()
-        defer { session.clearTransactions() }
+        session.removeTestTransactions()
+        defer { session.removeTestTransactions() }
         await startSDKIfNeeded()
 
         let tokensKey = ApphudStoreKitWrapper.purchaseUserTokensKey
@@ -1242,8 +1322,8 @@ final class ApphudSDKTests: XCTestCase {
     @MainActor
     func test5RestoreSubmitsEntitlementWithJws() async throws {
         let session = try XCTUnwrap(Self.storeKitSession)
-        session.clearTransactions()
-        defer { session.clearTransactions() }
+        session.removeTestTransactions()
+        defer { session.removeTestTransactions() }
 
         await startSDKIfNeeded()
         ApphudInternal.shared.lastUploadedTransactions = []
@@ -1291,8 +1371,8 @@ final class ApphudSDKTests: XCTestCase {
     @MainActor
     func test6RestoreSendsTrueAfterInflightSubmission() async throws {
         let session = try XCTUnwrap(Self.storeKitSession)
-        session.clearTransactions()
-        defer { session.clearTransactions() }
+        session.removeTestTransactions()
+        defer { session.removeTestTransactions() }
 
         await startSDKIfNeeded()
         ApphudInternal.shared.lastUploadedTransactions = []

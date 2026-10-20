@@ -356,6 +356,7 @@ final class ApphudIdentityVersion1Tests: XCTestCase {
         XCTAssertEqual(ApphudStoreKitWrapper.applicationUsername(), "DEVICE-1")
     }
 
+    @MainActor
     func testNoTransactionIsAnotherAccountsInVersion1() {
         let key = ApphudStoreKitWrapper.purchaseUserTokensKey
         let savedTokens = UserDefaults.standard.object(forKey: key)

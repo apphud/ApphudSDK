@@ -10,7 +10,58 @@ import Foundation
 import StoreKit
 
 extension ApphudInternal {
-    @discardableResult internal func parseUser(data: Data?) async -> HasPurchasesChanges {
+    @discardableResult
+    internal func parseUser(data: Data?, context: ApphudIdentityContext? = nil) async -> HasPurchasesChanges {
+        if isIdentityV1 { return await parseUserV1(data: data) }
+        guard let context = await MainActor.run(body: { context ?? self.userResponseContext() }) else { return (false, false) }
+        guard let data, await isCurrentUserResponse(context) else { return (false, false) }
+        let fallback = await currentUser?.cachedSchemeFallback
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        decoder.userInfo[ApphudUser.deferResponseSettingsKey] = true
+        if let fallback { decoder.userInfo[ApphudUser.cachedSchemeCodingKey] = fallback }
+        do {
+            let response = try decoder.decode(ApphudUserResponse<ApphudUser>.self, from: data)
+            let user = response.data.results
+            // Enrich this response's local object before publishing it. Logout can run during this await.
+            await user.updateProductTypes()
+            var cache = [String: Data]()
+            cache[ApphudUserCacheKey] = try JSONEncoder().encode(user)
+            let encoder = JSONEncoder()
+            encoder.keyEncodingStrategy = .convertToSnakeCase
+            if user.paywalls != nil || user.placements != nil {
+                cache[ApphudPaywallsCacheKey] = try encoder.encode(user.paywalls ?? [])
+                cache[ApphudPlacementsCacheKey] = try encoder.encode(user.placements ?? [])
+            }
+            let changes: HasPurchasesChanges? = await MainActor.run {
+                guard self.isCurrentUserResponse(context) else { return nil }
+                let previous = self.currentUser
+                self.currentUser = user
+                if let disabled = user.responseSwizzleDisabled {
+                    UserDefaults.standard.set(disabled, forKey: self.swizzlePaymentDisabledKey)
+                }
+                ApphudHttpClient.shared.updateConnectDomainUrl(from: response.data.meta)
+                self.updatePremiumStatus(user: user)
+                if user.paywalls != nil || user.placements != nil {
+                    self.preparePaywalls(pwls: user.paywalls ?? [], writeToCache: false,
+                                         responseContext: context, completionBlock: nil)
+                } else {
+                    self.didPreparePaywalls = true
+                }
+                return (previous?.subscriptionsStates() != user.subscriptionsStates(),
+                        previous?.purchasesStates() != user.purchasesStates())
+            }
+            guard let changes else { return (false, false) }
+            await identityResponseCache.write(cache, version: context.version)
+            return await isCurrentUserResponse(context) ? changes : (false, false)
+        } catch {
+            apphudLog("Failed to decode ApphudUser, error: \(error)")
+            return (false, false)
+        }
+    }
+
+    /// Keep the legacy response path, including its id adoption and callback timing.
+    private func parseUserV1(data: Data?) async -> HasPurchasesChanges {
 
         guard let data = data else {
             return (false, false)
@@ -108,12 +159,14 @@ extension ApphudInternal {
         }
         #endif
         self.identity = identity
+        _ = userResponseContext()
         delegate?.apphudDidChangeUserID(userID)
         return true
     }
 
     @MainActor
-    internal func createOrGetUser(initialCall: Bool, skipRegistration: Bool = false, delay: Double = 0) async -> (Bool, Int) {
+    internal func createOrGetUser(initialCall: Bool, skipRegistration: Bool = false, delay: Double = 0, responseContext: ApphudIdentityContext? = nil) async -> (Bool, Int) {
+        guard isCurrentUserResponse(responseContext) else { return (false, 0) }
         if skipRegistration {
             apphudLog("Loading user from cache, because cache is not expired.")
             preparePaywalls(pwls: self.paywalls, writeToCache: false, completionBlock: nil)
@@ -130,13 +183,14 @@ extension ApphudInternal {
             fields = initialCall ? ["initial_call": true] : [:]
         }
 
+        let context = responseContext ?? userResponseContext()
         return await withUnsafeContinuation { continuation in
-            updateUser(fields: fields, delay: delay) { (result, _, data, error, code, duration, _) in
+            updateUser(fields: fields, delay: delay, responseContext: context) { (result, _, data, error, code, duration, _) in
 
                 Task {
-                    let hasChanges = await self.parseUser(data: data)
+                    let hasChanges = await self.parseUser(data: data, context: context)
 
-                    let finalResult = result && self.currentUser != nil
+                    let finalResult = result && self.isCurrentUserResponse(context) && self.currentUser != nil
 
                     if finalResult {
                         ApphudLoggerService.lastUserUpdatedAt = Date()
@@ -171,16 +225,17 @@ extension ApphudInternal {
                 self.deferPlacements = false
                 self.didPreparePaywalls = false
 
-                self.updateUser(fields: [:]) { (result, _, data, _, _, _, _) in
+                let context = self.userResponseContext()
+                self.updateUser(fields: [:], responseContext: context) { (result, _, data, _, _, _, _) in
                     if result {
                         Task {
-                            await self.parseUser(data: data)
+                            await self.parseUser(data: data, context: context)
                             Task { @MainActor in
-                                callback(self.currentUser)
+                                callback(self.isCurrentUserResponse(context) ? self.currentUser : nil)
                             }
                         }
                     } else {
-                        callback(self.currentUser)
+                        callback(self.isCurrentUserResponse(context) ? self.currentUser : nil)
                     }
                 }
             } else {
@@ -209,16 +264,17 @@ extension ApphudInternal {
                 return
             }
 
-            self.updateUser(fields: [:]) { (result, _, data, _, _, _, _) in
+            let context = self.userResponseContext()
+            self.updateUser(fields: [:], responseContext: context) { (result, _, data, _, _, _, _) in
                 if result {
                     Task {
-                        await self.parseUser(data: data)
+                        await self.parseUser(data: data, context: context)
                         Task { @MainActor in
-                            callback?(self.currentUser)
+                            callback?(self.isCurrentUserResponse(context) ? self.currentUser : nil)
                         }
                     }
                 } else {
-                    callback?(self.currentUser)
+                    callback?(self.isCurrentUserResponse(context) ? self.currentUser : nil)
                 }
             }
         }
@@ -252,14 +308,25 @@ extension ApphudInternal {
 
     internal func grantPromotional(_ duration: Int, _ permissionGroup: ApphudGroup?, productId: String?, callback: ApphudBoolCallback?) {
         performWhenUserRegistered {
+            let context = self.userResponseContext()
             self.grantPromotional(duration, permissionGroup, productId: productId) { (result, _, data, _, _, _, _) in
-                if result {
-                    Task {
-                        let hasChanges = await self.parseUser(data: data)
-                        self.notifyAboutUpdates(hasChanges)
+                if context == nil {
+                    if result {
+                        Task {
+                            let changes = await self.parseUser(data: data)
+                            self.notifyAboutUpdates(changes)
+                        }
+                    }
+                    callback?(result)
+                } else {
+                    Task { @MainActor in
+                        guard result, self.isCurrentUserResponse(context) else { callback?(false); return }
+                        let changes = await self.parseUser(data: data, context: context)
+                        guard self.isCurrentUserResponse(context) else { callback?(false); return }
+                        self.notifyAboutUpdates(changes)
+                        callback?(true)
                     }
                 }
-                callback?(result)
             }
         }
     }
@@ -308,9 +375,11 @@ extension ApphudInternal {
         ApphudHttpClient.shared.firstRegistrationHold.open()
         if done {
             identityStore.markRegistered(reinstallSent: params["reinstall"] as? Bool == true,
-                                         legacyDeviceIDSent: params["legacy_device_id"] != nil)
+                                         legacyDeviceIDSent: params["legacy_device_id"] != nil,
+                                         installationID: sent.installationID)
         }
-        if Self.shouldMarkSynced(done: done, sent: sent, current: identity) {
+        if Self.shouldMarkSynced(done: done, sent: sent, current: identity),
+           (params["reinstall"] as? Bool == true || !identityStore.registrationReport(for: identity).reinstall) {
             identityStore.markSynced()
         }
     }
@@ -366,34 +435,48 @@ extension ApphudInternal {
     }
 
     @MainActor
-    internal func updateUser(fields: [String: Any], delay: Double = 0, callback: @escaping ApphudHTTPResponseCallback) {
+    internal func updateUser(fields: [String: Any], delay: Double = 0, responseContext: ApphudIdentityContext? = nil, callback: @escaping ApphudHTTPResponseCallback) {
 
         let params = customerRequestParams(fields: fields)
         let sentIdentity = identity
+        let context = responseContext ?? userResponseContext()
 
         // retry on http level only if setNeedsToUpdateUser = true, otherwise let retry on initial launch level
         let initialCall = params["initial_call"] != nil
         setNeedsToUpdateUser = false
 
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [self] in
+            guard self.isCurrentUserResponse(context) else {
+                callback(false, nil, nil, ApphudError(message: "Registration canceled because the user changed"), 0, 0, 0)
+                return
+            }
             httpClient?.startRequest(path: .customers, params: params, method: .post, useDecoder: true, retry: !initialCall, requestID: initialCall ? initialRequestID : nil) { done, response, data, error, errorCode, duration, attempts in
-                if  errorCode == 403 {
-                    apphudLog("Unable to perform API requests, because your account has been suspended.", forceDisplay: true)
-                    ApphudHttpClient.shared.unauthorized = true
-                    ApphudHttpClient.shared.suspended = true
-                }
-                if  errorCode == 401 {
-                    apphudLog("Unable to perform API requests, because your API Key is invalid.", forceDisplay: true)
-                    ApphudHttpClient.shared.invalidAPiKey = true
-                }
-                if !self.isIdentityV1 {
-                    Task { @MainActor in
-                        self.registrationFinished(done: done, params: params, sent: sentIdentity)
+                let handleAuthenticationFailure = {
+                    if  errorCode == 403 {
+                        apphudLog("Unable to perform API requests, because your account has been suspended.", forceDisplay: true)
+                        ApphudHttpClient.shared.unauthorized = true
+                        ApphudHttpClient.shared.suspended = true
                     }
-                } else if done {
-                    self.identityStore.markVersion1Registered()
+                    if  errorCode == 401 {
+                        apphudLog("Unable to perform API requests, because your API Key is invalid.", forceDisplay: true)
+                        ApphudHttpClient.shared.invalidAPiKey = true
+                    }
                 }
-                callback(done, response, data, error, errorCode, duration, attempts)
+                if let context {
+                    Task { @MainActor in
+                        guard self.isCurrentUserResponse(context) else {
+                            callback(false, nil, nil, ApphudError(message: "Registration canceled because the user changed"), 0, duration, attempts)
+                            return
+                        }
+                        handleAuthenticationFailure()
+                        self.registrationFinished(done: done, params: params, sent: sentIdentity)
+                        callback(done, response, data, error, errorCode, duration, attempts)
+                    }
+                } else {
+                    handleAuthenticationFailure()
+                    if done { self.identityStore.markVersion1Registered() }
+                    callback(done, response, data, error, errorCode, duration, attempts)
+                }
             }
         }
     }

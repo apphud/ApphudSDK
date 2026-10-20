@@ -239,7 +239,9 @@ extension ApphudInternal {
         }
     }
 
-    @MainActor internal func preparePaywalls(pwls: [ApphudPaywall], writeToCache: Bool = true, completionBlock: (([ApphudPaywall]?, Error?) -> Void)?) {
+    @MainActor internal func preparePaywalls(pwls: [ApphudPaywall], writeToCache: Bool = true,
+                                            responseContext: ApphudIdentityContext? = nil,
+                                            completionBlock: (([ApphudPaywall]?, Error?) -> Void)?) {
 
         if UserDefaults.standard.bool(forKey: swizzlePaymentDisabledKey) != true && httpClient!.canSwizzlePayment() {
             ApphudStoreKitWrapper.shared.enableSwizzle()
@@ -260,6 +262,7 @@ extension ApphudInternal {
 
         if !didPreparePaywalls {
             Task.detached { @MainActor in
+                guard self.isCurrentUserResponse(responseContext) else { return }
                 self.currentUser.map {
                     self.delegate?.userDidLoad(user: $0)
                 }
@@ -269,6 +272,7 @@ extension ApphudInternal {
 
         DispatchQueue.main.async {
             self.performWhenStoreKitProductFetched(maxAttempts: self.customRegistrationAttemptsCount ?? APPHUD_DEFAULT_RETRIES) { _ in
+                guard self.isCurrentUserResponse(responseContext) else { return }
                 self.updatePaywallsAndPlacements()
                 completionBlock?(self.paywalls, nil)
                 self.delegate?.paywallsDidFullyLoad(paywalls: self.paywalls)

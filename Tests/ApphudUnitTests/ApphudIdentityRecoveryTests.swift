@@ -17,14 +17,20 @@ private final class RecoveryHTTPClient: ApphudHttpClient {
                                useDecoder: Bool = false, retry: Bool = false,
                                requestID: String? = nil, callback: ApphudHTTPResponseCallback?) {
         Task { @MainActor in
+            // Auxiliary startup requests get an empty successful response; customer and receipt
+            // requests remain held so each test controls the response order explicitly.
+            guard path == .customers || path == .subscriptions || path == .promotions else {
+                callback?(true, nil, nil, nil, 200, 0, 0)
+                return
+            }
             requests.append(Request(path: path, params: params ?? [:], callback: callback))
         }
     }
 
-    @MainActor func respond(_ index: Int, success: Bool, user: String = "anon") throws {
-        let data = try JSONSerialization.data(withJSONObject: ["data": ["results": [
-            "id": "customer-\(user)", "user_id": user, "subscriptions": []
-        ]]])
+    @MainActor func respond(_ index: Int, success: Bool, user: String = "anon", paywalls: Bool = false, customerID: String? = nil) throws {
+        var fields: [String: Any] = ["id": customerID ?? "customer-\(user)", "user_id": user, "subscriptions": []]
+        if paywalls { fields["paywalls"] = [Any](); fields["placements"] = [Any](); fields["swizzle_disabled"] = true }
+        let data = try JSONSerialization.data(withJSONObject: ["data": ["results": fields]])
         requests[index].callback?(success, nil, success ? data : nil,
                                   success ? nil : ApphudError(message: "offline"), success ? 201 : 500, 0, 0)
     }
@@ -38,18 +44,27 @@ private final class RecoveryKeychain: ApphudKeychainStoring {
 
 private final class RecoveryInstallRecords: ApphudInstallRecordStoring {
     private var record: ApphudInstallRecord?
+    var failWrites = false
     func read() -> ApphudInstallRecordRead { record.map { .found($0) } ?? .missing }
-    func write(_ record: ApphudInstallRecord) -> Bool { self.record = record; return true }
+    func write(_ record: ApphudInstallRecord) -> Bool {
+        guard !failWrites else { return false }
+        self.record = record
+        return true
+    }
 }
 
 @MainActor
 final class ApphudIdentityRecoveryTests: XCTestCase {
     private final class Delegate: ApphudDelegate {
         var ids: [String] = []
+        var fullyLoadedPaywalls = 0
+        var fullyLoadedPlacements = 0
+        func paywallsDidFullyLoad(paywalls: [ApphudPaywall]) { fullyLoadedPaywalls += 1 }
+        func placementsDidFullyLoad(placements: [ApphudPlacement]) { fullyLoadedPlacements += 1 }
         func apphudDidChangeUserID(_ userID: String) { ids.append(userID) }
     }
 
-    private func makeSDK() async throws -> (ApphudInternal, RecoveryHTTPClient, UserDefaults, String) {
+    private func makeSDK(records: RecoveryInstallRecords = RecoveryInstallRecords(), legacyDeviceID: String? = nil) async throws -> (ApphudInternal, RecoveryHTTPClient, UserDefaults, String) {
         let originalSession = ApphudSession.shared
         await Task.detached { originalSession.waitForPendingWrites() }.value
         let standardKeys = ["requiresReceiptSubmissionKey", "ApphudLastUploadedTransactionsSK2",
@@ -77,6 +92,7 @@ final class ApphudIdentityRecoveryTests: XCTestCase {
         let defaults = try XCTUnwrap(UserDefaults(suiteName: name))
         ApphudSession.shared = ApphudSession(defaults: defaults, notificationCenter: NotificationCenter(), canPersist: { false })
         let sdk = ApphudInternal()
+        sdk.didHandleBecomeActive = true
         addTeardownBlock { @MainActor in
             NSObject.cancelPreviousPerformRequests(withTarget: sdk)
             await ApphudDataActor.shared.setPendingUserProperties(pendingProperties)
@@ -101,9 +117,14 @@ final class ApphudIdentityRecoveryTests: XCTestCase {
             ApphudSession.shared = originalSession
         }
         sdk.identityVersion = .v2
-        sdk.identityStore = ApphudIdentityStore(defaults: defaults, keychain: RecoveryKeychain(), installRecords: RecoveryInstallRecords())
+        sdk.identityStore = ApphudIdentityStore(defaults: defaults, keychain: RecoveryKeychain(), installRecords: records)
+        if let legacyDeviceID {
+            defaults.set(legacyDeviceID, forKey: ApphudIdentityStore.legacyDeviceIDKey)
+            defaults.set("legacy-user", forKey: ApphudIdentityStore.userIDKey)
+            sdk.appSuppliesIDs = true
+        }
         sdk.identity = try XCTUnwrap(sdk.identityStore.resolve(ApphudSuppliedIDs(anonymousID: "anon", installationID: "install"))).identity
-        sdk.identityStore.markSynced()
+        if legacyDeviceID == nil { sdk.identityStore.markSynced() }
         let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
         sdk.currentUser = try decoder.decode(ApphudUser.self, from: Data(#"{"id":"customer-anon","user_id":"anon","subscriptions":[]}"#.utf8))
         let client = RecoveryHTTPClient(); sdk.httpClient = client
@@ -121,6 +142,358 @@ final class ApphudIdentityRecoveryTests: XCTestCase {
                                 transactionProductIdentifier: nil, transactionState: nil,
                                 receiptString: "test-receipt", notifyDelegate: false,
                                 restore: restore, fromScreen: false, callback: callback)
+    }
+
+    func testEmbeddedUpgradeCustomersAndSubscriptionsCarryLegacyUntilSuccessfulRegistration() async throws {
+        let (sdk, client, defaults, name) = try await makeSDK(legacyDeviceID: "old-device")
+        defer { defaults.removePersistentDomain(forName: name) }
+        var registrations = 0
+        sdk.updateUser(fields: [:]) { _, _, _, _, _, _, _ in registrations += 1 }
+        let started = await until { client.requests.count == 1 }; XCTAssertTrue(started)
+        var purchases = 0
+        await submit(sdk, restore: false) { error in XCTAssertNil(error); purchases += 1 }
+        let receipt = await until { client.requests.count == 2 }; XCTAssertTrue(receipt)
+        guard receipt else { return }
+        for request in client.requests {
+            XCTAssertEqual(request.params["legacy_device_id"] as? String, "old-device")
+            XCTAssertEqual(request.params["installation_id"] as? String, "install")
+            XCTAssertEqual(request.params["anonymous_id"] as? String, "anon")
+            XCTAssertNil(request.params["device_id"])
+        }
+        XCTAssertEqual(client.requests[1].path, .subscriptions)
+        XCTAssertEqual(client.requests[1].params["restore"] as? Bool, false)
+        try client.respond(1, success: true)
+        let uploaded = await until { purchases == 1 }; XCTAssertTrue(uploaded)
+        XCTAssertEqual(sdk.identityStore.registrationReport(for: sdk.identity).legacyDeviceID, "old-device", "receipt ACK is not registration ACK")
+        try client.respond(0, success: false)
+        let failed = await until { registrations == 1 }; XCTAssertTrue(failed)
+        XCTAssertTrue(sdk.identityStore.isSyncPending)
+        sdk.updateUser(fields: [:]) { _, _, _, _, _, _, _ in registrations += 1 }
+        let retry = await until { client.requests.count == 3 }; XCTAssertTrue(retry)
+        guard retry else { return }
+        XCTAssertEqual(client.requests[2].params["legacy_device_id"] as? String, "old-device")
+        try client.respond(2, success: true)
+        let completed = await until { registrations == 2 && !sdk.identityStore.isSyncPending }; XCTAssertTrue(completed)
+        XCTAssertNil(sdk.identityStore.registrationReport(for: sdk.identity).legacyDeviceID)
+        sdk.updateUser(fields: [:]) { _, _, _, _, _, _, _ in registrations += 1 }
+        let next = await until { client.requests.count == 4 }; XCTAssertTrue(next)
+        guard next else { return }
+        XCTAssertNil(client.requests[3].params["legacy_device_id"])
+        try client.respond(3, success: true)
+        let drained = await until { registrations == 3 }; XCTAssertTrue(drained)
+    }
+
+    func testLateRefreshAfterLogoutWithSameIDsDoesNotRestoreUserOrCache() async throws {
+        let (sdk, client, defaults, name) = try await makeSDK()
+        defer { defaults.removePersistentDomain(forName: name) }
+        var callbacks = 0
+        sdk.refreshUserData { _ in callbacks += 1 }
+        let started = await until { client.requests.count == 1 }; XCTAssertTrue(started)
+        await sdk.logout(anonymousID: "anon")
+        try client.respond(0, success: true, user: "old-user")
+        let finished = await until { callbacks == 1 }; XCTAssertTrue(finished)
+        XCTAssertNil(sdk.currentUser)
+        XCTAssertFalse(sdk.isPremium)
+        let cache = await ApphudDataActor.shared.apphudDataFromCache(key: ApphudUserCacheKey, cacheTimeout: 3600).objectsData
+        XCTAssertNil(cache, "the previous session must not repopulate the cleared user cache")
+    }
+
+    func testLateCreateReplyAfterLogoutCannotRegisterOldCustomer() async throws {
+        let (sdk, client, defaults, name) = try await makeSDK()
+        defer { defaults.removePersistentDomain(forName: name) }
+        let registration = Task { await sdk.createOrGetUser(initialCall: false) }
+        let started = await until { client.requests.count == 1 }; XCTAssertTrue(started)
+        await sdk.logout(anonymousID: "anon")
+        try client.respond(0, success: true, user: "old-user")
+        let result = await registration.value
+        XCTAssertFalse(result.0)
+        XCTAssertNil(sdk.currentUser)
+        let cache = await ApphudDataActor.shared.apphudDataFromCache(key: ApphudUserCacheKey, cacheTimeout: 3600).objectsData
+        XCTAssertNil(cache)
+    }
+
+    func testOlderCustomerReplyCannotReplaceNewIdentifyResponse() async throws {
+        let (sdk, client, defaults, name) = try await makeSDK()
+        defer { defaults.removePersistentDomain(forName: name) }
+        var refreshCallbacks = 0
+        var identifyCallbacks = 0
+        sdk.refreshUserData { _ in refreshCallbacks += 1 }
+        let first = await until { client.requests.count == 1 }; XCTAssertTrue(first)
+        sdk.updateUserID(userID: "Bob") { _ in identifyCallbacks += 1 }
+        let next = await until { client.requests.count == 2 }; XCTAssertTrue(next)
+        guard next else { return }
+        try client.respond(1, success: true, user: "Bob")
+        let identified = await until { identifyCallbacks == 1 }; XCTAssertTrue(identified)
+        try client.respond(0, success: true, user: "anon")
+        let refreshed = await until { refreshCallbacks == 1 }; XCTAssertTrue(refreshed)
+        XCTAssertEqual(sdk.currentUser?.userId, "Bob")
+        let cache = await ApphudDataActor.shared.apphudDataFromCache(key: ApphudUserCacheKey, cacheTimeout: 3600).objectsData
+        let data = try XCTUnwrap(cache)
+        let decoded = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        XCTAssertEqual(decoded?["userId"] as? String, "Bob")
+    }
+
+    func testLatePositiveReinstallAnswerStaysPendingUntilItsOwnAcknowledgement() async throws {
+        let (sdk, client, defaults, name) = try await makeSDK()
+        defer { defaults.removePersistentDomain(forName: name) }
+        sdk.appSuppliesIDs = true
+        var callbacks = 0
+        sdk.updateUser(fields: [:]) { _, _, _, _, _, _, _ in callbacks += 1 }
+        let first = await until { client.requests.count == 1 }; XCTAssertTrue(first)
+        XCTAssertNil(client.requests[0].params["reinstall"])
+        sdk.setReinstall(true)
+        try client.respond(0, success: true)
+        let completed = await until { callbacks == 1 }; XCTAssertTrue(completed)
+        for _ in 0..<10 { await Task.yield() }
+        XCTAssertTrue(sdk.identityStore.isSyncPending, "an answer that did not carry true cannot acknowledge it")
+        XCTAssertTrue(sdk.identityStore.registrationReport(for: sdk.identity).reinstall)
+        sdk.updateUser(fields: [:]) { _, _, _, _, _, _, _ in callbacks += 1 }
+        let next = await until { client.requests.count == 2 }; XCTAssertTrue(next)
+        guard next else { return }
+        XCTAssertEqual(client.requests[1].params["reinstall"] as? Bool, true)
+        try client.respond(1, success: true)
+        let reported = await until { callbacks == 2 && !sdk.identityStore.isSyncPending }; XCTAssertTrue(reported)
+        XCTAssertFalse(sdk.identityStore.registrationReport(for: sdk.identity).reinstall)
+        sdk.setReinstall(true)
+        XCTAssertFalse(sdk.identityStore.isSyncPending)
+    }
+
+    func testOldCacheJobsCannotRepopulateLogoutOrReplaceNewPerson() async throws {
+        let (sdk, _, defaults, name) = try await makeSDK()
+        defer { defaults.removePersistentDomain(forName: name) }
+        let old = try XCTUnwrap(sdk.userResponseContext())
+        await sdk.logout(anonymousID: "anon")
+        let new = try XCTUnwrap(sdk.userResponseContext())
+        XCTAssertGreaterThan(new.version, old.version)
+        let keys = [ApphudUserCacheKey, ApphudPaywallsCacheKey, ApphudPlacementsCacheKey]
+        let oldData = Dictionary(uniqueKeysWithValues: keys.map { ($0, Data("old".utf8)) })
+        await sdk.identityResponseCache.write(oldData, version: old.version)
+        for key in keys {
+            let data = await ApphudDataActor.shared.apphudDataFromCache(key: key, cacheTimeout: 3600).objectsData
+            XCTAssertNil(data)
+        }
+        let newData = Dictionary(uniqueKeysWithValues: keys.map { ($0, Data("new".utf8)) })
+        await sdk.identityResponseCache.write(newData, version: new.version)
+        await sdk.identityResponseCache.write(oldData, version: old.version)
+        await sdk.identityResponseCache.clear(version: old.version)
+        for key in keys {
+            let data = await ApphudDataActor.shared.apphudDataFromCache(key: key, cacheTimeout: 3600).objectsData
+            XCTAssertEqual(data, Data("new".utf8))
+        }
+    }
+
+    func testOldStartupCycleReleasesItsReservationAfterIdentifyChanges() async throws {
+        let (sdk, client, defaults, name) = try await makeSDK()
+        defer { defaults.removePersistentDomain(forName: name) }
+        sdk.continueToRegisteringUser()
+        let first = await until { client.requests.count == 1 }; XCTAssertTrue(first)
+        XCTAssertTrue(sdk.isRegisteringUser)
+        var callbacks = 0
+        sdk.updateUserID(userID: "Bob") { _ in callbacks += 1 }
+        let identified = await until { client.requests.count == 2 }; XCTAssertTrue(identified)
+        guard identified else { return }
+        try client.respond(1, success: true, user: "Bob")
+        let synced = await until { callbacks == 1 }; XCTAssertTrue(synced)
+        try client.respond(0, success: true)
+        let released = await until { !sdk.isRegisteringUser }; XCTAssertTrue(released)
+        XCTAssertEqual(sdk.currentUser?.userId, "Bob")
+        sdk.continueToRegisteringUser()
+        let next = await until { client.requests.count == 3 }; XCTAssertTrue(next)
+        guard next else { return }
+        try client.respond(2, success: true, user: "Bob")
+        let finished = await until { !sdk.isRegisteringUser }; XCTAssertTrue(finished)
+    }
+
+    func testReplyFromEarlierAliceEpochIsRejectedAfterBobAndAliceAgain() async throws {
+        let (sdk, client, defaults, name) = try await makeSDK()
+        defer { defaults.removePersistentDomain(forName: name) }
+        sdk.applyIdentify(userID: "Alice")
+        var callbacks = 0
+        sdk.refreshUserData { _ in callbacks += 1 }
+        let first = await until { client.requests.count == 1 }; XCTAssertTrue(first)
+        sdk.updateUserID(userID: "Bob") { _ in callbacks += 1 }
+        let bob = await until { client.requests.count == 2 }; XCTAssertTrue(bob)
+        guard bob else { return }
+        try client.respond(1, success: true, user: "Bob")
+        let bobDone = await until { callbacks == 1 }; XCTAssertTrue(bobDone)
+        sdk.updateUserID(userID: "Alice") { _ in callbacks += 1 }
+        let alice = await until { client.requests.count == 3 }; XCTAssertTrue(alice)
+        guard alice else { return }
+        try client.respond(2, success: true, user: "Alice")
+        let aliceDone = await until { callbacks == 2 }; XCTAssertTrue(aliceDone)
+        try client.respond(0, success: true, user: "Alice", customerID: "older-Alice")
+        let oldDone = await until { callbacks == 3 }; XCTAssertTrue(oldDone)
+        XCTAssertEqual(sdk.currentUser?.internalId, "customer-Alice")
+    }
+
+    func testAcknowledgedReinstallRemainsSyncedIfTheLocalRecordWriteFails() async throws {
+        let records = RecoveryInstallRecords()
+        let (sdk, client, defaults, name) = try await makeSDK(records: records)
+        defer { defaults.removePersistentDomain(forName: name) }
+        sdk.appSuppliesIDs = true
+        sdk.setReinstall(true)
+        records.failWrites = true
+        var callbacks = 0
+        sdk.updateUserID(userID: "Alice") { _ in callbacks += 1 }
+        let first = await until { client.requests.count == 1 }; XCTAssertTrue(first)
+        XCTAssertEqual(client.requests[0].params["reinstall"] as? Bool, true)
+        try client.respond(0, success: true, user: "Alice")
+        let completed = await until { callbacks == 1 }; XCTAssertTrue(completed)
+        XCTAssertFalse(sdk.identityStore.isSyncPending)
+        XCTAssertFalse(sdk.identityStore.registrationReport(for: sdk.identity).reinstall)
+        sdk.updateUserID(userID: "Alice") { _ in callbacks += 1 }
+        let repeated = await until { callbacks == 2 }; XCTAssertTrue(repeated)
+        XCTAssertEqual(client.requests.count, 1)
+        sdk.setReinstall(true)
+        XCTAssertFalse(sdk.identityStore.isSyncPending)
+    }
+
+    func testEmailAdoptionKeepsItsDeferredPaywallCallbacks() async throws {
+        let (sdk, client, defaults, name) = try await makeSDK()
+        defer { defaults.removePersistentDomain(forName: name) }
+        let previousStatus = ApphudStoreKitWrapper.shared.status
+        ApphudStoreKitWrapper.shared.status = .loading
+        addTeardownBlock { @MainActor in ApphudStoreKitWrapper.shared.status = previousStatus }
+        UserDefaults.standard.set(true, forKey: "swizzlePaymentDisabledKey")
+        let delegate = Delegate()
+        sdk.delegate = delegate
+        var completed = false
+        sdk.tryWebAttribution(attributionData: ["email": "sdk-unit@example.invalid"]) { success, _ in completed = success }
+        let first = await until { client.requests.count == 1 }; XCTAssertTrue(first)
+        try client.respond(0, success: true, user: "Web", paywalls: true)
+        let adopted = await until { completed && sdk.identifiedUserID == "Web" }; XCTAssertTrue(adopted)
+        let waiting = await until { !sdk.storeKitProductsFetchedCallbacks.isEmpty }; XCTAssertTrue(waiting)
+        let readyCallbacks = sdk.storeKitProductsFetchedCallbacks
+        sdk.storeKitProductsFetchedCallbacks.removeAll()
+        readyCallbacks.forEach { $0(nil) }
+        XCTAssertEqual(delegate.fullyLoadedPaywalls, 1)
+        XCTAssertEqual(delegate.fullyLoadedPlacements, 1)
+    }
+
+    func testRestorePreparedBeforeLogoutCannotSendForOrConsumeTheNextRestore() async throws {
+        let (sdk, client, defaults, name) = try await makeSDK()
+        defer { defaults.removePersistentDomain(forName: name) }
+        var release: CheckedContinuation<ApphudRestoreData, Never>?
+        var oldErrors: [Bool] = []
+        var newErrors: [Bool] = []
+        sdk.restorePurchases(prepare: {
+            await withCheckedContinuation { release = $0 }
+        }) { oldErrors.append($0.error != nil) }
+        let waiting = await until { release != nil }; XCTAssertTrue(waiting)
+        await sdk.logout(anonymousID: "anon") // Both supplied id strings are deliberately reused.
+        XCTAssertEqual(oldErrors, [true])
+        let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
+        sdk.currentUser = try decoder.decode(ApphudUser.self, from: Data(#"{"id":"new-session","user_id":"anon","subscriptions":[]}"#.utf8))
+        sdk.restorePurchases(prepare: {
+            ApphudRestoreData(receiptString: "new-native-receipt", transaction: nil, transactionJws: nil)
+        }) { newErrors.append($0.error != nil) }
+        let first = await until { client.requests.count == 1 }; XCTAssertTrue(first)
+        release?.resume(returning: ApphudRestoreData(receiptString: "old-native-receipt", transaction: nil, transactionJws: nil))
+        for _ in 0..<20 { await Task.yield() }
+        XCTAssertEqual(oldErrors, [true])
+        XCTAssertEqual(newErrors, [])
+        XCTAssertEqual(client.requests.count, 1)
+        XCTAssertEqual(client.requests[0].params["receipt_data"] as? String, "new-native-receipt")
+        XCTAssertEqual(client.requests[0].params["restore"] as? Bool, true)
+        try client.respond(0, success: true)
+        let done = await until { newErrors.count == 1 }; XCTAssertTrue(done)
+        XCTAssertEqual(newErrors, [false])
+        XCTAssertEqual(oldErrors, [true])
+        XCTAssertTrue(sdk.restoreOperationCallbacks.isEmpty)
+    }
+
+    func testConcurrentPublicRestoresEachCompleteOnce() async throws {
+        let (sdk, client, defaults, name) = try await makeSDK()
+        defer { defaults.removePersistentDomain(forName: name) }
+        var first = 0
+        var second = 0
+        sdk.restorePurchases(prepare: {
+            ApphudRestoreData(receiptString: "native-receipt", transaction: nil, transactionJws: nil)
+        }) { result in XCTAssertNil(result.error); first += 1 }
+        sdk.restorePurchases(prepare: {
+            ApphudRestoreData(receiptString: "native-receipt", transaction: nil, transactionJws: nil)
+        }) { result in XCTAssertNil(result.error); second += 1 }
+        let joined = await until { sdk.submitReceiptCallbacks.count == 2 }; XCTAssertTrue(joined)
+        XCTAssertEqual(client.requests.count, 1)
+        try client.respond(0, success: true)
+        let completed = await until { first == 1 && second == 1 }; XCTAssertTrue(completed)
+        XCTAssertTrue(sdk.restoreOperationCallbacks.isEmpty)
+        XCTAssertEqual(client.requests.count, 1)
+        await sdk.logout(anonymousID: "anon")
+        XCTAssertEqual(first, 1)
+        XCTAssertEqual(second, 1)
+    }
+
+    func testAnOldStartupReplyCannotReleaseTheNewStartupCycle() async throws {
+        let (sdk, client, defaults, name) = try await makeSDK()
+        defer { defaults.removePersistentDomain(forName: name) }
+        sdk.continueToRegisteringUser()
+        let first = await until { client.requests.count == 1 }; XCTAssertTrue(first)
+        await sdk.logout(anonymousID: "anon")
+        sdk.continueToRegisteringUser()
+        let next = await until { client.requests.count == 2 }; XCTAssertTrue(next)
+        guard next else { return }
+        let active = sdk.activeUserRegistrationID
+        try client.respond(0, success: true, user: "old")
+        for _ in 0..<20 { await Task.yield() }
+        XCTAssertTrue(sdk.isRegisteringUser)
+        XCTAssertEqual(sdk.activeUserRegistrationID, active)
+        XCTAssertNil(sdk.currentUser)
+        try client.respond(1, success: true, user: "anon")
+        let completed = await until { !sdk.isRegisteringUser && sdk.currentUser != nil }; XCTAssertTrue(completed)
+        XCTAssertEqual(sdk.currentUser?.userId, "anon")
+    }
+
+    func testDeferredResponseDecodingDoesNotApplySettingsBeforeAcceptance() async throws {
+        let (_, _, defaults, name) = try await makeSDK()
+        defer { defaults.removePersistentDomain(forName: name) }
+        UserDefaults.standard.set(false, forKey: "swizzlePaymentDisabledKey")
+        let data = Data(#"{"id":"customer","user_id":"anon","subscriptions":[],"swizzle_disabled":true}"#.utf8)
+        let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
+        decoder.userInfo[ApphudUser.deferResponseSettingsKey] = true
+        let response = try decoder.decode(ApphudUser.self, from: data)
+        XCTAssertEqual(response.responseSwizzleDisabled, true)
+        XCTAssertFalse(UserDefaults.standard.bool(forKey: "swizzlePaymentDisabledKey"))
+        let legacyDecoder = JSONDecoder(); legacyDecoder.keyDecodingStrategy = .convertFromSnakeCase
+        _ = try legacyDecoder.decode(ApphudUser.self, from: data)
+        XCTAssertTrue(UserDefaults.standard.bool(forKey: "swizzlePaymentDisabledKey"), "V1 decoder behavior stays unchanged")
+    }
+
+    func testOldReplyCannotOpenTheNewPersonsFirstRegistrationHold() async throws {
+        let (sdk, client, defaults, name) = try await makeSDK()
+        defer { defaults.removePersistentDomain(forName: name) }
+        let hold = ApphudHttpClient.shared.firstRegistrationHold
+        let initiallyClosed = hold.isClosed
+        defer { if !initiallyClosed { hold.open() } }
+        var callbacks = 0
+        sdk.refreshUserData { _ in callbacks += 1 }
+        let first = await until { client.requests.count == 1 }; XCTAssertTrue(first)
+        sdk.applyIdentify(userID: "Bob")
+        hold.close(limit: 60)
+        try client.respond(0, success: true)
+        let oldCompleted = await until { callbacks == 1 }; XCTAssertTrue(oldCompleted)
+        XCTAssertTrue(hold.isClosed)
+        sdk.updateUser(fields: [:]) { _, _, _, _, _, _, _ in callbacks += 1 }
+        let next = await until { client.requests.count == 2 }; XCTAssertTrue(next)
+        guard next else { return }
+        try client.respond(1, success: true, user: "Bob")
+        let currentCompleted = await until { callbacks == 2 }; XCTAssertTrue(currentCompleted)
+        XCTAssertFalse(hold.isClosed)
+    }
+
+    func testEmailResponseAfterLogoutCannotAdoptOrQueueOldPaywalls() async throws {
+        let (sdk, client, defaults, name) = try await makeSDK()
+        defer { defaults.removePersistentDomain(forName: name) }
+        var callbacks: [Bool] = []
+        sdk.tryWebAttribution(attributionData: ["email": "sdk-unit@example.invalid"]) { success, _ in callbacks.append(success) }
+        let first = await until { client.requests.count == 1 }; XCTAssertTrue(first)
+        await sdk.logout(anonymousID: "anon")
+        try client.respond(0, success: true, user: "Web", paywalls: true)
+        let completed = await until { callbacks.count == 1 }; XCTAssertTrue(completed)
+        XCTAssertEqual(callbacks, [false])
+        XCTAssertNil(sdk.identifiedUserID)
+        XCTAssertNil(sdk.currentUser)
+        XCTAssertTrue(sdk.storeKitProductsFetchedCallbacks.isEmpty)
     }
 
     func testGeneratedAndEmptyIdentifyInputsDoNotRetryPendingIdentity() async throws {
@@ -306,9 +679,9 @@ final class ApphudIdentityRecoveryTests: XCTestCase {
         XCTAssertEqual(second, [true], "A's pending request cannot acknowledge B's transaction")
         try client.respond(0, success: true)
         let completed = await until { first.count == 1 }; XCTAssertTrue(completed)
-        XCTAssertEqual(first, [false])
+        XCTAssertEqual(first, [true], "a previous person cannot receive a live-session success")
         XCTAssertEqual(second, [true])
-        XCTAssertTrue(sdk.observedTransactions.hasAcknowledgement(42, identity: alice))
+        XCTAssertFalse(sdk.observedTransactions.hasAcknowledgement(42, identity: alice))
         XCTAssertFalse(sdk.observedTransactions.hasAcknowledgement(42, identity: sdk.identity))
         XCTAssertEqual(client.requests.count, 1)
     }

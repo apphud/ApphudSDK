@@ -340,16 +340,18 @@ extension ApphudInternal {
             if !userId.isEmpty {
                 // The web user's id is known: a plain identify, no from_web2web.
                 self.applyIdentify(userID: userId)
-                self.updateUser(fields: [:]) { (result, _, data, _, _, _, _) in
-                    self.finishWebAttribution(result: result, data: data, adoptFrom: nil, completion: completion)
+                let context = self.userResponseContext()
+                self.updateUser(fields: [:], responseContext: context) { (result, _, data, _, _, _, _) in
+                    self.finishWebAttribution(result: result, data: data, adoptFrom: nil, context: context, completion: completion)
                 }
             } else {
                 // Email only: a registration with the email and the usual ids; the response names the web user.
                 let params: [String: Any] = ["from_web2web": true, "email": email]
                 // In fallback mode the local user is made up: no customer id to compare against.
                 let adoptFrom: (customer: String?, identity: ApphudIdentity)? = self.fallbackMode ? nil : (self.currentUser?.internalId, self.identity)
-                self.updateUser(fields: params) { (result, _, data, _, _, _, _) in
-                    self.finishWebAttribution(result: result, data: data, adoptFrom: adoptFrom, completion: completion)
+                let context = self.userResponseContext()
+                self.updateUser(fields: params, responseContext: context) { (result, _, data, _, _, _, _) in
+                    self.finishWebAttribution(result: result, data: data, adoptFrom: adoptFrom, context: context, completion: completion)
                 }
             }
         }
@@ -416,24 +418,21 @@ extension ApphudInternal {
     }
 
     /// `adoptFrom`: the customer id and the ids an email-only request was sent with, `nil` for a request with the user id.
-    private func finishWebAttribution(result: Bool, data: Data?, adoptFrom: (customer: String?, identity: ApphudIdentity)?, completion: @escaping (Bool, ApphudUser?) -> Void) {
-        guard result else {
-            Task { @MainActor in completion(false, self.currentUser) }
-            return
-        }
-        Task {
-            let changes = await self.parseUser(data: data)
-
-            Task { @MainActor in
-                // The web user found by email becomes the SDK's user, as an identify would; the
-                // anonymous customer merges into it on the next request.
-                if let adoptFrom,
-                   let webUserID = Self.webUserToAdopt(customerBefore: adoptFrom.customer, sent: adoptFrom.identity, current: self.identity, responseData: data) {
-                    self.applyIdentify(userID: webUserID)
-                }
-                self.notifyAboutUpdates(changes)
-                completion(true, self.currentUser)
+    private func finishWebAttribution(result: Bool, data: Data?, adoptFrom: (customer: String?, identity: ApphudIdentity)?, context: ApphudIdentityContext?, completion: @escaping (Bool, ApphudUser?) -> Void) {
+        Task { @MainActor in
+            guard result, self.isCurrentUserResponse(context) else { completion(false, self.currentUser); return }
+            // This response is allowed to identify the matched web user. Publish it and its
+            // deferred product callbacks under that accepted identity, not the old anonymous epoch.
+            if let adoptFrom,
+               let userID = Self.webUserToAdopt(customerBefore: adoptFrom.customer, sent: adoptFrom.identity,
+                                              current: self.identity, responseData: data) {
+                self.applyIdentify(userID: userID)
             }
+            let accepted = self.userResponseContext()
+            let changes = await self.parseUser(data: data, context: accepted)
+            guard self.isCurrentUserResponse(accepted) else { completion(false, self.currentUser); return }
+            self.notifyAboutUpdates(changes)
+            completion(true, self.currentUser)
         }
     }
 }

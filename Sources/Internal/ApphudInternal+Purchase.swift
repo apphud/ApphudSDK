@@ -14,6 +14,14 @@ import SwiftUI
 import UIKit
 #endif
 
+/// Native restore preparation is separate from the account-scoped submission. The internal
+/// provider parameter lets tests hold StoreKit I/O while exercising the real public restore flow.
+internal struct ApphudRestoreData {
+    let receiptString: String?
+    let transaction: StoreKit.Transaction?
+    let transactionJws: String?
+}
+
 extension ApphudInternal {
 
     // MARK: - Main Purchase and Submit Receipt methods
@@ -28,7 +36,30 @@ extension ApphudInternal {
         }
     }
 
-    @MainActor internal func restorePurchases(callback: @escaping (ApphudPurchaseResult) -> Void) {
+    @MainActor internal func restorePurchases(prepare: (@MainActor () async -> ApphudRestoreData)? = nil,
+                                             callback: @escaping (ApphudPurchaseResult) -> Void) {
+        if !isIdentityV1, let context = userResponseContext() {
+            let operationID = UUID()
+            restoreOperationCallbacks[operationID] = { error in
+                let current = self.isCurrentUserResponse(context)
+                let result = ApphudPurchaseResult(current ? self.currentUser?.subscriptions.first { $0.isActive() } : nil,
+                                                 current ? self.currentUser?.purchases.first { $0.isActive() } : nil,
+                                                 nil, current ? error : ApphudError(message: "Restore canceled because the user changed"))
+                result.isRestoreResult = true
+                callback(result)
+            }
+            Task { @MainActor in
+                let prepared: ApphudRestoreData
+                if let prepare { prepared = await prepare() }
+                else { prepared = await self.prepareStoreKit2Restore(context: context) }
+                guard self.isCurrentUserResponse(context), self.restoreOperationCallbacks[operationID] != nil else {
+                    self.finishVersion2Restore(operationID, error: ApphudError(message: "Restore canceled because the user changed"))
+                    return
+                }
+                self.submitVersion2Restore(prepared, context: context, operationID: operationID)
+            }
+            return
+        }
         self.restorePurchasesCallback = { subs, purchases, error in
             let activeSub = subs?.first { $0.isActive() }
             let activePurch = purchases?.first { $0.isActive() }
@@ -52,37 +83,10 @@ extension ApphudInternal {
     /// once (shows the system authentication sheet) and walk again.
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
     internal func restoreUsingStoreKit2() async {
-
-        func latestEntitlement() async -> VerificationResult<StoreKit.Transaction>? {
-            var latest: VerificationResult<StoreKit.Transaction>?
-            for await result in StoreKit.Transaction.currentEntitlements {
-                if case .verified(let transaction) = result {
-                    if latest == nil || latest!.unsafePayloadValue.purchaseDate < transaction.purchaseDate {
-                        latest = result
-                    }
-                }
-            }
-            return latest
-        }
-
-        var latest = await latestEntitlement()
-
-        // AppStore.sync() shows the system authentication sheet, so it is a last resort:
-        // only when the device has neither entitlements nor an App Store receipt to
-        // submit (master parity — the receipt path was always silent).
-        if latest == nil && apphudReceiptDataString() == nil {
-            apphudLog("No entitlements and no receipt on device, requesting AppStore.sync()..")
-            do {
-                try await AppStore.sync()
-                latest = await latestEntitlement()
-            } catch {
-                apphudLog("AppStore.sync() failed or was canceled by user: \(error)")
-            }
-        }
-
-        let receiptString = await appStoreReceipt()
-        let transaction = latest.map { $0.unsafePayloadValue }
-        let jws = latest?.jwsRepresentation
+        let prepared = await prepareStoreKit2Restore(context: nil)
+        let receiptString = prepared.receiptString
+        let transaction = prepared.transaction
+        let jws = prepared.transactionJws
 
         if receiptString == nil && transaction == nil {
             let error = ApphudError(message: "Failed to restore purchases: neither entitlements nor App Store receipt found on device.")
@@ -119,6 +123,91 @@ extension ApphudInternal {
                 }
             }
         }
+    }
+
+    private func prepareStoreKit2Restore(context: ApphudIdentityContext?) async -> ApphudRestoreData {
+
+        func latestEntitlement() async -> VerificationResult<StoreKit.Transaction>? {
+            var latest: VerificationResult<StoreKit.Transaction>?
+            for await result in StoreKit.Transaction.currentEntitlements {
+                if case .verified(let transaction) = result {
+                    if latest == nil || latest!.unsafePayloadValue.purchaseDate < transaction.purchaseDate {
+                        latest = result
+                    }
+                }
+            }
+            return latest
+        }
+
+        var latest = await latestEntitlement()
+        if let context, !(await isCurrentUserResponse(context)) {
+            return ApphudRestoreData(receiptString: nil, transaction: nil, transactionJws: nil)
+        }
+
+        // AppStore.sync() shows the system authentication sheet, so it is a last resort:
+        // only when the device has neither entitlements nor an App Store receipt to
+        // submit (master parity — the receipt path was always silent).
+        if latest == nil && apphudReceiptDataString() == nil {
+            apphudLog("No entitlements and no receipt on device, requesting AppStore.sync()..")
+            do {
+                try await AppStore.sync()
+                if let context, !(await isCurrentUserResponse(context)) {
+                    return ApphudRestoreData(receiptString: nil, transaction: nil, transactionJws: nil)
+                }
+                latest = await latestEntitlement()
+            } catch {
+                apphudLog("AppStore.sync() failed or was canceled by user: \(error)")
+            }
+        }
+
+        if let context, !(await isCurrentUserResponse(context)) {
+            return ApphudRestoreData(receiptString: nil, transaction: nil, transactionJws: nil)
+        }
+        let receiptString = await appStoreReceipt()
+        let transaction = latest.map { $0.unsafePayloadValue }
+        let jws = latest?.jwsRepresentation
+
+        return ApphudRestoreData(receiptString: receiptString, transaction: transaction, transactionJws: jws)
+    }
+
+    @MainActor
+    private func submitVersion2Restore(_ prepared: ApphudRestoreData, context: ApphudIdentityContext, operationID: UUID) {
+        guard prepared.receiptString != nil || prepared.transaction != nil else {
+            finishVersion2Restore(operationID, error: ApphudError(message: "Failed to restore purchases: neither entitlements nor App Store receipt found on device."))
+            return
+        }
+        performWhenUserRegistered(allowFailure: true) {
+            guard self.isCurrentUserResponse(context), self.restoreOperationCallbacks[operationID] != nil else {
+                self.finishVersion2Restore(operationID, error: ApphudError(message: "Restore canceled because the user changed"))
+                return
+            }
+            guard self.currentUser != nil else {
+                self.finishVersion2Restore(operationID, error: ApphudError(message: "Cannot restore purchases because user is not registered"))
+                return
+            }
+            Task { @MainActor in
+                await self.submitReceipt(productInfo: nil, apphudProduct: nil,
+                                         transactionIdentifier: prepared.transaction.map { String($0.id) },
+                                         transactionProductIdentifier: prepared.transaction?.productID,
+                                         transactionState: nil, receiptString: prepared.receiptString,
+                                         transactionJws: prepared.transactionJws, notifyDelegate: true,
+                                         restore: true, fromScreen: false, requestContext: context) { error in
+                    Task { @MainActor in self.finishVersion2Restore(operationID, error: error) }
+                }
+            }
+        }
+    }
+
+    @MainActor
+    private func finishVersion2Restore(_ operationID: UUID, error: Error?) {
+        restoreOperationCallbacks.removeValue(forKey: operationID)?(error)
+    }
+
+    @MainActor
+    internal func cancelVersion2Restores(error: Error) {
+        let callbacks = Array(restoreOperationCallbacks.values)
+        restoreOperationCallbacks.removeAll()
+        callbacks.forEach { $0(error) }
     }
 
     /// A restore cannot proceed without a registered user: report it instead of hanging.
@@ -181,11 +270,13 @@ extension ApphudInternal {
 
     /// An automatic path skips another account's transaction: it moves only with a restore.
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
+    @MainActor
     private func isAnotherAccountsTransaction(_ transaction: StoreKit.Transaction) -> Bool {
         isAnotherAccountsToken(transaction.appAccountToken)
     }
 
     /// Identity version 2 only: version 1 sends every purchase, as SDK 4.6 did.
+    @MainActor
     internal func isAnotherAccountsToken(_ token: UUID?) -> Bool {
         guard !isIdentityV1 else { return false }
         return ApphudStoreKitWrapper.belongsToAnotherAccount(token, identity: identity,
@@ -195,6 +286,7 @@ extension ApphudInternal {
     /// The legacy queue twin's StoreKit 2 transaction when it is another account's. Mostly the
     /// product's latest transaction; otherwise one from the history, which has no finished consumables.
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
+    @MainActor
     internal func anotherAccountsTransaction(id: UInt64, productID: String) async -> StoreKit.Transaction? {
         if case .verified(let latest) = await StoreKit.Transaction.latest(for: productID), latest.id == id {
             return isAnotherAccountsTransaction(latest) ? latest : nil
@@ -214,7 +306,9 @@ extension ApphudInternal {
     /// can surface WHY the purchase is not confirmed (master parity: clients gating
     /// on `result.error` must see a failed submission).
     @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
+    @MainActor
     internal func handleTransactionResult(_ transaction: StoreKit.Transaction, jws: String? = nil, fromScreen: Bool = false, automatic: Bool = false) async -> Error? {
+        let context = userResponseContext()
         let transactionId = transaction.id
         let refundDate = transaction.revocationDate
         let expirationDate = transaction.expirationDate
@@ -230,7 +324,9 @@ extension ApphudInternal {
         }
 
         // use original transaction id to compare if already tracked
-        if await isAlreadyTracked(transactionId: transaction.originalID, productId: productID, purchaseDate: purchaseDate) {
+        let alreadyTracked = await isAlreadyTracked(transactionId: transaction.originalID, productId: productID, purchaseDate: purchaseDate)
+        guard isCurrentUserResponse(context) else { return ApphudError(message: "Transaction canceled because the user changed") }
+        if alreadyTracked {
             apphudLog("This transaction already tracked by Apphud: \(transactionId), skipping", logLevel: .debug)
             return nil
         }
@@ -265,12 +361,17 @@ extension ApphudInternal {
             // no SKProductsRequest involved.
             let product = try? await ApphudAsyncStoreKit.shared.fetchProduct(productID)
             let receipt = await appStoreReceipt()
+            guard isCurrentUserResponse(context) else { return ApphudError(message: "Transaction canceled because the user changed") }
             let isRecentlyPurchased: Bool = purchaseDate > Date().addingTimeInterval(-3600)
             return await withUnsafeContinuation { continuation in
                 // allowFailure: a block that waits for a registration which never succeeds
                 // is never released, which would hang the purchase call awaiting it.
                 performWhenUserRegistered(allowFailure: true) {
 
+                    guard self.isCurrentUserResponse(context) else {
+                        continuation.resume(returning: ApphudError(message: "Transaction canceled because the user changed"))
+                        return
+                    }
                     guard self.currentUser != nil else {
                         apphudLog("Cannot submit transaction \(transactionId) because user is not registered, will retry later", forceDisplay: true)
                         continuation.resume(returning: ApphudError(message: "Cannot submit transaction \(transactionId): user is not registered"))
@@ -292,7 +393,7 @@ extension ApphudInternal {
                                            transactionJws: jws,
                                                  notifyDelegate: true,
                                                  ownsTransaction: true,
-                                                 fromScreen: fromScreen) { error in
+                                                 fromScreen: fromScreen, requestContext: context) { error in
                             continuation.resume(returning: error)
                         }
                     }
@@ -465,8 +566,14 @@ extension ApphudInternal {
                                 restore: Bool = false,
                                 fromScreen: Bool,
                                 restoreContext: (generation: UUID, identity: ApphudIdentity)? = nil,
+                                requestContext: ApphudIdentityContext? = nil,
                                 callback: ApphudNSErrorCallback?) async {
 
+        let requestContext = requestContext ?? userResponseContext()
+        guard isCurrentUserResponse(requestContext) else {
+            callback?(ApphudError(message: "Receipt canceled because the user changed"))
+            return
+        }
         let newClaim = transactionIdentifier ?? transactionProductIdentifier ?? (productInfo?["product_id"] as? String) ?? "Restoration"
 
         // A product fetch may finish after the other StoreKit path. Reuse only this
@@ -512,7 +619,7 @@ extension ApphudInternal {
                                                  transactionJws: transactionJws, notifyDelegate: notifyDelegate,
                                                  eligibilityCheck: eligibilityCheck, ownsTransaction: ownsTransaction,
                                                  restore: restore, fromScreen: fromScreen,
-                                                 restoreContext: (generation, requestedIdentity), callback: callback)
+                                                 restoreContext: (generation, requestedIdentity), requestContext: requestContext, callback: callback)
                     }
                 }
             } else if let callback, existing == nil || !ownsTransaction || existing == newClaim {
@@ -671,12 +778,20 @@ extension ApphudInternal {
         // Logout may have run during product/screen awaits. It already answered this upload's
         // callbacks; do not send it after that boundary or answer them again.
         if let submissionID, self.submittingReceiptID != submissionID { return }
+        guard isCurrentUserResponse(requestContext) else {
+            self.takeReceiptCallbacks(submissionID: submissionID)?.forEach { $0?(ApphudError(message: "Receipt canceled because the user changed")) }
+            return
+        }
         httpClient?.startRequest(path: .subscriptions, params: params, method: .post, useDecoder: true, retry: (hasMadePurchase && !fallbackMode)) { (result, _, data, error, errorCode, duration, _) in
             Task { @MainActor in
 
                 // A late response after logout must not drain a new session's upload.
                 // Each release takes its callbacks atomically; a new upload cannot inherit them.
                 if let submissionID, self.submittingReceiptID != submissionID { return }
+                guard self.isCurrentUserResponse(requestContext) else {
+                    self.takeReceiptCallbacks(submissionID: submissionID)?.forEach { $0?(ApphudError(message: "Receipt canceled because the user changed")) }
+                    return
+                }
                 // V1 keeps its original release timing. V2 includes response parsing in
                 // single-flight so a late SK1 twin joins the same completed result.
                 let version1Callbacks = self.isIdentityV1 ? self.takeReceiptCallbacks(submissionID: submissionID) : nil
@@ -708,8 +823,12 @@ extension ApphudInternal {
                     self.observerModePurchaseIdentifiers = nil
                     self.submitReceiptRetries = (0, 0)
                     self.requiresReceiptSubmission = false
-                    let hasChanges = await self.parseUser(data: data)
+                    let hasChanges = await self.parseUser(data: data, context: requestContext)
                     if let submissionID, self.submittingReceiptID != submissionID { return }
+                    guard self.isCurrentUserResponse(requestContext) else {
+                        self.takeReceiptCallbacks(submissionID: submissionID)?.forEach { $0?(ApphudError(message: "Receipt canceled because the user changed")) }
+                        return
+                    }
                     if !self.isIdentityV1, let id = transactionId.flatMap(UInt64.init) {
                         self.observedTransactions.acknowledge(id, identity: sentIdentity)
                     }

@@ -38,6 +38,7 @@ final class ApphudInternal: NSObject {
 
     // MARK: - Private properties
     @MainActor private var userRegisteredCallbacks = [(block: ApphudVoidCallback, allowFailure: Bool)]()
+    @MainActor internal var pendingUserRegistrationCallbackCount: Int { userRegisteredCallbacks.count }
     private var addedObservers = false
     private var allowIdentifyUser = true
 
@@ -60,6 +61,11 @@ final class ApphudInternal: NSObject {
     @MainActor internal var submittingReceiptIdentity: ApphudIdentity?
     @MainActor internal var receiptSessionGeneration = UUID()
     @MainActor internal var observedTransactions = ApphudObservedTransactions()
+    @MainActor internal var responseContext: ApphudIdentityContext?
+    @MainActor internal var responseContextVersion: UInt64 = 0
+    @MainActor internal var activeUserRegistrationID: UUID?
+    @MainActor internal var restoreOperationCallbacks: [UUID: ApphudNSErrorCallback] = [:]
+    internal let identityResponseCache = ApphudIdentityResponseCache()
     // A transaction check that arrived while a purchase was in flight; it runs once that
     // purchase completes, so the check is neither dropped nor polled for.
     @MainActor internal var deferredTransactionCheck = false
@@ -420,7 +426,7 @@ final class ApphudInternal: NSObject {
             return
         }
         self.isReinstall = isReinstall
-        identityStore.keepReinstallAnswer(isReinstall)
+        identityStore.keepReinstallAnswer(isReinstall, installationID: currentInstallationID)
     }
 
     /// Identity version 1: the ids as SDK 4.6 resolved them.
@@ -605,6 +611,7 @@ final class ApphudInternal: NSObject {
         }
     }
 
+    @MainActor
     internal func continueToRegisteringUser(skipRegistration: Bool = false, needToUpdateProductGroups: Bool = true) {
         guard !isRegisteringUser else {return}
         guard self.httpClient != nil else {return}
@@ -613,9 +620,20 @@ final class ApphudInternal: NSObject {
         registerUser(skipRegistration: skipRegistration)
     }
 
+    @MainActor
     @objc private func registerUser(skipRegistration: Bool = false) {
+        let context = userResponseContext()
+        let registrationID = context == nil ? nil : UUID()
+        if let registrationID {
+            activeUserRegistrationID = registrationID
+            isRegisteringUser = true
+        }
         Task.detached(priority: .userInitiated) {
-            let response = await self.createOrGetUser(initialCall: true, skipRegistration: skipRegistration)
+            let response = await self.createOrGetUser(initialCall: true, skipRegistration: skipRegistration, responseContext: context)
+            if let context {
+                await self.completeVersion2Registration(response, context: context, registrationID: registrationID!)
+                return
+            }
 
             let success = response.0
             let errorCode = response.1
@@ -643,6 +661,25 @@ final class ApphudInternal: NSObject {
                 }
             }
         }
+    }
+
+    @MainActor
+    private func completeVersion2Registration(_ response: (Bool, Int), context: ApphudIdentityContext, registrationID: UUID) {
+        guard activeUserRegistrationID == registrationID else { return }
+        activeUserRegistrationID = nil
+        isRegisteringUser = false
+        guard isCurrentUserResponse(context) else { return }
+        if response.0 {
+            userRegisterRetries = (0, 0)
+            apphudLog("User successfully registered with id: \(currentUserID)", forceDisplay: true)
+            performAllUserRegisteredBlocks(responseContext: context)
+            checkForUnreadNotifications()
+            migrateiOS14PurchasesIfNeeded()
+            perform(#selector(forceSendAttributionDataIfNeeded), with: nil, afterDelay: 10)
+        } else {
+            scheduleUserRegistering(errorCode: response.1)
+        }
+        if isApplicationActive && !didHandleBecomeActive { handleDidBecomeActive() }
     }
 
     private func willRetryUserRegistration() -> Bool {
@@ -832,9 +869,10 @@ final class ApphudInternal: NSObject {
         }
     }
 
-    internal func performAllUserRegisteredBlocks() {
+    internal func performAllUserRegisteredBlocks(responseContext: ApphudIdentityContext? = nil) {
         // detach to call in the next run loop
         Task.detached { @MainActor in
+            guard self.isCurrentUserResponse(responseContext) else { return }
             while !self.userRegisteredCallbacks.isEmpty {
                 self.userRegisteredCallbacks.removeFirst().block()
             }
@@ -986,7 +1024,7 @@ final class ApphudInternal: NSObject {
         // the Keychain reinstall key stay. Saved and switched in one main-actor step together with
         // `currentUser` and the waiting callbacks, so a kill during logout doesn't bring the previous
         // user back.
-        await MainActor.run {
+        let cacheVersion = await MainActor.run {
             var identity = self.identity
             identityStore.logout(anonymousID: anonymousID, &identity)
             self.identity = identity
@@ -999,14 +1037,16 @@ final class ApphudInternal: NSObject {
             // Answer everyone still waiting before clearing: a dropped callback leaves
             // its awaiting continuation (a purchase call, for one) suspended forever.
             let logoutError = ApphudError(message: "Apphud SDK was logged out")
+            receiptSessionGeneration = UUID()
+            activeUserRegistrationID = nil
+            observedTransactions.reset()
+            cancelVersion2Restores(error: logoutError)
             userRegisteredCallbacks.forEach { tuple in
                 if tuple.allowFailure { tuple.block() }
             }
             userRegisteredCallbacks.removeAll()
             storeKitProductsFetchedCallbacks.forEach { $0(logoutError) }
             storeKitProductsFetchedCallbacks.removeAll()
-            receiptSessionGeneration = UUID()
-            observedTransactions.reset()
             submittingReceiptID = nil
             submittingReceiptIdentity = nil
             submittingReceiptRestore = false
@@ -1019,8 +1059,10 @@ final class ApphudInternal: NSObject {
             // into calling the host's completion twice.
             restorePurchasesCallback?(nil, nil, logoutError)
             restorePurchasesCallback = nil
+            return userResponseContext()!.version
         }
 
+        await identityResponseCache.clear(version: cacheVersion)
         await ApphudDataActor.shared.clear()
 
         await ApphudUser.clearCache()

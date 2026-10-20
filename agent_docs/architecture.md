@@ -196,8 +196,19 @@ the SDK stores what it was given, `userID == nil` means no user, `isReinstall` c
 the app (at `start`, or later through `setReinstall(_:)`; kept in the install record, so a
 later `start` without one keeps it), and no Keychain item is read, written or deleted. A
 reinstall the app reports and no registration has carried yet keeps registration from being
-skipped (`identity_sync_pending`), on a later launch too. Another user or a new anonymous id
-(the host's logout) drops `legacy_device_id`.
+skipped (`identity_sync_pending`), on a later launch too. On a legacy/V1 upgrade, the saved UserDefaults `com.apphud.device_id` goes as
+`legacy_device_id` on both customer and subscription requests even when the host supplies every
+new id; Core's optional anonymous-id lookup is not required. It stays pending across retries and
+relaunches until a successful customer registration carrying it, and subscription acknowledgements
+do not consume it. No id is recovered from the Keychain or guessed from the host's installation id.
+A normal V2 launch never reuses the retained V1 rollback id for migration. Known generated legacy device ids are remembered in UserDefaults (the existing
+`com.apphud.old_device_id` plus `com.apphud.additional_old_device_ids` for later migrations), so a
+later host echo or Identify cannot promote them to a real user. A V1 device alias equal to the saved
+V2 installation id is not newly classified as generated on an ordinary rollback: an explicit host
+user equal to its installation id stays a user. Pending metadata is
+saved before the V2 version marker; failed file writes keep the old saved person/version so the next
+launch can retry safely. Another user, a new anonymous id (the host's logout), or a host-reported
+reinstall drops `legacy_device_id`.
 
 Otherwise:
 

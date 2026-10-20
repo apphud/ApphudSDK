@@ -237,6 +237,8 @@ internal final class ApphudIdentityStore {
     /// The old version's generated device_id, kept for good after an upgrade: apps that saved it as
     /// their user id pass it back, and it is never a user.
     static let oldDeviceIDKey = "com.apphud.old_device_id"
+    /// Further generated V1 device ids observed on later migrations; the first scalar stays compatible.
+    private static let additionalOldDeviceIDsKey = "com.apphud.additional_old_device_ids"
     /// Set while the backend hasn't seen the current ids; cleared by a successful registration.
     static let syncPendingKey = "com.apphud.identity_sync_pending"
     /// The identity version that ran last here, "v1" or "v2". Absent before it existed.
@@ -256,6 +258,7 @@ internal final class ApphudIdentityStore {
     private let keychain: ApphudKeychainStoring
     private let installRecords: ApphudInstallRecordStoring
     private let makeID: () -> String
+    private let makeVersion1ID: () -> String
     private let lock = NSLock()
     /// The old device_id of an upgrade whose record couldn't be saved: still sent this launch.
     private var unsavedLegacyDeviceID: String?
@@ -267,7 +270,7 @@ internal final class ApphudIdentityStore {
     init(defaults: UserDefaults = .standard,
          keychain: ApphudKeychainStoring = ApphudSystemKeychain(),
          installRecords: ApphudInstallRecordStoring? = nil,
-         makeID: @escaping () -> String = { UUID().uuidString }) {
+         makeID: (() -> String)? = nil) {
         self.defaults = defaults
         self.keychain = keychain
         #if os(tvOS)
@@ -275,8 +278,12 @@ internal final class ApphudIdentityStore {
         #else
         self.installRecords = installRecords ?? ApphudInstallRecordFile.standard
         #endif
-        self.makeID = makeID
+        self.makeID = makeID ?? { UUID().uuidString.lowercased() }
+        self.makeVersion1ID = makeID ?? { UUID().uuidString }
     }
+
+    /// A failed local write must not undo a backend acknowledgement during this process.
+    private var reportedReinstallInstallationID: String?
 
     /// The installation id is already stored and readable: the launch needs no Keychain read.
     var hasInstallRecord: Bool {
@@ -393,7 +400,7 @@ internal final class ApphudIdentityStore {
             anonymousID = nil
         }
 
-        if anonymousID == nil, !version1LoggedOut, let current = userID, current == oldDeviceID {
+        if anonymousID == nil, !version1LoggedOut, let current = userID, oldGeneratedDeviceIDs.contains(current) {
             // An update stopped after its record and before its ids were saved: the old SDK's generated
             // device_id, still in the user's place, is the anonymous id.
             anonymousID = current
@@ -416,7 +423,7 @@ internal final class ApphudIdentityStore {
         }
         // Generated ids are never a user: a supplied one is ignored (the stored user stays), a stored
         // one is dropped.
-        let generatedIDs = Set([resolvedAnonymousID, oldDeviceID].compactMap { $0 })
+        let generatedIDs = oldGeneratedDeviceIDs.union([resolvedAnonymousID])
         if let suppliedUserID = supplied.userID, !generatedIDs.contains(suppliedUserID) {
             userID = suppliedUserID
         }
@@ -482,19 +489,21 @@ internal final class ApphudIdentityStore {
     /// What the next registration reports: the reinstall and the old device_id, each until a
     /// registration that carried it succeeds.
     func registrationReport(for identity: ApphudIdentity) -> ApphudRegistrationReport {
+        let reported = reportedReinstallInstallationID == identity.installationID
         guard case .found(let record) = installRecords.read() else {
-            return ApphudRegistrationReport(reinstall: identity.isReinstall == true, legacyDeviceID: unsavedLegacyDeviceIDValue())
+            return ApphudRegistrationReport(reinstall: identity.isReinstall == true && !reported, legacyDeviceID: unsavedLegacyDeviceIDValue())
         }
-        return ApphudRegistrationReport(reinstall: identity.isReinstall == true && record.reinstallReported != true,
-                                        legacyDeviceID: legacyDeviceIDForgotten() ? nil : record.legacyDeviceID)
+        let recordedReinstall = record.installationID == identity.installationID && record.reinstallReported == true
+        return ApphudRegistrationReport(reinstall: identity.isReinstall == true && !reported && !recordedReinstall,
+                                        legacyDeviceID: legacyDeviceIDForgotten() ? nil : (unsavedLegacyDeviceIDValue() ?? record.legacyDeviceID))
     }
 
     /// The app's reinstall answer that arrived after `start`, kept for later launches: a reinstall not
     /// reported yet keeps the next registration from being skipped, on a later launch too.
-    func keepReinstallAnswer(_ isReinstall: Bool) {
-        var reported = false
-        if case .found(var record) = installRecords.read() {
-            reported = record.reinstallReported == true
+    func keepReinstallAnswer(_ isReinstall: Bool, installationID: String? = nil) {
+        var reported = installationID != nil && installationID == reportedReinstallInstallationID
+        if case .found(var record) = installRecords.read(), installationID == nil || record.installationID == installationID {
+            reported = reported || record.reinstallReported == true || record.installationID == reportedReinstallInstallationID
             if record.hostIsReinstall != isReinstall {
                 record.hostIsReinstall = isReinstall
                 installRecords.write(record)
@@ -506,9 +515,15 @@ internal final class ApphudIdentityStore {
     }
 
     /// A registration succeeded: what it reported is not sent again.
-    func markRegistered(reinstallSent: Bool, legacyDeviceIDSent: Bool) {
-        if legacyDeviceIDSent { setUnsavedLegacyDeviceID(nil) }
-        guard reinstallSent || legacyDeviceIDSent, case .found(var record) = installRecords.read() else { return }
+    func markRegistered(reinstallSent: Bool, legacyDeviceIDSent: Bool, installationID: String? = nil) {
+        if legacyDeviceIDSent { markLegacyDeviceIDForgottenInProcess() }
+        let saved = installRecords.read()
+        if reinstallSent {
+            if let installationID { reportedReinstallInstallationID = installationID }
+            else if case .found(let record) = saved { reportedReinstallInstallationID = record.installationID }
+        }
+        guard reinstallSent || legacyDeviceIDSent, case .found(var record) = saved,
+              installationID == nil || record.installationID == installationID else { return }
         if reinstallSent { record.reinstallReported = true }
         if legacyDeviceIDSent { record.legacyDeviceID = nil }
         installRecords.write(record)
@@ -516,7 +531,7 @@ internal final class ApphudIdentityStore {
 
     /// `updateUserID`: identify while anonymous, a switch while identified, a no-op for the same id.
     func identify(_ userID: String, _ identity: inout ApphudIdentity) -> ApphudIdentifyOutcome {
-        guard identity.userID != userID, userID != identity.anonymousID, userID != oldDeviceID else { return .unchanged }
+        guard identity.userID != userID, userID != identity.anonymousID, !oldGeneratedDeviceIDs.contains(userID) else { return .unchanged }
         let outcome: ApphudIdentifyOutcome = identity.userID == nil ? .identified : .switched
         if outcome == .switched {
             // Before the new user is saved: a crash in between must not leave the old customer to them.
@@ -557,7 +572,7 @@ internal final class ApphudIdentityStore {
         // After a logout on version 2, whatever the marker says, version 1 starts with a new device id,
         // never one the Keychain may still hold.
         if defaults.bool(forKey: Self.version1IDsResetKey), let anonymousID {
-            return (makeID(), defaults.string(forKey: Self.userIDKey).apphudNonEmpty ?? anonymousID)
+            return (makeVersion1ID(), defaults.string(forKey: Self.userIDKey).apphudNonEmpty ?? anonymousID)
         }
         // Builds before the version marker ran version 2 only.
         guard lastVersion == Self.version2 || (lastVersion == nil && anonymousID != nil) else { return nil }
@@ -625,45 +640,70 @@ internal final class ApphudIdentityStore {
 
     // MARK: - Private
 
-    /// Every id supplied by the app: the app owns the ids and the reinstall flag. No Keychain item
-    /// is read or written, and no old key is touched.
+    /// The host owns the ids and reinstall answer. A legacy SDK's UserDefaults device id is still
+    /// needed to adopt its customer; embedded mode never reads or writes the Keychain.
     private func resolveSupplied(_ supplied: ApphudSuppliedIDs, stored: ApphudInstallRecord?,
                                  storedAnonymousID: String?, storedUserID: String?) -> ApphudIdentityResolution {
         let installationID = supplied.installationID!
         let anonymousID = supplied.anonymousID!
-        // The host passes a user id when it has one: none means no user. Generated ids are never one.
-        let userID = supplied.userID == anonymousID || supplied.userID == oldDeviceID ? nil : supplied.userID
+        let lastVersion = defaults.string(forKey: Self.identityVersionKey)
+        let legacyDeviceID = defaults.string(forKey: Self.legacyDeviceIDKey).apphudNonEmpty
+        let upgrading = legacyDeviceID != nil && (lastVersion == Self.version1 || (lastVersion == nil && stored == nil))
+        let version1LoggedOut = lastVersion == Self.version1 && defaults.bool(forKey: Self.version1LoggedOutKey)
+        // V1 may merely have echoed V2's installation id as its device id. That alias is not
+        // proof of a generated user: a real host user equal to the installation id must survive.
+        let retainedVersion2Alias = lastVersion == Self.version1 && !version1LoggedOut
+            && stored?.installationID == legacyDeviceID
+        if upgrading, !retainedVersion2Alias, let legacyDeviceID {
+            rememberOldGeneratedDeviceID(legacyDeviceID)
+        }
+        // A generated V1 user is still anonymous; identifying it for the first time is no switch.
+        let oldGeneratedIDs = oldGeneratedDeviceIDs.union(lastVersion == Self.version1 ? [storedAnonymousID].compactMap { $0 } : [])
+        let userID = supplied.userID.flatMap { $0 == anonymousID || oldGeneratedIDs.contains($0) ? nil : $0 }
+        let previousUserID = upgrading && storedUserID.map({ oldGeneratedIDs.contains($0) }) == true ? nil : storedUserID
+        let switchedUser = Self.isSwitch(from: previousUserID, to: userID)
 
         var record = stored ?? ApphudInstallRecord(installationID: installationID, isReinstall: nil, reinstallDecided: true)
         record.installationID = installationID
+        if upgrading {
+            record.legacyDeviceID = legacyDeviceIDForgotten() ? nil : legacyDeviceID
+        }
         // The answer passed now, else the one the app gave after an earlier start for this installation.
         if stored?.installationID != installationID {
             record.hostIsReinstall = nil
+            record.reinstallReported = nil
         }
         if let answer = supplied.isReinstall {
             record.hostIsReinstall = answer
         }
-        if Self.isSwitch(from: storedUserID, to: userID) || (storedAnonymousID != nil && anonymousID != storedAnonymousID) {
-            // Not after a user switch or a logout (the host's new anonymous id): the old customer belongs
-            // to the person before.
+        if switchedUser || (!version1LoggedOut && storedAnonymousID != nil && anonymousID != storedAnonymousID)
+            || supplied.isReinstall == true {
+            // The old customer belongs to the person before this switch, logout or reinstall.
             record.legacyDeviceID = nil
             markLegacyDeviceIDForgottenInProcess()
         }
-        if record != stored {
-            installRecords.write(record)
+        let saved = record == stored || installRecords.write(record)
+        if saved {
+            setUnsavedLegacyDeviceID(nil)
+            persist(anonymousID: anonymousID, userID: userID)
+            // Last: a failed record write must not hide the upgrade on the next launch. Keeping
+            // the old person on failure also lets a repeated host switch drop adoption again.
+            defaults.set(Self.version2, forKey: Self.identityVersionKey)
+            if version1LoggedOut { defaults.removeObject(forKey: Self.version1LoggedOutKey) }
+        } else {
+            setUnsavedLegacyDeviceID(record.legacyDeviceID)
         }
-        persist(anonymousID: anonymousID, userID: userID)
-        defaults.set(Self.version2, forKey: Self.identityVersionKey)
 
         let identity = ApphudIdentity(installationID: installationID, anonymousID: anonymousID,
                                       userID: userID, isReinstall: record.hostIsReinstall)
         let changed = installationID != stored?.installationID || anonymousID != storedAnonymousID || userID != storedUserID
-        // A reinstall the app reports goes until a registration carries it: none is skipped till then.
-        if changed || (record.hostIsReinstall == true && record.reinstallReported != true) {
+            || record.legacyDeviceID != stored?.legacyDeviceID
+        if changed || (!legacyDeviceIDForgotten() && record.legacyDeviceID != nil)
+            || (record.hostIsReinstall == true && record.reinstallReported != true) {
             markSyncPending()
         }
-        return ApphudIdentityResolution(identity: identity, launch: stored == nil ? .newInstall : .normal,
-                                        changed: changed, switchedUser: Self.isSwitch(from: storedUserID, to: userID))
+        return ApphudIdentityResolution(identity: identity, launch: upgrading ? .upgrade : (stored == nil ? .newInstall : .normal),
+                                        changed: changed, switchedUser: switchedUser)
     }
 
     /// `legacy_device_id` goes until the first successful registration, not after a logout or a user
@@ -698,6 +738,20 @@ internal final class ApphudIdentityStore {
     }
 
     private var oldDeviceID: String? { defaults.string(forKey: Self.oldDeviceIDKey).apphudNonEmpty }
+
+    private var oldGeneratedDeviceIDs: Set<String> {
+        Set((defaults.stringArray(forKey: Self.additionalOldDeviceIDsKey) ?? []) + [oldDeviceID].compactMap { $0 })
+    }
+
+    private func rememberOldGeneratedDeviceID(_ deviceID: String) {
+        guard !oldGeneratedDeviceIDs.contains(deviceID) else { return }
+        if oldDeviceID == nil {
+            defaults.set(deviceID, forKey: Self.oldDeviceIDKey)
+        } else {
+            let additional = Set(defaults.stringArray(forKey: Self.additionalOldDeviceIDsKey) ?? []).union([deviceID])
+            defaults.set(additional.sorted(), forKey: Self.additionalOldDeviceIDsKey)
+        }
+    }
 
     private static func isSwitch(from storedUserID: String?, to userID: String?) -> Bool {
         guard let storedUserID, let userID else { return false }
