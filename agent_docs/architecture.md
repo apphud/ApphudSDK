@@ -34,9 +34,16 @@ Everything hangs off singletons:
 `Public/Apphud.swift` is a `final class Apphud: NSObject` of static methods; it never
 holds state, every call forwards to `ApphudInternal.shared`.
 
-- `start(apiKey:userID:observerMode:callback:deeplinkHandler:)` and
-  `startManually(apiKey:userID:deviceID:observerMode:callback:deeplinkHandler:)` — the
-  only difference is the explicit `deviceID`. Both are `@MainActor`.
+- `start(apiKey:userID:anonymousID:installationID:isReinstall:observerMode:identityVersion:callback:deeplinkHandler:)`
+  and `startManually(apiKey:userID:deviceID:observerMode:identityVersion:...)`, both `@MainActor`.
+  `identityVersion` (`.v1` by default, `.v2`) picks the identity model once per launch (see Identity
+  versions). With `.v2` every id is optional (see Identity) and `startManually`'s `deviceID` is the
+  installation id.
+- Identity getters: `userID()` (`.v2`: the user id once identified, else the anonymous id; `.v1`: the
+  user id), `deviceID()` (`.v1`: the device id; `.v2`: the installation id); `.v2` only:
+  `installationID()`, `anonymousID()`, `isReinstall() -> Bool?` ("" / nil with `.v1`);
+  `setReinstall(_:)` for the app's reinstall answer after `start` when it supplies the ids.
+  `logout()` / `logout(anonymousID:)` (`.v1`: the logout of 4.6.1, the anonymous id unused).
 - `ApphudDelegate` (`Public/ApphudDelegate.swift`) — subscriptions/purchases updated,
   `apphudDidChangeUserID`, `userDidLoad`, `paywallsDidFullyLoad`, `placementsDidFullyLoad`,
   App Store direct purchase (`apphudShouldStartAppStoreDirectPurchase(product: Product)`,
@@ -66,42 +73,43 @@ holds state, every call forwards to `ApphudInternal.shared`.
 ## Initialization and user registration
 
 ```
-Apphud.start(apiKey:userID:observerMode:)                 // Public/Apphud.swift
-  └─> ApphudInternal.initialize(...)                       // Internal/ApphudInternal.swift
-      ├─> iOS/tvOS: if Keychain unusable AND no UserDefaults ids AND app not active
-      │     → park params in delayedInitilizationParams, retry on didBecomeActive
+Apphud.start(apiKey:userID:anonymousID:installationID:isReinstall:observerMode:)  // Public/Apphud.swift
+  └─> ApphudInternal.initialize(apiKey:supplied:observerMode:)   // Internal/ApphudInternal.swift
+      ├─> iOS/tvOS: if protected data unavailable AND no readable installation record AND
+      │     app not active → park params in delayedInitilizationParams, retry on didBecomeActive
       ├─> ApphudStoreKitWrapper.setupObserver()   (SKPaymentQueue.add(self), once)
       ├─> httpClient = ApphudHttpClient.shared; apiKey set
       ├─> ApphudAsyncStoreKit.shared.startObserving()   (starts Transaction.updates +
       │     PurchaseIntent.intents listeners with the SDK, once)
       ├─> guard allowIdentifyUser (false after first start until logout())
-      └─> identify(inputUserID:inputDeviceID:observerMode:)
-          ├─> resolve deviceID / userID (see Identity)
+      └─> identify(apiKey:supplied:observerMode:)
+          ├─> identityStore.resolve(supplied) (see Identity); nil → wait like above
           ├─> currentUser = ApphudUser.fromCacheV2()      (Caches/ApphudUser; expiry is not checked)
           ├─> load cached paywalls / placements / groups  (Caches/Apphud{Paywalls,Placements,ProductGroups})
           ├─> fetchCurrencyIfNeeded()                      // Internal/ApphudInternal+Currency.swift
           └─> continueToRegisteringUser(skipRegistration:)
               └─> registerUser()  → createOrGetUser(initialCall: true)   // Internal/ApphudInternal+UserUpdate.swift
                   ├─> skipRegistration == true → use cache, resubmit receipt if flagged, done
-                  └─> updateUser(fields: [user_id, initial_call]) → POST /v1/customers
-                      ├─> parseUser(data:) → currentUser, paywalls/placements, cache, checkUserID
+                  └─> updateUser(fields: [initial_call]) → POST /v1/customers
+                      ├─> parseUser(data:) → currentUser, paywalls/placements, cache
                       ├─> success → performAllUserRegisteredBlocks, checkForUnreadNotifications
                       └─> failure → scheduleUserRegistering(errorCode:)   (see Retry)
 ```
 
-`skipRegistration` is true only when the user id did not change, a cached user exists,
+`skipRegistration` is true only when the backend has seen the current ids (no `identity_sync_pending`), a cached user exists,
 cached paywalls are not expired, `lastUserUpdatedAt` is within `cacheTimeout`
 (5 s in sandbox, 90 000 s in production, overridable via `setPaywallsCacheTimeout`) and
 the user has **no** subscriptions or purchases. Paid users always re-register.
 
 `POST /v1/customers` body (`updateUser`, `Internal/ApphudInternal+UserUpdate.swift`)
 carries device params from `apphudCurrentDeviceiOSParameters()` (locale, time zone,
-device model, os/app/sdk versions, idfa/idfv when set and not opted out), plus
-`device_id`, `is_debug`, `is_new`, `need_placements`, `opt_out`, `reinstall` (once),
-`first_seen` (Documents-folder creation date), `bundle_id`, storefront currency fields.
-`user_id` is passed explicitly on the initial call, on `updateUserID` and on web2web
-attribution when the payload carries a user id; every other `updateUser` call adds `currentUser.userId` once a user exists, so
-only a non-initial call made before the first user load goes without it.
+device model, os/app/sdk versions, idfa when set, idfv — the host's value or the system
+one — both skipped when opted out), plus `installation_id`, `anonymous_id`, `user_id`
+(only once identified), `reinstall: true` (until a registration carrying it succeeds),
+`is_debug`, `is_new`, `need_placements`, `opt_out`, `first_seen` (Documents-folder
+creation date), `bundle_id`, storefront currency fields. The fields come from
+`customerIdentityParams`; the web-to-web email request adds `from_web2web: true` and
+the email.
 HTTP 401 sets `invalidAPiKey`, 403 sets `unauthorized` + `suspended`; both stop retries.
 
 **`performWhenUserRegistered(allowFailure:callback:)`** is the gate every feature sits
@@ -114,102 +122,169 @@ and run immediately if the client already cannot retry (invalid key / unauthoriz
 
 ## Identity
 
-Files: `Internal/ApphudInternal.swift` (`identify`, `logout`), `Internal/ApphudKeychain.swift`,
-`Internal/ApphudInternal+UserUpdate.swift` (`checkUserID`, `updateUserID`), `Public/ApphudUser.swift`.
+### Identity versions
+
+`ApphudIdentityVersion` (`Public/ApphudIdentityVersion.swift`) is chosen by the first start of a
+launch (`ApphudInternal.chooseIdentityVersion`); a logout before any start follows the version that
+ran last (`logoutRunsVersion1`).
+
+- `.v1` (default) sends exactly what SDK 4.6.1 sent: one device id kept by `ApphudKeychain`
+  (UserDefaults `com.apphud.device_id` / `com.apphud.user_id` + Keychain), API v1–v3
+  (`ApphudEndpoint.v1APIVersion`), and the 4.6.1 code copied as `identifyV1`, `logoutV1`,
+  `updateUserIDV1`, `tryWebAttributionV1`, `checkUserID`, `promoOfferSignParamsV1`,
+  `applicationUsernameV1`; request builders branch on `isIdentityV1`. Nothing in the sections below
+  runs with `.v1`.
+- `.v2` runs the three ids below on API v4: the Apphud API paths named below as in 4.6.1
+  (`/v1/customers`, `/v2/events`, …) all go to `/v4/…`; the preview screen URL has no version.
+
+Switching, through `ApphudIdentityStore` and the marker UserDefaults `com.apphud.identity_version`
+("v1" / "v2", written last):
+- `.v2` keeps `.v1`'s data (`com.apphud.device_id`, the Keychain items) except on its own logout,
+  which resets them (`com.apphud.version1_ids_reset`) and blanks the Keychain items as `.v1`'s own
+  logout does, in their old protection class (`.v1` deletes by it before it writes them again):
+  `.v1` reads `""` as no id.
+- `.v1` → `.v2`: `resolve` takes `.v1`'s ids over as on the first update: `legacy_device_id` = its
+  device id until a registration succeeds (not after a logout or a user switch), a generated user
+  id is the anonymous id, and `.v2`'s anonymous id stays unless `.v1` logged out since
+  (`com.apphud.version1_logged_out`, set by `logoutV1`).
+- `.v2` → `.v1`: `idsForVersion1()` gives the device id (the old one, else the installation id; a new
+  one after a `.v2` logout) and the user id (the identified user, else the anonymous id);
+  `identifyV1` saves them before the 4.6.1 logic and registers until a `.v1` registration succeeds
+  (`com.apphud.version1_registration_pending`). Until then `performWhenUserRegistered` waits for the first
+  registration of the launch although the customer cached by `.v2` shows: the backend may not know
+  the device id. A failed one releases them when a customer is cached, as 4.6.1 does
+  (`endVersion1LaunchRegistration`); without one they wait for a registration, as in 4.6.1.
+  The backend finds the customer by `user_id` (v4 anonymous customers have `user_id` =
+  `anonymous_id`), then by `device_id`.
+
+Files: `Internal/ApphudIdentity.swift` (`ApphudIdentityStore`: resolution, identify, logout),
+`Internal/ApphudKeychain.swift` (the reinstall key; `.v1`'s items), `Internal/ApphudInternal.swift`
+(`identify`, `logout`, `identityParams`), `Internal/ApphudInternal+UserUpdate.swift`
+(`applyIdentify`, `updateUserID`, `customerIdentityParams`).
+
+Three ids, identify/reset model:
+
+| Moment | installation_id | anonymous_id | user_id |
+|---|---|---|---|
+| Fresh install | minted | minted | — |
+| `updateUserID("Alice")` | same | kept | Alice |
+| `updateUserID("Alice")` again | same | same | no-op |
+| `updateUserID("Bob")` while Alice | same | same | Bob (switch, debug warning) |
+| Logout | same | new | cleared |
+| Delete → reinstall | new | new | — |
+
+The current identity (`currentUserID`, `Apphud.userID()`) is `user_id ?? anonymous_id`.
+Requests send `installation_id` and `anonymous_id` wherever `device_id` was;
+`user_id` only once the app identified the user, never an SDK-generated id.
 
 ### Storage
 
-`ApphudKeychain` writes each id to **two** places: `UserDefaults.standard`
-(`com.apphud.device_id`, `com.apphud.user_id`) and a Keychain generic-password item
-(service `ApphudDeviceID` / `ApphudUserID`, account `ApphudUser`,
-`kSecAttrAccessibleAfterFirstUnlock`, no access group). Reads prefer UserDefaults and
-fall back to Keychain only when `canUseKeychain` (iOS/tvOS: `isProtectedDataAvailable`;
-macOS: always false; other platforms: always true). Empty strings count as "not set".
+- `installation_id` (+ `isReinstall`, `reinstallDecided`): `ApphudInstallRecord` in a
+  backup-excluded file, Application Support/`com.apphud`/<bundle id>/`installation.json` (the flag is
+  set again after every atomic write). tvOS keeps it in UserDefaults
+  (`com.apphud.installation`): other tvOS files can be purged.
+- `anonymous_id`: UserDefaults `com.apphud.anonymous_id`. `user_id`: UserDefaults
+  `com.apphud.user_id`, only a user id the app set.
+- Keychain: one item of its own, `com.apphud.reinstall` (account `ApphudUser`,
+  `AfterFirstUnlockThisDeviceOnly`): "installed on this device before", no id. Never
+  removed on logout. Not used on macOS (as before).
 
-### Resolution at `identify` (`ApphudInternal.swift`)
+### Resolution at `start` (`ApphudIdentityStore.resolve`)
 
-```
-deviceID = ApphudKeychain.loadDeviceID()          // UserDefaults → Keychain
-isFreshInstall = (deviceID == nil)
-isRedownload   = deviceID != nil && UserDefaults["ApphudReinstallFlag"] == nil
-if inputDeviceID non-empty  → deviceID = inputDeviceID
-generatedUUID = NSUUID().uuidString               // UPPERCASE, one value reused below
-if deviceID == nil          → deviceID = generatedUUID; saveDeviceID
+Ids supplied by the app — the app passed both `installationID` and `anonymousID`:
+the SDK stores what it was given, `userID == nil` means no user, `isReinstall` comes from
+the app (at `start`, or later through `setReinstall(_:)`; kept in the install record, so a
+later `start` without one keeps it), and no Keychain item is read, written or deleted. A
+reinstall the app reports and no registration has carried yet keeps registration from being
+skipped (`identity_sync_pending`), on a later launch too. On a legacy/V1 upgrade, the saved UserDefaults `com.apphud.device_id` goes as
+`legacy_device_id` on both customer and subscription requests even when the host supplies every
+new id; Core's optional anonymous-id lookup is not required. It stays pending across retries and
+relaunches until a successful customer registration carrying it, and subscription acknowledgements
+do not consume it. No id is recovered from the Keychain or guessed from the host's installation id.
+A normal V2 launch never reuses the retained V1 rollback id for migration. Known generated legacy device ids are remembered in UserDefaults (the existing
+`com.apphud.old_device_id` plus `com.apphud.additional_old_device_ids` for later migrations), so a
+later host echo or Identify cannot promote them to a real user. A V1 device alias equal to the saved
+V2 installation id is not newly classified as generated on an ordinary rollback: an explicit host
+user equal to its installation id stays a user. Pending metadata is
+saved before the V2 version marker; failed file writes keep the old saved person/version so the next
+launch can retry safely. Another user, a new anonymous id (the host's logout), or a host-reported
+reinstall drops `legacy_device_id`.
 
-userID = inputUserID                              // 1. explicit
-      ?? cachedUser.userId                        // 2. Caches/ApphudUser
-      ?? ApphudKeychain.loadUserID()              // 3. UserDefaults → Keychain
-      ?? generatedUUID                            // 4. SAME value as a fresh deviceID
-```
+Otherwise:
 
-Consequences worth knowing:
+| Situation | Result |
+|---|---|
+| installation record exists | normal launch; write the reinstall key if missing; an undecided reinstall check is retried |
+| no record, old `com.apphud.device_id` in UserDefaults (or an old `com.apphud.user_id` without `com.apphud.anonymous_id`: `startManually(deviceID:)` hosts) | in-place upgrade: it becomes `installation_id` and goes as `legacy_device_id` until a registration succeeds, not after a logout or a user switch; an old `user_id` equal to it was SDK-generated and becomes `anonymous_id`, a different one stays `user_id` (without `com.apphud.device_id`, an install reinstalled on an old SDK version, the old `user_id` is compared with the old `ApphudDeviceID` in the Keychain instead: equal, it is the anonymous id; the item is compared only, never sent); `com.apphud.device_id` stays for `.v1` |
+| no record, reinstall key | reinstall |
+| no record, no reinstall key | first install (an old `ApphudDeviceID` item doesn't count: it moves to a new phone with a backup, so a reinstall straight from an old SDK version, or from `.v1`, which writes no reinstall key, reads as a first install) |
+| new install, Keychain unreadable | `isReinstall = nil`, retried on later launches |
+| record unreadable (before the first unlock) | not resolved; `start` waits |
+| record damaged | a new installation id, `isReinstall = nil` (our own key may be there) |
 
-- On a clean install with no `userID` passed, **userID == deviceID byte-for-byte**, and
-  both are uppercase UUID strings (`NSUUID().uuidString`).
-- `inputDeviceID` overrides the stored device id but is never persisted: the override runs
-  before the nil check, so `identify` only ever saves a generated id (the other
-  `saveDeviceID` caller, `resetValues`, writes `""`).
-- The user id is written to Keychain/UserDefaults only when it differs from what the
-  Keychain already had (`isIdenticalUserIds` check in `identify`).
-- `currentCustomerID` mirrors `currentUser.internalId` (the backend `id`) and is added as
-  `customer_id` to request bodies / queries whenever it is non-empty
-  (`ApphudHttpClient.makeRequest`). It follows `currentUser`, including the cached user
-  loaded in `identify`, so requests made before any user is loaded — e.g. a `/customers`
-  call with no cached user — carry none. It is
-  distinct from `userId`; `ApphudUser.internalId` is documented "should not be used in analytics".
+After deciding: `identity_sync_pending` is set first when the ids changed; while an old
+`com.apphud.device_id` is there (an upgraded install keeps it for `.v1`) the ids are saved to
+UserDefaults next, except on a user switch, where the record without `legacy_device_id` goes
+first; then the record is saved and the reinstall key written (only after a
+successful read); `com.apphud.device_id` and the old `ApphudDeviceID` / `ApphudUserID` items
+stay for `.v1`; every other launch saves the ids last. A crash at any point leaves no
+SDK-generated id behind as a user and never turns an in-place upgrade into a new install.
+Neither old item is sent, used as an id or used to tell a reinstall (`ApphudDeviceID` is only compared with an old `user_id`, above), and a `.v2` logout blanks both. Supplied ids win
+over stored ones and are persisted; a missing `anonymous_id` is minted. A user id equal to the
+anonymous id is no user: a supplied one is ignored (a stored user stays), a stored one dropped.
+Normal launches touch the Keychain only until `keychainUpdated` is saved in the record.
 
-### Server-driven changes (`checkUserID`, `+UserUpdate.swift`)
+`identity_sync_pending` (UserDefaults) is set whenever the ids change — resolution,
+identify, logout — and cleared by a successful `POST /v1/customers` sent with the current
+ids; while it is set, `skipRegistration` is false.
 
-Every `parseUser` ends with `checkUserID(tellDelegate: true)`: if the response `user_id`
-differs from `currentUserID`, the SDK adopts the server value, saves it to
-Keychain/UserDefaults and calls `ApphudDelegate.apphudDidChangeUserID`. This is how a
-backend merge (same receipt seen under another user) renames the local user. It also fires
-after `updateUserID` and after web2web attribution.
+### `updateUserID(_:callback:)` and the server's user id
 
-### `updateUserID(_:callback:)` (`+UserUpdate.swift`)
+`applyIdentify` updates the state first (identify, or a switch with a debug warning) and
+calls `apphudDidChangeUserID`, then `POST /v1/customers`. The same id, or the anonymous id,
+is a no-op. The response never changes who is logged in: for an anonymous customer it echoes
+the anonymous id as `user_id`. Exception: web-to-web by email adopts the web user its own
+response names (an identify the host asked for; read from that response, not `currentUser`);
+web-to-web with a user id is a plain identify.
 
-Waits for registration, no-ops if the id is unchanged, otherwise
-`POST /v1/customers` with `user_id` (plus the usual device params) → `parseUser` →
-`checkUserID` → delegate. `deviceID` is untouched. The callback receives `currentUser`
-(possibly the old one if the request failed).
+### `logout()` / `logout(anonymousID:)` (`ApphudInternal.swift`, `async`)
 
-### `logout()` (`ApphudInternal.swift`, `async`)
-
-Clears, in order: `ApphudDataActor.clear()` (effectively the user-properties cache only —
-see "Not cleared"), Keychain + UserDefaults ids (`resetValues` writes `""` to both — **only if
-`canUseKeychain`**, otherwise nothing is reset), the cached user file (v2 and legacy),
-`currentUserID`/`currentDeviceID` = `""`, paywalls/placements caches and in-memory
-arrays, `currentUser`, premium flags, all pending callback arrays (each waiting callback
-is first answered with an "Apphud SDK was logged out" error — `allowFailure`
-registration blocks, products-fetched, submit-receipt and restore callbacks),
-`lastUploadedTransactions`, `submittingTransaction`, pending user properties, retry
+First, in one main-actor step, a new `anonymous_id` (the supplied one, or minted) and no
+`user_id` are saved and switched in memory, and `currentUser`, in-memory paywalls/placements,
+premium flags, all pending callback arrays (each waiting callback is first answered with an
+"Apphud SDK was logged out" error — `allowFailure` registration blocks, products-fetched,
+submit-receipt and restore callbacks), `lastUploadedTransactions` and `submittingTransaction`
+are cleared; the installation id and the reinstall key stay. Then it clears
+`ApphudDataActor.clear()` (effectively the user-properties cache only), the cached user file
+(v2 and legacy), paywalls/placements caches, pending user properties, retry
 counters, attribution "submitted" flags, push token, `observerModePurchaseIdentifiers`;
-then `allowIdentifyUser = true`. **Not cleared:** `permissionGroups` and its cache
-(comment: "never change"), `ApphudReinstallFlag`, `lastUserUpdatedAt`,
+then `allowIdentifyUser = true`: the SDK is uninitialized until the next `start`.
+**Not cleared:** `permissionGroups` and its cache, `lastUserUpdatedAt`,
 `requiresReceiptSubmissionKey`, `ApphudKnownProductTypes`, IDFA/IDFV
 `submittedDeviceIdentifiers`, `swizzlePaymentDisabledKey`, the AF/Adjust attribution cache
 files (`clear()` assigns nil, but the `submittedAFData` / `submittedAdjustData` setters ignore
 nil, so the cached payloads survive logout and are ignored only once older than 7 days),
-the `Transaction.updates` /
-`PurchaseIntent.intents` listeners, and the `ApphudDelegate`/`ApphudUIDelegate` references.
+the `Transaction.updates` / `PurchaseIntent.intents` listeners, and the
+`ApphudDelegate`/`ApphudUIDelegate` references.
 
-The next `start` therefore behaves like a fresh install: `loadDeviceID()` returns nil
-(empty string is filtered), so a **new device id is minted** and `isFreshInstall = true`
-(`isRedownload` is false because the device id is nil). The doc comment on
-`Apphud.logout()` states that if the previous user had an active subscription, the new
-user's restore will merge both under the subscriber's account.
+`currentCustomerID` mirrors `currentUser.internalId` (the backend `id`) and is added as
+`customer_id` to request bodies / queries whenever it is non-empty
+(`ApphudHttpClient.makeRequest`). It follows `currentUser`, including the cached user
+loaded in `identify`, so requests made before any user is loaded — e.g. a `/customers`
+call with no cached user — carry none.
 
 ### Identity on the StoreKit side
 
-`ApphudStoreKitWrapper.appropriateApplicationUsername()` returns `currentUserID` when it
-parses as a `UUID`, otherwise `currentDeviceID`, and only when the payment queue has been
+`ApphudStoreKitWrapper.appropriateApplicationUsername()` returns the identified user id when it
+parses as a `UUID`, otherwise the installation id (as the old device id was; never the
+anonymous id, which the backend no longer matches after identify and merge), and only when the payment queue has been
 swizzled (`hasSwizzledPaymentQueue`, set from `preparePaywalls` after the first user
 load). When that value is a UUID (`ApphudStoreKitWrapper.appAccountToken()`) it goes into
 `Product.PurchaseOption.appAccountToken(UUID)` on every SDK purchase
 (`ApphudAsyncStoreKit.purchaseResult`). The value itself goes into
 `SKMutablePayment.applicationUsername` for the host app's own StoreKit 1 payments (swizzle),
 unless the host already set a UUID there (a host UUID is kept; a non-UUID one is overwritten).
-A non-UUID user id silently falls back to the device id; a purchase made before the swizzle is
+A non-UUID user id silently falls back to the installation id; a purchase made before the swizzle is
 enabled carries no `appAccountToken`.
 A promo offer purchase reads the token once and signs exactly that token (see Promo offers).
 
@@ -433,7 +508,7 @@ overload builds `productInfo` from `SKProduct.apphudSubmittableParameters` (fetc
 product first if the feeder lacks it) and is used by the observer-mode and `.restored`
 paths.
 
-- `POST /v1/subscriptions` with `device_id`, `user_id`, `environment`, `observer_mode`,
+- `POST /v1/subscriptions` with `installation_id`, `anonymous_id`, `user_id` (once identified), `environment`, `observer_mode`,
   `bundle_id`, `receipt_data` (base64 `appStoreReceiptURL`, sent whenever readable),
   `transaction_id`, `jws` (signed StoreKit 2 transaction, `VerificationResult.jwsRepresentation`),
   `product_info` (`Product.apphudSubmittableParameters` in
@@ -512,9 +587,10 @@ paths.
 
 | Where | Key / file | Written by |
 | --- | --- | --- |
-| Keychain + UserDefaults | `ApphudDeviceID`/`com.apphud.device_id`, `ApphudUserID`/`com.apphud.user_id` | `ApphudKeychain` |
+| Backup-excluded file / UserDefaults | Application Support/`com.apphud`/<bundle id>/`installation.json` (tvOS: `com.apphud.installation`), `com.apphud.anonymous_id`, `com.apphud.user_id`, `com.apphud.identity_sync_pending` | `ApphudIdentityStore` |
+| Keychain | `com.apphud.reinstall` (old `ApphudDeviceID` / `ApphudUserID` kept for `.v1`, blanked by a `.v2` logout) | `ApphudSystemKeychain` |
 | Caches/ (via `ApphudDataActor`) | `ApphudUser` (a 90 d timeout is passed, but expiry is not checked on load), `ApphudPaywalls`, `ApphudPlacements`, `ApphudProductGroups` (`cacheTimeout`), `ApphudUserPropertiesCache`, `submittedAFDataKey`, `submittedAdjustDataKey` (7 d), `{screenId}.html` | `+Product`, `ApphudUser.toCacheV2`, `+UserUpdate`, `+Attribution`, `ApphudHttpClient` |
-| UserDefaults | `ApphudReinstallFlag`, `lastUserUpdatedAt`, `requiresReceiptSubmissionKey`, `ApphudLastUploadedTransactionsSK2` (ids acknowledged by the backend; the pre-4.5.0 `ApphudLastUploadedTransactions` key is deliberately never read because it was written before acknowledgement), `ApphudKnownProductTypes`, `swizzlePaymentDisabledKey`, `submittedDeviceIdentifiersKey`, `submittedPushTokenKey`, `submittedFirebaseIdKey`, `submittedFacebookAnonIdKey`, `didSubmit{AppsFlyer,Adjust,AppleAds}AttributionKey`, `ApphudSubscriptionsMigrated`, `ApphudMigrateCachesKey`, `ApphudConnectDomainUrl`, `apphud_installation_date` (read-only override) | various |
+| UserDefaults | `lastUserUpdatedAt`, `requiresReceiptSubmissionKey`, `ApphudLastUploadedTransactionsSK2` (ids acknowledged by the backend; the pre-4.5.0 `ApphudLastUploadedTransactions` key is deliberately never read because it was written before acknowledgement), `ApphudKnownProductTypes`, `swizzlePaymentDisabledKey`, `submittedDeviceIdentifiersKey`, `submittedPushTokenKey`, `submittedFirebaseIdKey`, `submittedFacebookAnonIdKey`, `didSubmit{AppsFlyer,Adjust,AppleAds}AttributionKey`, `ApphudSubscriptionsMigrated`, `ApphudMigrateCachesKey`, `ApphudConnectDomainUrl`, `apphud_installation_date` (read-only override) | various |
 | Bundle | `apphud_paywalls_fallback.json` (read only) | host app |
 
 Legacy user cache (`ApphudUser.data`, NSKeyedArchiver, Application Support or Caches)
@@ -580,15 +656,16 @@ compatibility only; it never starts a payment.
 - Push: `submitPushNotificationsToken` → `PUT /v1/customers/push_token`, de-duplicated by
   the last token in UserDefaults.
 - Web-to-app: `attributeFromWeb(data:)` (`tryWebAttribution`) reads `aph_user_id`/
-  `apphud_user_id` and `email`/`apphud_user_email`. With neither it fails; with only a user
-  id equal to the current one it returns success without a request; otherwise it
-  re-registers with `from_web2web: true` plus `user_id` and/or `email`, whichever was found
-  (→ `checkUserID` → `apphudDidChangeUserID`). Deep-link attribution:
+  `apphud_user_id` and `email`/`apphud_user_email`. With neither it fails; with a user id
+  equal to the identified one it returns success without a request; with a user id it is a
+  plain identify (no `from_web2web`); with only an email it re-registers with the usual ids,
+  `from_web2web: true` and the email, and adopts the web user the response names
+  (→ `apphudDidChangeUserID`). Deep-link attribution:
   `handleOpen(url:)`/`handleLaunchOptions`/`continueUserActivity` →
   `POST /v2/customers/deeplink_attribution` with `url` (kind `.direct`);
   `requestDeferredDeeplinkAttribution` presents a hidden 1×1 `WKWebView`
   (`ApphudWebController`, iOS 15+, app must be active with a visible controller, 10 s
-  timeout, 3 readiness retries) that loads `connectDomainUrl?api_key&device_id&host`,
+  timeout, 3 readiness retries) that loads `connectDomainUrl?api_key&device_id&host` (`device_id` carries the installation id: the page reads only that name),
   evaluates `getConnectId()` and posts the `visitor_id` to the same endpoint (kind
   `.deferred`). Results reach the `ApphudDeeplinkHandler` set in `start`/`setDeeplinkHandler`.
 - Eligibility (`+Eligibility.swift`): `checkIntroEligibilitiesSK2(productIds:)` — true
@@ -692,8 +769,8 @@ suppression within 2 s): `paywall_shown`, `paywall_closed`, `paywall_checkout_in
   `performWhenStoreKitProductFetched`, `ApphudAsyncStoreKit.purchaseResult` /
   `processTransaction` (and its `processingTransactions` map), all of
   `ApphudScreensManager` and the public `start`/`purchase`/`placements` APIs are
-  `@MainActor`. Non-isolated properties on `ApphudInternal` (`currentUserID`,
-  `currentDeviceID`, `currentCustomerID`, retry counters, flags) are plain `var`s read
+  `@MainActor`. Non-isolated properties on `ApphudInternal` (`currentInstallationID`,
+  `currentAnonymousID`, `identifiedUserID`, `currentCustomerID`, retry counters, flags) are plain `var`s read
   from any thread; `currentCustomerID` exists precisely so `ApphudHttpClient` can read
   the customer id off the main actor.
 - **HTTP callbacks always land on the main actor**: `ApphudHttpClient.startRequest`

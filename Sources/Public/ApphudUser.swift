@@ -162,6 +162,9 @@ public struct ApphudUser: Codable {
         )
     }
 
+    internal static let deferResponseSettingsKey = CodingUserInfoKey(rawValue: "apphud.deferResponseSettings")!
+    internal let responseSwizzleDisabled: Bool?
+
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         
@@ -178,10 +181,13 @@ public struct ApphudUser: Codable {
         var subs = parsedSubs ?? []
         var purchs = parsedPurchs ?? []
 
-        if parsedSubs == nil || parsedPurchs == nil {
-
-            let swizzleDisabled = (try? values.decodeIfPresent(Bool.self, forKey: .swizzleDisabled)) ?? false
-            UserDefaults.standard.set(swizzleDisabled, forKey: ApphudInternal.shared.swizzlePaymentDisabledKey)
+        let usesServerSubscriptions = parsedSubs == nil || parsedPurchs == nil
+        self.responseSwizzleDisabled = usesServerSubscriptions
+            ? ((try? values.decodeIfPresent(Bool.self, forKey: .swizzleDisabled)) ?? false) : nil
+        if usesServerSubscriptions {
+            if decoder.userInfo[Self.deferResponseSettingsKey] as? Bool != true {
+                UserDefaults.standard.set(responseSwizzleDisabled ?? false, forKey: ApphudInternal.shared.swizzlePaymentDisabledKey)
+            }
 
             var IAPContainer = try values.nestedUnkeyedContainer(forKey: .subscriptions)
             while !IAPContainer.isAtEnd {
@@ -265,6 +271,7 @@ public struct ApphudUser: Codable {
 
     init?(userID: String, subscriptions: [ApphudSubscription] = [], purchases: [ApphudNonRenewingPurchase] = [], paywalls: [ApphudPaywall] = [], placements: [ApphudPlacement] = []) {
         self.userId = userID
+        self.responseSwizzleDisabled = nil
         self.internalId = userID
         self.subscriptions = subscriptions
         self.purchases = purchases

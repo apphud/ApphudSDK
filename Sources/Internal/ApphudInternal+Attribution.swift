@@ -122,11 +122,9 @@ extension ApphudInternal {
                 }
 
                 // Create Request params with raw_data
-                var params: [String: Any] = [
-                    "device_id": self.currentDeviceID,
-                    "provider": provider.toString(),
-                    "raw_data": dict
-                ]
+                var params: [String: Any] = self.identityParams()
+                params["provider"] = provider.toString()
+                params["raw_data"] = dict
 
                 var attributionDict: [String: any Sendable] = [:]
 
@@ -144,7 +142,7 @@ extension ApphudInternal {
 
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
 
-                self.startAttributionRequest(params: params, apiVersion: .APIV2, provider: provider, identifer: identifer) { result in
+                self.startAttributionRequest(params: params, apiVersion: .APIV4, provider: provider, identifer: identifer) { result in
                     Task {
                         if result {
                             switch provider {
@@ -184,7 +182,7 @@ extension ApphudInternal {
         return !dictionary1.isEqual(to: dictionary2 as! [AnyHashable: Any])
     }
 
-    func startAttributionRequest(params: [String: Any], apiVersion: ApphudHttpClient.ApphudApiVersion = .APIV1, provider: ApphudAttributionProvider, identifer: String?, callback: ((Bool) -> Void)?) {
+    func startAttributionRequest(params: [String: Any], apiVersion: ApphudHttpClient.ApphudApiVersion = .APIV4, provider: ApphudAttributionProvider, identifer: String?, callback: ((Bool) -> Void)?) {
         self.httpClient?.startRequest(path: .attribution, apiVersion: apiVersion, params: params, method: .post, retry: true) { (result, _, _, _, _, _, _) in
             switch provider {
             case .adjust:
@@ -301,10 +299,8 @@ extension ApphudInternal {
     }
     
     private func startDeeplinkAttributionRequest(url: URL?, visitorId: String?, completion: @escaping ([String: Any]?) -> Void) {
-        var params: [String: Any] = [
-            "device_id": self.currentDeviceID,
-            "bundle_id": Bundle.main.bundleIdentifier ?? ""
-        ]
+        var params: [String: Any] = self.identityParams()
+        params["bundle_id"] = Bundle.main.bundleIdentifier ?? ""
         if let url {
             params["url"] = url.absoluteString
         }
@@ -312,7 +308,7 @@ extension ApphudInternal {
             params["visitor_id"] = visitorId
         }
         
-        self.httpClient?.startRequest(path: .attributionDeeplink, apiVersion: .APIV2, params: params, method: .post, useDecoder: false, retry: false, requestID: nil) { _, response, _, _, _, _, _ in
+        self.httpClient?.startRequest(path: .attributionDeeplink, apiVersion: .APIV4, params: params, method: .post, useDecoder: false, retry: false, requestID: nil) { _, response, _, _, _, _, _ in
             apphudLog("response: \(String(describing: response))")
             completion(response)
         }
@@ -320,6 +316,50 @@ extension ApphudInternal {
     
     @MainActor
     internal func tryWebAttribution(attributionData: [AnyHashable: Any], completion: @escaping (Bool, ApphudUser?) -> Void) {
+        if isIdentityV1 {
+            tryWebAttributionV1(attributionData: attributionData, completion: completion)
+            return
+        }
+
+        let userId = (attributionData["aph_user_id"] ?? attributionData["apphud_user_id"]) as? String ?? ""
+        let email = (attributionData["email"] ?? attributionData["apphud_user_email"]) as? String ?? ""
+
+        if userId.isEmpty && email.isEmpty {
+            completion(false, currentUser)
+            return
+        }
+
+        if !userId.isEmpty && identifiedUserID == userId {
+            apphudLog("Already web2web user, skipping")
+            completion(true, currentUser)
+            return
+        }
+
+        apphudLog("Found a match from web click, updating User ID to \(userId)", forceDisplay: true)
+        self.performWhenUserRegistered {
+            if !userId.isEmpty {
+                // The web user's id is known: a plain identify, no from_web2web.
+                self.applyIdentify(userID: userId)
+                let context = self.userResponseContext()
+                self.updateUser(fields: [:], responseContext: context) { (result, _, data, _, _, _, _) in
+                    self.finishWebAttribution(result: result, data: data, adoptFrom: nil, context: context, completion: completion)
+                }
+            } else {
+                // Email only: a registration with the email and the usual ids; the response names the web user.
+                let params: [String: Any] = ["from_web2web": true, "email": email]
+                // In fallback mode the local user is made up: no customer id to compare against.
+                let adoptFrom: (customer: String?, identity: ApphudIdentity)? = self.fallbackMode ? nil : (self.currentUser?.internalId, self.identity)
+                let context = self.userResponseContext()
+                self.updateUser(fields: params, responseContext: context) { (result, _, data, _, _, _, _) in
+                    self.finishWebAttribution(result: result, data: data, adoptFrom: adoptFrom, context: context, completion: completion)
+                }
+            }
+        }
+    }
+
+    /// Identity version 1: web-to-web as SDK 4.6 did it, one registration with `from_web2web`.
+    @MainActor
+    private func tryWebAttributionV1(attributionData: [AnyHashable: Any], completion: @escaping (Bool, ApphudUser?) -> Void) {
 
         let userId = (attributionData["aph_user_id"] ?? attributionData["apphud_user_id"]) as? String ?? ""
         let email = (attributionData["email"] ?? attributionData["apphud_user_email"]) as? String ?? ""
@@ -361,4 +401,44 @@ extension ApphudInternal {
             }
         }
     }
+
+    /// The web user an email-only web-to-web request found: the response is another customer than
+    /// before. Without a match the backend returns the same customer, possibly with another
+    /// install's id as its user_id, which is no user to adopt. Read from this request's response,
+    /// not `currentUser`, which another request may have replaced meanwhile; and only while the ids
+    /// are those the request was sent with (no logout or identify in between).
+    internal static func webUserToAdopt(customerBefore: String?, sent: ApphudIdentity, current: ApphudIdentity, responseData: Data?) -> String? {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        guard sent.hasSameIDs(as: current), let responseData,
+              let response = try? decoder.decode(ApphudUserResponse<ApphudResponseCustomer>.self, from: responseData).data.results,
+              let userID = response.userId, !userID.isEmpty, userID != current.anonymousID,
+              let customerID = response.id, !customerID.isEmpty, customerID != customerBefore else { return nil }
+        return userID
+    }
+
+    /// `adoptFrom`: the customer id and the ids an email-only request was sent with, `nil` for a request with the user id.
+    private func finishWebAttribution(result: Bool, data: Data?, adoptFrom: (customer: String?, identity: ApphudIdentity)?, context: ApphudIdentityContext?, completion: @escaping (Bool, ApphudUser?) -> Void) {
+        Task { @MainActor in
+            guard result, self.isCurrentUserResponse(context) else { completion(false, self.currentUser); return }
+            // This response is allowed to identify the matched web user. Publish it and its
+            // deferred product callbacks under that accepted identity, not the old anonymous epoch.
+            if let adoptFrom,
+               let userID = Self.webUserToAdopt(customerBefore: adoptFrom.customer, sent: adoptFrom.identity,
+                                              current: self.identity, responseData: data) {
+                self.applyIdentify(userID: userID)
+            }
+            let accepted = self.userResponseContext()
+            let changes = await self.parseUser(data: data, context: accepted)
+            guard self.isCurrentUserResponse(accepted) else { completion(false, self.currentUser); return }
+            self.notifyAboutUpdates(changes)
+            completion(true, self.currentUser)
+        }
+    }
+}
+
+/// The customer a `POST /v4/customers` response is about: only what the web-user check needs.
+internal struct ApphudResponseCustomer: Decodable {
+    let id: String?
+    let userId: String?
 }

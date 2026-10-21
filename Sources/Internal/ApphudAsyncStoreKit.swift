@@ -105,6 +105,9 @@ internal class ApphudAsyncStoreKit {
 
         if addsCurrentAppAccountToken, let token = ApphudStoreKitWrapper.shared.appAccountToken() {
             options.insert(.appAccountToken(token))
+            if !ApphudInternal.shared.isIdentityV1 {
+                ApphudStoreKitWrapper.rememberPurchaseToken(token, identity: ApphudInternal.shared.identity)
+            }
         }
         lastPurchaseOptions = options
 
@@ -128,6 +131,9 @@ internal class ApphudAsyncStoreKit {
             case .success(let verificationResult):
                 switch verificationResult {
                 case .verified(let trx):
+                    if !ApphudInternal.shared.isIdentityV1 {
+                        ApphudInternal.shared.observedTransactions.recordSDKPurchase(trx.id)
+                    }
                     transaction = trx
                     transactionJws = verificationResult.jwsRepresentation
                 case .unverified(let trx, let verificationError):
@@ -185,21 +191,28 @@ internal class ApphudAsyncStoreKit {
 
     @MainActor
     @discardableResult
-    internal static func processTransaction(_ transaction: StoreKit.Transaction, jws: String?, fromScreen: Bool = false) async -> Error? {
+    internal static func processTransaction(_ transaction: StoreKit.Transaction, jws: String?, fromScreen: Bool = false, automatic: Bool = false) async -> Error? {
 
         if let inFlight = processingTransactions[transaction.id] {
             apphudLog("Transaction \(transaction.id) is already being processed, awaiting its result", logLevel: .debug)
             return await inFlight.value
         }
 
+        let generation = ApphudInternal.shared.observedTransactions.generation
         let task = Task { @MainActor in
-            // Finish only after the transaction is handled: an unfinished transaction is
-            // redelivered by StoreKit on the next launch, so a submit that failed against
-            // the backend keeps the transaction alive for a retry.
-            let submitError = await ApphudInternal.shared.handleTransactionResult(transaction, jws: jws, fromScreen: fromScreen)
+            let sdk = ApphudInternal.shared
+            let submitError = await sdk.handleTransactionResult(transaction, jws: jws, fromScreen: fromScreen, automatic: automatic)
             if submitError == nil {
-                await transaction.finish()
+                if sdk.isIdentityV1 {
+                    await transaction.finish()
+                } else {
+                    let ownsFinish = !automatic || sdk.observedTransactions.isSDKPurchase(transaction.id) || !ApphudUtils.shared.storeKitObserverMode
+                    if ownsFinish && sdk.observedTransactions.claimFinish(transaction.id, generation: generation) {
+                        await transaction.finish()
+                    }
+                }
             }
+            if !sdk.isIdentityV1 { sdk.observedTransactions.processingEnded(transaction.id, generation: generation) }
             return submitError
         }
 
@@ -308,7 +321,7 @@ final class ApphudAsyncTransactionObserver {
         }
     }
 
-    private func handle(updatedTransaction verificationResult: VerificationResult<StoreKit.Transaction>) {
+    internal func handle(updatedTransaction verificationResult: VerificationResult<StoreKit.Transaction>) {
         guard case .verified(let transaction) = verificationResult else {
             if case .unverified(let unsignedTransaction, _) = verificationResult {
                 apphudLog("Received unverified transaction [\(unsignedTransaction.id), \(unsignedTransaction.productID)] from StoreKit2")
@@ -323,12 +336,12 @@ final class ApphudAsyncTransactionObserver {
             Task { @MainActor in
                 // Duplicate delivery of a transaction the direct purchase path is already
                 // submitting is filtered inside processTransaction by transaction id.
-                await ApphudAsyncStoreKit.processTransaction(transaction, jws: jws)
+                await ApphudAsyncStoreKit.processTransaction(transaction, jws: jws, automatic: true)
             }
         } else {
             apphudLog("Received transaction [\(transaction.id), \(transaction.productID)] from StoreKit2")
             Task { @MainActor in
-                await ApphudInternal.shared.handleTransaction(transaction, jws: jws)
+                await ApphudInternal.shared.handleTransaction(transaction, jws: jws, automatic: true)
             }
         }
     }
