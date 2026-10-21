@@ -13,7 +13,7 @@ an unmodified clone of `apphud/ApphudSDK` at tag `4.5.0`; the docs describe that
 
 | Topic | Doc |
 | --- | --- |
-| Init/registration flow, identity (userID/deviceID/logout), purchase paths, HTTP + retry, persistence, swizzling, ApphudUI, threading | [agent_docs/architecture.md](agent_docs/architecture.md) |
+| Init/registration flow, identity (installation/anonymous/user ids, logout), purchase paths, HTTP + retry, persistence, swizzling, ApphudUI, threading | [agent_docs/architecture.md](agent_docs/architecture.md) |
 | Directory layout, where new code goes, naming | [agent_docs/structure.md](agent_docs/structure.md) |
 
 ## Tech stack
@@ -22,9 +22,10 @@ Swift 5.9 (`swiftLanguageVersions: [.v5]`), iOS 15+ / macOS 13+ / tvOS 16+ / wat
 visionOS 1+ declared identically in `Package.swift` and the podspec. StoreKit only
 framework dependency; no third-party packages. Distributed via `Package.swift` and
 `ApphudSDK.podspec`. `.swiftlint.yml` exists but nothing runs it. Tests:
-`Tests/ApphudUnitTests` (SPM test target, 72 XCTests, pure logic + seams, runs with
+`Tests/ApphudUnitTests` (SPM test target, 139 XCTests (2 iOS-only), pure logic + seams, runs with
 `swift test` on macOS), `Examples/ApphudDemoSwift/ApphudSDKTests` (16 StoreKitTest
-integration tests with a stubbed backend, hosted by the demo app), and
+integration tests with a stubbed backend, hosted by the demo app, plus the system Keychain tests:
+the package's tests have no Keychain on a simulator), and
 `Examples/ApphudDemoVisionOS/ApphudSDKTests` (three XCTests against a hard-coded live API key).
 
 ## Key commands
@@ -73,10 +74,14 @@ xcodebuild test -workspace Examples/ApphudDemoSwift/ApphudSDKDemo.xcworkspace \
   `ApphudSession` keeps its id under an `NSLock`, because `ApphudHttpClient.requestInstance(url:)`
   and `PlatformProtocol.sessionId` read it synchronously off the main actor; its UserDefaults
   writes go through its own serial queue, never under the lock.
-- **Identity is two ids** — `userID` and `deviceID` are persisted in Keychain and
-  UserDefaults by `ApphudKeychain`; `logout()` blanks both and the next `start` mints a
-  new device id. Read the Identity section of architecture.md before touching
-  `identify`, `checkUserID`, `updateUserID` or `logout`.
+- **Two identity versions** — `identityVersion` on `start` (`.v1` by default) picks the model
+  once per launch. `.v1` is SDK 4.6.1 byte for byte: one device id kept by `ApphudKeychain`,
+  API v1–v3, the 4.6.1 code in the `…V1` functions. `.v2` is three ids — `installation_id`
+  (backup-excluded file, kept across logout), `anonymous_id` (UserDefaults, new on logout) and
+  `user_id` (set only by identify) — on API v4, resolved and persisted by
+  `ApphudIdentityStore`, which also switches between the versions. Read the Identity section of
+  architecture.md before touching `identify`, `updateUserID`, `tryWebAttribution` or `logout`,
+  and keep `.v1` requests identical to 4.6.1.
 - **UIKit/WebKit code is compile-guarded** — `ApphudUI/` and
   `Public/ApphudPaywallScreenController.swift` sit in `#if os(iOS)` (per-file details in
   [agent_docs/structure.md](agent_docs/structure.md)); keep macOS/watchOS/tvOS/visionOS

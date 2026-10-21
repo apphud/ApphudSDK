@@ -33,12 +33,11 @@ public protocol ApphudDelegate {
     func apphudNonRenewingPurchasesUpdated(_ purchases: [ApphudNonRenewingPurchase])
 
     /**
-     Called when the user's ID in Apphud changes. This is important for maintaining continuity in integrations with analytics services.
+     Called when the user's ID changes.
 
-     This method is called in two scenarios:
-     1. When Apphud merges two user accounts into one. This can happen if a user restores purchases from another device and Apphud identifies the same App Store receipt in its database. In this case, the two accounts are merged, and the original userID is returned.
-        - __Note__: Only subscriber devices are mergeable. Non-premium users on multiple devices cannot be merged unless they have a subscription.
-     2. After manually calling the `updateUserID(userID: String)` method.
+     With `identityVersion: .v2`, only through an identify you requested: `updateUserID(_:)`, or `attributeFromWeb(data:callback:)` when it finds the web user. A response from Apphud never changes the user ID on its own.
+
+     With `.v1`, when Apphud returns another user ID: after merging two user accounts into one (a restore of purchases that belong to another account), or after `updateUserID(_:)`.
 
      - parameter userID: The new user ID assigned to the user.
      - Note: For more information on user ID changes and their implications, refer to Apphud's documentation on initialization and user merging: `https://docs.apphud.com/docs/initialization`

@@ -80,26 +80,25 @@ extension ApphudInternal {
     /// Fallback-mode stub keyed by product id: prefers the StoreKit 2 product cache,
     /// falls back to the SK1 products feeder.
     @MainActor func stubPurchase(productId: String?) async -> HasPurchasesChanges {
+        let context = userResponseContext()
         guard let productId, !Apphud.hasPremiumAccess() else {
             apphudLog("No need to stub purchase because already has premium access")
             return HasPurchasesChanges(false, false)
         }
 
-        if let product = await ApphudAsyncStoreKit.shared.products().first(where: { $0.id == productId }) {
+        let products = await ApphudAsyncStoreKit.shared.products()
+        guard isCurrentUserResponse(context) else { return (false, false) }
+        if let product = products.first(where: { $0.id == productId }) {
             if product.subscription != nil {
                 let subscription = ApphudSubscription(product: product)
                 self.currentUser = ApphudUser(userID: currentUserID, subscriptions: [subscription], paywalls: paywalls)
                 apphudLog("Creating stub subscription with 1 hour expiration..")
-                Task {
-                    await self.currentUser?.toCacheV2()
-                }
+                cacheStubUser()
                 return HasPurchasesChanges(true, false)
             } else {
                 let purchase = ApphudNonRenewingPurchase(product: product)
                 self.currentUser = ApphudUser(userID: currentUserID, purchases: [purchase], paywalls: paywalls)
-                Task {
-                    await self.currentUser?.toCacheV2()
-                }
+                cacheStubUser()
                 return HasPurchasesChanges(false, true)
             }
         }
@@ -120,21 +119,26 @@ extension ApphudInternal {
 
             apphudLog("Creating stub subscription with 1 hour expiration..")
 
-            Task {
-                await self.currentUser?.toCacheV2()
-            }
+            cacheStubUser()
 
             return HasPurchasesChanges(true, false)
         } else {
             let purchase = ApphudNonRenewingPurchase(product: product)
             self.currentUser = ApphudUser(userID: currentUserID, purchases: [purchase], paywalls: paywalls)
-            Task {
-                await self.currentUser?.toCacheV2()
-            }
+            cacheStubUser()
 
             return HasPurchasesChanges(false, true)
         }
     }
+    @MainActor private func cacheStubUser() {
+        if isIdentityV1 {
+            Task { await self.currentUser?.toCacheV2() }
+        } else if let user = currentUser {
+            let context = userResponseContext()
+            Task { await self.cacheUserResponse(user, context: context) }
+        }
+    }
+
 }
 
 // MARK: - Gateway Host Fallback

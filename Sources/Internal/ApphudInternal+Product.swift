@@ -213,7 +213,7 @@ extension ApphudInternal {
             return
         }
 
-        httpClient?.startRequest(path: .products, apiVersion: .APIV3, params: ["observer_mode": ApphudUtils.shared.storeKitObserverMode, "device_id": currentDeviceID], method: .get, useDecoder: true, retry: true) { _, _, data, error, code, duration, _ in
+        httpClient?.startRequest(path: .products, apiVersion: .APIV4, params: (identityParams() as [String: Any]).merging(["observer_mode": ApphudUtils.shared.storeKitObserverMode]) { $1 }, method: .get, useDecoder: true, retry: true) { _, _, data, error, code, duration, _ in
 
             if error == nil {
                 ApphudLoggerService.shared.add(key: .products, value: duration, retryLog: self.productsFetchRetries)
@@ -239,7 +239,9 @@ extension ApphudInternal {
         }
     }
 
-    @MainActor internal func preparePaywalls(pwls: [ApphudPaywall], writeToCache: Bool = true, completionBlock: (([ApphudPaywall]?, Error?) -> Void)?) {
+    @MainActor internal func preparePaywalls(pwls: [ApphudPaywall], writeToCache: Bool = true,
+                                            responseContext: ApphudIdentityContext? = nil,
+                                            completionBlock: (([ApphudPaywall]?, Error?) -> Void)?) {
 
         if UserDefaults.standard.bool(forKey: swizzlePaymentDisabledKey) != true && httpClient!.canSwizzlePayment() {
             ApphudStoreKitWrapper.shared.enableSwizzle()
@@ -260,6 +262,7 @@ extension ApphudInternal {
 
         if !didPreparePaywalls {
             Task.detached { @MainActor in
+                guard self.isCurrentUserResponse(responseContext) else { return }
                 self.currentUser.map {
                     self.delegate?.userDidLoad(user: $0)
                 }
@@ -269,6 +272,7 @@ extension ApphudInternal {
 
         DispatchQueue.main.async {
             self.performWhenStoreKitProductFetched(maxAttempts: self.customRegistrationAttemptsCount ?? APPHUD_DEFAULT_RETRIES) { _ in
+                guard self.isCurrentUserResponse(responseContext) else { return }
                 self.updatePaywallsAndPlacements()
                 completionBlock?(self.paywalls, nil)
                 self.delegate?.paywallsDidFullyLoad(paywalls: self.paywalls)
@@ -313,7 +317,7 @@ extension ApphudInternal {
 
     internal func getRenderedProperties(_ paywall: ApphudPaywall, items: [[String: any Sendable]], locale: String, callback: @escaping (Error?) -> Void) {
 
-        httpClient?.startRequest(path: .renderProductProperties, apiVersion: .APIV2, params: ["device_id": currentDeviceID, "items": items, "locale": locale], method: .post, useDecoder: true, retry: true) { _, _, data, error, _, _, _ in
+        httpClient?.startRequest(path: .renderProductProperties, apiVersion: .APIV4, params: (identityParams() as [String: Any]).merging(["items": items, "locale": locale]) { $1 }, method: .post, useDecoder: true, retry: true) { _, _, data, error, _, _, _ in
 
             do {
                 if let data = data {
@@ -350,7 +354,7 @@ extension ApphudInternal {
             return
         }
 
-        httpClient?.startRequest(path: .paywall(identifier), apiVersion: .APIV2, params: ["device_id": currentDeviceID], method: .get, useDecoder: true, retry: true) { _, _, data, error, _, _, _ in
+        httpClient?.startRequest(path: .paywall(identifier), apiVersion: .APIV4, params: identityParams(), method: .get, useDecoder: true, retry: true) { _, _, data, error, _, _, _ in
             guard let data = data else {
                 callback(nil, error)
                 return
