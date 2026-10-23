@@ -664,6 +664,11 @@ final class ApphudSDKTests: XCTestCase {
 
     @MainActor
     func test2PurchaseSubmitsReceiptToBackend() async throws {
+        try await assertPurchaseSubmitsReceiptToBackend()
+    }
+
+    @MainActor
+    private func assertPurchaseSubmitsReceiptToBackend() async throws {
         let session = try XCTUnwrap(Self.storeKitSession)
         session.removeTestTransactions()
 
@@ -723,6 +728,90 @@ final class ApphudSDKTests: XCTestCase {
         XCTAssertNil(body["device_id"], "the new shape never sends device_id")
         XCTAssertEqual(body["user_id"] as? String, ApphudTestConstants.userId)
         XCTAssertEqual(body["restore"] as? Bool, false, "a purchase never takes a subscription from another customer")
+    }
+
+    /// Exercises the real purchase callback with a device clock beyond the subscription expiry.
+    @MainActor
+    func test2cPurchaseWithClockAheadStillSubmits() async throws {
+        let sdk = ApphudInternal.shared
+        let savedClock = sdk.transactionNow
+        defer { sdk.transactionNow = savedClock }
+        sdk.transactionNow = { .distantFuture }
+        try await assertPurchaseSubmitsReceiptToBackend()
+    }
+
+    @MainActor
+    func test2dClockBeforeExpirationStillSubmits() async throws {
+        try await assertTransactionSubmitsWithClock(expirationOffset: -1)
+    }
+
+    @MainActor
+    func test2eClockAtExpirationStillSubmits() async throws {
+        try await assertTransactionSubmitsWithClock(expirationOffset: 0)
+    }
+
+    @MainActor
+    func test2fClockAfterExpirationStillSubmits() async throws {
+        try await assertTransactionSubmitsWithClock(expirationOffset: 1)
+    }
+
+    /// Pause automatic observers so the clock can be set relative to the signed expiry
+    /// before this transaction reaches the production submit/finish path.
+    @MainActor
+    private func assertTransactionSubmitsWithClock(expirationOffset: TimeInterval) async throws {
+        let session = try XCTUnwrap(Self.storeKitSession)
+        session.removeTestTransactions()
+        await startSDKIfNeeded()
+        let sdk = ApphudInternal.shared
+        let settled = await waitUntil { !sdk.isRegisteringUser && sdk.submittingTransaction == nil }
+        XCTAssertTrue(settled)
+        let savedClock = sdk.transactionNow
+        let queue = SKPaymentQueue.default()
+        let capture = LegacyCapture()
+        let listener = ApphudAsyncStoreKit.shared.transactionsListener
+        listener.updates?.cancel()
+        await listener.updates?.value
+        queue.remove(ApphudStoreKitWrapper.shared)
+        queue.add(capture)
+        addTeardownBlock { @MainActor in
+            sdk.transactionNow = savedClock
+            if let transaction = capture.purchased { queue.finishTransaction(transaction) }
+            session.removeTestTransactions()
+            let drained = await self.waitUntil { queue.transactions.isEmpty }
+            XCTAssertTrue(drained)
+            queue.remove(capture)
+            queue.add(ApphudStoreKitWrapper.shared)
+            ApphudAsyncStoreKit.shared.transactionsListener = ApphudAsyncTransactionObserver()
+        }
+        NSObject.cancelPreviousPerformRequests(withTarget: sdk, selector: #selector(ApphudInternal.checkTransactionsNow), object: nil)
+        try session.buyProduct(productIdentifier: ApphudTestConstants.weeklyProductId)
+        let latest = await StoreKit.Transaction.latest(for: ApphudTestConstants.weeklyProductId)
+        guard case .verified(let transaction) = try XCTUnwrap(latest) else {
+            return XCTFail("StoreKitTest must produce a verified subscription")
+        }
+        let expiration = try XCTUnwrap(transaction.expirationDate)
+        sdk.transactionNow = { expiration.addingTimeInterval(expirationOffset) }
+        sdk.lastUploadedTransactions = []
+        ApphudStubURLProtocol.reset()
+
+        let error = await ApphudAsyncStoreKit.processTransaction(transaction, jws: latest?.jwsRepresentation, automatic: true)
+        XCTAssertNil(error)
+        let submits = ApphudStubURLProtocol.requests(to: "/subscriptions").filter { $0.method == "POST" }
+        XCTAssertEqual(submits.count, 1, "Clock offset must not suppress submission")
+        XCTAssertEqual(submits.first?.body["transaction_id"] as? String, String(transaction.id))
+        let payload = try XCTUnwrap(Self.jwsPayloadJSON(submits.first?.body["jws"] as? String))
+        XCTAssertEqual(payload["transactionId"] as? String, String(transaction.id))
+        XCTAssertTrue(sdk.lastUploadedTransactions.contains(transaction.id))
+        var unfinished = false
+        for await result in StoreKit.Transaction.unfinished where result.unsafePayloadValue.id == transaction.id {
+            unfinished = true
+        }
+        XCTAssertFalse(unfinished, "The acknowledged transaction must be finished")
+
+        let duplicateError = await ApphudAsyncStoreKit.processTransaction(transaction, jws: latest?.jwsRepresentation, automatic: true)
+        XCTAssertNil(duplicateError)
+        XCTAssertEqual(ApphudStubURLProtocol.requests(to: "/subscriptions").filter { $0.method == "POST" }.count, 1,
+                       "Redelivery of an acknowledged transaction must not upload it again")
     }
 
     // MARK: 3. Foreign (observer-mode) purchase tracking baseline
@@ -854,6 +943,10 @@ final class ApphudSDKTests: XCTestCase {
     /// upload it and only then mark it as delivered.
     @MainActor
     func test3dFailedUploadIsRecoveredOnRedelivery() async throws {
+        let sdk = ApphudInternal.shared
+        let savedClock = sdk.transactionNow
+        defer { sdk.transactionNow = savedClock }
+        sdk.transactionNow = { .distantFuture }
         let session = try XCTUnwrap(Self.storeKitSession)
         session.removeTestTransactions()
         defer { session.removeTestTransactions() }
@@ -863,7 +956,7 @@ final class ApphudSDKTests: XCTestCase {
         ApphudStubURLProtocol.reset()
         ApphudStubURLProtocol.subscriptionsFailureStatus = 500
 
-        _ = await withCheckedContinuation { continuation in
+        let purchaseResult: ApphudPurchaseResult = await withCheckedContinuation { continuation in
             ApphudInternal.shared.purchase(productId: ApphudTestConstants.weeklyProductId,
                                            product: nil,
                                            validate: true,
@@ -871,6 +964,8 @@ final class ApphudSDKTests: XCTestCase {
                 continuation.resume(returning: result)
             }
         }
+        XCTAssertNotNil(purchaseResult.error, "The caller must receive the server error even with the clock ahead")
+        XCTAssertFalse(ApphudStubURLProtocol.requests(to: "/subscriptions").isEmpty)
         XCTAssertTrue(ApphudInternal.shared.lastUploadedTransactions.isEmpty, "Failed upload must leave no delivered mark")
 
         // Backend is healthy again; the unfinished transaction gets redelivered.
