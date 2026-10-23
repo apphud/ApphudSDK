@@ -52,6 +52,8 @@ final class ApphudInternal: NSObject {
     internal var submitReceiptRetries: ApphudRetryLog = (0, 0)
     @MainActor internal var submitReceiptCallbacks = [ApphudNSErrorCallback?]()
     internal var restorePurchasesCallback: (([ApphudSubscription]?, [ApphudNonRenewingPurchase]?, Error?) -> Void)?
+    // Injectable device clock for transaction metadata, never for submission eligibility.
+    @MainActor internal var transactionNow: () -> Date = Date.init
     // Single-flight slot for receipt submission. Main-actor isolated because it decides
     // whether a transaction may be finished — it must not be read or written concurrently.
     @MainActor internal var submittingTransaction: String?
