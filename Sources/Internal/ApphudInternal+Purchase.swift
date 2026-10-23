@@ -300,7 +300,7 @@ extension ApphudInternal {
     }
 
     /// Returns `nil` when the transaction needs no further delivery (already tracked,
-    /// inactive, or submitted successfully) — the caller may finish it. Returns the
+    /// ineligible, or submitted successfully) — the caller may finish it. Returns the
     /// submission error when it failed or was skipped mid-flight, so an unfinished
     /// transaction gets redelivered by StoreKit and retried — and the purchase path
     /// can surface WHY the purchase is not confirmed (master parity: clients gating
@@ -346,15 +346,17 @@ extension ApphudInternal {
                 : nil
         }
 
-        var isActive = false
+        let shouldSubmit: Bool
         switch transaction.productType {
         case .autoRenewable:
-            isActive = expirationDate != nil && expirationDate! > Date() && refundDate == nil && upgrade == false
+            // The device clock can be ahead of the signed expiration date. Submit even
+            // apparently expired subscriptions; the backend determines their validity.
+            shouldSubmit = expirationDate != nil && refundDate == nil && upgrade == false
         default:
-            isActive = refundDate == nil
+            shouldSubmit = refundDate == nil
         }
 
-        if isActive {
+        if shouldSubmit {
             apphudLog("found transaction with ID: \(transactionId), \(productID), purchase date: \(purchaseDate)", logLevel: .debug)
 
             // StoreKit 2 path: product metadata comes from the SK2 product cache,
@@ -362,7 +364,7 @@ extension ApphudInternal {
             let product = try? await ApphudAsyncStoreKit.shared.fetchProduct(productID)
             let receipt = await appStoreReceipt()
             guard isCurrentUserResponse(context) else { return ApphudError(message: "Transaction canceled because the user changed") }
-            let isRecentlyPurchased: Bool = purchaseDate > Date().addingTimeInterval(-3600)
+            let isRecentlyPurchased: Bool = purchaseDate > transactionNow().addingTimeInterval(-3600)
             return await withUnsafeContinuation { continuation in
                 // allowFailure: a block that waits for a registration which never succeeds
                 // is never released, which would hang the purchase call awaiting it.
