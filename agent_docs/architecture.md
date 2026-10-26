@@ -128,7 +128,8 @@ and run immediately if the client already cannot retry (invalid key / unauthoriz
 launch (`ApphudInternal.chooseIdentityVersion`); a logout before any start follows the version that
 ran last (`logoutRunsVersion1`).
 
-- `.v1` (default) sends exactly what SDK 4.6.1 sent: one device id kept by `ApphudKeychain`
+- `.v1` (default) sends exactly what SDK 4.6.1 sent, except that deferred deep link attribution
+  has sent no `visitor_id` since 4.7.2: one device id kept by `ApphudKeychain`
   (UserDefaults `com.apphud.device_id` / `com.apphud.user_id` + Keychain), API v1–v3
   (`ApphudEndpoint.v1APIVersion`), and the 4.6.1 code copied as `identifyV1`, `logoutV1`,
   `updateUserIDV1`, `tryWebAttributionV1`, `checkUserID`, `promoOfferSignParamsV1`,
@@ -664,12 +665,16 @@ compatibility only; it never starts a payment.
   `handleOpen(url:)`/`handleLaunchOptions`/`continueUserActivity` →
   `POST /v2/customers/deeplink_attribution` with `url` (kind `.direct`);
   `requestDeferredDeeplinkAttribution` posts to the same endpoint without `url` once the user
-  is registered (kind `.deferred`); the backend matches the registration IP against recent
-  link clicks. Results reach the `ApphudDeeplinkHandler` set in `start`/`setDeeplinkHandler`.
-  Up to 4.7.1 the deferred request first loaded a hidden 1×1 `WKWebView` (`ApphudWebController`)
-  for a fingerprint `visitor_id`; the backend no longer uses it, and freeing that short-lived web
-  view raced Screen Time's KVO teardown on iOS 27 (`webBrowserSettings.hasPasscode` crash), so
-  do not add web views to SDK flows that run without UI.
+  is registered (kind `.deferred`, with retries); the backend matches the registration IP against
+  recent link clicks. One request at a time (`isRequestingDeferredDeeplinkAttribution`). Results
+  reach the `ApphudDeeplinkHandler` set in `start`/`setDeeplinkHandler`; a deferred result that
+  arrives with no handler is kept in `pendingDeferredDeeplinkAttribution` and delivered when one is
+  set. Logout clears both. Up to 4.7.1 the deferred request first loaded a hidden 1×1 `WKWebView`
+  (`ApphudWebController`) for a fingerprint `visitor_id`; fingerprinting is turned off on the
+  backend (`FINGERPRINT_ENABLED`), and freeing that short-lived web view raced Screen Time's KVO
+  teardown on iOS 27 (`webBrowserSettings.hasPasscode` crash). WebKit attaches that Screen Time
+  observer only to a web view that is in a window and loads http(s), so do not put short-lived
+  web views on screen outside user-visible UI (off-window paywall preloads don't qualify).
 - Eligibility (`+Eligibility.swift`): `checkIntroEligibilitiesSK2(productIds:)` — true
   by default, false for non-subscriptions or products with no configured intro offer,
   otherwise SK2 `subscription.isEligibleForIntroOffer`; `checkPromoEligibilitiesSK2(productIds:)`

@@ -260,23 +260,46 @@ extension ApphudInternal {
 
     @MainActor
     internal func requestDeferredDeeplinkAttribution() {
+        // Concurrent calls would deliver the same deferred result twice.
+        guard !isRequestingDeferredDeeplinkAttribution else {
+            apphudLog("Deferred deep link attribution is already in progress")
+            return
+        }
+        isRequestingDeferredDeeplinkAttribution = true
         performWhenUserRegistered {
-            self.startDeeplinkAttributionRequest(url: nil) { response in
+            self.startDeeplinkAttributionRequest(url: nil, retry: true) { response in
                 Task { @MainActor in
+                    self.isRequestingDeferredDeeplinkAttribution = false
                     self.notifyDeeplinkAttribution(attribution: response ?? [:], kind: .deferred, url: nil)
                 }
             }
         }
     }
-    
+
     @MainActor
     internal func setDeeplinkAttributionHandler(_ handler: ApphudDeeplinkHandler?) {
         self.deeplinkAttributionHandler = handler
+        // The deferred result arrives right after registration, possibly before the app sets its handler.
+        if let handler, let pending = pendingDeferredDeeplinkAttribution {
+            pendingDeferredDeeplinkAttribution = nil
+            handler(pending, .deferred, nil)
+        }
     }
-    
+
     @MainActor
     internal func notifyDeeplinkAttribution(attribution: [String: Any], kind: ApphudDeeplinkAttributionKind, url: URL?) {
-        self.deeplinkAttributionHandler?(attribution, kind, url)
+        guard let handler = deeplinkAttributionHandler else {
+            if kind == .deferred { pendingDeferredDeeplinkAttribution = attribution }
+            return
+        }
+        handler(attribution, kind, url)
+    }
+
+    /// Logout drops what waits for registration, the deferred request included, and the result belongs to the old user.
+    @MainActor
+    internal func resetDeferredDeeplinkAttribution() {
+        isRequestingDeferredDeeplinkAttribution = false
+        pendingDeferredDeeplinkAttribution = nil
     }
     
     internal func handleOpenURL(_ url: URL) {
@@ -289,7 +312,7 @@ extension ApphudInternal {
     
     internal func forceDirectDeeplinkAttribution(url: URL, completion: @escaping ([String: Any]) -> Void) {
         performWhenUserRegistered {
-            self.startDeeplinkAttributionRequest(url: url) { response in
+            self.startDeeplinkAttributionRequest(url: url, retry: false) { response in
                 completion(response ?? [:])
             }
         }
@@ -299,17 +322,25 @@ extension ApphudInternal {
     internal static let legacyConnectDomainUrlKey = "ApphudConnectDomainUrl"
 
     internal static func removeLegacyConnectDomainUrl(from defaults: UserDefaults = .standard) {
-        defaults.removeObject(forKey: legacyConnectDomainUrlKey)
+        if defaults.object(forKey: legacyConnectDomainUrlKey) != nil {
+            defaults.removeObject(forKey: legacyConnectDomainUrlKey)
+        }
     }
 
-    private func startDeeplinkAttributionRequest(url: URL?, completion: @escaping ([String: Any]?) -> Void) {
+    /// No `visitor_id`: fingerprinting is turned off on the backend, which matches by the registration IP.
+    internal func deeplinkAttributionParams(url: URL?) -> [String: Any] {
         var params: [String: Any] = self.identityParams()
         params["bundle_id"] = Bundle.main.bundleIdentifier ?? ""
         if let url {
             params["url"] = url.absoluteString
         }
+        return params
+    }
 
-        self.httpClient?.startRequest(path: .attributionDeeplink, apiVersion: .APIV4, params: params, method: .post, useDecoder: false, retry: false, requestID: nil) { _, response, _, _, _, _, _ in
+    private func startDeeplinkAttributionRequest(url: URL?, retry: Bool, completion: @escaping ([String: Any]?) -> Void) {
+        let params = deeplinkAttributionParams(url: url)
+
+        self.httpClient?.startRequest(path: .attributionDeeplink, apiVersion: .APIV4, params: params, method: .post, useDecoder: false, retry: retry, requestID: nil) { _, response, _, _, _, _, _ in
             apphudLog("response: \(String(describing: response))")
             completion(response)
         }
