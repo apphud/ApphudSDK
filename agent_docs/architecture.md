@@ -128,13 +128,13 @@ and run immediately if the client already cannot retry (invalid key / unauthoriz
 launch (`ApphudInternal.chooseIdentityVersion`); a logout before any start follows the version that
 ran last (`logoutRunsVersion1`).
 
-- `.v1` (default) sends exactly what SDK 4.6.1 sent, except deferred deep link attribution: since
-  4.7.2 it goes right after registration, with retries and without `visitor_id`: one device id kept by `ApphudKeychain`
+- `.v1` (default) sends exactly what SDK 4.6.1 sent: one device id kept by `ApphudKeychain`
   (UserDefaults `com.apphud.device_id` / `com.apphud.user_id` + Keychain), API v1–v3
   (`ApphudEndpoint.v1APIVersion`), and the 4.6.1 code copied as `identifyV1`, `logoutV1`,
   `updateUserIDV1`, `tryWebAttributionV1`, `checkUserID`, `promoOfferSignParamsV1`,
   `applicationUsernameV1`; request builders branch on `isIdentityV1`. Nothing in the sections below
-  runs with `.v1`.
+  runs with `.v1`. One deliberate exception since 4.7.2: deferred deep link attribution is sent right
+  after registration and without the `visitor_id` 4.6.1 read from a hidden web view.
 - `.v2` runs the three ids below on API v4: the Apphud API paths named below as in 4.6.1
   (`/v1/customers`, `/v2/events`, …) all go to `/v4/…`; the preview screen URL has no version.
 
@@ -665,16 +665,15 @@ compatibility only; it never starts a payment.
   `handleOpen(url:)`/`handleLaunchOptions`/`continueUserActivity` →
   `POST /v2/customers/deeplink_attribution` with `url` (kind `.direct`);
   `requestDeferredDeeplinkAttribution` posts to the same endpoint without `url` once the user
-  is registered (kind `.deferred`, with retries); the backend matches the registration IP against
-  recent link clicks. One request at a time (`deferredDeeplinkRequestID`; logout clears it, so a late response is dropped). Results
-  reach the `ApphudDeeplinkHandler` set in `start`/`setDeeplinkHandler`; a deferred result that
-  arrives with no handler is kept in `pendingDeferredDeeplinkAttribution` and delivered when one is
-  set. Logout clears both. Up to 4.7.1 the deferred request first loaded a hidden 1×1 `WKWebView`
-  (`ApphudWebController`) for a fingerprint `visitor_id`; fingerprinting is turned off on the
-  backend (`FINGERPRINT_ENABLED`), and freeing that short-lived web view raced Screen Time's KVO
-  teardown on iOS 27 (`webBrowserSettings.hasPasscode` crash). WebKit attaches that Screen Time
-  observer only to a web view that is in a window and loads http(s), so do not put short-lived
-  web views on screen outside user-visible UI (off-window paywall preloads don't qualify).
+  is registered (kind `.deferred`); the backend matches the registration IP against recent
+  link clicks. Results reach the `ApphudDeeplinkHandler` set in `start`/`setDeeplinkHandler`.
+  A result that arrives while no handler is set is not delivered. Up to 4.7.1 the deferred request
+  first loaded a hidden 1×1 `WKWebView` (`ApphudWebController`) for a fingerprint `visitor_id`;
+  fingerprinting is turned off on the backend (`FINGERPRINT_ENABLED`), and freeing that short-lived
+  web view raced Screen Time's KVO teardown on iOS 27 (`webBrowserSettings.hasPasscode` crash).
+  WebKit attaches that Screen Time observer only to a web view that is in a window and loads
+  http(s), so do not put short-lived web views on screen outside user-visible UI (off-window
+  paywall preloads don't qualify).
 - Eligibility (`+Eligibility.swift`): `checkIntroEligibilitiesSK2(productIds:)` — true
   by default, false for non-subscriptions or products with no configured intro offer,
   otherwise SK2 `subscription.isEligibleForIntroOffer`; `checkPromoEligibilitiesSK2(productIds:)`

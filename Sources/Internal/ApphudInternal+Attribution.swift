@@ -260,59 +260,23 @@ extension ApphudInternal {
 
     @MainActor
     internal func requestDeferredDeeplinkAttribution() {
-        // Concurrent calls would deliver the same deferred result twice.
-        guard deferredDeeplinkRequestID == nil else {
-            apphudLog("Deferred deep link attribution is already in progress")
-            return
-        }
-        let requestID = UUID()
-        deferredDeeplinkRequestID = requestID
         performWhenUserRegistered {
-            self.startDeeplinkAttributionRequest(url: nil, retry: true) { response in
+            self.startDeeplinkAttributionRequest(url: nil) { response in
                 Task { @MainActor in
-                    self.finishDeferredDeeplinkRequest(requestID, attribution: response ?? [:])
+                    self.notifyDeeplinkAttribution(attribution: response ?? [:], kind: .deferred, url: nil)
                 }
             }
         }
     }
-
-    /// A response to a request that logout cleared belongs to the old user and is dropped.
-    @MainActor
-    internal func finishDeferredDeeplinkRequest(_ requestID: UUID, attribution: [String: Any]) {
-        guard deferredDeeplinkRequestID == requestID else { return }
-        deferredDeeplinkRequestID = nil
-        notifyDeeplinkAttribution(attribution: attribution, kind: .deferred, url: nil)
-    }
-
+    
     @MainActor
     internal func setDeeplinkAttributionHandler(_ handler: ApphudDeeplinkHandler?) {
         self.deeplinkAttributionHandler = handler
-        // The deferred result arrives right after registration, possibly before the app sets its handler.
-        guard handler != nil, let pending = pendingDeferredDeeplinkAttribution else { return }
-        pendingDeferredDeeplinkAttribution = nil
-        // Not from inside the app's setter call: every delivery comes after a main actor hop.
-        Task { @MainActor in
-            self.notifyDeeplinkAttribution(attribution: pending, kind: .deferred, url: nil)
-        }
     }
-
+    
     @MainActor
     internal func notifyDeeplinkAttribution(attribution: [String: Any], kind: ApphudDeeplinkAttributionKind, url: URL?) {
-        guard let handler = deeplinkAttributionHandler else {
-            // An empty result (a failed request) must not replace a match that still waits for the handler.
-            if kind == .deferred, !attribution.isEmpty || pendingDeferredDeeplinkAttribution == nil {
-                pendingDeferredDeeplinkAttribution = attribution
-            }
-            return
-        }
-        handler(attribution, kind, url)
-    }
-
-    /// Logout drops what waits for registration, the deferred request included, and the result belongs to the old user.
-    @MainActor
-    internal func resetDeferredDeeplinkAttribution() {
-        deferredDeeplinkRequestID = nil
-        pendingDeferredDeeplinkAttribution = nil
+        self.deeplinkAttributionHandler?(attribution, kind, url)
     }
     
     internal func handleOpenURL(_ url: URL) {
@@ -325,7 +289,7 @@ extension ApphudInternal {
     
     internal func forceDirectDeeplinkAttribution(url: URL, completion: @escaping ([String: Any]) -> Void) {
         performWhenUserRegistered {
-            self.startDeeplinkAttributionRequest(url: url, retry: false) { response in
+            self.startDeeplinkAttributionRequest(url: url) { response in
                 completion(response ?? [:])
             }
         }
@@ -348,15 +312,10 @@ extension ApphudInternal {
         return params
     }
 
-    private func startDeeplinkAttributionRequest(url: URL?, retry: Bool, completion: @escaping ([String: Any]?) -> Void) {
-        // Every caller waits for this completion: answer it even without a client.
-        guard let httpClient = self.httpClient else {
-            completion(nil)
-            return
-        }
+    private func startDeeplinkAttributionRequest(url: URL?, completion: @escaping ([String: Any]?) -> Void) {
         let params = deeplinkAttributionParams(url: url)
 
-        httpClient.startRequest(path: .attributionDeeplink, apiVersion: .APIV4, params: params, method: .post, useDecoder: false, retry: retry, requestID: nil) { _, response, _, _, _, _, _ in
+        self.httpClient?.startRequest(path: .attributionDeeplink, apiVersion: .APIV4, params: params, method: .post, useDecoder: false, retry: false, requestID: nil) { _, response, _, _, _, _, _ in
             apphudLog("response: \(String(describing: response))")
             completion(response)
         }

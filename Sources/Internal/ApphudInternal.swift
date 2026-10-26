@@ -277,10 +277,6 @@ final class ApphudInternal: NSObject {
     internal var initialRequestID = UUID().uuidString
 
     @MainActor internal var deeplinkAttributionHandler: ApphudDeeplinkHandler?
-    /// A deferred result that arrived while no handler was set; delivered when one is set.
-    @MainActor internal var pendingDeferredDeeplinkAttribution: [String: Any]?
-    /// Set while a deferred request is in flight; logout clears it, so a late response is dropped.
-    @MainActor internal var deferredDeeplinkRequestID: UUID?
     
     internal var isInitialized: Bool {
         httpClient != nil
@@ -1051,7 +1047,6 @@ final class ApphudInternal: NSObject {
                 if tuple.allowFailure { tuple.block() }
             }
             userRegisteredCallbacks.removeAll()
-            resetDeferredDeeplinkAttribution()
             storeKitProductsFetchedCallbacks.forEach { $0(logoutError) }
             storeKitProductsFetchedCallbacks.removeAll()
             submittingReceiptID = nil
@@ -1156,7 +1151,6 @@ final class ApphudInternal: NSObject {
                 if tuple.allowFailure { tuple.block() }
             }
             userRegisteredCallbacks.removeAll()
-            resetDeferredDeeplinkAttribution()
             storeKitProductsFetchedCallbacks.forEach { $0(logoutError) }
             storeKitProductsFetchedCallbacks.removeAll()
             receiptSessionGeneration = UUID()
