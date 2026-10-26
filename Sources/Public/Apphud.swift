@@ -14,7 +14,7 @@ import Foundation
 import UserNotifications
 import SwiftUI
 
-internal let apphud_sdk_version = "4.7.1"
+internal let apphud_sdk_version = "4.7.2"
 
 public enum ApphudDeeplinkAttributionKind {
     case direct
@@ -1028,6 +1028,9 @@ final public class Apphud: NSObject {
      Requests deferred deep link attribution for the current app installation.
      This method does not have a completion callback and returns attribution through the
      `deeplinkHandler` callback set in `start(...)`, `startManually(...)`, or `setDeeplinkHandler(_:)`.
+     The request is sent as soon as the user is registered, so set the handler before calling this
+     method: pass it to `start(...)` or `startManually(...)`, which replace the handler, or call
+     `setDeeplinkHandler(_:)` after starting. A result that arrives while no handler is set is not delivered.
      */
     @MainActor
     public static func requestDeferredDeeplinkAttribution() {

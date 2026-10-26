@@ -267,6 +267,14 @@ final class ApphudIdentityVersion1Tests: XCTestCase {
         XCTAssertEqual(sdk.identityParams(includeUserID: true), ["device_id": "DEVICE-1", "user_id": "USER-1"])
     }
 
+    // The one version 1 request that differs from SDK 4.6.1: deferred deep links send no visitor_id since 4.7.2.
+    func testDeeplinkAttributionCarriesTheDeviceIDWithoutVisitorID() {
+        let bundleID = Bundle.main.bundleIdentifier ?? ""
+        XCTAssertEqual(sdk.deeplinkAttributionParams(url: nil) as NSDictionary, ["device_id": "DEVICE-1", "bundle_id": bundleID])
+        XCTAssertEqual(sdk.deeplinkAttributionParams(url: URL(string: "https://example.com/promo")) as NSDictionary,
+                       ["device_id": "DEVICE-1", "bundle_id": bundleID, "url": "https://example.com/promo"])
+    }
+
     func testSubscriptionsCarryNoRestoreAndNoLegacyDeviceID() {
         XCTAssertEqual(sdk.subscriptionIdentityParams(restore: true) as NSDictionary, ["device_id": "DEVICE-1", "user_id": "USER-1"])
         XCTAssertEqual(sdk.subscriptionIdentityParams(restore: false) as NSDictionary, ["device_id": "DEVICE-1", "user_id": "USER-1"])
