@@ -295,13 +295,6 @@ extension ApphudInternal {
         }
     }
 
-    /// Up to 4.7.1 the deferred deep link web view kept its page URL under this key; nothing reads it now.
-    internal static let legacyConnectDomainUrlKey = "ApphudConnectDomainUrl"
-
-    internal static func removeLegacyConnectDomainUrl(from defaults: UserDefaults = .standard) {
-        defaults.removeObject(forKey: legacyConnectDomainUrlKey)
-    }
-
     /// No `visitor_id`: fingerprinting is turned off on the backend, which matches by the registration IP.
     internal func deeplinkAttributionParams(url: URL?) -> [String: Any] {
         var params: [String: Any] = self.identityParams()

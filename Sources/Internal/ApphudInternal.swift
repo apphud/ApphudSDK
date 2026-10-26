@@ -398,7 +398,8 @@ final class ApphudInternal: NSObject {
             return
         }
         allowIdentifyUser = false
-        Self.removeLegacyConnectDomainUrl()
+        // SDK 4.3.0–4.7.1 kept the deferred deep link page URL here; nothing reads it now.
+        UserDefaults.standard.removeObject(forKey: "ApphudConnectDomainUrl")
 
         if isIdentityV1 {
             #if DEBUG

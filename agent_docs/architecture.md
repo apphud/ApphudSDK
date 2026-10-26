@@ -580,8 +580,7 @@ paths.
   `https://apphud.blob.core.windows.net/apphud-gateway/fallback.txt` and swaps
   `domainUrlString` for the session (not persisted; skipped if the developer overrode the host).
 - `meta.connect_url` in the `/customers` response is ignored since 4.7.2. Earlier SDKs persisted
-  it under the UserDefaults key `ApphudConnectDomainUrl`; `initialize` removes that key on every start
-  (`removeLegacyConnectDomainUrl`).
+  it under the UserDefaults key `ApphudConnectDomainUrl`; `initialize` removes that key.
 - Screen HTML (`/preview_screen/{id}`) is fetched separately and cached as
   `Caches/{id}.html` with the paywalls `cacheTimeout`.
 
@@ -671,9 +670,6 @@ compatibility only; it never starts a payment.
   first loaded a hidden 1×1 `WKWebView` (`ApphudWebController`) for a fingerprint `visitor_id`;
   fingerprinting is turned off on the backend (`FINGERPRINT_ENABLED`), and freeing that short-lived
   web view raced Screen Time's KVO teardown on iOS 27 (`webBrowserSettings.hasPasscode` crash).
-  WebKit attaches that Screen Time observer only to a web view that is in a window and loads
-  http(s), so do not put short-lived web views on screen outside user-visible UI (off-window
-  paywall preloads don't qualify).
 - Eligibility (`+Eligibility.swift`): `checkIntroEligibilitiesSK2(productIds:)` — true
   by default, false for non-subscriptions or products with no configured intro offer,
   otherwise SK2 `subscription.isEligibleForIntroOffer`; `checkPromoEligibilitiesSK2(productIds:)`
@@ -728,6 +724,11 @@ transactionV2 != nil || SK1 .purchased`, and calls both `SKProduct` and `product
 UI-delegate variants.
 
 ### Paywall screens (Figma paywalls)
+
+WebKit attaches a Screen Time observer to every web view that is in a window and loads http(s),
+and on iOS 27 freeing it shortly after it starts can crash (see deep-link attribution). Paywall
+screens are shown for as long as the user looks at them, and preloaded ones sit outside any
+window, so they are unaffected; do not add short-lived on-screen web views outside user-visible UI.
 
 ```
 Apphud.preloadPaywallScreens(placementIdentifiers:)  /  Apphud.fetchPaywallScreen(paywall)
