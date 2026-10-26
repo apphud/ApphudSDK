@@ -578,8 +578,9 @@ paths.
   with a host-unreachable code, `loadFallbackHostIfNeeded` downloads
   `https://apphud.blob.core.windows.net/apphud-gateway/fallback.txt` and swaps
   `domainUrlString` for the session (not persisted; skipped if the developer overrode the host).
-- `connectDomainUrl` (default `https://connect.aphd.cc`, updated from `meta.connect_url`
-  in the `/customers` response, persisted in UserDefaults) is used by web-to-app only.
+- `meta.connect_url` in the `/customers` response is ignored since 4.7.2. Earlier SDKs persisted
+  it under the UserDefaults key `ApphudConnectDomainUrl`, which may still exist on upgraded
+  devices: never reuse that key name.
 - Screen HTML (`/preview_screen/{id}`) is fetched separately and cached as
   `Caches/{id}.html` with the paywalls `cacheTimeout`.
 
@@ -590,7 +591,7 @@ paths.
 | Backup-excluded file / UserDefaults | Application Support/`com.apphud`/<bundle id>/`installation.json` (tvOS: `com.apphud.installation`), `com.apphud.anonymous_id`, `com.apphud.user_id`, `com.apphud.identity_sync_pending` | `ApphudIdentityStore` |
 | Keychain | `com.apphud.reinstall` (old `ApphudDeviceID` / `ApphudUserID` kept for `.v1`, blanked by a `.v2` logout) | `ApphudSystemKeychain` |
 | Caches/ (via `ApphudDataActor`) | `ApphudUser` (a 90 d timeout is passed, but expiry is not checked on load), `ApphudPaywalls`, `ApphudPlacements`, `ApphudProductGroups` (`cacheTimeout`), `ApphudUserPropertiesCache`, `submittedAFDataKey`, `submittedAdjustDataKey` (7 d), `{screenId}.html` | `+Product`, `ApphudUser.toCacheV2`, `+UserUpdate`, `+Attribution`, `ApphudHttpClient` |
-| UserDefaults | `lastUserUpdatedAt`, `requiresReceiptSubmissionKey`, `ApphudLastUploadedTransactionsSK2` (ids acknowledged by the backend; the pre-4.5.0 `ApphudLastUploadedTransactions` key is deliberately never read because it was written before acknowledgement), `ApphudKnownProductTypes`, `swizzlePaymentDisabledKey`, `submittedDeviceIdentifiersKey`, `submittedPushTokenKey`, `submittedFirebaseIdKey`, `submittedFacebookAnonIdKey`, `didSubmit{AppsFlyer,Adjust,AppleAds}AttributionKey`, `ApphudSubscriptionsMigrated`, `ApphudMigrateCachesKey`, `ApphudConnectDomainUrl`, `apphud_installation_date` (read-only override) | various |
+| UserDefaults | `lastUserUpdatedAt`, `requiresReceiptSubmissionKey`, `ApphudLastUploadedTransactionsSK2` (ids acknowledged by the backend; the pre-4.5.0 `ApphudLastUploadedTransactions` key is deliberately never read because it was written before acknowledgement), `ApphudKnownProductTypes`, `swizzlePaymentDisabledKey`, `submittedDeviceIdentifiersKey`, `submittedPushTokenKey`, `submittedFirebaseIdKey`, `submittedFacebookAnonIdKey`, `didSubmit{AppsFlyer,Adjust,AppleAds}AttributionKey`, `ApphudSubscriptionsMigrated`, `ApphudMigrateCachesKey`, `ApphudConnectDomainUrl` (written only before 4.7.2, never read now), `apphud_installation_date` (read-only override) | various |
 | Bundle | `apphud_paywalls_fallback.json` (read only) | host app |
 
 Legacy user cache (`ApphudUser.data`, NSKeyedArchiver, Application Support or Caches)
@@ -635,8 +636,7 @@ compatibility only; it never starts a payment.
 
 ## Attribution, device identifiers, user properties, web-to-app
 
-`Internal/ApphudInternal+Attribution.swift`, `Internal/ApphudInternal+UserUpdate.swift`,
-`Internal/ApphudWebController.swift`.
+`Internal/ApphudInternal+Attribution.swift`, `Internal/ApphudInternal+UserUpdate.swift`.
 
 - `setAttribution(data:from:identifer:)` → `POST /v2/customers/attribution` with
   `provider`, `raw_data` and the normalised `attribution` dict from `ApphudAttributionData`.
@@ -663,11 +663,13 @@ compatibility only; it never starts a payment.
   (→ `apphudDidChangeUserID`). Deep-link attribution:
   `handleOpen(url:)`/`handleLaunchOptions`/`continueUserActivity` →
   `POST /v2/customers/deeplink_attribution` with `url` (kind `.direct`);
-  `requestDeferredDeeplinkAttribution` presents a hidden 1×1 `WKWebView`
-  (`ApphudWebController`, iOS 15+, app must be active with a visible controller, 10 s
-  timeout, 3 readiness retries) that loads `connectDomainUrl?api_key&device_id&host` (`device_id` carries the installation id: the page reads only that name),
-  evaluates `getConnectId()` and posts the `visitor_id` to the same endpoint (kind
-  `.deferred`). Results reach the `ApphudDeeplinkHandler` set in `start`/`setDeeplinkHandler`.
+  `requestDeferredDeeplinkAttribution` posts to the same endpoint without `url` once the user
+  is registered (kind `.deferred`); the backend matches the registration IP against recent
+  link clicks. Results reach the `ApphudDeeplinkHandler` set in `start`/`setDeeplinkHandler`.
+  Up to 4.7.1 the deferred request first loaded a hidden 1×1 `WKWebView` (`ApphudWebController`)
+  for a fingerprint `visitor_id`; the backend no longer uses it, and freeing that short-lived web
+  view raced Screen Time's KVO teardown on iOS 27 (`webBrowserSettings.hasPasscode` crash), so
+  do not add web views to SDK flows that run without UI.
 - Eligibility (`+Eligibility.swift`): `checkIntroEligibilitiesSK2(productIds:)` — true
   by default, false for non-subscriptions or products with no configured intro offer,
   otherwise SK2 `subscription.isEligibleForIntroOffer`; `checkPromoEligibilitiesSK2(productIds:)`
