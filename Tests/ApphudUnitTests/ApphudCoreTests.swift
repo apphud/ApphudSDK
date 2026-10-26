@@ -86,57 +86,104 @@ final class ApphudUserDefaultsCacheTests: XCTestCase {
 
 final class ApphudDeeplinkAttributionTests: XCTestCase {
 
+    @MainActor
+    private func waitUntil(_ condition: () -> Bool) async throws {
+        let deadline = Date().addingTimeInterval(5)
+        while !condition() && Date() < deadline {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+    }
+
     // The deferred result comes right after registration, possibly before the app sets its handler.
     @MainActor
-    func testDeferredResultWaitsForTheHandler() {
+    func testDeferredResultWaitsForTheHandler() async throws {
         let sdk = ApphudInternal()
         var received: [(matchType: String?, kind: ApphudDeeplinkAttributionKind)] = []
 
         sdk.notifyDeeplinkAttribution(attribution: ["match_type": "deterministic"], kind: .deferred, url: nil)
         sdk.setDeeplinkAttributionHandler { attribution, kind, _ in received.append((attribution["match_type"] as? String, kind)) }
-        sdk.setDeeplinkAttributionHandler { attribution, kind, _ in received.append((attribution["match_type"] as? String, kind)) }
+        XCTAssertTrue(received.isEmpty, "not from inside the setter call")
+        XCTAssertNil(sdk.pendingDeferredDeeplinkAttribution)
+        try await waitUntil { !received.isEmpty }
 
-        XCTAssertEqual(received.count, 1, "delivered once, to the first handler set")
+        sdk.setDeeplinkAttributionHandler { attribution, kind, _ in received.append((attribution["match_type"] as? String, kind)) }
+        await Task.yield()
+
+        XCTAssertEqual(received.count, 1, "delivered once")
         XCTAssertEqual(received.first?.matchType, "deterministic")
         XCTAssertEqual(received.first?.kind, .deferred)
     }
 
     @MainActor
+    func testEmptyResultDoesNotReplaceAPendingMatch() async throws {
+        let sdk = ApphudInternal()
+        var received: [[String: Any]] = []
+
+        sdk.notifyDeeplinkAttribution(attribution: ["match_type": "deterministic"], kind: .deferred, url: nil)
+        sdk.notifyDeeplinkAttribution(attribution: [:], kind: .deferred, url: nil)
+        sdk.setDeeplinkAttributionHandler { attribution, _, _ in received.append(attribution) }
+        try await waitUntil { !received.isEmpty }
+
+        XCTAssertEqual(received.first?["match_type"] as? String, "deterministic")
+    }
+
+    @MainActor
     func testDirectResultIsNotKeptWithoutAHandler() {
         let sdk = ApphudInternal()
-        var calls = 0
 
         sdk.notifyDeeplinkAttribution(attribution: ["match_type": "direct"], kind: .direct, url: URL(string: "https://example.com"))
-        sdk.setDeeplinkAttributionHandler { _, _, _ in calls += 1 }
 
-        XCTAssertEqual(calls, 0)
+        XCTAssertNil(sdk.pendingDeferredDeeplinkAttribution)
     }
 
     @MainActor
     func testDeferredRequestWhileOneIsInFlightIsIgnored() async throws {
         let sdk = ApphudInternal()
 
-        sdk.isRequestingDeferredDeeplinkAttribution = true
         sdk.requestDeferredDeeplinkAttribution()
-        try await Task.sleep(nanoseconds: 100_000_000)
-        XCTAssertEqual(sdk.pendingUserRegistrationCallbackCount, 0)
+        let first = sdk.deferredDeeplinkRequestID
+        sdk.requestDeferredDeeplinkAttribution()
 
-        sdk.isRequestingDeferredDeeplinkAttribution = false
-        sdk.requestDeferredDeeplinkAttribution()
-        try await Task.sleep(nanoseconds: 100_000_000)
-        XCTAssertEqual(sdk.pendingUserRegistrationCallbackCount, 1, "the first request waits for registration")
-        XCTAssertTrue(sdk.isRequestingDeferredDeeplinkAttribution)
+        XCTAssertNotNil(first)
+        XCTAssertEqual(sdk.deferredDeeplinkRequestID, first, "the second call returns before starting a request")
+        try await waitUntil { sdk.pendingUserRegistrationCallbackCount > 0 }
+        XCTAssertEqual(sdk.pendingUserRegistrationCallbackCount, 1, "one request waits for registration")
     }
 
     @MainActor
-    func testLogoutResetClearsTheRequestAndThePendingResult() {
+    func testFinishedRequestDeliversAndAllowsTheNextOne() {
         let sdk = ApphudInternal()
-        sdk.isRequestingDeferredDeeplinkAttribution = true
+        var received: [String?] = []
+        sdk.setDeeplinkAttributionHandler { attribution, _, _ in received.append(attribution["match_type"] as? String) }
+        let requestID = UUID()
+        sdk.deferredDeeplinkRequestID = requestID
+
+        sdk.finishDeferredDeeplinkRequest(requestID, attribution: ["match_type": "deterministic"])
+
+        XCTAssertEqual(received, ["deterministic"])
+        XCTAssertNil(sdk.deferredDeeplinkRequestID)
+    }
+
+    // A response that arrives after logout belongs to the old user: dropped, and the new request stays in flight.
+    @MainActor
+    func testResponseAfterLogoutIsDropped() {
+        let sdk = ApphudInternal()
+        var calls = 0
+        sdk.setDeeplinkAttributionHandler { _, _, _ in calls += 1 }
+        let oldRequest = UUID()
+        sdk.deferredDeeplinkRequestID = oldRequest
         sdk.pendingDeferredDeeplinkAttribution = ["match_type": "deterministic"]
 
         sdk.resetDeferredDeeplinkAttribution()
+        XCTAssertNil(sdk.deferredDeeplinkRequestID)
+        XCTAssertNil(sdk.pendingDeferredDeeplinkAttribution)
 
-        XCTAssertFalse(sdk.isRequestingDeferredDeeplinkAttribution)
+        let newRequest = UUID()
+        sdk.deferredDeeplinkRequestID = newRequest
+        sdk.finishDeferredDeeplinkRequest(oldRequest, attribution: ["match_type": "deterministic"])
+
+        XCTAssertEqual(calls, 0)
+        XCTAssertEqual(sdk.deferredDeeplinkRequestID, newRequest)
         XCTAssertNil(sdk.pendingDeferredDeeplinkAttribution)
     }
 }

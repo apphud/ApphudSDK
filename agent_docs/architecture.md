@@ -128,8 +128,8 @@ and run immediately if the client already cannot retry (invalid key / unauthoriz
 launch (`ApphudInternal.chooseIdentityVersion`); a logout before any start follows the version that
 ran last (`logoutRunsVersion1`).
 
-- `.v1` (default) sends exactly what SDK 4.6.1 sent, except that deferred deep link attribution
-  has sent no `visitor_id` since 4.7.2: one device id kept by `ApphudKeychain`
+- `.v1` (default) sends exactly what SDK 4.6.1 sent, except deferred deep link attribution: since
+  4.7.2 it goes right after registration, with retries and without `visitor_id`: one device id kept by `ApphudKeychain`
   (UserDefaults `com.apphud.device_id` / `com.apphud.user_id` + Keychain), API v1–v3
   (`ApphudEndpoint.v1APIVersion`), and the 4.6.1 code copied as `identifyV1`, `logoutV1`,
   `updateUserIDV1`, `tryWebAttributionV1`, `checkUserID`, `promoOfferSignParamsV1`,
@@ -666,7 +666,7 @@ compatibility only; it never starts a payment.
   `POST /v2/customers/deeplink_attribution` with `url` (kind `.direct`);
   `requestDeferredDeeplinkAttribution` posts to the same endpoint without `url` once the user
   is registered (kind `.deferred`, with retries); the backend matches the registration IP against
-  recent link clicks. One request at a time (`isRequestingDeferredDeeplinkAttribution`). Results
+  recent link clicks. One request at a time (`deferredDeeplinkRequestID`; logout clears it, so a late response is dropped). Results
   reach the `ApphudDeeplinkHandler` set in `start`/`setDeeplinkHandler`; a deferred result that
   arrives with no handler is kept in `pendingDeferredDeeplinkAttribution` and delivered when one is
   set. Logout clears both. Up to 4.7.1 the deferred request first loaded a hidden 1×1 `WKWebView`

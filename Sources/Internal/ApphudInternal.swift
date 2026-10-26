@@ -279,7 +279,8 @@ final class ApphudInternal: NSObject {
     @MainActor internal var deeplinkAttributionHandler: ApphudDeeplinkHandler?
     /// A deferred result that arrived while no handler was set; delivered when one is set.
     @MainActor internal var pendingDeferredDeeplinkAttribution: [String: Any]?
-    @MainActor internal var isRequestingDeferredDeeplinkAttribution = false
+    /// Set while a deferred request is in flight; logout clears it, so a late response is dropped.
+    @MainActor internal var deferredDeeplinkRequestID: UUID?
     
     internal var isInitialized: Bool {
         httpClient != nil

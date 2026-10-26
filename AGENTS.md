@@ -81,8 +81,8 @@ xcodebuild test -workspace Examples/ApphudDemoSwift/ApphudSDKDemo.xcworkspace \
   `user_id` (set only by identify) — on API v4, resolved and persisted by
   `ApphudIdentityStore`, which also switches between the versions. Read the Identity section of
   architecture.md before touching `identify`, `updateUserID`, `tryWebAttribution` or `logout`,
-  and keep `.v1` requests identical to 4.6.1 (one deliberate exception: deferred deep link
-  attribution has sent no `visitor_id` since 4.7.2).
+  and keep `.v1` requests identical to 4.6.1 (one deliberate exception: since 4.7.2 deferred deep
+  link attribution goes right after registration, with retries and without `visitor_id`).
 - **UIKit/WebKit code is compile-guarded** — `ApphudUI/` and
   `Public/ApphudPaywallScreenController.swift` sit in `#if os(iOS)` (per-file details in
   [agent_docs/structure.md](agent_docs/structure.md)); keep macOS/watchOS/tvOS/visionOS
