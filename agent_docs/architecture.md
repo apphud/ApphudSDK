@@ -579,8 +579,8 @@ paths.
   `https://apphud.blob.core.windows.net/apphud-gateway/fallback.txt` and swaps
   `domainUrlString` for the session (not persisted; skipped if the developer overrode the host).
 - `meta.connect_url` in the `/customers` response is ignored since 4.7.2. Earlier SDKs persisted
-  it under the UserDefaults key `ApphudConnectDomainUrl`, which may still exist on upgraded
-  devices: never reuse that key name.
+  it under the UserDefaults key `ApphudConnectDomainUrl`; `initialize` removes that key on every start
+  (`removeLegacyConnectDomainUrl`).
 - Screen HTML (`/preview_screen/{id}`) is fetched separately and cached as
   `Caches/{id}.html` with the paywalls `cacheTimeout`.
 
@@ -591,7 +591,7 @@ paths.
 | Backup-excluded file / UserDefaults | Application Support/`com.apphud`/<bundle id>/`installation.json` (tvOS: `com.apphud.installation`), `com.apphud.anonymous_id`, `com.apphud.user_id`, `com.apphud.identity_sync_pending` | `ApphudIdentityStore` |
 | Keychain | `com.apphud.reinstall` (old `ApphudDeviceID` / `ApphudUserID` kept for `.v1`, blanked by a `.v2` logout) | `ApphudSystemKeychain` |
 | Caches/ (via `ApphudDataActor`) | `ApphudUser` (a 90 d timeout is passed, but expiry is not checked on load), `ApphudPaywalls`, `ApphudPlacements`, `ApphudProductGroups` (`cacheTimeout`), `ApphudUserPropertiesCache`, `submittedAFDataKey`, `submittedAdjustDataKey` (7 d), `{screenId}.html` | `+Product`, `ApphudUser.toCacheV2`, `+UserUpdate`, `+Attribution`, `ApphudHttpClient` |
-| UserDefaults | `lastUserUpdatedAt`, `requiresReceiptSubmissionKey`, `ApphudLastUploadedTransactionsSK2` (ids acknowledged by the backend; the pre-4.5.0 `ApphudLastUploadedTransactions` key is deliberately never read because it was written before acknowledgement), `ApphudKnownProductTypes`, `swizzlePaymentDisabledKey`, `submittedDeviceIdentifiersKey`, `submittedPushTokenKey`, `submittedFirebaseIdKey`, `submittedFacebookAnonIdKey`, `didSubmit{AppsFlyer,Adjust,AppleAds}AttributionKey`, `ApphudSubscriptionsMigrated`, `ApphudMigrateCachesKey`, `ApphudConnectDomainUrl` (written only before 4.7.2, never read now), `apphud_installation_date` (read-only override) | various |
+| UserDefaults | `lastUserUpdatedAt`, `requiresReceiptSubmissionKey`, `ApphudLastUploadedTransactionsSK2` (ids acknowledged by the backend; the pre-4.5.0 `ApphudLastUploadedTransactions` key is deliberately never read because it was written before acknowledgement), `ApphudKnownProductTypes`, `swizzlePaymentDisabledKey`, `submittedDeviceIdentifiersKey`, `submittedPushTokenKey`, `submittedFirebaseIdKey`, `submittedFacebookAnonIdKey`, `didSubmit{AppsFlyer,Adjust,AppleAds}AttributionKey`, `ApphudSubscriptionsMigrated`, `ApphudMigrateCachesKey`, `ApphudConnectDomainUrl` (written only before 4.7.2; removed on start), `apphud_installation_date` (read-only override) | various |
 | Bundle | `apphud_paywalls_fallback.json` (read only) | host app |
 
 Legacy user cache (`ApphudUser.data`, NSKeyedArchiver, Application Support or Caches)

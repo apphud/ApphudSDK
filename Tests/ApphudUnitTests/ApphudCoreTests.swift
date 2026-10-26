@@ -68,4 +68,18 @@ final class ApphudUserDefaultsCacheTests: XCTestCase {
     func testMissingCacheKeyReturnsNil() {
         XCTAssertNil(apphudFromUserDefaultsCache(key: "apphud_unit_test_never_written"))
     }
+
+    // SDK 4.3.0–4.7.1 persisted the deferred deep link page URL; 4.7.2+ removes it on start.
+    func testLegacyConnectDomainUrlIsRemoved() {
+        let suiteName = "ApphudLegacyConnectDomainUrlTests"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { UserDefaults().removePersistentDomain(forName: suiteName) }
+
+        XCTAssertEqual(ApphudInternal.legacyConnectDomainUrlKey, "ApphudConnectDomainUrl")
+        defaults.set("https://connect.aphd.cc/void", forKey: ApphudInternal.legacyConnectDomainUrlKey)
+
+        ApphudInternal.removeLegacyConnectDomainUrl(from: defaults)
+
+        XCTAssertNil(defaults.object(forKey: ApphudInternal.legacyConnectDomainUrlKey))
+    }
 }

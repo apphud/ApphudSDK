@@ -398,6 +398,7 @@ final class ApphudInternal: NSObject {
             return
         }
         allowIdentifyUser = false
+        Self.removeLegacyConnectDomainUrl()
 
         if isIdentityV1 {
             #if DEBUG

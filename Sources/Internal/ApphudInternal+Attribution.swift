@@ -295,6 +295,13 @@ extension ApphudInternal {
         }
     }
 
+    /// Up to 4.7.1 the deferred deep link web view kept its page URL under this key; nothing reads it now.
+    internal static let legacyConnectDomainUrlKey = "ApphudConnectDomainUrl"
+
+    internal static func removeLegacyConnectDomainUrl(from defaults: UserDefaults = .standard) {
+        defaults.removeObject(forKey: legacyConnectDomainUrlKey)
+    }
+
     private func startDeeplinkAttributionRequest(url: URL?, completion: @escaping ([String: Any]?) -> Void) {
         var params: [String: Any] = self.identityParams()
         params["bundle_id"] = Bundle.main.bundleIdentifier ?? ""
