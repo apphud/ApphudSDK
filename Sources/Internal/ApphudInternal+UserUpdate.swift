@@ -40,7 +40,6 @@ extension ApphudInternal {
                 if let disabled = user.responseSwizzleDisabled {
                     UserDefaults.standard.set(disabled, forKey: self.swizzlePaymentDisabledKey)
                 }
-                ApphudHttpClient.shared.updateConnectDomainUrl(from: response.data.meta)
                 self.updatePremiumStatus(user: user)
                 if user.paywalls != nil || user.placements != nil {
                     self.preparePaywalls(pwls: user.paywalls ?? [], writeToCache: false,
@@ -80,7 +79,6 @@ extension ApphudInternal {
 
         do {
             let response = try decoder.decode(ApphudUserResponse<ApphudUser>.self, from: data)
-            ApphudHttpClient.shared.updateConnectDomainUrl(from: response.data.meta)
             await MainActor.run {
                 currentUser = response.data.results
             }

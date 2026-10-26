@@ -79,7 +79,6 @@ Sources/
     ApphudKeychain.swift             # identity version 1: device id / user id in Keychain + UserDefaults (as in 4.6.1); the Keychain reinstall key
     ApphudUserProperty.swift         # ApphudUserProperty → JSON
     ApphudLoggerService.swift        # paywall_* events, load-time metrics
-    ApphudWebController.swift        # iOS: hidden WKWebView for deferred deep-link visitor id
     ApphudSafeSet.swift              # barrier-queue Set (keeps ApphudProductsFetcher alive)
     ApphudExtensions.swift           # device params, receipt string, SKProduct → params/strings,
                                      # Error → message, ApphudAnyCodable, date formatters, UserDefaults dict cache

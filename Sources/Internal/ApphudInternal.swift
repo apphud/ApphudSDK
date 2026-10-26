@@ -276,7 +276,6 @@ final class ApphudInternal: NSObject {
     @MainActor internal var currencyTaskFinished = false
     internal var initialRequestID = UUID().uuidString
 
-    var webController: ApphudWebController? = nil
     @MainActor internal var deeplinkAttributionHandler: ApphudDeeplinkHandler?
     
     internal var isInitialized: Bool {
@@ -399,6 +398,8 @@ final class ApphudInternal: NSObject {
             return
         }
         allowIdentifyUser = false
+        // SDK 4.3.0–4.7.1 kept the deferred deep link page URL here; nothing reads it now.
+        UserDefaults.standard.removeObject(forKey: "ApphudConnectDomainUrl")
 
         if isIdentityV1 {
             #if DEBUG

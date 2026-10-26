@@ -261,12 +261,9 @@ extension ApphudInternal {
     @MainActor
     internal func requestDeferredDeeplinkAttribution() {
         performWhenUserRegistered {
-            self.webController = ApphudWebController()
-            self.webController?.present { visitorId in
-                self.startDeeplinkAttributionRequest(url: nil, visitorId: visitorId) { response in
-                    Task { @MainActor in
-                        self.notifyDeeplinkAttribution(attribution: response ?? [:], kind: .deferred, url: nil)
-                    }
+            self.startDeeplinkAttributionRequest(url: nil) { response in
+                Task { @MainActor in
+                    self.notifyDeeplinkAttribution(attribution: response ?? [:], kind: .deferred, url: nil)
                 }
             }
         }
@@ -292,22 +289,25 @@ extension ApphudInternal {
     
     internal func forceDirectDeeplinkAttribution(url: URL, completion: @escaping ([String: Any]) -> Void) {
         performWhenUserRegistered {
-            self.startDeeplinkAttributionRequest(url: url, visitorId: nil) { response in
+            self.startDeeplinkAttributionRequest(url: url) { response in
                 completion(response ?? [:])
             }
         }
     }
-    
-    private func startDeeplinkAttributionRequest(url: URL?, visitorId: String?, completion: @escaping ([String: Any]?) -> Void) {
+
+    /// No `visitor_id`: fingerprinting is turned off on the backend, which matches by the registration IP.
+    internal func deeplinkAttributionParams(url: URL?) -> [String: Any] {
         var params: [String: Any] = self.identityParams()
         params["bundle_id"] = Bundle.main.bundleIdentifier ?? ""
         if let url {
             params["url"] = url.absoluteString
         }
-        if let visitorId {
-            params["visitor_id"] = visitorId
-        }
-        
+        return params
+    }
+
+    private func startDeeplinkAttributionRequest(url: URL?, completion: @escaping ([String: Any]?) -> Void) {
+        let params = deeplinkAttributionParams(url: url)
+
         self.httpClient?.startRequest(path: .attributionDeeplink, apiVersion: .APIV4, params: params, method: .post, useDecoder: false, retry: false, requestID: nil) { _, response, _, _, _, _, _ in
             apphudLog("response: \(String(describing: response))")
             completion(response)
