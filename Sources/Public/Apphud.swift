@@ -1028,6 +1028,8 @@ final public class Apphud: NSObject {
      Requests deferred deep link attribution for the current app installation.
      This method does not have a completion callback and returns attribution through the
      `deeplinkHandler` callback set in `start(...)`, `startManually(...)`, or `setDeeplinkHandler(_:)`.
+     The request is sent as soon as the user is registered, so set the handler before calling this
+     method: a result that arrives while no handler is set is not delivered.
      */
     @MainActor
     public static func requestDeferredDeeplinkAttribution() {
