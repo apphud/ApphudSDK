@@ -929,7 +929,7 @@ extension ApphudInternal {
                         ApphudStoreKitWrapper.rememberPurchaseToken(appAccountToken, identity: self.identity)
                     }
                 }
-                await self.purchaseAsync(apphudProduct: apphudProduct, productId: productId, commitmentPlan: false, fromScreen: fromScreen, extraOptions: options, addsCurrentAppAccountToken: false, callback: callback)
+                await self.purchaseAsync(apphudProduct: apphudProduct, productId: productId, commitmentPlan: false, fromScreen: fromScreen, extraOptions: options, addsCurrentAppAccountToken: false, promotionalOfferID: signedOffer.offerID, callback: callback)
             }
         }
     }
@@ -937,7 +937,7 @@ extension ApphudInternal {
     // MARK: - Private purchase methods
 
     @MainActor
-    private func purchaseAsync(apphudProduct: ApphudProduct?, productId: String?, commitmentPlan: Bool, fromScreen: Bool, value: Double? = nil, extraOptions: Set<Product.PurchaseOption> = [], addsCurrentAppAccountToken: Bool = true, callback: ((ApphudPurchaseResult) -> Void)?) async {
+    private func purchaseAsync(apphudProduct: ApphudProduct?, productId: String?, commitmentPlan: Bool, fromScreen: Bool, value: Double? = nil, extraOptions: Set<Product.PurchaseOption> = [], addsCurrentAppAccountToken: Bool = true, promotionalOfferID: String? = nil, callback: ((ApphudPurchaseResult) -> Void)?) async {
         var product = try? await apphudProduct?.product()
         if product == nil, let productId {
             product = try? await ApphudAsyncStoreKit.shared.fetchProduct(productId)
@@ -964,9 +964,9 @@ extension ApphudInternal {
             callback?(ApphudPurchaseResult(nil, nil, nil, ApphudError(message: "Failed to retrieve UIScene for purchase confirmation")))
             return
         }
-        let result: ApphudAsyncPurchaseResult = await ApphudAsyncStoreKit.shared.purchase(product: product, scene: scene, apphudProduct: apphudProduct, fromScreen: fromScreen, extraOptions: extraOptions, addsCurrentAppAccountToken: addsCurrentAppAccountToken)
+        let result: ApphudAsyncPurchaseResult = await ApphudAsyncStoreKit.shared.purchase(product: product, scene: scene, apphudProduct: apphudProduct, fromScreen: fromScreen, extraOptions: extraOptions, addsCurrentAppAccountToken: addsCurrentAppAccountToken, promotionalOfferID: promotionalOfferID)
         #else
-        let result: ApphudAsyncPurchaseResult = await ApphudAsyncStoreKit.shared.purchase(product: product, commitmentPlan: commitmentPlan, apphudProduct: apphudProduct, fromScreen: fromScreen, extraOptions: extraOptions, addsCurrentAppAccountToken: addsCurrentAppAccountToken)
+        let result: ApphudAsyncPurchaseResult = await ApphudAsyncStoreKit.shared.purchase(product: product, commitmentPlan: commitmentPlan, apphudProduct: apphudProduct, fromScreen: fromScreen, extraOptions: extraOptions, addsCurrentAppAccountToken: addsCurrentAppAccountToken, promotionalOfferID: promotionalOfferID)
         #endif
         let resultV2 = ApphudPurchaseResult(result.subscription, result.nonRenewingPurchase, nil, result.error, transactionV2: result.transaction)
         resultV2.isPending = result.isPending

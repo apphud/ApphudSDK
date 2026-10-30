@@ -87,8 +87,9 @@ internal class ApphudAsyncStoreKit {
 
     /// - parameter addsCurrentAppAccountToken: `false` when `extraOptions` already holds the token the
     ///   purchase must send (or deliberately none): a promotional offer is signed for one token.
+    /// - parameter promotionalOfferID: the promotional offer `extraOptions` carries, if any.
     @MainActor
-    internal func purchaseResult(product: Product, _ scene: Any? = nil, commitmentPlan: Bool, apphudProduct: ApphudProduct?, fromScreen: Bool = false, isPurchasing: Binding<Bool>? = nil, extraOptions: Set<Product.PurchaseOption> = [], addsCurrentAppAccountToken: Bool = true) async -> ApphudAsyncPurchaseResult {
+    internal func purchaseResult(product: Product, _ scene: Any? = nil, commitmentPlan: Bool, apphudProduct: ApphudProduct?, fromScreen: Bool = false, isPurchasing: Binding<Bool>? = nil, extraOptions: Set<Product.PurchaseOption> = [], addsCurrentAppAccountToken: Bool = true, promotionalOfferID: String? = nil) async -> ApphudAsyncPurchaseResult {
         self.isPurchasing = true
         await productsStorage.append(product)
         isPurchasing?.wrappedValue = true
@@ -111,6 +112,11 @@ internal class ApphudAsyncStoreKit {
         }
         lastPurchaseOptions = options
 
+        // StoreKit 2 may answer a purchase of the subscription already active on the device by
+        // itself, so the result is judged against the state before the purchase.
+        let activeBefore = await Self.activeSubscriptionState(for: product)
+        let purchaseStart = Date()
+
         do {
 
             ApphudLoggerService.shared.paywallCheckoutInitiated(apphudProduct: apphudProduct, productId: product.id, screenId: nil)
@@ -127,9 +133,23 @@ internal class ApphudAsyncStoreKit {
             var purchaseError: Error?
             var isPendingPurchase = false
 
+            var returnedUnchanged = false
+            if let activeBefore, case .success(.verified(let trx)) = result, trx.id == activeBefore.transactionID {
+                returnedUnchanged = !(await Self.awaitAppliedChange(product: product, before: activeBefore,
+                                                                    returnedTransactionID: trx.id, promotionalOfferID: promotionalOfferID,
+                                                                    wait: ApphudActiveSubscriptionPurchase.renewalWait(purchaseDuration: Date().timeIntervalSince(purchaseStart))))
+            }
+
             switch result {
             case .success(let verificationResult):
                 switch verificationResult {
+                case .verified(let trx) where returnedUnchanged:
+                    // The existing transaction came back without the App Store being contacted:
+                    // nothing was bought, so it is neither submitted nor reported as a purchase.
+                    apphudLog("StoreKit2 returned the active subscription [\(trx.id), \(trx.productID)] unchanged, offer: \(promotionalOfferID ?? "none"); nothing was purchased", forceDisplay: true)
+                    let notProcessed = ApphudError(message: "Subscription \(trx.productID) is already active; StoreKit did not process the purchase", code: APPHUD_SUBSCRIPTION_ALREADY_ACTIVE)
+                    ApphudLoggerService.shared.paywallPaymentError(paywallId: apphudProduct?.paywallId, placementId: apphudProduct?.placementId, productId: product.id, error: notProcessed.apphudErrorMessage())
+                    purchaseError = notProcessed
                 case .verified(let trx):
                     if !ApphudInternal.shared.isIdentityV1 {
                         ApphudInternal.shared.observedTransactions.recordSDKPurchase(trx.id)
@@ -172,6 +192,19 @@ internal class ApphudAsyncStoreKit {
             return ApphudInternal.shared.asyncPurchaseResult(product: product, transaction: transaction, error: purchaseError, isPending: isPendingPurchase)
 
         } catch {
+            // Some iOS versions do send the purchase of the active subscription to the App Store,
+            // which re-enables auto-renew (and schedules the offer) yet throws `unknown`, as
+            // StoreKit 1 failed with `SKError.unknown`. Judge such a purchase by what changed.
+            if case StoreKitError.unknown = error, let activeBefore,
+               await Self.awaitAppliedChange(product: product, before: activeBefore, returnedTransactionID: nil, promotionalOfferID: promotionalOfferID,
+                                             wait: ApphudActiveSubscriptionPurchase.renewalWait(purchaseDuration: Date().timeIntervalSince(purchaseStart))) {
+                apphudLog("StoreKit2 purchase of \(product.id) threw \(error), but the App Store applied it to the active subscription", forceDisplay: true)
+                self.isPurchasing = false
+                isPurchasing?.wrappedValue = false
+                ApphudInternal.shared.runDeferredTransactionCheckIfNeeded()
+                return ApphudInternal.shared.asyncPurchaseResult(product: product, transaction: nil, error: nil)
+            }
+
             ApphudLoggerService.shared.paywallPaymentError(paywallId: apphudProduct?.paywallId, placementId: apphudProduct?.placementId, productId: product.id, error: error.apphudErrorMessage())
 
             self.isPurchasing = false
@@ -245,15 +278,98 @@ internal class ApphudAsyncStoreKit {
 
     #if os(iOS) || os(tvOS) || os(macOS) || os(watchOS)
     @MainActor
-    func purchase(product: Product, commitmentPlan: Bool = false, apphudProduct: ApphudProduct?, fromScreen: Bool = false, isPurchasing: Binding<Bool>? = nil, extraOptions: Set<Product.PurchaseOption> = [], addsCurrentAppAccountToken: Bool = true) async -> ApphudAsyncPurchaseResult {
-        return await purchaseResult(product: product, commitmentPlan: commitmentPlan, apphudProduct: apphudProduct, fromScreen: fromScreen, isPurchasing: isPurchasing, extraOptions: extraOptions, addsCurrentAppAccountToken: addsCurrentAppAccountToken)
+    func purchase(product: Product, commitmentPlan: Bool = false, apphudProduct: ApphudProduct?, fromScreen: Bool = false, isPurchasing: Binding<Bool>? = nil, extraOptions: Set<Product.PurchaseOption> = [], addsCurrentAppAccountToken: Bool = true, promotionalOfferID: String? = nil) async -> ApphudAsyncPurchaseResult {
+        return await purchaseResult(product: product, commitmentPlan: commitmentPlan, apphudProduct: apphudProduct, fromScreen: fromScreen, isPurchasing: isPurchasing, extraOptions: extraOptions, addsCurrentAppAccountToken: addsCurrentAppAccountToken, promotionalOfferID: promotionalOfferID)
     }
     #else
     @MainActor
-    func purchase(product: Product, scene: UIScene, apphudProduct: ApphudProduct?, fromScreen: Bool = false, isPurchasing: Binding<Bool>? = nil, extraOptions: Set<Product.PurchaseOption> = [], addsCurrentAppAccountToken: Bool = true) async -> ApphudAsyncPurchaseResult {
-        return await purchaseResult(product: product, scene, commitmentPlan: false, apphudProduct: apphudProduct, fromScreen: fromScreen, isPurchasing: isPurchasing, extraOptions: extraOptions, addsCurrentAppAccountToken: addsCurrentAppAccountToken)
+    func purchase(product: Product, scene: UIScene, apphudProduct: ApphudProduct?, fromScreen: Bool = false, isPurchasing: Binding<Bool>? = nil, extraOptions: Set<Product.PurchaseOption> = [], addsCurrentAppAccountToken: Bool = true, promotionalOfferID: String? = nil) async -> ApphudAsyncPurchaseResult {
+        return await purchaseResult(product: product, scene, commitmentPlan: false, apphudProduct: apphudProduct, fromScreen: fromScreen, isPurchasing: isPurchasing, extraOptions: extraOptions, addsCurrentAppAccountToken: addsCurrentAppAccountToken, promotionalOfferID: promotionalOfferID)
     }
     #endif
+
+    // MARK: - Purchase of the active subscription
+
+    /// The product's subscription as it is on the device now, when it is active and this
+    /// product's latest transaction; `nil` for anything else (no purchase yet, expired,
+    /// revoked, not an auto-renewable subscription).
+    static func activeSubscriptionState(for product: Product) async -> ApphudActiveSubscriptionState? {
+        guard product.type == .autoRenewable,
+              case .verified(let transaction)? = await StoreKit.Transaction.latest(for: product.id),
+              transaction.revocationDate == nil, !transaction.isUpgraded,
+              let expirationDate = transaction.expirationDate, expirationDate > Date(),
+              let statuses = try? await product.subscription?.status,
+              let status = statuses.first(where: { $0.transaction.unsafePayloadValue.originalID == transaction.originalID }),
+              case .verified(let renewalInfo) = status.renewalInfo else {
+            return nil
+        }
+        let renewsIntoProduct = renewalInfo.willAutoRenew && (renewalInfo.autoRenewPreference ?? product.id) == product.id
+        return ApphudActiveSubscriptionState(transactionID: transaction.id, renewsIntoProduct: renewsIntoProduct, renewalOfferID: renewalInfo.offerID)
+    }
+
+    /// Re-reads the renewal state for up to `wait` seconds when the purchase left the active
+    /// subscription's transaction in place: the App Store updates the device a few seconds after
+    /// `purchase()` returns. `true` once the purchase is seen applied.
+    private static func awaitAppliedChange(product: Product, before: ApphudActiveSubscriptionState, returnedTransactionID: UInt64?,
+                                           promotionalOfferID: String?, wait: TimeInterval) async -> Bool {
+        let start = Date()
+        while true {
+            let after = await activeSubscriptionState(for: product)
+            let applied = ApphudActiveSubscriptionPurchase.didApply(before: before, after: after, returnedTransactionID: returnedTransactionID,
+                                                                    promotionalOfferID: promotionalOfferID)
+            if applied { return true }
+            guard Date().timeIntervalSince(start) < wait else { return false }
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+        }
+    }
+}
+
+/// An active auto-renewable subscription as StoreKit reports it on the device.
+struct ApphudActiveSubscriptionState: Equatable {
+    let transactionID: UInt64
+    /// Auto-renew is on and the next renewal is this product, not another one in the group.
+    let renewsIntoProduct: Bool
+    let renewalOfferID: String?
+}
+
+/// Decides whether a purchase of the subscription that is already active did anything.
+///
+/// StoreKit 2 can answer such a purchase on the device: it returns the existing transaction at
+/// once without contacting the App Store, so a promotional offer is not applied and auto-renew
+/// is not re-enabled. When the purchase does reach the App Store, the existing transaction comes
+/// back too (or `unknown` is thrown), and the change reaches the device seconds later as a new
+/// transaction or in the renewal state. StoreKit 1
+/// always sent the purchase to the App Store, which applied it and then failed the payment with
+/// `SKError.unknown` because no new transaction was due.
+enum ApphudActiveSubscriptionPurchase {
+
+    /// - parameter before: the state before the purchase; `nil` when no subscription to the product was active.
+    /// - parameter after: the state after the purchase.
+    /// - parameter returnedTransactionID: the transaction `purchase()` returned; `nil` when it threw.
+    /// - parameter promotionalOfferID: the promotional offer the purchase requested, if any.
+    /// - returns: `true` when the purchase took effect: a new transaction, the requested offer now
+    ///   scheduled with auto-renew on, or — without an offer — the subscription renewing.
+    /// How long to wait for the renewal state to change. A purchase that returned at once showed
+    /// no payment sheet, so the App Store was not contacted and nothing will change; after the
+    /// sheet the App Store updates the device a few seconds after `purchase()` returns.
+    static func renewalWait(purchaseDuration: TimeInterval) -> TimeInterval {
+        purchaseDuration < 1 ? 0 : 10
+    }
+
+    static func didApply(before: ApphudActiveSubscriptionState?, after: ApphudActiveSubscriptionState?,
+                         returnedTransactionID: UInt64?, promotionalOfferID: String?) -> Bool {
+        guard let before else { return returnedTransactionID != nil }
+        if let returnedTransactionID, returnedTransactionID != before.transactionID { return true }
+        guard let after else { return false }
+        // A transaction that appeared after `purchase()` returned: the App Store processed the
+        // purchase (a promotional offer bought during the current period starts a new transaction).
+        if after.transactionID != before.transactionID { return true }
+        guard after.renewsIntoProduct else { return false }
+        if let promotionalOfferID { return after.renewalOfferID == promotionalOfferID }
+        // A returned, still renewing subscription was already purchased; a thrown purchase
+        // counts only when it made the subscription renew into this product again.
+        return returnedTransactionID != nil || !before.renewsIntoProduct
+    }
 }
 
 /// Listens to StoreKit 2 purchase intents: promoted in-app purchases started on the
