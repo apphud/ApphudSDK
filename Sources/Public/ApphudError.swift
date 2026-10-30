@@ -21,6 +21,9 @@ public let APPHUD_INFINITE_RETRIES: Int = 999_999
 public let APPHUD_PAYWALL_SCREEN_NOT_FOUND: Int = -995
 public let APPHUD_PAYWALL_SCREEN_INVALID: Int = -992
 public let APPHUD_PAYWALL_LOAD_TIMEOUT: Int = -994
+/// The purchase was for the subscription that is already active on the device and StoreKit
+/// returned it unchanged: no promotional offer was applied and auto-renew was not re-enabled.
+public let APPHUD_SUBSCRIPTION_ALREADY_ACTIVE: Int = -990
 
 public class ApphudError: NSError, @unchecked Sendable {
 
