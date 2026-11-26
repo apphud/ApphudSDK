@@ -515,8 +515,7 @@ final class ApphudInternal: NSObject {
             await MainActor.run {
                 self.paywalls = cachedPwls.objects ?? []
                 self.placements = cachedPlacements.objects ?? []
-                // permissionGroups array can be nil
-                self.permissionGroups = cachedGroups.objects
+                self.restorePermissionGroups(cachedGroups)
             }
 
             await fetchCurrencyIfNeeded()
@@ -574,8 +573,7 @@ final class ApphudInternal: NSObject {
             await MainActor.run {
                 self.paywalls = cachedPwls.objects ?? []
                 self.placements = cachedPlacements.objects ?? []
-                // permissionGroups array can be nil
-                self.permissionGroups = cachedGroups.objects
+                self.restorePermissionGroups(cachedGroups)
             }
 
             await fetchCurrencyIfNeeded()

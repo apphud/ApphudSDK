@@ -324,7 +324,10 @@ extension ApphudInternal {
         }
 
         // use original transaction id to compare if already tracked
-        let alreadyTracked = await isAlreadyTracked(transactionId: transaction.originalID, productId: productID, purchaseDate: purchaseDate)
+        let alreadyTracked = await Self.isAlreadyTracked(originalTransactionID: transaction.originalID, productID: productID,
+                                                         purchaseDate: purchaseDate, expirationDate: expirationDate,
+                                                         purchases: ApphudInternal.shared.currentUser?.purchases ?? [],
+                                                         subscriptions: ApphudInternal.shared.currentUser?.subscriptions ?? [])
         guard isCurrentUserResponse(context) else { return ApphudError(message: "Transaction canceled because the user changed") }
         if alreadyTracked {
             apphudLog("This transaction already tracked by Apphud: \(transactionId), skipping", logLevel: .debug)
@@ -405,20 +408,18 @@ extension ApphudInternal {
         return nil
     }
 
-    fileprivate func isAlreadyTracked(transactionId: UInt64, productId: String, purchaseDate: Date) async -> Bool {
+    /// Whether the backend already has this transaction, judging by the user it last returned.
+    static func isAlreadyTracked(originalTransactionID: UInt64, productID: String, purchaseDate: Date, expirationDate: Date?,
+                                 purchases: [ApphudNonRenewingPurchase], subscriptions: [ApphudSubscription]) -> Bool {
+        let originalID = String(originalTransactionID)
+        func startedWithThis(_ date: Date) -> Bool { abs(date.timeIntervalSince(purchaseDate)) < 2 }
 
-        var trackedPurchases = await (ApphudInternal.shared.currentUser?.purchases ?? []).map { ($0.productId, $0.transactionId, $0.purchasedAt) }
-        let trackedSubs = await (ApphudInternal.shared.currentUser?.subscriptions ?? []).map { ($0.productId, $0.originalTransactionId, $0.startedAt) }
-
-        trackedPurchases.append(contentsOf: trackedSubs)
-
-        for (pID, trxID, purchDate) in trackedPurchases {
-            if pID == productId && (abs(purchDate.timeIntervalSince(purchaseDate)) < 2 || trxID == String(transactionId)) {
-                return true
-            }
+        return purchases.contains {
+            $0.productId == productID && (startedWithThis($0.purchasedAt) || $0.transactionId == originalID)
+        } || subscriptions.contains {
+            $0.productId == productID && (startedWithThis($0.startedAt)
+                || ($0.originalTransactionId == originalID && $0.covers(purchaseDate: purchaseDate, expirationDate: expirationDate)))
         }
-
-        return false
     }
 
     // Master-parity receipt sourcing: when the receipt is missing on device, refresh

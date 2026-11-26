@@ -133,8 +133,9 @@ ran last (`logoutRunsVersion1`).
   (`ApphudEndpoint.v1APIVersion`), and the 4.6.1 code copied as `identifyV1`, `logoutV1`,
   `updateUserIDV1`, `tryWebAttributionV1`, `checkUserID`, `promoOfferSignParamsV1`,
   `applicationUsernameV1`; request builders branch on `isIdentityV1`. Nothing in the sections below
-  runs with `.v1`. One deliberate exception since 4.7.2: deferred deep link attribution is sent right
-  after registration and without the `visitor_id` 4.6.1 read from a hidden web view.
+  runs with `.v1`. Two deliberate exceptions: since 4.7.2 deferred deep link attribution is sent right
+  after registration and without the `visitor_id` 4.6.1 read from a hidden web view; since 4.8.0 an
+  expired permission groups cache is refreshed at launch (`GET /v3/products`).
 - `.v2` runs the three ids below on API v4: the Apphud API paths named below as in 4.6.1
   (`/v1/customers`, `/v2/events`, …) all go to `/v4/…`; the preview screen URL has no version.
 
@@ -327,8 +328,12 @@ The deprecated `SKProduct` callback API (`refreshStoreKitProductsWithCallback`) 
   `refreshStoreKitProductsOnly`) also awaits the `SKProduct` feeder.
   `deferPlacements()` makes the initial `/customers` call send `need_placements: false`;
   the next `fetchOfferingsFull` re-registers with placements.
-- Permission groups come from `GET /v3/products` (`fetchPermissionGroups`), cached to
+- Permission groups come from `GET /v3/products` (`.v2`: v4; `fetchPermissionGroups`), cached to
   `Caches/ApphudProductGroups`; used to widen the SKProduct id set and for `ApphudGroup.hasAccess`.
+  At launch the cached groups load whatever their age; expired ones (`cacheTimeout`) are then
+  refreshed after registration (`restorePermissionGroups`), and a failed refresh leaves the cache as
+  it was. Without a cache the first caller that needs the groups fetches them. Products new to a
+  group may get StoreKit data only on a later product load.
 - Single paywall by identifier: `GET /v2/paywall_configs/{id}` (`fetchPaywall`), used by Rules.
 - Product macros (`ApphudProduct.properties`, per locale) are rendered server-side via
   `POST /v2/paywall_configs/items/render_properties` (`getRenderedProperties`) when a
@@ -432,7 +437,11 @@ more needs to happen and an error when the transaction must stay unfinished:
 - nil if `isAlreadyTracked` (the current user already has the same product id with either
   a purchase date within 2 s or the same original transaction id — the product id must
   match in both cases) or the id is in
-  `lastUploadedTransactions` (UserDefaults `ApphudLastUploadedTransactionsSK2`);
+  `lastUploadedTransactions` (UserDefaults `ApphudLastUploadedTransactionsSK2`). A
+  subscription's original id counts only for the periods it covers
+  (`ApphudSubscription.covers`): not for a purchase after its refund, nor for a later period
+  bought after it ended (a resubscribe keeps the original id). On-time renewals of an
+  active subscription stay covered;
 - nil if inactive (auto-renewable: expired, revoked or upgraded; others: revoked);
 - otherwise fetch the SK2 `Product` for `product_info`, `appStoreReceipt()` (refreshes
   via `SKReceiptRefreshRequest` when missing, then proceeds even without one),

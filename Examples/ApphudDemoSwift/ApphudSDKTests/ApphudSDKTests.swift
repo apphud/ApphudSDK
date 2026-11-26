@@ -220,12 +220,13 @@ final class ApphudStubURLProtocol: URLProtocol {
         ]
     }
 
-    private static func subscriptionFixture(productId: String) -> [String: Any] {
+    static func subscriptionFixture(productId: String, originalTransactionId: String = "100000000000001",
+                                    expiresAt: String = "2030-01-01T00:00:00.000Z", status: String = "regular") -> [String: Any] {
         [
             "kind": "autorenewable",
             "id": "sub_1",
             "product_id": productId,
-            "expires_at": "2030-01-01T00:00:00.000Z",
+            "expires_at": expiresAt,
             "started_at": "2026-01-01T00:00:00.000Z",
             "in_retry_billing": false,
             "autorenew_enabled": true,
@@ -233,9 +234,9 @@ final class ApphudStubURLProtocol: URLProtocol {
             "environment": "sandbox",
             "local": false,
             "group_id": "group_1",
-            "status": "regular",
-            "original_transaction_id": "100000000000001",
-            "transaction_id": "100000000000001"
+            "status": status,
+            "original_transaction_id": originalTransactionId,
+            "transaction_id": originalTransactionId
         ]
     }
 }
@@ -766,24 +767,8 @@ final class ApphudSDKTests: XCTestCase {
         let settled = await waitUntil { !sdk.isRegisteringUser && sdk.submittingTransaction == nil }
         XCTAssertTrue(settled)
         let savedClock = sdk.transactionNow
-        let queue = SKPaymentQueue.default()
-        let capture = LegacyCapture()
-        let listener = ApphudAsyncStoreKit.shared.transactionsListener
-        listener.updates?.cancel()
-        await listener.updates?.value
-        queue.remove(ApphudStoreKitWrapper.shared)
-        queue.add(capture)
-        addTeardownBlock { @MainActor in
-            sdk.transactionNow = savedClock
-            if let transaction = capture.purchased { queue.finishTransaction(transaction) }
-            session.removeTestTransactions()
-            let drained = await self.waitUntil { queue.transactions.isEmpty }
-            XCTAssertTrue(drained)
-            queue.remove(capture)
-            queue.add(ApphudStoreKitWrapper.shared)
-            ApphudAsyncStoreKit.shared.transactionsListener = ApphudAsyncTransactionObserver()
-        }
-        NSObject.cancelPreviousPerformRequests(withTarget: sdk, selector: #selector(ApphudInternal.checkTransactionsNow), object: nil)
+        addTeardownBlock { @MainActor in sdk.transactionNow = savedClock }
+        await pauseAutomaticDelivery(session)
         try session.buyProduct(productIdentifier: ApphudTestConstants.weeklyProductId)
         let latest = await StoreKit.Transaction.latest(for: ApphudTestConstants.weeklyProductId)
         guard case .verified(let transaction) = try XCTUnwrap(latest) else {
@@ -812,6 +797,131 @@ final class ApphudSDKTests: XCTestCase {
         XCTAssertNil(duplicateError)
         XCTAssertEqual(ApphudStubURLProtocol.requests(to: "/subscriptions").filter { $0.method == "POST" }.count, 1,
                        "Redelivery of an acknowledged transaction must not upload it again")
+    }
+
+    /// Stops the updates listener and the legacy queue observer until the test ends, so a test
+    /// decides when a transaction reaches the SDK.
+    @MainActor
+    private func pauseAutomaticDelivery(_ session: SKTestSession) async {
+        let queue = SKPaymentQueue.default()
+        let capture = LegacyCapture()
+        let listener = ApphudAsyncStoreKit.shared.transactionsListener
+        listener.updates?.cancel()
+        await listener.updates?.value
+        queue.remove(ApphudStoreKitWrapper.shared)
+        queue.add(capture)
+        addTeardownBlock { @MainActor in
+            // Each purchase of the test leaves its own legacy queue twin.
+            queue.transactions.filter { $0.transactionState == .purchased }.forEach { queue.finishTransaction($0) }
+            session.removeTestTransactions()
+            let drained = await self.waitUntil { queue.transactions.isEmpty }
+            XCTAssertTrue(drained)
+            queue.remove(capture)
+            queue.add(ApphudStoreKitWrapper.shared)
+            ApphudAsyncStoreKit.shared.transactionsListener = ApphudAsyncTransactionObserver()
+        }
+        NSObject.cancelPreviousPerformRequests(withTarget: ApphudInternal.shared, selector: #selector(ApphudInternal.checkTransactionsNow), object: nil)
+    }
+
+    // MARK: 10. A resubscribe reuses the original transaction id and is still uploaded
+
+    @MainActor
+    func test10aResubscribeIsUploadedByAnAutomaticPath() async throws {
+        let (first, session) = try await subscribeThenExpire()
+        try session.buyProduct(productIdentifier: ApphudTestConstants.weeklyProductId)
+        let (second, jws) = try await latestWeekly(otherThan: first.id)
+        XCTAssertEqual(second.originalID, first.originalID, "precondition: a resubscribe keeps the original transaction id")
+        try cacheWeeklySubscription(of: first, expiresAt: second.purchaseDate.addingTimeInterval(-86_400), status: "expired")
+        ApphudStubURLProtocol.reset()
+
+        let error = await ApphudAsyncStoreKit.processTransaction(second, jws: jws, automatic: true)
+
+        XCTAssertNil(error)
+        XCTAssertEqual(subscriptionSubmits().map { $0.body["transaction_id"] as? String }, [String(second.id)])
+        XCTAssertTrue(ApphudInternal.shared.lastUploadedTransactions.contains(second.id))
+        XCTAssertEqual(ApphudInternal.shared.currentUser?.subscriptions.first?.isActive(), true, "premium without a relaunch")
+    }
+
+    @MainActor
+    func test10bResubscribeThroughPurchaseSucceeds() async throws {
+        let (first, _) = try await subscribeThenExpire()
+        try cacheWeeklySubscription(of: first, expiresAt: Date().addingTimeInterval(-86_400), status: "expired")
+        ApphudStubURLProtocol.reset()
+
+        let result: ApphudPurchaseResult = await withCheckedContinuation { continuation in
+            ApphudInternal.shared.purchase(productId: ApphudTestConstants.weeklyProductId, product: nil,
+                                           validate: true, purchasingFromScreen: false) { continuation.resume(returning: $0) }
+        }
+
+        let (second, _) = try await latestWeekly(otherThan: first.id)
+        XCTAssertEqual(second.originalID, first.originalID, "precondition: a resubscribe keeps the original transaction id")
+        XCTAssertNil(result.error)
+        XCTAssertTrue(result.success, "the app unlocks premium from this result")
+        XCTAssertEqual(subscriptionSubmits().map { $0.body["transaction_id"] as? String }, [String(second.id)])
+    }
+
+    @MainActor
+    func test10cTransactionOfThePeriodTheCacheHoldsIsNotUploaded() async throws {
+        let (first, session) = try await subscribeThenExpire()
+        try session.buyProduct(productIdentifier: ApphudTestConstants.weeklyProductId)
+        let (second, jws) = try await latestWeekly(otherThan: first.id)
+        try cacheWeeklySubscription(of: first, expiresAt: try XCTUnwrap(second.expirationDate), status: "regular")
+        ApphudStubURLProtocol.reset()
+
+        let error = await ApphudAsyncStoreKit.processTransaction(second, jws: jws, automatic: true)
+
+        XCTAssertNil(error)
+        XCTAssertEqual(subscriptionSubmits().count, 0, "the backend already has this period")
+    }
+
+    /// A finished weekly subscription bought outside the SDK, with automatic delivery paused.
+    @MainActor
+    private func subscribeThenExpire() async throws -> (StoreKit.Transaction, SKTestSession) {
+        let session = try XCTUnwrap(Self.storeKitSession)
+        session.removeTestTransactions()
+        await startSDKIfNeeded()
+        let sdk = ApphudInternal.shared
+        let settled = await waitUntil { !sdk.isRegisteringUser && sdk.submittingTransaction == nil }
+        XCTAssertTrue(settled)
+        let savedUser = sdk.currentUser
+        addTeardownBlock { @MainActor in sdk.currentUser = savedUser }
+        await pauseAutomaticDelivery(session)
+        sdk.lastUploadedTransactions = []
+        try session.buyProduct(productIdentifier: ApphudTestConstants.weeklyProductId)
+        let (first, _) = try await latestWeekly(otherThan: nil)
+        await first.finish()
+        try session.expireSubscription(productIdentifier: ApphudTestConstants.weeklyProductId)
+        return (first, session)
+    }
+
+    private func latestWeekly(otherThan id: UInt64?) async throws -> (StoreKit.Transaction, String) {
+        let deadline = Date().addingTimeInterval(10)
+        while Date() < deadline {
+            if let result = await StoreKit.Transaction.latest(for: ApphudTestConstants.weeklyProductId),
+               case .verified(let transaction) = result, transaction.id != id {
+                return (transaction, result.jwsRepresentation)
+            }
+            try await Task.sleep(nanoseconds: 100_000_000)
+        }
+        let missing: (StoreKit.Transaction, String)? = nil
+        return try XCTUnwrap(missing, "StoreKitTest did not produce the expected transaction")
+    }
+
+    @MainActor
+    private func cacheWeeklySubscription(of transaction: StoreKit.Transaction, expiresAt: Date, status: String) throws {
+        let subscription = ApphudStubURLProtocol.subscriptionFixture(
+            productId: ApphudTestConstants.weeklyProductId, originalTransactionId: String(transaction.originalID),
+            expiresAt: expiresAt.apphudIsoString, status: status)
+        let user: [String: Any] = ["id": "internal-\(ApphudTestConstants.userId)", "user_id": ApphudTestConstants.userId,
+                                   "subscriptions": [subscription]]
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        ApphudInternal.shared.currentUser = try decoder.decode(ApphudUser.self, from: JSONSerialization.data(withJSONObject: user))
+        XCTAssertEqual(ApphudInternal.shared.currentUser?.subscriptions.count, 1)
+    }
+
+    private func subscriptionSubmits() -> [ApphudStubURLProtocol.RecordedRequest] {
+        ApphudStubURLProtocol.requests(to: "/subscriptions").filter { $0.method == "POST" }
     }
 
     // MARK: 3. Foreign (observer-mode) purchase tracking baseline
