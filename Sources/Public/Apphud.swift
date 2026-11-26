@@ -1246,8 +1246,10 @@ final public class Apphud: NSObject {
     }
 
     /**
-     Override default paywalls and placements cache timeout value. Default cache value is 9000 seconds (25 hours).
-     If expired, will make SDK to disregard cache and force refresh paywalls and placements.
+     Override default cache timeout of paywalls, placements and permission groups. The default is 90000 seconds
+     (25 hours), 5 seconds in sandbox.
+     If expired, will make SDK to disregard cache and force refresh paywalls and placements, and refresh
+     permission groups.
      Call it only if keeping paywalls and placements up to date is critical for your app business.
      
         **Must call before SDK initialization.**

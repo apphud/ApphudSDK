@@ -192,9 +192,21 @@ extension ApphudInternal {
         }
     }
 
+    /// Shows the cached products groups at once, whatever their age, and refreshes expired ones. A failed
+    /// refresh leaves the cache expired, so the next launch tries again. Without a cache nothing is
+    /// fetched until something needs the groups.
+    @MainActor internal func restorePermissionGroups(_ cached: (objects: [ApphudGroup]?, expired: Bool)) {
+        // permissionGroups array can be nil
+        permissionGroups = cached.objects
+        guard cached.objects != nil, cached.expired else { return }
+        performWhenUserRegistered {
+            Task { _ = await self.fetchPermissionGroups() }
+        }
+    }
+
     internal func fetchPermissionGroups() async -> [ApphudGroup]? {
         await withUnsafeContinuation { continuation in
-            ApphudInternal.shared.getProductGroups { groups, _, _ in
+            self.getProductGroups { groups, _, _ in
                 Task {
                     if let g = groups {
                         await self.cacheGroups(groups: g)
@@ -219,7 +231,7 @@ extension ApphudInternal {
                 ApphudLoggerService.shared.add(key: .products, value: duration, retryLog: self.productsFetchRetries)
             }
 
-            if let data = data {
+            if error == nil, let data = data {
                 typealias ApphudArrayResponse = ApphudAPIDataResponse<ApphudAPIArrayResponse <ApphudGroup> >
 
                 let jsonDecoder = JSONDecoder()
