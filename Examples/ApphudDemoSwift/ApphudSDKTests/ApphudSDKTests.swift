@@ -903,7 +903,8 @@ final class ApphudSDKTests: XCTestCase {
             }
             try await Task.sleep(nanoseconds: 100_000_000)
         }
-        throw XCTSkip("StoreKitTest did not produce the expected transaction")
+        let missing: (StoreKit.Transaction, String)? = nil
+        return try XCTUnwrap(missing, "StoreKitTest did not produce the expected transaction")
     }
 
     @MainActor
