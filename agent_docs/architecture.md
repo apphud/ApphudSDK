@@ -432,7 +432,11 @@ more needs to happen and an error when the transaction must stay unfinished:
 - nil if `isAlreadyTracked` (the current user already has the same product id with either
   a purchase date within 2 s or the same original transaction id — the product id must
   match in both cases) or the id is in
-  `lastUploadedTransactions` (UserDefaults `ApphudLastUploadedTransactionsSK2`);
+  `lastUploadedTransactions` (UserDefaults `ApphudLastUploadedTransactionsSK2`). A
+  subscription's original id counts only for the periods it covers
+  (`ApphudSubscription.covers`): not for a purchase after its refund, nor for a later period
+  bought after it ended (a resubscribe keeps the original id). On-time renewals of an
+  active subscription stay covered;
 - nil if inactive (auto-renewable: expired, revoked or upgraded; others: revoked);
 - otherwise fetch the SK2 `Product` for `product_info`, `appStoreReceipt()` (refreshes
   via `SKReceiptRefreshRequest` when missing, then proceeds even without one),

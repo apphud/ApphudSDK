@@ -212,6 +212,17 @@ public class ApphudSubscription: Codable {
         upcomingProductId = product.id
     }
 
+    /// A subscription bought again keeps its original transaction id, so a matching id alone doesn't mean
+    /// the backend has the transaction. `false` for one bought after this subscription was refunded, or for
+    /// a later period bought after it ended. A renewal of an active subscription is covered: the App Store
+    /// reports it to the backend. The device clock plays no part.
+    internal func covers(purchaseDate: Date, expirationDate: Date?) -> Bool {
+        if let canceledAt, purchaseDate > canceledAt { return false }
+        let latestKnownDate = expiresDate.addingTimeInterval(2)
+        guard let expirationDate, expirationDate > latestKnownDate else { return true }
+        return isActive() && purchaseDate <= latestKnownDate
+    }
+
     internal var stateDescription: String {
         [String(expiresDate.timeIntervalSince1970), productId, status.rawValue, String(isAutorenewEnabled)].joined(separator: "|")
     }
