@@ -13,7 +13,7 @@ import WatchKit
 #elseif canImport(UIKit)
 import UIKit
 #endif
-@testable import ApphudSDK
+@_spi(Platform) @testable import ApphudSDK
 
 private let uuidPattern = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
 

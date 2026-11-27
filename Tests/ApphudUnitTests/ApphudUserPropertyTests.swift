@@ -6,7 +6,7 @@
 //
 
 import XCTest
-@testable import ApphudSDK
+@_spi(Platform) @testable import ApphudSDK
 
 final class ApphudUserPropertyTests: XCTestCase {
 

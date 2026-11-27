@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.8.0
+
+- `Apphud.platform`, `PlatformProtocol` and `PlatformUserPropertyKeyDescribing` are now available to platform integrations through `@_spi(Platform) import ApphudSDK`. A plain `import ApphudSDK` sees no change.
+
 ## 4.7.3
 
 - A purchase of the subscription that is already active on the device (for example a promotional offer on the same product after the user turned off auto-renew) is no longer reported as successful when StoreKit 2 returns the existing transaction without contacting the App Store. It now fails with `APPHUD_SUBSCRIPTION_ALREADY_ACTIVE` (-990) and the transaction is not submitted again. StoreKit 2 answers this way in the same app session that bought the product; in a later session the purchase reaches the App Store.
