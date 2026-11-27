@@ -8,12 +8,12 @@ import Foundation
 /**
  A user property key with extra attributes sent alongside the property.
  */
-internal protocol PlatformUserPropertyKeyDescribing {
+@_spi(Platform) public protocol PlatformUserPropertyKeyDescribing {
     var name: String { get }
     var attributes: [String: String] { get }
 }
 
-internal protocol PlatformProtocol {
+@_spi(Platform) public protocol PlatformProtocol {
     /**
      Sets a user property whose key carries extra attributes. Otherwise behaves like
      ``Apphud/setUserProperty(key:value:setOnce:)``.
@@ -47,5 +47,5 @@ internal struct ApphudPlatform: PlatformProtocol {
 }
 
 extension Apphud {
-    internal static var platform: any PlatformProtocol { ApphudPlatform() }
+    @_spi(Platform) public static var platform: any PlatformProtocol { ApphudPlatform() }
 }
